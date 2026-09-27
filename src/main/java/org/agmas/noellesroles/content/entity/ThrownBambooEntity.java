@@ -327,7 +327,27 @@ public class ThrownBambooEntity extends AbstractArrow {
 
     @Override
     public void tick() {
-        if (!this.pinned) {
+        if (this.pinned) {
+            // 原版箭矢 tick 在「钉点所在方块为空气」时会解除 inGround 并重新飞行，
+            // 而钉墙时实体本体停在墙外空气中，所以钉墙期间完全绕过原版箭矢逻辑：
+            // 只维持位置/朝向、计时与乘客管理，保证钉在墙上 12 秒后消失。
+            this.tickCount++;
+            if (this.level().isClientSide) {
+                this.prevRenderYaw = this.renderYaw;
+                this.renderYaw = Mth.rotLerp(0.35F, this.renderYaw, this.getFacingYaw());
+                this.applyPin();
+                return;
+            }
+            this.applyPin();
+            if (this.tickCount > LIFETIME_TICKS) {
+                this.remove(RemovalReason.DISCARDED);
+                return;
+            }
+            this.remountHungPlayers();
+            this.unstickRiders();
+            return;
+        }
+        {
             // 保持水平直线飞行，速度恒定，朝向始终跟运动方向。
             Vec3 motion = this.getDeltaMovement();
             Vec3 horiz = new Vec3(motion.x, 0.0, motion.z);

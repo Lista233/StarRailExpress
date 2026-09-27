@@ -63,6 +63,12 @@ public class BambooSpearEntity extends Entity {
     private boolean killed;
     private float clientLength;
     private float clientPrevLength;
+    /**
+     * 最后一格耐久使用时物品会碎裂（背包里不再有竹枪），
+     * 置为 true 后本条「持有者必须持有竹枪」的检查被跳过，
+     * 让竹枪正常完成本次伸长与伤害结算后再消失。
+     */
+    private boolean itemCheckBypassed;
 
     public BambooSpearEntity(EntityType<?> entityType, Level level) {
         super(entityType, level);
@@ -104,7 +110,7 @@ public class BambooSpearEntity extends Entity {
         if (player.level().isClientSide) {
             return false;
         }
-        AABB box = player.getBoundingBox().inflate(16.0);
+        AABB box = player.getBoundingBox().inflate(48.0);
         for (BambooSpearEntity spear : player.level().getEntitiesOfClass(BambooSpearEntity.class, box)) {
             UUID owner = spear.getOwnerUuid();
             if (owner != null && player.getUUID().equals(owner)) {
@@ -127,27 +133,25 @@ public class BambooSpearEntity extends Entity {
         if (this.level().isClientSide) {
             this.clientPrevLength = this.clientLength;
             this.clientLength = getLength();
-            followOwner(1.0f);
             return;
         }
         if (!(this.level() instanceof ServerLevel serverLevel)) {
             return;
         }
         Player owner = getOwner();
+        boolean holdsSpear = owner instanceof ServerPlayer sp
+                && (sp.getMainHandItem().is(ModItems.BAMBOO_SPEAR) || sp.getOffhandItem().is(ModItems.BAMBOO_SPEAR));
         if (!(owner instanceof ServerPlayer serverOwner) || !GameUtils.isPlayerAliveAndSurvival(serverOwner)
-                || (!serverOwner.getMainHandItem().is(ModItems.BAMBOO_SPEAR)
-                        && !serverOwner.getOffhandItem().is(ModItems.BAMBOO_SPEAR))) {
+                || (!holdsSpear && !this.itemCheckBypassed)) {
             this.discard();
             return;
         }
 
         Vec3 start = spearOrigin(serverOwner);
         Vec3 look = serverOwner.getLookAngle();
-        this.setPos(serverOwner.getEyePosition());
-        this.setYRot(serverOwner.getYRot());
-        this.setXRot(serverOwner.getXRot());
-        this.yRotO = this.getYRot();
-        this.xRotO = this.getXRot();
+        // 注意：实体不再每 tick 跟随所有者移动。传送式跟随会让客户端插值严重滞后，
+        // 导致渲染出的竹枪不朝当前视角伸长（伤害判定不受影响，因此此前「打得到但看不到」）。
+        // 实体保持在发射时的眼睛位置不动，渲染端按所有者的实时视角绘制整根竹枪。
 
         float length = getLength();
         boolean retracting = isRetracting();
@@ -205,15 +209,15 @@ public class BambooSpearEntity extends Entity {
         return owner.getEyePosition().add(0.0, -0.22, 0.0).add(look.scale(0.28));
     }
 
-    private void followOwner(float unused) {
-        Player owner = getOwner();
-        if (owner == null) {
-            return;
-        }
-        Vec3 eye = owner.getEyePosition();
-        this.setPos(eye.x, eye.y, eye.z);
-        this.setYRot(owner.getYRot());
-        this.setXRot(owner.getXRot());
+    /** 设置「持有者不再持有竹枪」的检查豁免（最后一格耐久碎裂时使用）。 */
+    public void setItemCheckBypassed(boolean bypassed) {
+        this.itemCheckBypassed = bypassed;
+    }
+
+    /** 竹枪可以伸出最多 10 格，渲染剔除盒按最大长度扩 大，避免杆身伸出视锥剔除范围被整体裁掉。 */
+    @Override
+    public AABB getBoundingBoxForCulling() {
+        return this.getBoundingBox().inflate(MAX_LENGTH + 1.0F);
     }
 
     @Override

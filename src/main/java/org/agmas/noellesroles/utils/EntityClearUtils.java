@@ -32,6 +32,7 @@ import net.minecraft.world.entity.vehicle.Minecart;
 import org.agmas.harpymodloader.events.GameInitializeEvent;
 import org.agmas.noellesroles.content.block_entity.DevilRouletteTableEntity;
 import org.agmas.noellesroles.content.entity.*;
+import org.agmas.noellesroles.init.ModEntities;
 import org.agmas.noellesroles.game.roles.neutral.cuckoo.CuckooEggData;
 import org.agmas.noellesroles.role_data.innocence.CakeMakerRoleData;
 import org.agmas.noellesroles.handler.utils.THYukariPortalManager;
@@ -56,7 +57,22 @@ public class EntityClearUtils {
             // 清除蛋糕师烟熏炉实体和蛋糕实体
             CakeMakerRoleData.removeAllSmokerEntities(world);
             CakeMakerRoleData.removeAllCakeEntities(world);
+            // 清除竹子投掷实体（含钉在墙上的）与竹枪延伸体
+            clearBambooEntities(world);
         });
+    }
+
+    /** 游戏结束时清除竹子投掷实体（含钉在墙上的）与竹枪延伸体。 */
+    private static void clearBambooEntities(ServerLevel world) {
+        try {
+            for (ThrownBambooEntity bamboo : world.getEntities(ModEntities.THROWN_BAMBOO, entity -> true)) {
+                bamboo.remove(Entity.RemovalReason.DISCARDED);
+            }
+            for (BambooSpearEntity spear : world.getEntities(ModEntities.BAMBOO_SPEAR, entity -> true)) {
+                spear.remove(Entity.RemovalReason.DISCARDED);
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     /** 换图 / 清场时应当被清除的游戏残留实体（上一局的尸体、掉落物、投掷物、彩虹马等）。 */

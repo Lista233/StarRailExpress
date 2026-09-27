@@ -79,7 +79,12 @@ public class BambooSpearItem extends Item implements TrainWeapon {
                     SoundSource.PLAYERS, 0.8f, 1.35f);
             user.getCooldowns().addCooldown(this, COOLDOWN_TICKS);
             EquipmentSlot slot = hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND;
+            // 最后一点耐久：物品会直接碎裂消失，但竹枪实体仍要完成本次伸长与伤害结算
+            boolean willBreak = stack.getMaxDamage() > 0 && stack.getDamageValue() + 1 >= stack.getMaxDamage();
             stack.hurtAndBreak(1, serverPlayer, slot);
+            if (willBreak) {
+                spear.setItemCheckBypassed(true);
+            }
         }
         user.swing(hand);
         return InteractionResultHolder.consume(stack);
