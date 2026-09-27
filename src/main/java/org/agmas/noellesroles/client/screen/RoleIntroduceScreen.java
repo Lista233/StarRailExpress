@@ -157,7 +157,7 @@ public class RoleIntroduceScreen extends Screen {
 
     static {
         CATEGORIES.add(new RoleCategory("screen.roleintroduce.category.all", COLOR_NEUTRAL_BAR, item -> true));
-        CATEGORIES.add(new RoleCategory("display.type.role.innocent", 0xFF44BB66,
+        CATEGORIES.add(new RoleCategory("display.type.role.innocent", 0xFF55FF55,
                 item -> item instanceof SRERole r && (PlayerRoleWeightManager.getRoleType(r) == 0
                         || PlayerRoleWeightManager.getRoleType(r) == 1)));
         CATEGORIES.add(new RoleCategory("display.type.role.vigilante", 0xFF22BBCC,

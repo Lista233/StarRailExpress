@@ -45,9 +45,9 @@ import net.minecraft.network.chat.Component;
  */
 public enum RoleTeam {
     /** 平民：好人阵营且不属于警长阵营。 */
-    CIVILIAN("display.type.role.innocent", 0xFF44BB66),
+    CIVILIAN("display.type.role.innocent", 0xFF55FF55),
     /** 警长阵营。 */
-    SHERIFF("display.type.role.vigilante", 0xFF22BBCC),
+    SHERIFF("display.type.role.vigilante", 0xFF55FFFF),
     /** 中立（泛）：任意中立，含偏好中立、杀手方中立、特殊中立、事件中立、独立胜利中立。 */
     NEUTRAL("display.type.role.neutral_all", 0xFFCCAA22),
     /** 偏好中立（好人方中立）：与好人一同胜利的中立。 */
@@ -61,7 +61,7 @@ public enum RoleTeam {
     /** 独立胜利中立：不属于偏好 / 杀手方 / 事件 / 特殊中立的其余中立，自动归纳。 */
     NEUTRAL_INDEPENDENT_WIN("display.type.role.neutral_independent_win", 0xFFCCAA22),
     /** 杀手：拥有杀手能力。 */
-    KILLER("display.type.role.killer", 0xFFCC2233);
+    KILLER("display.type.role.killer", 0xFFFF5555);
 
     /** 该阵营的展示名翻译键（与阵营一对一）。 */
     private final String displayKey;
@@ -160,5 +160,31 @@ public enum RoleTeam {
             return NEUTRAL_INDEPENDENT_WIN;
         }
         return null;
+    }
+
+    /**
+     * 统一的「大阵营顺序 + 中立细分顺序」展示排序键，数值越小越靠前。
+     * 所有按阵营展示职业列表的地方都应复用此方法，保证顺序一致：
+     * 平民 → 警长 → 杀手 → 中立（偏好 → 杀手方 → 事件 → 特殊 → 独立胜利）→ 其它。
+     * 注意：「中立」这个大阵营不会整体提前，只是在轮到展示中立那一段时内部再细排。
+     */
+    public static int factionDisplayOrder(SRERole role) {
+        RoleTeam team = of(role);
+        if (team == null) {
+            return 400; // 未归类职业置于最后
+        }
+        return switch (team) {
+            case CIVILIAN -> 0; // 平民
+            case SHERIFF -> 1; // 警长
+            case KILLER -> 2; // 杀手
+            // 中立内部细分：偏好 → 杀手方 → 事件 → 特殊 → 独立胜利
+            case NEUTRAL_INNOCENT -> 310;
+            case NEUTRAL_KILLER -> 320;
+            case NEUTRAL_EVENT -> 330;
+            case NEUTRAL_SPECIAL -> 340;
+            case NEUTRAL_INDEPENDENT_WIN -> 350;
+            case NEUTRAL -> 360; // 其它未细分中立兜底
+            default -> 400;
+        };
     }
 }

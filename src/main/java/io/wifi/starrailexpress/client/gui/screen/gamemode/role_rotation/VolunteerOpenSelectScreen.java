@@ -244,6 +244,9 @@ public class VolunteerOpenSelectScreen extends Screen {
         List<SRERole> all = new ArrayList<>(Noellesroles.getAllRolesSorted(false));
         all.removeIf(r -> r == null || r.identifier().equals(ModRoles.MERCENARY_ID)
                 || r instanceof net.exmo.sre.repair.role.RepairRole);
+        // 按「大阵营 + 中立细分」统一排序（与 U 键介绍一致）：
+        // 平民 → 警长 → 杀手 → 中立（偏好 → 杀手方 → 事件 → 特殊 → 独立胜利）
+        all.sort(java.util.Comparator.comparingInt(io.wifi.starrailexpress.api.RoleTeam::factionDisplayOrder));
         String query = searchText == null ? "" : searchText.trim().toLowerCase(Locale.ROOT);
         for (SRERole role : all) {
             if (query.isEmpty()) {
