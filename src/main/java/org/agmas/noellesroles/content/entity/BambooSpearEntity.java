@@ -147,7 +147,8 @@ public class BambooSpearEntity extends Entity {
             return;
         }
 
-        Vec3 start = spearOrigin(serverOwner);
+        // 命中射线从眼睛（准星中心线）发出：屏幕上指哪打哪，与视觉收敛线在最远端重合
+        Vec3 start = serverOwner.getEyePosition();
         Vec3 look = serverOwner.getLookAngle();
         // 注意：实体不再每 tick 跟随所有者移动。传送式跟随会让客户端插值严重滞后，
         // 导致渲染出的竹枪不朝当前视角伸长（伤害判定不受影响，因此此前「打得到但看不到」）。
@@ -201,12 +202,6 @@ public class BambooSpearEntity extends Entity {
 
         this.entityData.set(LENGTH, length);
         this.entityData.set(RETRACTING, retracting);
-    }
-
-    /** 从眼前略向前、略向下，贴近持枪点，避免从脸中心穿出。 */
-    public static Vec3 spearOrigin(Player owner) {
-        Vec3 look = owner.getLookAngle();
-        return owner.getEyePosition().add(0.0, -0.22, 0.0).add(look.scale(0.28));
     }
 
     /** 设置「持有者不再持有竹枪」的检查豁免（最后一格耐久碎裂时使用）。 */

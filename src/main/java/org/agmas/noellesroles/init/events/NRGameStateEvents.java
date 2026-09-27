@@ -413,7 +413,7 @@ public class NRGameStateEvents {
                     if (p != null) {
                         BroadcastCommand.BroadcastMessage(p, Component
                                 .translatable("message.noellesroles.nature_spirit.entry")
-                                .withStyle(ChatFormatting.YELLOW));
+                                .withStyle(ChatFormatting.RED));
                     }
                 });
             }

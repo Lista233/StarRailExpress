@@ -56,11 +56,16 @@ public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
         Vec3 origin;
         Vec3 direction;
         if (owner != null) {
-            direction = owner.getViewVector(partialTick);
-            origin = owner.getEyePosition(partialTick).add(0.0, -0.22, 0.0).add(direction.scale(0.28));
+            Vec3 eye = owner.getEyePosition(partialTick);
+            Vec3 view = owner.getViewVector(partialTick);
+            origin = eye.add(0.0, -0.22, 0.0).add(view.scale(0.28));
             if (owner == viewer && Minecraft.getInstance().options.getCameraType().isFirstPerson()) {
-                origin = origin.add(direction.scale(0.45));
+                origin = origin.add(view.scale(0.45));
             }
+            // 杆身从手部指向「沿视线最远端」的点：起点在手、屏幕上杆身始终指向准星，
+            // 而不是一条与视线平行、起点偏下的线（那条线在屏幕上看起来不朝准星指）。
+            Vec3 target = eye.add(view.scale(BambooSpearEntity.MAX_LENGTH));
+            direction = target.subtract(origin).normalize();
         } else {
             float yaw = Mth.lerp(partialTick, entity.yRotO, entity.getYRot());
             float pitch = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
