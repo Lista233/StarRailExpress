@@ -2684,7 +2684,7 @@ public class ModRoles {
             SRERole.MoodType.FAKE,
             Integer.MAX_VALUE,
             true))
-            .setRoleData(RavenRoleData::new).setCanSeeCoin(true).setNeutrals(true)
+            .setRoleData(RavenRoleData::new).setCanSeeCoin(true).setNeutrals(true).setCanBeRandomedByOtherRoles(false)
             .setCanSeeTeammateKillerRole(false).setCanUseInstinctAndNightVision(true)
             .setDefaultEnableNeededPlayerCount(10);
 
