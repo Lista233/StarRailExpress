@@ -482,9 +482,56 @@ public class RoleIntroduceScreen extends Screen {
                     || PinYinUtils.contains(searchContent, name))
                 filteredItems.add(item);
         }
+        // 所有列表视图都按统一的「大阵营顺序 + 中立细分顺序」排序：
+        // 平民 → 警长 → 杀手 → 中立（偏好→杀手方→事件→特殊→独立胜利）→ 其它（修饰符/物品等）
+        // 「中立」这个大阵营不会整体提前，只是在轮到展示中立那一段时，内部再细分排序。
+        sortItemsByFaction();
         int totalH = filteredItems.size() * (CARD_H + CARD_SPACING) - CARD_SPACING;
         maxListScroll = Math.max(0, totalH - listAreaH());
         listScrollOffset = Mth.clamp(listScrollOffset, 0, maxListScroll);
+    }
+
+    /**
+     * 把所有 {@link SRERole} 条目按阵营顺序排序，非 SRERole 条目（修饰符 / 物品 / 药水 / 其他）保持原有相对顺序置于最后。
+     * 同阵营内部保持原顺序（{@code List.sort} 稳定）。
+     */
+    private void sortItemsByFaction() {
+        List<Object> roles = new ArrayList<>();
+        List<Object> others = new ArrayList<>();
+        for (Object o : filteredItems) {
+            if (o instanceof SRERole) {
+                roles.add(o);
+            } else {
+                others.add(o);
+            }
+        }
+        if (!roles.isEmpty()) {
+            roles.sort(java.util.Comparator.comparingInt(o -> factionDisplayOrder((SRERole) o)));
+        }
+        filteredItems.clear();
+        filteredItems.addAll(roles);
+        filteredItems.addAll(others);
+    }
+
+    /** 大阵营顺序 + 中立细分顺序，数值越小越靠前。 */
+    private static int factionDisplayOrder(SRERole role) {
+        RoleTeam team = RoleTeam.of(role);
+        if (team == null) {
+            return 400; // 未归类职业置于最后
+        }
+        return switch (team) {
+            case CIVILIAN -> 0; // 平民
+            case SHERIFF -> 1; // 警长
+            case KILLER -> 2; // 杀手
+            // 中立内部细分：偏好 → 杀手方 → 事件 → 特殊 → 独立胜利
+            case NEUTRAL_INNOCENT -> 310;
+            case NEUTRAL_KILLER -> 320;
+            case NEUTRAL_EVENT -> 330;
+            case NEUTRAL_SPECIAL -> 340;
+            case NEUTRAL_INDEPENDENT_WIN -> 350;
+            case NEUTRAL -> 360; // 其它未细分中立兜底
+            default -> 400;
+        };
     }
 
     private boolean matchesMode(SRERole role) {
