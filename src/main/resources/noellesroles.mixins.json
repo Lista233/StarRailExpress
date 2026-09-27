@@ -169,6 +169,7 @@
     "client.roles.manipulator.KeyBindingMixin",
     "client.roles.manipulator.ManipulatorControllerInputMixin",
     "client.roles.manipulator.ManipulatorUseSuppressMixin",
+    "client.roles.nurse.NurseBodyGlowMixin",
     "client.roles.priest.PriestChantInputMixin",
     "client.roles.priest.PriestLocalPlayerMixin",
     "client.roles.priest.PriestHeavenCameraMixin",

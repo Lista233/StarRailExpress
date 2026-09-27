@@ -26,6 +26,9 @@ import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.game.roles.SpecialGameModeRoles;
+import io.wifi.starrailexpress.event.OnPlayerDeathWithBody;
+import org.agmas.noellesroles.game.roles.innocence.nurse.NurseRole;
+import org.agmas.noellesroles.game.roles.killer.boom_maniac.BoomManiacRole;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.util.SREItemUtils;
 import net.minecraft.ChatFormatting;
@@ -455,6 +458,17 @@ public class ModRolesInitialEventRegister {
                             player.containerMenu.broadcastChanges();
                             return true;
                         }).cooldownTicks(0).showOnHud(true).announceToSelf(false).build());
+
+        // 爆炸狂技能：将主手物品切换至副手（参考网警）
+        RoleSkill.register(ModRoles.BOOM_MANIAC,
+                RoleSkill.skill(SRE.id("boom_maniac_swap_hands"),
+                        "skill.noellesroles.boom_maniac.swap_hands",
+                        context -> BoomManiacRole.swapHeldItem(context.player()))
+                        .cooldownTicks(0).showOnHud(true).announceToSelf(false).build());
+
+        // 护士：因虚拟血量归零（dream_axe）死亡的尸体，自生成起 30 秒内可被护士透视
+        OnPlayerDeathWithBody.EVENT.register((victim, killer, deathReason, body) ->
+                NurseRole.onBodySpawn(victim, killer, deathReason, body));
 
         RoleSkill.register(ModRoles.DOOMED_SINNER,
                 RoleSkill.skill(SRE.id("doomed_sinner_revelation"),

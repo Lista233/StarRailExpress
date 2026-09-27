@@ -125,6 +125,8 @@ public class InitModRolesMax {
         Harpymodloader.addOccupationRole(ModRoles.ENGINEER, ModRoles.LOCKSMITH);
         Harpymodloader.addOccupationRole(ModRoles.MA_CHEN_XU, ModRoles.GUEST_GHOST);
         Harpymodloader.addOccupationRole(ModRoles.GANGSTERS, ModRoles.FITTER);
+        // 爆炸狂与护士绑定生成
+        Harpymodloader.addOccupationRole(ModRoles.BOOM_MANIAC, ModRoles.NURSE);
 
         RoleAssignmentManager.addOccupationRole(ModRoles.POISONER, ModRoles.DOCTOR);
         RoleAssignmentManager.addOccupationRole(ModRoles.INFECTED, ModRoles.DOCTOR);

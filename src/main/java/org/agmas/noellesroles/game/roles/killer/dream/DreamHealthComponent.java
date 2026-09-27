@@ -198,6 +198,38 @@ public class DreamHealthComponent implements RoleComponent {
         return true;
     }
 
+    /**
+     * 恢复虚拟血量（护士体系：康复药丸 / 虚拟血量恢复药水效果）。
+     *
+     * <p>回血后把 {@code lastHurtGameTime} 重置为当前时刻：懒回血基线从「现在」重新起算，
+     * 避免旧基线与新基准值叠加导致多算；回满时清零进入「默认满血态」省同步。
+     *
+     * @param amount 恢复量，至少 1 点
+     * @return 是否实际恢复了血量（已满或非服务端玩家时为 false）
+     */
+    public boolean restore(int amount) {
+        if (!(player instanceof ServerPlayer sp) || amount <= 0) {
+            return false;
+        }
+        if (!GameUtils.isPlayerAliveAndSurvival(sp)) {
+            return false;
+        }
+        long gameTime = sp.level().getGameTime();
+        int current = getEffectiveHealth(gameTime);
+        int max = maxHealth();
+        if (current >= max) {
+            return false;
+        }
+        baseHealth = Math.min(max, current + amount);
+        if (baseHealth >= max) {
+            lastHurtGameTime = 0;
+        } else {
+            lastHurtGameTime = gameTime;
+        }
+        sync();
+        return true;
+    }
+
     // ── NBT 同步 ───────────────────────────────────────────────
 
     @Override

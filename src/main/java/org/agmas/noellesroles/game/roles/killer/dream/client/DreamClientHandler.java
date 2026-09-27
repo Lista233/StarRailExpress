@@ -62,14 +62,14 @@ public class DreamClientHandler {
             player.turn(yawDrift / 0.15f, pitchDrift / 0.15f);
         });
 
-        // 虚拟血量条：受伤后才显示
+        // 虚拟血量条：受伤后才显示；护士始终能看到其它玩家的虚拟血量条
         OnRenderRoleName.RENDER_PLAYER_EXTRA.register((self, target, context, tickCounter, renderer) -> {
             if (self == null || target == null || self.level() == null) {
                 return;
             }
             long gameTime = self.level().getGameTime();
             DreamHealthComponent health = DreamHealthComponent.KEY.get(target);
-            if (!health.shouldShowBar(gameTime)) {
+            if (!isViewerNurse(self) && !health.shouldShowBar(gameTime)) {
                 return;
             }
             int current = health.getEffectiveHealth(gameTime);
@@ -85,6 +85,13 @@ public class DreamClientHandler {
             context.drawString(renderer, text, -renderer.width(text) / 2, y + 6, 0xFFFF6B6B);
             context.pose().translate(0, 16, 0);
         });
+    }
+
+    /** 本地玩家（观察者）是否是护士：护士始终能看到其它玩家的虚拟血量条。 */
+    private static boolean isViewerNurse(Player viewer) {
+        var gameComponent = io.wifi.starrailexpress.client.SREClient.gameComponent;
+        return gameComponent != null && gameComponent.isRole(viewer,
+                org.agmas.noellesroles.role.ModRoles.NURSE);
     }
 
     /**

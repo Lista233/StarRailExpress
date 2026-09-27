@@ -530,6 +530,23 @@ public class ModItems {
             new MushroomEssenceItem(new Item.Properties().stacksTo(16), true),
             "poisonous_mushroom_essence", ROLE_ITEMS_GROUP);
 
+    /**
+     * 康复药丸（护士体系）
+     * - 食用后将自己的虚拟血量条补满
+     */
+    public static final Item RECOVERY_PILL = register(
+            new RecoveryPillItem(new Item.Properties().stacksTo(16)),
+            "recovery_pill", ROLE_ITEMS_GROUP);
+
+    /**
+     * 康复试剂（护士体系）
+     * - 可投掷物品
+     * - 丢出后落地使半径4格内的玩家获得虚拟血量恢复效果30秒
+     */
+    public static final Item RECOVERY_REAGENT = register(
+            new RecoveryReagentItem(new Item.Properties().stacksTo(16)),
+            "recovery_reagent", ROLE_ITEMS_GROUP);
+
     /** 特码头死后掉落的西红柿：Q 键可丢得很远，砸中玩家会糊满番茄酱 */
     public static final Item TOMATO = register(
             new TomatoItem(new Item.Properties().stacksTo(1)),

@@ -29,6 +29,8 @@ import org.agmas.noellesroles.game.roles.innocence.adventurer.AdventurerRole;
 import org.agmas.noellesroles.game.roles.innocence.cake_maker.CakeMakerRole;
 import org.agmas.noellesroles.game.roles.innocence.great_detective.GreatDetectiveRole;
 import org.agmas.noellesroles.game.roles.innocence.mortician.MorticianRole;
+import org.agmas.noellesroles.game.roles.innocence.nurse.NurseRole;
+import org.agmas.noellesroles.game.roles.killer.boom_maniac.BoomManiacRole;
 import org.agmas.noellesroles.game.roles.innocence.watchman.WatchmanRole;
 import org.agmas.noellesroles.game.roles.innocence.insurance.InsuranceRole;
 import org.agmas.noellesroles.game.roles.innocence.waiter.WaiterRole;
@@ -978,6 +980,41 @@ public class ModRoles {
             .setIndependentMinigameTiming(true)
             .setCanAutoAddMiniGameToken(true)
             .setRoleData(NetCopRoleData::new);
+    /**
+     * 护士角色（平民阵营，与爆炸狂绑定生成）
+     * - 属于平民阵营 (isInnocent = true)，真实心情，平民体力，看不到计时/计分板
+     * - 每局最多 1 人，不会被其它职业随机到
+     * - 始终能看到其它玩家的虚拟血量条；能透视 30 格内虚拟血量不满的玩家
+     * - 因虚拟血量归零（dream_axe）死亡的尸体，自生成起 30 秒内可被护士透视
+     * - 开局自带一个康复试剂；商店可购买康复药丸（50金币）与康复试剂（150金币）
+     * - 规则集中在 NurseRole（game/roles/innocence/nurse）
+     */
+    public static final ResourceLocation NURSE_ID = Noellesroles.id("nurse");
+    public static SRERole NURSE = TMMRoles.registerRole(new NurseRole(
+            NURSE_ID, 0xE88BB0,
+            true, false, SRERole.MoodType.REAL,
+            TMMRoles.CIVILIAN.getMaxSprintTime(), false))
+            .setDefaultMax(0)
+            .setCanBeRandomedByOtherRoles(false)
+            .setAddedVersion("4.4");
+    /**
+     * 爆炸狂角色（杀手阵营，与护士绑定生成）
+     * - 属于杀手阵营 (isInnocent = false, canUseKiller = true)，假心情，无限体力，看得到计分板
+     * - 可使用 Dream 武器（canUseSpVanillaWeapon）
+     * - 初始物品：一把弩
+     * - 商店：85 金币购买飞行时间为 3 的小型球状烟花火箭；
+     *   其余为通用杀手商店去掉刀 / 左轮手枪 / 短管霰弹枪 / 疯狂模式（价格沿用配置项）
+     * - 技能：将主手物品切换至副手（参考网警）
+     * - 规则集中在 BoomManiacRole（game/roles/killer/boom_maniac）
+     */
+    public static final ResourceLocation BOOM_MANIAC_ID = Noellesroles.id("boom_maniac");
+    public static SRERole BOOM_MANIAC = TMMRoles.registerRole(new BoomManiacRole(
+            BOOM_MANIAC_ID, 0xD2572A,
+            false, true, SRERole.MoodType.FAKE,
+            -1, true))
+            .setCanUseSpVanillaWeapon(true)
+            .setDefaultMax(1)
+            .setAddedVersion("4.4");
     public static final ResourceLocation GUARD_ID = Noellesroles.id("guard");
     public static SRERole GUARD = TMMRoles.registerRole(new NormalRole(GUARD_ID, new Color(170, 170, 170).getRGB(),
             true, false, SRERole.MoodType.REAL, TMMRoles.CIVILIAN.getMaxSprintTime(), false) {

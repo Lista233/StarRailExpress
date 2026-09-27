@@ -41,6 +41,7 @@ import org.agmas.noellesroles.content.effects.NegativeEffectResistanceEffect;
 import org.agmas.noellesroles.content.effects.NoCollideEffect;
 import org.agmas.noellesroles.content.effects.PuppetWanderEffect;
 import org.agmas.noellesroles.content.effects.SimpleMobEffect;
+import org.agmas.noellesroles.content.effects.VirtualHealthRestoreEffect;
 import org.agmas.noellesroles.content.effects.DeathReactionHandler;
 import org.agmas.noellesroles.content.effects.StatusAilmentHandler;
 import org.agmas.noellesroles.content.effects.TimeStopEffect;
@@ -258,6 +259,15 @@ public class ModEffects {
      */
     public static final Holder<MobEffect> BACKWORLD_OUTLINE = register("backworld_outline",
             new SimpleMobEffect(MobEffectCategory.NEUTRAL, 0x7FE7E0));
+
+    /**
+     * 虚拟血量恢复（护士体系）
+     * - 有益效果，粉红色
+     * - 拥有此效果的玩家每秒恢复 1 点虚拟血量（等级越高恢复越多），
+     *   行为见 {@link VirtualHealthRestoreEffect} 与 {@code DreamHealthComponent#restore}。
+     */
+    public static final Holder<MobEffect> VIRTUAL_HEALTH_RESTORE = register("virtual_health_restore",
+            new VirtualHealthRestoreEffect(MobEffectCategory.BENEFICIAL, 0xFF6B9D));
 
     public static final Holder<MobEffect> WRAITH_DIMENSION = register("wraith_dimension",
             new SimpleMobEffect(MobEffectCategory.NEUTRAL, 0x315B7C));

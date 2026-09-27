@@ -443,6 +443,17 @@ public class ModEntities {
                     .trackedUpdateRate(10)
                     .build());
 
+    /** 康复试剂投掷物（护士体系）：落地 AOE 给虚拟血量恢复效果。 */
+    @SuppressWarnings("deprecation")
+    public static final EntityType<RecoveryReagentEntity> RECOVERY_REAGENT = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            Noellesroles.id("recovery_reagent"),
+            FabricEntityTypeBuilder.<RecoveryReagentEntity>create(MobCategory.MISC, RecoveryReagentEntity::new)
+                    .dimensions(EntityDimensions.fixed(0.25F, 0.25F))
+                    .trackRangeBlocks(8)
+                    .trackedUpdateRate(10)
+                    .build());
+
     @SuppressWarnings("deprecation")
     public static final EntityType<TomatoProjectileEntity> TOMATO_PROJECTILE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
