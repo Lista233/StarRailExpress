@@ -446,7 +446,7 @@ public class NRGameStateEvents {
                 all_players.forEach((p) -> {
                     if (p != null) {
                         BroadcastCommand.BroadcastMessage(p, Component
-                                .translatable("message.noellesroles.dictator.entry").withStyle(ChatFormatting.BLUE));
+                                .translatable("message.noellesroles.dictator.entry").withStyle(ChatFormatting.AQUA));
                     }
                 });
             }
