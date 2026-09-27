@@ -83,12 +83,15 @@ public class NatureSpiritRole extends io.wifi.starrailexpress.api.NormalRole {
             return false;
         }
         if (EntityDisguise.isDisguised(player)) {
+            // 解除伪装：返回 true 让技能框架计入冷却（伪装期间不进入冷却）
             EntityDisguise.clear(player);
             player.displayClientMessage(Component.translatable("message.noellesroles.nature_spirit.camouflage.end")
                     .withStyle(ChatFormatting.GREEN), true);
-            return false;
+            return true;
         }
-        return disguiseAsFloorBlock(player);
+        // 进入伪装：返回 false，不计入冷却；冷却在解除伪装时才开始
+        disguiseAsFloorBlock(player);
+        return false;
     }
 
     private static boolean disguiseAsFloorBlock(ServerPlayer player) {
