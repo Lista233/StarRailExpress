@@ -59,6 +59,21 @@ public class BambooSpearEntity extends Entity {
             BambooSpearEntity.class, EntityDataSerializers.OPTIONAL_UUID);
     private static final EntityDataAccessor<Boolean> RETRACTING = SynchedEntityData.defineId(BambooSpearEntity.class,
             EntityDataSerializers.BOOLEAN);
+    // 每 tick 由服务端把持有者的权威眼睛位置 / 视线方向同步给客户端，
+    // 渲染端据此绘制，保证「屏幕上的方向」与「实际命中的方向」完全一致，
+    // 且始终跟随持有者当前视角（不会卡在发射瞬间的朝向）。
+    private static final EntityDataAccessor<Float> EYE_X = SynchedEntityData.defineId(BambooSpearEntity.class,
+            EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> EYE_Y = SynchedEntityData.defineId(BambooSpearEntity.class,
+            EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> EYE_Z = SynchedEntityData.defineId(BambooSpearEntity.class,
+            EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DIR_X = SynchedEntityData.defineId(BambooSpearEntity.class,
+            EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DIR_Y = SynchedEntityData.defineId(BambooSpearEntity.class,
+            EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DIR_Z = SynchedEntityData.defineId(BambooSpearEntity.class,
+            EntityDataSerializers.FLOAT);
 
     private boolean killed;
     private float clientLength;
@@ -101,6 +116,28 @@ public class BambooSpearEntity extends Entity {
         return this.entityData.get(OWNER_UUID).orElse(null);
     }
 
+    /** 服务端每 tick 同步的权威眼睛位置（持有者当前视角下的眼睛）。未就绪返回 null。 */
+    public @Nullable Vec3 getEyePos() {
+        float x = this.entityData.get(EYE_X);
+        float y = this.entityData.get(EYE_Y);
+        float z = this.entityData.get(EYE_Z);
+        if (x == 0.0f && y == 0.0f && z == 0.0f) {
+            return null;
+        }
+        return new Vec3(x, y, z);
+    }
+
+    /** 服务端每 tick 同步的权威视线方向（已归一化）。未就绪返回 null。 */
+    public @Nullable Vec3 getLookDir() {
+        float x = this.entityData.get(DIR_X);
+        float y = this.entityData.get(DIR_Y);
+        float z = this.entityData.get(DIR_Z);
+        if (x == 0.0f && y == 0.0f && z == 0.0f) {
+            return null;
+        }
+        return new Vec3(x, y, z).normalize();
+    }
+
     public @Nullable Player getOwner() {
         UUID uuid = getOwnerUuid();
         return uuid == null ? null : this.level().getPlayerByUUID(uuid);
@@ -125,6 +162,12 @@ public class BambooSpearEntity extends Entity {
         builder.define(LENGTH, 0.05f);
         builder.define(OWNER_UUID, Optional.empty());
         builder.define(RETRACTING, false);
+        builder.define(EYE_X, 0.0f);
+        builder.define(EYE_Y, 0.0f);
+        builder.define(EYE_Z, 0.0f);
+        builder.define(DIR_X, 0.0f);
+        builder.define(DIR_Y, 0.0f);
+        builder.define(DIR_Z, 0.0f);
     }
 
     @Override
@@ -148,8 +191,17 @@ public class BambooSpearEntity extends Entity {
         }
 
         // 命中射线从眼睛（准星中心线）发出：屏幕上指哪打哪，与视觉收敛线在最远端重合
+        // 注意：此处视线方向是命中判定的权威方向，切勿取反，否则伤害会打偏到身后。
         Vec3 start = serverOwner.getEyePosition();
         Vec3 look = serverOwner.getLookAngle();
+        // 把权威的眼睛位置与视线方向同步给客户端，渲染端据此绘制，
+        // 保证视觉方向与命中方向一致，且始终跟随持有者当前视角。
+        this.entityData.set(EYE_X, (float) start.x);
+        this.entityData.set(EYE_Y, (float) start.y);
+        this.entityData.set(EYE_Z, (float) start.z);
+        this.entityData.set(DIR_X, (float) look.x);
+        this.entityData.set(DIR_Y, (float) look.y);
+        this.entityData.set(DIR_Z, (float) look.z);
         // 注意：实体不再每 tick 跟随所有者移动。传送式跟随会让客户端插值严重滞后，
         // 导致渲染出的竹枪不朝当前视角伸长（伤害判定不受影响，因此此前「打得到但看不到」）。
         // 实体保持在发射时的眼睛位置不动，渲染端按所有者的实时视角绘制整根竹枪。

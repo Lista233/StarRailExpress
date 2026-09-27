@@ -55,15 +55,23 @@ public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
         float length = Math.max(MIN_LENGTH, entity.getInterpolatedLength(partialTick));
         Vec3 origin;
         Vec3 direction;
+        // 优先用「持有者实时的眼睛位置 + 视线向量」绘制：这是客户端每帧最新的朝向，
+        // 因此转身时枪身会实时跟随，且每次重新释放都按当时朝向计算，不会卡在旧方向。
+        // 仅当持有者查不到（如已离线）时，才回退到服务端同步下来的眼睛/视线数据。
+        Vec3 eye;
+        Vec3 view;
         if (owner != null) {
-            Vec3 eye = owner.getEyePosition(partialTick);
-            Vec3 view = owner.getViewVector(partialTick);
+            eye = owner.getEyePosition(partialTick);
+            view = owner.getViewVector(partialTick);
+        } else {
+            eye = entity.getEyePos();
+            view = entity.getLookDir();
+        }
+        if (eye != null && view != null) {
             origin = eye.add(0.0, -0.22, 0.0).add(view.scale(0.28));
             if (owner == viewer && Minecraft.getInstance().options.getCameraType().isFirstPerson()) {
                 origin = origin.add(view.scale(0.45));
             }
-            // 杆身从手部指向「沿视线最远端」的点：起点在手、屏幕上杆身始终指向准星，
-            // 而不是一条与视线平行、起点偏下的线（那条线在屏幕上看起来不朝准星指）。
             Vec3 target = eye.add(view.scale(BambooSpearEntity.MAX_LENGTH));
             direction = target.subtract(origin).normalize();
         } else {
@@ -72,6 +80,10 @@ public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
             direction = entity.calculateViewVector(pitch, yaw);
             origin = entity.getPosition(partialTick);
         }
+
+        // 仅翻转「视觉」方向（客户端绘制）：把枪身从当前朝后的方向调为正前方。
+        // 不影响服务端同步下来的视线方向，因此命中判定仍按正前方结算，不会打偏。
+        direction = direction.scale(-1.0);
 
         Vec3 entityPos = entity.getPosition(partialTick);
         poseStack.pushPose();
