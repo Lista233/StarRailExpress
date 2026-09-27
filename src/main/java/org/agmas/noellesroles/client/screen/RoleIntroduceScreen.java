@@ -148,12 +148,7 @@ public class RoleIntroduceScreen extends Screen {
     public static final List<RoleCategory> NEUTRAL_SUBCATEGORIES = new ArrayList<>();
     /** 「所有」与二级菜单里「返回」按钮的颜色（中性白）。 */
     private static final int COLOR_NEUTRAL_BAR = 0xFFEEEEEE;
-    // 二级细分配色：杀手方中立品红 / 偏好中立深绿 / 独立胜利中立（原本中立）黄 / 特殊中立淡棕 / 事件中立淡灰
-    private static final int COLOR_NEUTRAL_KILLER = 0xFFAA44CC;
-    private static final int COLOR_NEUTRAL_INNOCENT = 0xFF44BB66;
-    private static final int COLOR_NEUTRAL_INDEPENDENT_WIN = 0xFFCCAA22;
-    private static final int COLOR_NEUTRAL_SPECIAL = 0xFFC8A882;
-    private static final int COLOR_NEUTRAL_EVENT = 0xFFAAAAAA;
+    // 阵营配色统一取自 RoleTeam#color()，本类不再另建一份映射
 
     /** 二级菜单中「返回」按钮所在下标。 */
     public static final int BACK_INDEX = 0;
@@ -188,17 +183,23 @@ public class RoleIntroduceScreen extends Screen {
         // 下标 0 是「返回」：点击时不改变过滤，只退出二级菜单回到一级
         NEUTRAL_SUBCATEGORIES
                 .add(new RoleCategory("screen.roleintroduce.category.back", COLOR_NEUTRAL_BAR, item -> true));
-        NEUTRAL_SUBCATEGORIES.add(new RoleCategory("display.type.role.neutral_for_killer", COLOR_NEUTRAL_KILLER,
-                item -> item instanceof SRERole r && RoleTeam.NEUTRAL_KILLER.matches(r)));
-        NEUTRAL_SUBCATEGORIES.add(new RoleCategory("display.type.role.neutral_innocent", COLOR_NEUTRAL_INNOCENT,
+        // 展示顺序：偏好中立 → 杀手方中立 → 事件中立 → 特殊中立 → 独立胜利中立
+        // 名称与配色直接取 RoleTeam（唯一权威来源）
+        NEUTRAL_SUBCATEGORIES.add(new RoleCategory(RoleTeam.NEUTRAL_INNOCENT.displayKey(),
+                RoleTeam.NEUTRAL_INNOCENT.color(),
                 item -> item instanceof SRERole r && RoleTeam.NEUTRAL_INNOCENT.matches(r)));
-        NEUTRAL_SUBCATEGORIES.add(
-                new RoleCategory("display.type.role.neutral_independent_win", COLOR_NEUTRAL_INDEPENDENT_WIN,
-                        item -> item instanceof SRERole r && RoleTeam.NEUTRAL_INDEPENDENT_WIN.matches(r)));
-        NEUTRAL_SUBCATEGORIES.add(new RoleCategory("display.type.role.neutral_special", COLOR_NEUTRAL_SPECIAL,
-                item -> item instanceof SRERole r && RoleTeam.NEUTRAL_SPECIAL.matches(r)));
-        NEUTRAL_SUBCATEGORIES.add(new RoleCategory("display.type.role.neutral_event", COLOR_NEUTRAL_EVENT,
+        NEUTRAL_SUBCATEGORIES.add(new RoleCategory(RoleTeam.NEUTRAL_KILLER.displayKey(),
+                RoleTeam.NEUTRAL_KILLER.color(),
+                item -> item instanceof SRERole r && RoleTeam.NEUTRAL_KILLER.matches(r)));
+        NEUTRAL_SUBCATEGORIES.add(new RoleCategory(RoleTeam.NEUTRAL_EVENT.displayKey(),
+                RoleTeam.NEUTRAL_EVENT.color(),
                 item -> item instanceof SRERole r && RoleTeam.NEUTRAL_EVENT.matches(r)));
+        NEUTRAL_SUBCATEGORIES.add(new RoleCategory(RoleTeam.NEUTRAL_SPECIAL.displayKey(),
+                RoleTeam.NEUTRAL_SPECIAL.color(),
+                item -> item instanceof SRERole r && RoleTeam.NEUTRAL_SPECIAL.matches(r)));
+        NEUTRAL_SUBCATEGORIES.add(new RoleCategory(RoleTeam.NEUTRAL_INDEPENDENT_WIN.displayKey(),
+                RoleTeam.NEUTRAL_INDEPENDENT_WIN.color(),
+                item -> item instanceof SRERole r && RoleTeam.NEUTRAL_INDEPENDENT_WIN.matches(r)));
     }
 
     private static final int MAX_USABLE_WIDTH = 700;

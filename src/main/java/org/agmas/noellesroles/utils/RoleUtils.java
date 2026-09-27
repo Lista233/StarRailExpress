@@ -892,34 +892,12 @@ public class RoleUtils extends MCItemsUtils {
         if (role == null) {
             return null;
         }
+        // 名称与颜色统一由阵营枚举 RoleTeam 提供（唯一权威来源）
         io.wifi.starrailexpress.api.RoleTeam sub = io.wifi.starrailexpress.api.RoleTeam.getNeutralSubTeam(role);
         if (sub == null) {
             return null;
         }
-        String key = switch (sub) {
-            case NEUTRAL_INNOCENT -> "display.type.role.neutral_innocent";
-            case NEUTRAL_KILLER -> "display.type.role.neutral_for_killer";
-            case NEUTRAL_EVENT -> "display.type.role.neutral_event";
-            case NEUTRAL_SPECIAL -> "display.type.role.neutral_special";
-            case NEUTRAL_INDEPENDENT_WIN -> "display.type.role.neutral_independent_win";
-            default -> null;
-        };
-        if (key == null) {
-            return null;
-        }
-        if (!withColor) {
-            return Component.translatable(key);
-        }
-        // 色调约定：偏好中立深绿、杀手方中立品红、特殊中立淡棕（用 GOLD 近似）、
-        // 事件中立淡灰、独立胜利中立沿用原本中立的黄色
-        ChatFormatting style = switch (sub) {
-            case NEUTRAL_INNOCENT -> ChatFormatting.DARK_GREEN;
-            case NEUTRAL_KILLER -> ChatFormatting.LIGHT_PURPLE;
-            case NEUTRAL_SPECIAL -> ChatFormatting.GOLD;
-            case NEUTRAL_EVENT -> ChatFormatting.GRAY;
-            default -> ChatFormatting.YELLOW;
-        };
-        return Component.translatable(key).withStyle(style);
+        return withColor ? sub.displayName() : Component.translatable(sub.displayKey());
     }
 
     public static Component getTeamNameWithoutColor(ResourceLocation roleId) {

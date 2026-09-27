@@ -126,6 +126,46 @@ public class VolunteerDraftState {
         while (globalRolePool.size() < total) {
             globalRolePool.add(TMMRoles.CIVILIAN);
         }
+        sortNeutralsByFaction(globalRolePool);
+    }
+
+    /**
+     * 把池中的中立职业按「偏好中立 → 杀手方中立 → 事件中立 → 特殊中立 → 独立胜利中立」排列。
+     * 只重排中立原本所占的位置，其它阵营的相对顺序保持不变。
+     */
+    private static void sortNeutralsByFaction(List<SRERole> pool) {
+        List<Integer> slots = new ArrayList<>();
+        List<SRERole> neutrals = new ArrayList<>();
+        for (int i = 0; i < pool.size(); i++) {
+            SRERole role = pool.get(i);
+            if (role != null && io.wifi.starrailexpress.api.RoleTeam.NEUTRAL.matches(role)) {
+                slots.add(i);
+                neutrals.add(role);
+            }
+        }
+        if (neutrals.size() < 2) {
+            return;
+        }
+        neutrals.sort(java.util.Comparator.comparingInt(VolunteerDraftState::neutralFactionOrder));
+        for (int k = 0; k < slots.size(); k++) {
+            pool.set(slots.get(k), neutrals.get(k));
+        }
+    }
+
+    /** 中立细分在候选池中的展示次序（数值越小越靠前）。 */
+    private static int neutralFactionOrder(SRERole role) {
+        io.wifi.starrailexpress.api.RoleTeam sub = io.wifi.starrailexpress.api.RoleTeam.getNeutralSubTeam(role);
+        if (sub == null) {
+            return 5;
+        }
+        return switch (sub) {
+            case NEUTRAL_INNOCENT -> 0; // 偏好中立
+            case NEUTRAL_KILLER -> 1; // 杀手方中立
+            case NEUTRAL_EVENT -> 2; // 事件中立
+            case NEUTRAL_SPECIAL -> 3; // 特殊中立
+            case NEUTRAL_INDEPENDENT_WIN -> 4; // 独立胜利中立
+            default -> 5;
+        };
     }
 
     private void generateCandidates() {

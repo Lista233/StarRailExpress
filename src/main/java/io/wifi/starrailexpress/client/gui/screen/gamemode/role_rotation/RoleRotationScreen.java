@@ -66,8 +66,6 @@ public class RoleRotationScreen extends Screen {
     private static final int BLUE = 0xFF5EB7D8;
     private static final int GREEN = 0xFF72C17B;
     private static final int RED = 0xFFE06B65;
-    /** 好人方中立（与好人一同胜利的中立）阵营颜色，与回放界面 GameReplayUtils#getTMMRoleColor 的映射一致。 */
-    private static final int NEUTRAL_FOR_INNOCENT = 0xFF00AA00;
 
     private int leftX, leftY, leftW, panelH;
     private int rightX, rightY, rightW, cardW, cardY;
@@ -346,60 +344,14 @@ public class RoleRotationScreen extends Screen {
     }
 
     private int getFactionColor(SRERole role) {
-        if (role.isVigilanteTeam())
-            return 0xFF22BBCC;
-        if (role.canUseKiller())
-            return RED;
-        if (role.isInnocent())
-            return GREEN;
-        if (useGoodSideNeutralColor(role))
-            return NEUTRAL_FOR_INNOCENT;
-        if (role.isNeutralForKiller())
-            return 0xFFAA44CC;
-        if (role.isNeutrals() || isExcludedGoodSideNeutral(role))
-            return GOLD;
-        return BLUE;
+        // 阵营 → 颜色 的唯一来源：RoleTeam（不再在本类维护一份 if-else 映射）
+        io.wifi.starrailexpress.api.RoleTeam team = io.wifi.starrailexpress.api.RoleTeam.of(role);
+        return team != null ? team.color() : BLUE;
     }
-
-    /**
-     * 该职业是否按「好人方中立」的颜色显示职业名。
-     *
-     * <p>
-     * 好人方中立＝{@link SRERole#isNeutralForInnocent()}（与好人一同胜利的中立）。
-     * 失忆患者（amnesiac）与初学者（initiate）虽然数据上也是好人方中立，
-     * 但按要求排除在外，回退到普通中立的颜色（见 {@link #isExcludedGoodSideNeutral}）。
-     */
-    private static boolean useGoodSideNeutralColor(SRERole role) {
-        return role != null && role.isNeutralForInnocent() && !isExcludedGoodSideNeutral(role);
-    }
-
-    /** 被排除在「好人方中立」显示之外的两个职业（失忆患者、初学者），它们使用普通中立色。 */
-    private static boolean isExcludedGoodSideNeutral(SRERole role) {
-        if (role == null || !role.isNeutralForInnocent()) {
-            return false;
-        }
-        String path = role.identifier().getPath();
-        return "amnesiac".equals(path) || "initiate".equals(path);
-    }
-
-    /**
-     * 职业名在该界面使用的颜色。
-     *
-     * @param defaultColor 非特殊阵营时使用的颜色
-     */
-    private int getRoleNameColor(SRERole role, int defaultColor) {
-        if (useGoodSideNeutralColor(role)) {
-            return NEUTRAL_FOR_INNOCENT;
-        }
-        if (isExcludedGoodSideNeutral(role)) {
-            return GOLD;
-        }
-        return defaultColor;
-    }
-
     private int getRoleDisplayColor(SRERole role) {
         if (role.isNeutralForKiller())
             return 0xFFAA44CC;
+        // 其余沿用职业自身颜色（不改为阵营色）
         return role.getColor() | 0xFF000000;
     }
 
@@ -536,8 +488,8 @@ public class RoleRotationScreen extends Screen {
         }
         int roleColor = getRoleDisplayColor(role);
         g.fill(x + 8, y + 14, x + w - 8, y + 34, (roleColor & 0x00FFFFFF) | 0x66000000);
-        // 好人方中立的职业名用其中立色显示；失忆患者、初学者回退到普通中立色
-        int nameColor = getRoleNameColor(role, 0xFFFFFFFF);
+        // 职业名沿用统一默认色；阵营色只在阵营文本（getRoleFactionText → RoleTeam）上体现
+        int nameColor = 0xFFFFFFFF;
         g.drawCenteredString(font, trim(RoleUtils.getRoleName(role).getString(), w - 16), x + w / 2, y + 20,
                 nameColor);
         Component faction = getRoleFactionText(role);
@@ -693,21 +645,9 @@ public class RoleRotationScreen extends Screen {
     }
 
     private Component getRoleFactionText(SRERole role) {
-        if (role.isVigilanteTeam()) {
-            return Component.translatable("display.type.role.vigilante")
-                    .withStyle(style -> style.withColor(0xFF22BBCC));
-        } else if (role.isInnocent()) {
-            return Component.translatable("display.type.role.innocent").withStyle(style -> style.withColor(0xFF44BB66));
-        } else if (role.canUseKiller()) {
-            return Component.translatable("display.type.role.killer").withStyle(style -> style.withColor(0xFFCC2233));
-        } else if (role.isNeutralForKiller()) {
-            return Component.translatable("display.type.role.neutral_for_killer_2")
-                    .withStyle(style -> style.withColor(0xFFAA44CC));
-        } else if (role.isNeutrals()) {
-            return Component.translatable("display.type.role.neutral_special")
-                    .withStyle(style -> style.withColor(0xFFCCAA22));
-        }
-        return Component.literal("Unknown").withStyle(ChatFormatting.GRAY);
+        // 阵营 → 名称 + 颜色，完全由 RoleTeam 决定
+        io.wifi.starrailexpress.api.RoleTeam team = io.wifi.starrailexpress.api.RoleTeam.of(role);
+        return team != null ? team.displayName() : Component.literal("Unknown").withStyle(ChatFormatting.GRAY);
     }
 
     private void updateAutoScroll() {

@@ -505,15 +505,9 @@ public class VolunteerDraftScreen extends Screen {
     }
 
     private Component getFactionText(SRERole role) {
-        if (role.isInnocent())
-            return Component.translatable("display.type.role.innocent").withStyle(s -> s.withColor(0xFF44BB66));
-        if (role.canUseKiller())
-            return Component.translatable("display.type.role.killer").withStyle(s -> s.withColor(0xFFCC2233));
-        if (role.isNeutrals())
-            return Component.translatable("display.type.role.neutral_special").withStyle(s -> s.withColor(0xFFCCAA22));
-        if (role.isVigilanteTeam())
-            return Component.translatable("display.type.role.vigilante").withStyle(s -> s.withColor(0xFF22BBCC));
-        return Component.literal("?").withStyle(ChatFormatting.GRAY);
+        // 阵营 → 名称 + 颜色，统一由 RoleTeam 提供
+        io.wifi.starrailexpress.api.RoleTeam team = io.wifi.starrailexpress.api.RoleTeam.of(role);
+        return team != null ? team.displayName() : Component.literal("?").withStyle(ChatFormatting.GRAY);
     }
 
     private SRERole getRoleByPath(String path) {

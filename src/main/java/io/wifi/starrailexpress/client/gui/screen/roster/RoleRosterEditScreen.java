@@ -54,22 +54,31 @@ public class RoleRosterEditScreen extends net.minecraft.client.gui.screens.Scree
 
     private record GroupDef(String labelKey, int color, java.util.function.Predicate<SRERole> matches) {}
     private static final GroupDef[] GROUPS = {
-            new GroupDef("display.type.role.innocent", 0xFF44BB66,
+            // 名称 / 颜色 / 判定 三者都取自同一个 RoleTeam，避免各写一份
+            new GroupDef(io.wifi.starrailexpress.api.RoleTeam.CIVILIAN.displayKey(),
+                    io.wifi.starrailexpress.api.RoleTeam.CIVILIAN.color(),
                     r -> io.wifi.starrailexpress.api.RoleTeam.CIVILIAN.matches(r)),
-            new GroupDef("display.type.role.vigilante", 0xFF22BBCC,
+            new GroupDef(io.wifi.starrailexpress.api.RoleTeam.SHERIFF.displayKey(),
+                    io.wifi.starrailexpress.api.RoleTeam.SHERIFF.color(),
                     r -> io.wifi.starrailexpress.api.RoleTeam.SHERIFF.matches(r)),
-            // 中立细分：偏好 / 杀手方 / 独立胜利 / 特殊 / 事件
-            new GroupDef("display.type.role.neutral_innocent", 0xFF44BB66,
+            // 中立细分：偏好 → 杀手方 → 事件 → 特殊 → 独立胜利
+            new GroupDef(io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INNOCENT.displayKey(),
+                    io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INNOCENT.color(),
                     r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INNOCENT.matches(r)),
-            new GroupDef("display.type.role.neutral_for_killer", 0xFFAA44CC,
+            new GroupDef(io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_KILLER.displayKey(),
+                    io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_KILLER.color(),
                     r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_KILLER.matches(r)),
-            new GroupDef("display.type.role.neutral_independent_win", 0xFFCCAA22,
-                    r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INDEPENDENT_WIN.matches(r)),
-            new GroupDef("display.type.role.neutral_special", 0xFFC8A882,
-                    r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_SPECIAL.matches(r)),
-            new GroupDef("display.type.role.neutral_event", 0xFFAAAAAA,
+            new GroupDef(io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_EVENT.displayKey(),
+                    io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_EVENT.color(),
                     r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_EVENT.matches(r)),
-            new GroupDef("display.type.role.killer", 0xFFCC2233,
+            new GroupDef(io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_SPECIAL.displayKey(),
+                    io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_SPECIAL.color(),
+                    r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_SPECIAL.matches(r)),
+            new GroupDef(io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INDEPENDENT_WIN.displayKey(),
+                    io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INDEPENDENT_WIN.color(),
+                    r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INDEPENDENT_WIN.matches(r)),
+            new GroupDef(io.wifi.starrailexpress.api.RoleTeam.KILLER.displayKey(),
+                    io.wifi.starrailexpress.api.RoleTeam.KILLER.color(),
                     r -> io.wifi.starrailexpress.api.RoleTeam.KILLER.matches(r)),
             new GroupDef("display.type.role", 0xFFC9A84C, r -> true),
     };

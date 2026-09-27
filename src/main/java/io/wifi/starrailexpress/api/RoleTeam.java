@@ -15,6 +15,8 @@
 
 package io.wifi.starrailexpress.api;
 
+import net.minecraft.network.chat.Component;
+
 /**
  * 职业阵营（用于「按阵营」限制 / 筛选，例如修饰符的 {@code setCannotAppliedToTeam}）。
  *
@@ -43,23 +45,51 @@ package io.wifi.starrailexpress.api;
  */
 public enum RoleTeam {
     /** 平民：好人阵营且不属于警长阵营。 */
-    CIVILIAN,
+    CIVILIAN("display.type.role.innocent", 0xFF44BB66),
     /** 警长阵营。 */
-    SHERIFF,
+    SHERIFF("display.type.role.vigilante", 0xFF22BBCC),
     /** 中立（泛）：任意中立，含偏好中立、杀手方中立、特殊中立、事件中立、独立胜利中立。 */
-    NEUTRAL,
+    NEUTRAL("display.type.role.neutral_all", 0xFFCCAA22),
     /** 偏好中立（好人方中立）：与好人一同胜利的中立。 */
-    NEUTRAL_INNOCENT,
+    NEUTRAL_INNOCENT("display.type.role.neutral_innocent", 0xFF44BB66),
     /** 杀手方中立：与杀手一同胜利的中立。 */
-    NEUTRAL_KILLER,
+    NEUTRAL_KILLER("display.type.role.neutral_for_killer", 0xFFAA44CC),
     /** 特殊中立：显式标记为特殊中立的中立职业。 */
-    NEUTRAL_SPECIAL,
+    NEUTRAL_SPECIAL("display.type.role.neutral_special", 0xFFC8A882),
     /** 事件中立：显式标记为事件中立的中立职业（由局内随机事件决定是否登场）。 */
-    NEUTRAL_EVENT,
+    NEUTRAL_EVENT("display.type.role.neutral_event", 0xFFAAAAAA),
     /** 独立胜利中立：不属于偏好 / 杀手方 / 事件 / 特殊中立的其余中立，自动归纳。 */
-    NEUTRAL_INDEPENDENT_WIN,
+    NEUTRAL_INDEPENDENT_WIN("display.type.role.neutral_independent_win", 0xFFCCAA22),
     /** 杀手：拥有杀手能力。 */
-    KILLER;
+    KILLER("display.type.role.killer", 0xFFCC2233);
+
+    /** 该阵营的展示名翻译键（与阵营一对一）。 */
+    private final String displayKey;
+    /** 该阵营的展示色 ARGB（与阵营一对一）。 */
+    private final int color;
+
+    RoleTeam(String displayKey, int color) {
+        this.displayKey = displayKey;
+        this.color = color;
+    }
+
+    /** 该阵营的展示名翻译键。 */
+    public String displayKey() {
+        return displayKey;
+    }
+
+    /**
+     * 该阵营的展示色（ARGB）。
+     * 这是「阵营 → 颜色」的**唯一**权威来源，各处按阵营着色都应取这里，不要另建一套映射。
+     */
+    public int color() {
+        return color;
+    }
+
+    /** 该阵营的展示名（已带阵营色）。 */
+    public Component displayName() {
+        return Component.translatable(displayKey).withStyle(s -> s.withColor(color));
+    }
 
     /** 该职业是否属于此阵营。{@code role} 为 {@code null} 时返回 false。 */
     public boolean matches(SRERole role) {
@@ -77,6 +107,33 @@ public enum RoleTeam {
             case NEUTRAL_INDEPENDENT_WIN -> role.isIndependentWinNeutral();
             case KILLER -> !role.isInnocent() && role.canUseKiller();
         };
+    }
+
+    /**
+     * 取该职业「最具体的」阵营：中立细分优先，其次警长 / 杀手 / 平民。
+     * 都不匹配（完全没有任何阵营标记）时返回 {@code null}。
+     * <p>
+     * 这是所有「按阵营取色 / 取展示名」的**统一入口**，配合 {@link #color()} 与
+     * {@link #displayName()} 使用，避免各处再手写 if-else 判断阵营。
+     */
+    public static RoleTeam of(SRERole role) {
+        if (role == null) {
+            return null;
+        }
+        RoleTeam sub = getNeutralSubTeam(role);
+        if (sub != null) {
+            return sub;
+        }
+        if (SHERIFF.matches(role)) {
+            return SHERIFF;
+        }
+        if (KILLER.matches(role)) {
+            return KILLER;
+        }
+        if (CIVILIAN.matches(role)) {
+            return CIVILIAN;
+        }
+        return null;
     }
 
     /**

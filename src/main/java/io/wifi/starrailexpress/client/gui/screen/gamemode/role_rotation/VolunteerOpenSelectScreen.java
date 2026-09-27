@@ -80,8 +80,6 @@ public class VolunteerOpenSelectScreen extends Screen {
     private static final int CARD_BORDER = SREPanelStyle.CARD_BORDER;
     /** 卡牌额外揭示的职业（加粗橙色）。 */
     private static final int CARD_REVEAL = 0xFFFFA033;
-    /** 好人方中立（与好人一同胜利的中立）阵营颜色，与轮选界面保持一致。 */
-    private static final int NEUTRAL_FOR_INNOCENT = 0xFF00AA00;
 
     // ==================== 布局 ====================
     private int leftX, leftY, leftW, panelH;
@@ -867,50 +865,19 @@ public class VolunteerOpenSelectScreen extends Screen {
     }
 
     private Component getRoleFactionText(SRERole role) {
-        if (role.isVigilanteTeam()) {
-            return Component.translatable("display.type.role.vigilante")
-                    .withStyle(style -> style.withColor(0xFF22BBCC));
-        } else if (role.isInnocent()) {
-            return Component.translatable("display.type.role.innocent").withStyle(style -> style.withColor(0xFF44BB66));
-        } else if (role.canUseKiller()) {
-            return Component.translatable("display.type.role.killer").withStyle(style -> style.withColor(0xFFCC2233));
-        } else if (role.isNeutralForKiller()) {
-            return Component.translatable("display.type.role.neutral_for_killer_2")
-                    .withStyle(style -> style.withColor(0xFFAA44CC));
-        } else if (role.isNeutrals()) {
-            return Component.translatable("display.type.role.neutral_special")
-                    .withStyle(style -> style.withColor(0xFFCCAA22));
-        }
-        return Component.translatable("gui.sre.volunteer_open.unknown_faction").withStyle(ChatFormatting.GRAY);
+        // 阵营 → 名称 + 颜色，完全由 RoleTeam 决定
+        io.wifi.starrailexpress.api.RoleTeam team = io.wifi.starrailexpress.api.RoleTeam.of(role);
+        return team != null ? team.displayName()
+                : Component.translatable("gui.sre.volunteer_open.unknown_faction").withStyle(ChatFormatting.GRAY);
     }
 
     private int factionColor(SRERole role) {
-        if (role.isVigilanteTeam())
-            return 0xFF22BBCC;
-        if (role.canUseKiller())
-            return RED;
-        if (role.isInnocent())
-            return GREEN;
-        if (useGoodSideNeutralColor(role))
-            return NEUTRAL_FOR_INNOCENT;
-        if (role.isNeutralForKiller())
-            return 0xFFAA44CC;
-        if (role.isNeutrals() || isExcludedGoodSideNeutral(role))
-            return GOLD;
-        return BLUE;
+        // 阵营 → 颜色 的唯一来源：RoleTeam（不再在本类维护一份 if-else 映射）
+        io.wifi.starrailexpress.api.RoleTeam team = io.wifi.starrailexpress.api.RoleTeam.of(role);
+        return team != null ? team.color() : BLUE;
     }
 
-    private static boolean useGoodSideNeutralColor(SRERole role) {
-        return role != null && role.isNeutralForInnocent() && !isExcludedGoodSideNeutral(role);
-    }
 
-    private static boolean isExcludedGoodSideNeutral(SRERole role) {
-        if (role == null || !role.isNeutralForInnocent()) {
-            return false;
-        }
-        String path = role.identifier().getPath();
-        return "amnesiac".equals(path) || "initiate".equals(path);
-    }
 
     private void drawFooter(GuiGraphics g) {
         Component hint = Component.translatable("gui.sre.volunteer_open.scroll_hint").withStyle(ChatFormatting.GRAY);
