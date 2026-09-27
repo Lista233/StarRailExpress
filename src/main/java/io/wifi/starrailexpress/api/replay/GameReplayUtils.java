@@ -16,6 +16,7 @@
 package io.wifi.starrailexpress.api.replay;
 
 import io.wifi.starrailexpress.SRE;
+import io.wifi.starrailexpress.api.RoleTeam;
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import net.minecraft.ChatFormatting;
@@ -96,10 +97,14 @@ public class GameReplayUtils {
         final var first = TMMRoles.ROLES.values().stream().filter(
                 role -> role.identifier().toString().equals(roleId) || role.identifier().getPath().equals(roleId))
                 .findFirst();
-        // 根据角色ID分类
+        // 统一使用权威阵营颜色（RoleTeam）：特殊中立 / 事件中立 / 独立胜利中立等细分阵营也能正确着色
         if (first.isPresent()) {
             var role = first.get();
             if (role != null) {
+                RoleTeam team = RoleTeam.of(role);
+                if (team != null) {
+                    return team.color();
+                }
                 return role.getColor();
             }
         }
@@ -200,29 +205,19 @@ public class GameReplayUtils {
             showInitialIfChanged = false;
         }
         MutableComponent roleName = ReplayDisplayUtils.getRoleDisplayName(roleId);
-        ChatFormatting tmmColor = getTMMRoleColor(roleId);
+        // 统一使用权威阵营颜色（RoleTeam），特殊中立 / 事件中立 / 独立胜利中立等细分阵营也能正确着色
         int roleColor = getRoleColor(roleId);
         if (showInitialIfChanged && initialRoleId != null && !initialRoleId.isBlank()
                 && !initialRoleId.equals(roleId)) {
             MutableComponent initialName = ReplayDisplayUtils.getRoleDisplayName(initialRoleId);
-            if (USE_TMM_COLOR) {
-                return sourceName.copy().withStyle(tmmColor)
-                        .append(Component.translatable(" (%s(%s))", roleName.withStyle(tmmColor),
-                                initialName.withStyle(ChatFormatting.GRAY)).withStyle(ChatFormatting.GRAY));
-            }
-            return sourceName.copy().withStyle(tmmColor)
+            return sourceName.copy().withColor(roleColor)
                     .append(Component.translatable(" (%s(%s))", roleName.withColor(roleColor),
                             initialName.withStyle(ChatFormatting.GRAY)).withStyle(ChatFormatting.GRAY));
         }
-        if (USE_TMM_COLOR) {
-            return sourceName.copy()
-                    .append(Component.translatable(" (%s)", roleName.withStyle(tmmColor))
-                            .withStyle(ChatFormatting.GRAY))
-                    .withStyle(tmmColor);
-        }
-        return sourceName.copy()
-                .append(Component.translatable(" (%s)", roleName.withColor(roleColor)).withStyle(ChatFormatting.GRAY))
-                .withStyle(tmmColor);
+        return sourceName.copy().withColor(roleColor)
+                .append(Component.translatable(" (%s)", roleName.withColor(roleColor))
+                        .withStyle(ChatFormatting.GRAY))
+                .withColor(roleColor);
     }
 
     public static Component getItemStackDisplayNameWithCounts(ItemStack stack) {

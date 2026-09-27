@@ -59,7 +59,7 @@ public enum RoleTeam {
     /** 事件中立：显式标记为事件中立的中立职业（由局内随机事件决定是否登场）。 */
     NEUTRAL_EVENT("display.type.role.neutral_event", 0xFFAAAAAA),
     /** 独立胜利中立：不属于偏好 / 杀手方 / 事件 / 特殊中立的其余中立，自动归纳。 */
-    NEUTRAL_INDEPENDENT_WIN("display.type.role.neutral_independent_win", 0xFFCCAA22),
+    NEUTRAL_INDEPENDENT_WIN("display.type.role.neutral_independent_win", 0xFFFFFF55),
     /** 杀手：拥有杀手能力。 */
     KILLER("display.type.role.killer", 0xFFFF5555);
 
