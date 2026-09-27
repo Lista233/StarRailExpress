@@ -195,6 +195,7 @@ public class NRRulePredicateEvents {
                 "noellesroles:yinyang_sword",
                 "noellesroles:stalker_knife_offhand",
                 "noellesroles:pill",
+                "noellesroles:recovery_pill",
                 "noellesroles:pocket_watch",
                 "noellesroles:throwing_knife",
                 "supplementaries:key",
