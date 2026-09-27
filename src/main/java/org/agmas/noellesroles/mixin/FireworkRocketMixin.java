@@ -38,6 +38,10 @@ import java.util.List;
 /**
  * 为开启 canUseSpVanillaWeapon 的职业增加烟花弩效果。
  * 原版爆炸结算保持不变；这里额外记录精确命中并扣除周围玩家的虚拟血量。
+ *
+ * <p>溅射伤害默认不会使玩家致死（{@code hurtWithoutKilling}）；
+ * 但若射手是<b>杀手职业</b>（{@code isKiller()}，如 Dream / 爆炸狂），
+ * 则溅射伤害可以致死（{@code hurt}，死因 {@code firework_crossbow}）。
  */
 @Mixin(FireworkRocketEntity.class)
 public abstract class FireworkRocketMixin {
@@ -138,7 +142,21 @@ public abstract class FireworkRocketMixin {
 
             float damage = explosionDamage
                     * Mth.sqrt((float) ((5.0D - rocket.distanceTo(target)) / 5.0D));
-            DreamHealthComponent.KEY.get(target).hurtWithoutKilling(shooter, Mth.ceil(damage));
+            DreamHealthComponent health = DreamHealthComponent.KEY.get(target);
+            if (noellesroles$isKillerShooter(rocket, shooter)) {
+                // 杀手职业：溅射伤害可以致死
+                health.hurt(shooter, Mth.ceil(damage), GameConstants.DeathReasons.FIREWORK_CROSSBOW);
+            } else {
+                // 其它职业（如网警）：溅射伤害保留 1 点，不致死
+                health.hurtWithoutKilling(shooter, Mth.ceil(damage));
+            }
         }
+    }
+
+    /** 射手是否为杀手职业（杀手溅射可致死；非杀手溅射保留 1 点）。 */
+    @Unique
+    private static boolean noellesroles$isKillerShooter(FireworkRocketEntity rocket, ServerPlayer shooter) {
+        SRERole role = SREGameWorldComponent.KEY.get(rocket.level()).getRole(shooter);
+        return role != null && role.isKiller();
     }
 }
