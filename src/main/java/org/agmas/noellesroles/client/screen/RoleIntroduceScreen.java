@@ -22,6 +22,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.*;
 import io.wifi.starrailexpress.client.SREClient;
+import io.wifi.starrailexpress.client.gui.HudMoodRenderer;
 import io.wifi.starrailexpress.client.gui.screen.ingame.LimitedInventoryScreen;
 import io.wifi.starrailexpress.client.util.PinYinUtils;
 import io.wifi.starrailexpress.game.GameUtils;
@@ -195,7 +196,7 @@ public class RoleIntroduceScreen extends Screen {
 
     private static ResourceLocation getTypeIcon(Object role) {
         if (role instanceof SRERole rrole)
-            return TYPE_ICON_MAP.getOrDefault("role_" + PlayerRoleWeightManager.getRoleType(rrole), ICON_DEFAULT);
+            return HudMoodRenderer.getMoodTextureByTeam(rrole);
         return TYPE_ICON_MAP.getOrDefault("modifier", ICON_DEFAULT);
     }
 

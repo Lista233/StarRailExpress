@@ -20,6 +20,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.replay.ReplayDisplayUtils;
+import io.wifi.starrailexpress.client.gui.HudMoodRenderer;
 import io.wifi.starrailexpress.stats.PlayerStats;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -385,14 +386,8 @@ public class RoleStatsPanel extends AbstractWidget {
         }
 
         private ResourceLocation getTypeIcon(SRERole role) {
-            return switch (PlayerRoleWeightManager.getRoleType(role)) {
-                case 0, 1 -> ResourceLocation.tryParse("wathe:textures/gui/sprites/hud/mood_happy.png");
-                case 2 -> ResourceLocation.tryParse("noellesroles:textures/gui/sprites/hud/mood_neu.png");
-                case 3 -> ResourceLocation.tryParse("noellesroles:textures/gui/sprites/hud/mood_jester.png");
-                case 4 -> ResourceLocation.tryParse("wathe:textures/gui/sprites/hud/mood_killer.png");
-                case 5 -> ResourceLocation.tryParse("noellesroles:textures/gui/sprites/hud/mood_vig.png");
-                default -> null;
-            };
+            // 与 HUD 一致：严格按照 RoleTeam 阵营选择图标（好人方中立使用 mood_good_neu.png）
+            return HudMoodRenderer.getMoodTextureByTeam(role);
         }
 
         @Override

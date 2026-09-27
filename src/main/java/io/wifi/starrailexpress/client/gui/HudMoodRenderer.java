@@ -16,6 +16,7 @@
 package io.wifi.starrailexpress.client.gui;
 
 import io.wifi.starrailexpress.SRE;
+import io.wifi.starrailexpress.api.RoleTeam;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.cca.*;
 import io.wifi.starrailexpress.client.SREClient;
@@ -50,6 +51,8 @@ public class HudMoodRenderer {
     public static final ResourceLocation MOOD_VIG = Noellesroles.id("hud/mood_vig");
     // 小丑图标 (来自 noellesroles 资源包)
     public static final ResourceLocation MOOD_JESTER = Noellesroles.id("hud/mood_jester");
+    // 好人方中立职业使用的心情图标 (来自 noellesroles 资源包)
+    public static final ResourceLocation MOOD_GOOD_NEU = Noellesroles.id("hud/mood_good_neu");
     public static final Map<SREPlayerTaskComponent.Task, TaskRenderer> renderers = new HashMap<>();
     // 预分配的列表，避免每帧创建新对象
     private static final List<SREPlayerTaskComponent.Task> toRemoveList = new ArrayList<>();
@@ -140,20 +143,78 @@ public class HudMoodRenderer {
         arrowProgress = Mth.lerp(delta / 8, arrowProgress, 0f);
     }
 
+    /**
+     * 严格按照权威阵营枚举 {@link RoleTeam} 选择心情图标，与职业是假心情还是真心情无关。
+     * 注意判定顺序：必须先判断各「中立子类型」，再判断 {@link RoleTeam#CIVILIAN}，
+     * 因为好人方中立（NEUTRAL_INNOCENT）同样满足 isInnocent()，会被 CIVILIAN 误命中。
+     */
+    public static ResourceLocation getMoodIconByTeam(SRERole role) {
+        if (RoleTeam.SHERIFF.matches(role)) {
+            return MOOD_VIG;
+        }
+        if (RoleTeam.KILLER.matches(role)) {
+            return MOOD_KILLER;
+        }
+        if (RoleTeam.NEUTRAL_INNOCENT.matches(role)) {
+            // 好人方中立职业
+            return MOOD_GOOD_NEU;
+        }
+        if (RoleTeam.NEUTRAL_KILLER.matches(role)) {
+            return MOOD_JESTER;
+        }
+        if (RoleTeam.NEUTRAL_SPECIAL.matches(role)) {
+            // 特殊中立：归入中立图标
+            return MOOD_NEU;
+        }
+        if (RoleTeam.CIVILIAN.matches(role)) {
+            return MOOD_HAPPY;
+        }
+        if (RoleTeam.NEUTRAL.matches(role)) {
+            return MOOD_NEU;
+        }
+        // 不属于任何已知阵营时的兜底
+        return MOOD_HAPPY;
+    }
+
+    /**
+     * 与 {@link #getMoodIconByTeam} 判定逻辑完全一致（严格按 {@link RoleTeam} 阵营），
+     * 但返回可直接用于 {@code GuiGraphics#blit} 的「完整纹理路径」（而非图集精灵位置）。
+     * 供 U 键介绍等使用 blit 直接贴图的界面调用。
+     */
+    public static ResourceLocation getMoodTextureByTeam(SRERole role) {
+        if (RoleTeam.SHERIFF.matches(role)) {
+            return Noellesroles.id("textures/gui/sprites/hud/mood_vig.png");
+        }
+        if (RoleTeam.KILLER.matches(role)) {
+            return SRE.watheId("textures/gui/sprites/hud/mood_killer.png");
+        }
+        if (RoleTeam.NEUTRAL_INNOCENT.matches(role)) {
+            // 好人方中立职业
+            return Noellesroles.id("textures/gui/sprites/hud/mood_good_neu.png");
+        }
+        if (RoleTeam.NEUTRAL_KILLER.matches(role)) {
+            return Noellesroles.id("textures/gui/sprites/hud/mood_jester.png");
+        }
+        if (RoleTeam.NEUTRAL_SPECIAL.matches(role)) {
+            // 特殊中立：归入中立图标
+            return Noellesroles.id("textures/gui/sprites/hud/mood_neu.png");
+        }
+        if (RoleTeam.CIVILIAN.matches(role)) {
+            return SRE.watheId("textures/gui/sprites/hud/mood_happy.png");
+        }
+        if (RoleTeam.NEUTRAL.matches(role)) {
+            return Noellesroles.id("textures/gui/sprites/hud/mood_neu.png");
+        }
+        // 不属于任何已知阵营时的兜底
+        return SRE.watheId("textures/gui/sprites/hud/mood_happy.png");
+    }
+
     private static void renderCivilian(@NotNull Font textRenderer, @NotNull FakeGuiGraphics context, float prevMood, int color, SRERole role) {
         context.pose().pushPose();
         context.pose().translate(0, 3 * moodOffset, 0);
         
-        // 根据阵营选择心情图标
-        ResourceLocation mood = MOOD_HAPPY;
-        if (role.isVigilanteTeam()) {
-            // 警长阵营
-            mood = MOOD_VIG;
-        } else if (role.isNeutrals() && !role.isNeutralForKiller()) {
-            // 中立阵营 (setNeutrals=true 但不是 setNeutralForKiller)
-            mood = MOOD_NEU;
-        }
-        // 其他情况默认使用 MOOD_HAPPY
+        // 根据阵营选择心情图标（严格按照 RoleTeam，与真假心情无关）
+        ResourceLocation mood = getMoodIconByTeam(role);
         
         if (moodRender < GameConstants.DEPRESSIVE_MOOD_THRESHOLD) {
             mood = MOOD_DEPRESSIVE;
@@ -198,19 +259,8 @@ public class HudMoodRenderer {
         if (moodRender < 0)
             moodRender = 0;
         
-        // 根据阵营选择心情图标
-        ResourceLocation moodIcon = MOOD_KILLER;
-        if (role.isNeutrals() && !role.isNeutralForKiller()) {
-            // 中立阵营 (setNeutrals=true 但不是 setNeutralForKiller)
-            moodIcon = MOOD_NEU;
-        } else if (role.isNeutrals() && role.isNeutralForKiller()) {
-            // 中立阵营 (setNeutrals=true 且 setNeutralForKiller=true)
-            moodIcon = MOOD_JESTER;
-        } else if (role.isInnocent()) {
-            // 平民阵营 + 假心情 → 显示平民图标
-            moodIcon = MOOD_HAPPY;
-        }
-        // 其他情况默认使用 MOOD_KILLER
+        // 根据阵营选择心情图标（严格按照 RoleTeam，与真假心情无关）
+        ResourceLocation moodIcon = getMoodIconByTeam(role);
         
         context.pose().pushPose();
         context.pose().translate(0, 3 * moodOffset, 0);
