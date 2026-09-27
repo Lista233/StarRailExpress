@@ -215,7 +215,8 @@ public class NRModifiers {
             .setHidden(true)
             .setDefaultMax(1)
             .setDefaultEnableChance(3000)
-            .setDefaultEnableNeededPlayerCount(12);
+            .setDefaultEnableNeededPlayerCount(12)
+            .setAddedVersion("4.4");
 
     /** 瘦子修饰符：模型左右压扁变瘦，并被周围玩家挤压移动 */
     public static SREModifier SKINNY = HMLModifiers.registerModifier(new SREModifier(

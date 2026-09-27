@@ -33,11 +33,13 @@ public class AnimeRoles {
     public static final SRERole KAFU_CHINO = TMMRoles.registerRole(new ChinoRole(
             id("kafu_chino"), new Color(235, 238, 255).getRGB(), RoleType.CIVILIAN, MoodType.REAL,
             TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, false))
-            .setDefaultEnableChance(7000);
+            .setDefaultEnableChance(7000)
+            .setAddedVersion("4.4");
     public static final SRERole HOTO_KOKOA = TMMRoles.registerRole(new KokoaRole(
             id("hoto_kokoa"), new Color(250, 204, 165).getRGB(), RoleType.CIVILIAN, MoodType.REAL,
             TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, false))
-            .setDefaultEnableChance(7000);
+            .setDefaultEnableChance(7000)
+            .setAddedVersion("4.4");
 
     public static void init() {
     }

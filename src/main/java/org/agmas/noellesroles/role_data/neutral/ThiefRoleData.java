@@ -33,6 +33,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.agmas.noellesroles.ConfigWorldComponent;
@@ -752,6 +753,122 @@ public class ThiefRoleData extends SimpleRoleData {
         // 超级猪马蹄铁
         if (stack.is(FunnyItems.SUPER_PIG_HORSESHOE))
             return true;
+
+        // ==================== 4.5 版本新增可偷物品 ====================
+
+        // 护士体系：康复药丸 / 康复试剂
+        if (stack.is(ModItems.RECOVERY_PILL))
+            return true;
+        if (stack.is(ModItems.RECOVERY_REAGENT))
+            return true;
+        // 骸骨之书 / 祛毒试剂
+        if (stack.is(ModItems.BONE_BOOK))
+            return true;
+        if (stack.is(ModItems.TRAY_PURIFYING_REAGENT))
+            return true;
+        // 无毒蘑菇 / 剧毒蘑菇 / 蘑菇素 / 剧毒蘑菇素
+        if (stack.is(ModItems.SAFE_MUSHROOM))
+            return true;
+        if (stack.is(ModItems.POISONOUS_MUSHROOM))
+            return true;
+        if (stack.is(ModItems.MUSHROOM_ESSENCE))
+            return true;
+        if (stack.is(ModItems.POISONOUS_MUSHROOM_ESSENCE))
+            return true;
+        // 西红柿 / 电磁脉冲炸弹 / 机械小鸟
+        if (stack.is(ModItems.TOMATO))
+            return true;
+        if (stack.is(ModItems.EMP_BOMB))
+            return true;
+        if (stack.is(ModItems.MECHANICAL_BIRD))
+            return true;
+        // 锣 / 梆(bang) / 便携音响
+        if (stack.is(ModItems.GONG))
+            return true;
+        if (stack.is(ModItems.BANG))
+            return true;
+        if (stack.is(ModItems.SPEAKER))
+            return true;
+        // 保险 / 贷款合同
+        if (stack.is(ModItems.INSURANCE))
+            return true;
+        if (stack.is(ModItems.LOAN_CONTRACT))
+            return true;
+        // 终端（程序员商店）
+        if (stack.is(FunnyItems.TERMINAL))
+            return true;
+        // 竹子 / 竹枪
+        if (stack.is(ModItems.BAMBOO))
+            return true;
+        if (stack.is(ModItems.BAMBOO_SPEAR))
+            return true;
+        // 不请自来 / 遮天闭目
+        if (stack.is(ModItems.YOULU_ANCHOR))
+            return true;
+        if (stack.is(ModItems.YOULU_SMOKE))
+            return true;
+        // 冰红茶 / 伊吹瓢 / 还原胶囊 / 梦魂 / 烤八目海鳗
+        if (stack.is(FunnyItems.ICE_RED_TEA))
+            return true;
+        if (stack.is(FunnyItems.SUIKA_GOURD))
+            return true;
+        if (stack.is(FunnyItems.SUIKA_PILL))
+            return true;
+        if (stack.is(FunnyItems.DOREMY_GHOST))
+            return true;
+        if (stack.is(FunnyItems.COOKED_HAIMAN))
+            return true;
+        // 三种伪装道具 / 入场券
+        if (stack.is(TMMItems.DISGUISE_1) || stack.is(TMMItems.DISGUISE_2) || stack.is(TMMItems.DISGUISE_3))
+            return true;
+        if (stack.is(TMMItems.ADMISSION_TICKET))
+            return true;
+
+        // 燃烧弹 / 鸟兽兽燃烧弹 / 粘液弹 / 破墙弹 / 御币（检查后补充）
+        if (stack.is(ModItems.INCENDIARY_GRENADE))
+            return true;
+        if (stack.is(ModItems.NIAOSHOU_SHOU_INCENDIARY_GRENADE))
+            return true;
+        if (stack.is(ModItems.SLIME_GRENADE))
+            return true;
+        if (stack.is(ModItems.WALL_BREAK_GRENADE))
+            return true;
+        if (stack.is(ModItems.REIMU_GOHEI))
+            return true;
+
+        // 垂钓者钓鱼竿钓上的物品（不含跨维钓竿）：
+        // 各类钓获物 + 帕秋莉的报纸 + 封印物（手雷与枪械沿用上面的既有规则）
+        if (stack.is(ModItems.NEWSPAPER))
+            return true;
+        if (stack.is(ModItems.ANGLER_LIVING_CARP) || stack.is(ModItems.ANGLER_DEAD_CARP))
+            return true;
+        if (stack.is(ModItems.ANGLER_RAGGED_BOOTS) || stack.is(ModItems.ANGLER_VANILLA_MILK))
+            return true;
+        if (stack.is(ModItems.ANGLER_FLOUNDER) || stack.is(ModItems.ANGLER_INVERTED_FISH))
+            return true;
+        if (stack.is(ModItems.ANGLER_ABYSS_SHIELD) || stack.is(ModItems.ANGLER_SOMEONE_KEY))
+            return true;
+        if (stack.is(ModItems.ANGLER_BLINKING_KELP) || stack.is(ModItems.ANGLER_WET_TICKET))
+            return true;
+        if (stack.is(ModItems.ANGLER_EMPTY_WALLET) || stack.is(ModItems.ANGLER_EMPTY_COFFIN))
+            return true;
+        if (stack.is(ModItems.ANGLER_EMPTY_HOLSTER) || stack.is(ModItems.ANGLER_EMPTY_HOOK))
+            return true;
+        if (stack.is(ModItems.ANGLER_JUMPING_HEART) || stack.is(ModItems.ANGLER_UNADDRESSED_LETTER))
+            return true;
+        if (stack.is(ModItems.ANGLER_ABYSS_BAIT))
+            return true;
+        if (stack.is(ModItems.ANGLER_GLOVES) || stack.is(ModItems.ANGLER_HAIR_REEL))
+            return true;
+        if (stack.is(ModItems.ANGLER_INK) || stack.is(ModItems.ANGLER_TASK_LIST))
+            return true;
+        if (stack.is(ModItems.ANGLER_DRIPPING_WATCH) || stack.is(ModItems.ANGLER_FALSE_TOOTH))
+            return true;
+        for (Item sealed : ModItems.SEALED_ARTIFACTS) {
+            if (stack.is(sealed)) {
+                return true; // 封印物（垂钓者可钓上）
+            }
+        }
 
         // 其他物品不可偷取
         return false;

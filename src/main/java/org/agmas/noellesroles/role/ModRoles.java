@@ -407,7 +407,8 @@ public class ModRoles {
     ))
             .setCanSeeCoin(true)
             .setCanBeRandomedByOtherRoles(true)
-            .setRoleData(WatchmanRoleData::new);
+            .setRoleData(WatchmanRoleData::new)
+            .setAddedVersion("4.4");
 
     /**
      * 影隼角色 - 杀手阵营
@@ -1773,7 +1774,8 @@ public class ModRoles {
             .setDefaultEnableChance(7000)
             .setCanBeRandomedByOtherRoles(false)
             .setCanPickUpRevolver(false)
-            .setRoleData(org.agmas.noellesroles.role_data.vigilante.CavalryRoleData::new);
+            .setRoleData(org.agmas.noellesroles.role_data.vigilante.CavalryRoleData::new)
+            .setAddedVersion("4.4");
 
     /**
      * 独裁者角色（警长阵营特殊警卫）
@@ -2940,7 +2942,8 @@ public class ModRoles {
             .setDefaultMax(0)
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
-            .setHiddenForRoleRotation(true);
+            .setHiddenForRoleRotation(true)
+            .setAddedVersion("4.4");
 
     /**
      * 强盗角色 - 杀手阵营
