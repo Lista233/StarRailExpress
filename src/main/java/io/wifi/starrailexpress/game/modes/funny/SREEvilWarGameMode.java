@@ -59,6 +59,17 @@ import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.role.TraitorAndModifiers;
 import org.agmas.noellesroles.role.bouns.BounsRoles;
 import org.agmas.noellesroles.role.touhou.THRedHouseRoles;
+import org.agmas.noellesroles.role.touhou.THMiscRoles;
+import org.agmas.noellesroles.role.touhou.THMountainRoles;
+import org.agmas.noellesroles.role.ModMeetingRoles;
+import org.agmas.noellesroles.init.FunnyItems;
+import org.agmas.noellesroles.role_data.killer.WizardRoleData;
+import org.agmas.noellesroles.role_data.killer.UndeadLordRoleData;
+import org.agmas.noellesroles.role_data.killer.SkincrawlerRoleData;
+import io.wifi.starrailexpress.api.RoleSkill;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.Vec3;
 import org.agmas.noellesroles.utils.RoleUtils;
 import org.jetbrains.annotations.Nullable;
 import pro.fazeclan.river.stupid_express.StupidExpress;
@@ -100,6 +111,32 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
         EX_ABILITY_ROLE.add(BounsRoles.CREEPER);
         EX_ABILITY_ROLE.add(ModRoles.STALKER);
         EX_ABILITY_ROLE.add(ModRoles.INSANE_KILLER);
+        // 邪恶战争新增适配职业
+        EX_ABILITY_ROLE.add(ModRoles.WIZARD);
+        EX_ABILITY_ROLE.add(ModRoles.UNDEAD_LORD);
+        EX_ABILITY_ROLE.add(ModRoles.EXAMPLER);
+        EX_ABILITY_ROLE.add(ModRoles.NIAOSHOU_SHOU);
+        EX_ABILITY_ROLE.add(ModRoles.NOSTALGIST);
+        EX_ABILITY_ROLE.add(ModRoles.BOOM_MANIAC);
+        EX_ABILITY_ROLE.add(ModRoles.SILENCER);
+        EX_ABILITY_ROLE.add(ModRoles.GANGSTERS);
+        EX_ABILITY_ROLE.add(ModRoles.WATCHER);
+        EX_ABILITY_ROLE.add(ModRoles.YOULU);
+        EX_ABILITY_ROLE.add(ModRoles.DREAM);
+        EX_ABILITY_ROLE.add(ModRoles.SKINCRAWLER);
+        EX_ABILITY_ROLE.add(ModRoles.TARTAGLIA);
+        EX_ABILITY_ROLE.add(BounsRoles.PROGRAMMER);
+        EX_ABILITY_ROLE.add(THMiscRoles.MAMIZOU);
+        EX_ABILITY_ROLE.add(THMiscRoles.IBUKI_SUIKA);
+        EX_ABILITY_ROLE.add(THMiscRoles.HAKUREI_REIMU);
+        EX_ABILITY_ROLE.add(THMiscRoles.REIUJI_UTSUHO);
+        EX_ABILITY_ROLE.add(THMiscRoles.KOMACHI);
+        EX_ABILITY_ROLE.add(THMiscRoles.KIJIN_SEIJA);
+        EX_ABILITY_ROLE.add(THMiscRoles.HOUJUU_NUE);
+        EX_ABILITY_ROLE.add(THMiscRoles.DOREMY);
+        EX_ABILITY_ROLE.add(THMiscRoles.YAKUMO_YUKARI);
+        EX_ABILITY_ROLE.add(THMiscRoles.HATA_NO_KOKORO);
+        EX_ABILITY_ROLE.add(THMountainRoles.AYA);
     }
     public static final int ADD_BALANCE_TIME = 600;
     public static final int REVIVE_TIME = 200;
@@ -130,6 +167,11 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
         BANED_ROLES.add(ModRoles.SHADOW_FALCON);
         BANED_ROLES.add(SpecialGameModeRoles.SEEKER);
         BANED_ROLES.add(ModRoles.LOST_KILLER);
+        // 新增禁用：冤魂、森蕈僵尸、猎人、传教士（寻找者已在上方）
+        BANED_ROLES.add(ModRoles.WRAITH_ASSASSIN);
+        BANED_ROLES.add(BounsRoles.FOREST_MUSHROOM_ZOMBIE);
+        BANED_ROLES.add(ModRoles.HUNTER);
+        BANED_ROLES.add(ModMeetingRoles.MISSIONARY);
 
     }
 
@@ -417,7 +459,15 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
                 playerShopComponent.setBalance(-100);
             }
             // 默认安全时间结束后有700（一般杀手狂暴400，手雷330，手枪285)，需要斟酌启动配置
-            else
+            else if (role == THMiscRoles.MAMIZOU) {
+                playerShopComponent.setBalance(200 + 1000);
+            } else if (role == THMiscRoles.IBUKI_SUIKA || role == THMiscRoles.KOMACHI
+                    || role == THMiscRoles.DOREMY || role == ModRoles.NIAOSHOU_SHOU
+                    || role == ModRoles.SILENCER) {
+                playerShopComponent.setBalance(200 + 500);
+            } else if (role == ModRoles.YOULU) {
+                playerShopComponent.setBalance(200 + 200);
+            } else
                 playerShopComponent.setBalance(200);
 
             // 角色添加初始特性
@@ -484,6 +534,8 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
                                 false // 是否显示图标
                         ));
             }
+            // 邪恶战争专属职业额外增益（护盾/弹幕/面具次数/物品/效果等）
+            initEvilWarRoleBonuses(player, role);
         }
         curBalanceTick = 0;
         curReviveTick = 0;
@@ -493,6 +545,8 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
     @Override
     public void tickServerGameLoop(ServerLevel serverWorld, SREGameWorldComponent gameWorldComponent) {
         GameUtils.WinStatus winStatus = GameUtils.WinStatus.NONE;
+
+        tickEvilWarCooldowns(serverWorld, gameWorldComponent);
 
         // tick计数
         if (curOneSecondTick++ >= ONE_SECOND_TICK) {
@@ -756,5 +810,223 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
             ArrayList<ServerPlayer> readyPlayerList) {
         super.gameStarted(serverWorld, gameComponent, readyPlayerList);
         OnGameTrueStarted.EVENT.invoker().onGameTrueStarted(serverWorld);
+    }
+
+    // ==================== 邪恶战争专属职业适配 ====================
+
+    /** 文文新闻（邪恶战争专属偷取技能）：偷取视线范围内目标背包中的一个物品 */
+    static {
+        RoleSkill.register(THMountainRoles.AYA,
+                RoleSkill.skill(SRE.id("aya_steal"), "skill.noellesroles.aya_steal", ctx -> {
+                    ServerPlayer player = ctx.player();
+                    if (!(SREGameWorldComponent.KEY.get(player.level()).getGameMode() instanceof SREEvilWarGameMode)) {
+                        return false;
+                    }
+                    ServerPlayer target = findLookAtPlayer(player, 6.0);
+                    if (target == null) {
+                        player.displayClientMessage(
+                                Component.translatable("message.noellesroles.aya.no_target")
+                                        .withStyle(ChatFormatting.RED),
+                                true);
+                        return false;
+                    }
+                    ItemStack stolen = stealFrom(target);
+                    if (stolen.isEmpty()) {
+                        player.displayClientMessage(
+                                Component.translatable("message.noellesroles.aya.empty")
+                                        .withStyle(ChatFormatting.RED),
+                                true);
+                        return false;
+                    }
+                    player.addItem(stolen);
+                    return true;
+                }).cooldownSeconds(30).showOnHud(true).announceToSelf().build());
+    }
+
+    /** 返回视线范围内、距离不超过 range 的最准目标玩家（用于文文偷取） */
+    private static ServerPlayer findLookAtPlayer(ServerPlayer player, double range) {
+        Vec3 eye = player.getEyePosition(1.0f);
+        Vec3 look = player.getViewVector(1.0f);
+        ServerLevel level = player.serverLevel();
+        double bestDot = Math.cos(Math.toRadians(35));
+        ServerPlayer best = null;
+        for (ServerPlayer p : level.players()) {
+            if (p == player || GameUtils.isPlayerEliminated(p)) {
+                continue;
+            }
+            Vec3 to = p.getEyePosition(1.0f).subtract(eye);
+            double dist = to.length();
+            if (dist > range || dist < 0.1) {
+                continue;
+            }
+            double dot = to.normalize().dot(look);
+            if (dot < bestDot) {
+                continue;
+            }
+            bestDot = dot;
+            best = p;
+        }
+        return best;
+    }
+
+    /** 从目标背包偷取一个物品：优先非信件/钥匙，否则任意物品 */
+    private static ItemStack stealFrom(ServerPlayer victim) {
+        Inventory inv = victim.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack s = inv.getItem(i);
+            if (s.isEmpty() || isLetterOrKey(s)) {
+                continue;
+            }
+            ItemStack taken = inv.removeItem(i, 1);
+            if (!taken.isEmpty()) {
+                return taken;
+            }
+        }
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack s = inv.getItem(i);
+            if (s.isEmpty()) {
+                continue;
+            }
+            ItemStack taken = inv.removeItem(i, 1);
+            if (!taken.isEmpty()) {
+                return taken;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static boolean isLetterOrKey(ItemStack stack) {
+        if (stack.is(TMMItems.LETTER)) {
+            return true;
+        }
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return id.getPath().contains("key");
+    }
+
+    /** 开局初始化各杀手在邪恶战争中的额外增益（仅对邪恶战争生效） */
+    private void initEvilWarRoleBonuses(ServerPlayer player, SRERole role) {
+        SREAbilityPlayerComponent ability = SREAbilityPlayerComponent.KEY.get(player);
+        if (role == ModRoles.WIZARD) {
+            WizardRoleData wiz = RoleData.getNullable(WizardRoleData.class, player);
+            if (wiz != null) {
+                wiz.mana = wiz.maxMana();
+                wiz.sync();
+            }
+        } else if (role == ModRoles.UNDEAD_LORD) {
+            UndeadLordRoleData und = RoleData.getNullable(UndeadLordRoleData.class, player);
+            if (und != null) {
+                und.ignoreUndeadCap = true;
+                und.boostUndeadSpeed = true;
+                und.syncedMaxUndead = Integer.MAX_VALUE;
+                und.sync();
+            }
+        } else if (role == ModRoles.SKINCRAWLER) {
+            SkincrawlerRoleData sc = RoleData.getNullable(SkincrawlerRoleData.class, player);
+            if (sc != null) {
+                sc.blockCharges += 2;
+                sc.sync();
+            }
+        } else if (role == THMiscRoles.IBUKI_SUIKA) {
+            SREArmorPlayerComponent.KEY.get(player).setArmor(2);
+        } else if (role == THMiscRoles.HATA_NO_KOKORO) {
+            addHataMaskCharges(ability, 3);
+        } else if (role == THMiscRoles.HAKUREI_REIMU) {
+            for (int i = 0; i < 4; i++) {
+                player.addItem(new ItemStack(ModItems.DANMUKU, 8));
+            }
+        } else if (role == ModRoles.DREAM) {
+            if (player.hasEffect(MobEffects.MOVEMENT_SPEED)) {
+                player.removeEffect(MobEffects.MOVEMENT_SPEED);
+            }
+            player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, Integer.MAX_VALUE, 1, false, true, true));
+            if (player.hasEffect(MobEffects.DIG_SPEED)) {
+                player.removeEffect(MobEffects.DIG_SPEED);
+            }
+            player.addEffect(new MobEffectInstance(MobEffects.DIG_SPEED, Integer.MAX_VALUE, 1, false, true, true));
+        } else if (role == ModRoles.EXAMPLER) {
+            for (int i = 0; i < 2; i++) {
+                player.addItem(new ItemStack(ModItems.ONCE_REVOLVER));
+            }
+        } else if (role == ModRoles.NOSTALGIST) {
+            player.addItem(new ItemStack(ModItems.INCENDIARY_GRENADE));
+        } else if (role == ModRoles.GANGSTERS) {
+            player.addItem(new ItemStack(ModItems.C4, 4));
+        } else if (role == ModRoles.WATCHER) {
+            player.addItem(new ItemStack(TMMItems.SNIPER_RIFLE));
+            player.addItem(new ItemStack(TMMItems.MAGNUM_BULLET, 64));
+        } else if (role == ModRoles.TARTAGLIA) {
+            player.addItem(new ItemStack(Items.ARROW, 64));
+        } else if (role == ModRoles.BOOM_MANIAC) {
+            player.addItem(new ItemStack(Items.FIREWORK_ROCKET, 64));
+            player.addItem(new ItemStack(Items.FIREWORK_ROCKET, 64));
+        } else if (role == BounsRoles.PROGRAMMER) {
+            player.addItem(new ItemStack(FunnyItems.TERMINAL, 4));
+        }
+    }
+
+    /** 面灵气面具使用次数 +extra（4 张面具各 +extra） */
+    private void addHataMaskCharges(SREAbilityPlayerComponent ability, int extra) {
+        ability.ensureSkills(RoleSkill.getDefinitions(THMiscRoles.HATA_NO_KOKORO));
+        for (String emotion : new String[] { "happiness", "anger", "sorrow", "joy" }) {
+            SREAbilityPlayerComponent.SkillState st = ability.getSkillState(SRE.id("hata_no_kokoro/" + emotion));
+            st.charges += extra;
+            st.maxCharges += extra;
+        }
+        ability.sync();
+    }
+
+    /** 每 tick 处理特定杀手的技能/物品冷却（仅邪恶战争生效） */
+    private void tickEvilWarCooldowns(ServerLevel serverWorld, SREGameWorldComponent gameWorldComponent) {
+        for (ServerPlayer player : serverWorld.players()) {
+            if (GameUtils.isPlayerEliminated(player)) {
+                continue;
+            }
+            SRERole role = gameWorldComponent.getRole(player);
+            if (role == null) {
+                continue;
+            }
+            SREAbilityPlayerComponent ability = SREAbilityPlayerComponent.KEY.get(player);
+            if (role == THMiscRoles.MAMIZOU) {
+                ability.resetAllCooldowns();
+            } else if (role == THMiscRoles.REIUJI_UTSUHO || role == THMiscRoles.KOMACHI
+                    || role == THMiscRoles.KIJIN_SEIJA || role == THMiscRoles.YAKUMO_YUKARI) {
+                capSkillCooldowns(ability, role);
+            }
+            if (role == THMiscRoles.HAKUREI_REIMU) {
+                player.getCooldowns().removeCooldown(ModItems.DANMUKU);
+            }
+            if (role == ModRoles.BOOM_MANIAC) {
+                player.getCooldowns().removeCooldown(Items.CROSSBOW);
+            }
+            if (role == BounsRoles.PROGRAMMER) {
+                player.getCooldowns().removeCooldown(FunnyItems.TERMINAL);
+            }
+            if (role == ModRoles.UNDEAD_LORD) {
+                ability.setCooldown(0);
+            }
+        }
+    }
+
+    /** 将角色所有技能冷却上限减半（每 tick 钳制，抵消注册时的固定冷却） */
+    private void capSkillCooldowns(SREAbilityPlayerComponent ability, SRERole role) {
+        List<RoleSkill.Definition> defs = RoleSkill.getDefinitions(role);
+        int minHalf = Integer.MAX_VALUE;
+        for (RoleSkill.Definition def : defs) {
+            if (def.cooldownTicks() <= 0) {
+                continue;
+            }
+            int cap = def.cooldownTicks() / 2;
+            SREAbilityPlayerComponent.SkillState st = ability.getSkillState(def.id());
+            if (st.cooldown > cap) {
+                st.cooldown = cap;
+            }
+            if (cap < minHalf) {
+                minHalf = cap;
+            }
+        }
+        if (minHalf != Integer.MAX_VALUE && ability.cooldown > minHalf) {
+            ability.cooldown = minHalf;
+        }
+        ability.sync();
     }
 }

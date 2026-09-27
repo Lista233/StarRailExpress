@@ -60,6 +60,10 @@ public class UndeadLordRoleData extends SimpleRoleData {
     public int infectionAmpTicks = 0;
     /** 亡者召唤符冷却剩余时间（tick）。 */
     public int summonCharmCooldown = 0;
+    /** 邪恶战争模式专用：取消亡灵可同时存在的上限（由 SREEvilWarGameMode 置 true）。 */
+    public boolean ignoreUndeadCap = false;
+    /** 邪恶战争模式专用：亡灵移动速度 +200%（由 SREEvilWarGameMode 置 true）。 */
+    public boolean boostUndeadSpeed = false;
 
     // ===== 同步给客户端用于 HUD =====
     public int syncedUndeadCount = 0;
@@ -145,18 +149,23 @@ public class UndeadLordRoleData extends SimpleRoleData {
     }
 
     public boolean canRaiseFromCorpse() {
-        return ownedUndead.size() < maxActiveUndead();
+        return ignoreUndeadCap || ownedUndead.size() < maxActiveUndead();
     }
 
     /** 在指定位置召唤亡灵，返回是否成功（受硬上限保护）。 */
     public boolean spawnUndeadAt(ServerLevel serverLevel, Vec3 pos, UUID skinUuid, int lifetimeTicks) {
-        if (ownedUndead.size() >= config().undeadLordHardCap) {
+        if (!ignoreUndeadCap && ownedUndead.size() >= config().undeadLordHardCap) {
             return false;
         }
         UndeadEntity undead = new UndeadEntity(ModEntities.UNDEAD, serverLevel);
         undead.moveTo(pos.x, pos.y, pos.z, player.getYRot(), 0f);
         undead.setup(player, skinUuid, lifetimeTicks);
         serverLevel.addFreshEntity(undead);
+        if (boostUndeadSpeed) {
+            // 邪恶战争：亡灵移动速度 +200%（Speed X，等级 9）
+            undead.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                    net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED, 20 * 60 * 60, 9, false, false, false));
+        }
         ownedUndead.add(undead.getUUID());
         syncedUndeadCount = ownedUndead.size();
         sync();
@@ -219,7 +228,7 @@ public class UndeadLordRoleData extends SimpleRoleData {
                     (summonCharmCooldown + 19) / 20).withStyle(ChatFormatting.RED), true);
             return false;
         }
-        int capacity = maxActiveUndead() - ownedUndead.size();
+        int capacity = ignoreUndeadCap ? Integer.MAX_VALUE : maxActiveUndead() - ownedUndead.size();
         if (capacity <= 0) {
             sp.displayClientMessage(Component.translatable("message.noellesroles.undead_lord.charm_full",
                     maxActiveUndead()).withStyle(ChatFormatting.RED), true);
@@ -447,7 +456,7 @@ public class UndeadLordRoleData extends SimpleRoleData {
     private void convertToUndead(ServerLevel serverLevel, ServerPlayer victim) {
         Vec3 pos = victim.position();
         UUID skin = victim.getUUID();
-        boolean canRaise = ownedUndead.size() < maxActiveUndead();
+        boolean canRaise = ignoreUndeadCap || ownedUndead.size() < maxActiveUndead();
         serverLevel.players().forEach(a -> a.playNotifySound(SoundEvents.WITHER_SPAWN,
                 SoundSource.HOSTILE, 0.6f, 1.4f));
         if (canRaise) {

@@ -24,6 +24,7 @@ import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.cca.SREPlayerPsychoComponent;
 import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
 import io.wifi.starrailexpress.game.GameConstants;
+import io.wifi.starrailexpress.game.modes.funny.SREEvilWarGameMode;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.game.roles.SpecialGameModeRoles;
 import io.wifi.starrailexpress.event.OnPlayerDeathWithBody;
@@ -659,7 +660,9 @@ public class ModRolesInitialEventRegister {
         RoleSkill.register(ModRoles.SILENT_KILLER,
                 RoleSkill.skill(SRE.id("silent_killer/kill"), "skill.noellesroles.silent_killer", (ctx) -> {
                     final var player = ctx.player();
-                    if (MoneyUtils.getBalance(player) > 5) {
+                    SREGameWorldComponent gwc = SREGameWorldComponent.KEY.get(player.level());
+                    boolean evilWar = gwc != null && gwc.gameMode instanceof SREEvilWarGameMode;
+                    if (!evilWar && MoneyUtils.getBalance(player) > 5) {
                         player.displayClientMessage(Component.translatable("skill.noellesroles.silent_killer.failed")
                                 .withStyle(ChatFormatting.RED), true);
                         return false;
