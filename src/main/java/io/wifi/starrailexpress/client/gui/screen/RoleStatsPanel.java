@@ -370,10 +370,30 @@ public class RoleStatsPanel extends AbstractWidget {
         }
 
         private Component getRoleTypeDisplay(SRERole r) {
+            // 先按阵营枚举取中立细分（偏好 / 杀手方 / 事件 / 特殊 / 独立胜利中立），保留本面板的 ARGB 配色
+            io.wifi.starrailexpress.api.RoleTeam sub = r == null ? null
+                    : io.wifi.starrailexpress.api.RoleTeam.getNeutralSubTeam(r);
+            if (sub != null) {
+                String key = switch (sub) {
+                    case NEUTRAL_INNOCENT -> "display.type.role.neutral_innocent";
+                    case NEUTRAL_KILLER -> "display.type.role.neutral_for_killer";
+                    case NEUTRAL_SPECIAL -> "display.type.role.neutral_special";
+                    case NEUTRAL_EVENT -> "display.type.role.neutral_event";
+                    default -> "display.type.role.neutral_independent_win";
+                };
+                int color = switch (sub) {
+                    case NEUTRAL_INNOCENT -> 0xFF44BB66; // 偏好中立：深绿
+                    case NEUTRAL_KILLER -> 0xFFAA44CC; // 杀手方中立：品红
+                    case NEUTRAL_SPECIAL -> 0xFFC8A882; // 特殊中立：淡棕
+                    case NEUTRAL_EVENT -> 0xFFAAAAAA; // 事件中立：淡灰
+                    default -> 0xFFCCAA22; // 独立胜利中立：原本中立的黄色
+                };
+                return Component.translatable(key).withStyle(s -> s.withColor(color));
+            }
             return switch (PlayerRoleWeightManager.getRoleType(r)) {
                 case 0, 1 -> Component.translatable("display.type.role.innocent")
                         .withStyle(s -> s.withColor(0xFF44BB66));
-                case 2 -> Component.translatable("display.type.role.neutral")
+                case 2 -> Component.translatable("display.type.role.neutral_all")
                         .withStyle(s -> s.withColor(0xFFCCAA22));
                 case 3 -> Component.translatable("display.type.role.neutral_for_killer")
                         .withStyle(s -> s.withColor(0xFFAA44CC));

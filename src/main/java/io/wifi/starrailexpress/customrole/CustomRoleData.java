@@ -136,6 +136,13 @@ public class CustomRoleData {
     @SerializedName("neutralForInnocent")
     public Boolean neutralForInnocent = null;
 
+    /**
+     * 是否为「特殊中立」：既不属于偏好中立、也不是杀手方中立 / 事件中立的中立归类。
+     * 默认 false（与角色默认的「未标记特殊中立」一致）。
+     */
+    @SerializedName("specialNeutral")
+    public Boolean specialNeutral = false;
+
     @SerializedName("canSeeBodyName")
     public Boolean canSeeBodyName = null;
 

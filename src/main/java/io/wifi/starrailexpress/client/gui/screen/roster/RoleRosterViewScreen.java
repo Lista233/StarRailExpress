@@ -54,17 +54,29 @@ public class RoleRosterViewScreen extends net.minecraft.client.gui.screens.Scree
     private static final int MODIFIER_COLOR = 0xFFB084E0;
 
     /** 阵营栏目定义：标签、颜色、对应的 roleType 判定。按数组顺序自上而下排列。 */
-    private record GroupDef(String labelKey, int color, IntPredicate matches) {
+    private record GroupDef(String labelKey, int color, java.util.function.Predicate<SRERole> matches) {
     }
 
     private static final GroupDef[] GROUPS = {
-            new GroupDef("display.type.role.innocent", 0xFF44BB66, t -> t == 0 || t == 1),
-            new GroupDef("display.type.role.vigilante", 0xFF22BBCC, t -> t == 5),
-            new GroupDef("display.type.role.neutral", 0xFFCCAA22, t -> t == 2),
-            new GroupDef("display.type.role.neutral_for_killer", 0xFFAA44CC, t -> t == 3),
-            new GroupDef("display.type.role.killer", 0xFFCC2233, t -> t == 4),
+            new GroupDef("display.type.role.innocent", 0xFF44BB66,
+                    r -> io.wifi.starrailexpress.api.RoleTeam.CIVILIAN.matches(r)),
+            new GroupDef("display.type.role.vigilante", 0xFF22BBCC,
+                    r -> io.wifi.starrailexpress.api.RoleTeam.SHERIFF.matches(r)),
+            // 中立细分：偏好 / 杀手方 / 独立胜利 / 特殊 / 事件
+            new GroupDef("display.type.role.neutral_innocent", 0xFF44BB66,
+                    r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INNOCENT.matches(r)),
+            new GroupDef("display.type.role.neutral_for_killer", 0xFFAA44CC,
+                    r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_KILLER.matches(r)),
+            new GroupDef("display.type.role.neutral_independent_win", 0xFFCCAA22,
+                    r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INDEPENDENT_WIN.matches(r)),
+            new GroupDef("display.type.role.neutral_special", 0xFFC8A882,
+                    r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_SPECIAL.matches(r)),
+            new GroupDef("display.type.role.neutral_event", 0xFFAAAAAA,
+                    r -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_EVENT.matches(r)),
+            new GroupDef("display.type.role.killer", 0xFFCC2233,
+                    r -> io.wifi.starrailexpress.api.RoleTeam.KILLER.matches(r)),
             // 兜底：未归类的职业
-            new GroupDef("display.type.role", 0xFFC9A84C, t -> true),
+            new GroupDef("display.type.role", 0xFFC9A84C, r -> true),
     };
 
     /** 列表条目：职业或修饰符（职业 mod 为 null，修饰符 role 为 null）。 */
@@ -148,9 +160,8 @@ public class RoleRosterViewScreen extends net.minecraft.client.gui.screens.Scree
             // 不显示未启用（不在名单内）的职业
             if (working.countFor(role.identifier().toString()) <= 0)
                 continue;
-            int type = PlayerRoleWeightManager.getRoleType(role);
             for (int i = 0; i < GROUPS.length; i++) {
-                if (GROUPS[i].matches.test(type)) {
+                if (GROUPS[i].matches.test(role)) {
                     buckets[i].items.add(new Item(role, null, role.identifier().toString(),
                             RoleUtils.getRoleName(role), role.color(), false));
                     break;

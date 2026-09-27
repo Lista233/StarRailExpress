@@ -49,6 +49,8 @@ public class TMMRoles {
     public static final SRERole DISCOVERY_CIVILIAN = registerRole(
             new OriginalRole(SRE.id("discovery_civilian"), 0x5CFF4A, false, false, SRERole.MoodType.NONE, -1, true))
             .setCanPickUpRevolver(false).setNeutrals(true).setCanBeRandomedByOtherRoles(false).setOtherModeRole(true)
+            // 游客归入特殊中立阵营
+            .setSpecialNeutral(true)
             .setAddedVersion("original");
     public static final SRERole CIVILIAN = registerRole(new OriginalRole(SRE.id("civilian"), 0x36E51B, true, false,
             SRERole.MoodType.REAL, CIVILIAN_MAX_SPRINT_TICKS, false)).setAddedVersion("original");

@@ -61,7 +61,7 @@ public class TartagliaRole extends NormalRole {
     public static final int SKILL_KILL_THRESHOLD = 2;
     public static Map<UUID, Integer> tickCounts = new ConcurrentHashMap<>();
 
-    public TartagliaRole(ResourceLocation identifier, int color, RoleType roleType, MoodType moodType,
+    public TartagliaRole(ResourceLocation identifier, int color, io.wifi.starrailexpress.api.RoleTeam roleType, MoodType moodType,
             int maxSprintTime, boolean canSeeTime) {
         super(identifier, color, roleType, moodType, maxSprintTime, canSeeTime);
     }

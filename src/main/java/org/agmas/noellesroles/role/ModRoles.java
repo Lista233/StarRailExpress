@@ -1214,6 +1214,8 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)      // 无法被其它职业（赌徒等）随机到
             .setSpecialMapRolesCondition((t) -> t.contains(MapSpecialFeatures.PEAK)) // 仅 PEAK 地图
             .setDefaultMax(0)                         // 常态不刷新
+            // 特殊中立
+            .setSpecialNeutral(true)
             .setAddedVersion("4.4");
     public static SRERole JESTER = TMMRoles
             .registerRole(new JesterRole(JESTER_ID, new Color(186, 85, 211).getRGB(), false,
@@ -1735,7 +1737,9 @@ public class ModRoles {
             // 初始金币 175：走通用机制（ModdedRoleAssigned 事件统一按 getInitialCoinCount 设置余额）
             .setInitialCoinCount(175)
             .setDefaultMax(1)
-            .setDefaultEnableChance(5000);
+            .setDefaultEnableChance(5000)
+            // 特殊中立
+            .setSpecialNeutral(true);
 
     /** 保险职员：平民阵营，可以在职业商店购买保险。 */
     public static SRERole INSURANCE = TMMRoles.registerRole(new InsuranceRole(
@@ -1936,6 +1940,8 @@ public class ModRoles {
             .setEventEnableChance(FakeSteveDirector::onEventRollResult,
                     FakeSteveDirector::onEventRoundEnd,
                     () -> org.agmas.noellesroles.config.NoellesRolesConfig.instance().fakeSteveEnableChance)
+            // 事件中立：登场由每局开局的随机事件掷骰决定
+            .setEventNeutral(true)
             .setAddedVersion("4.4");
     public static SRERole VULTURE = TMMRoles
             .registerRole(new NormalRole(VULTURE_ID, new Color(210, 105, 30).getRGB(), false,
@@ -2648,7 +2654,9 @@ public class ModRoles {
             true)).setRoleData(MercenaryRoleData::new).setCanSeeCoin(true).setNeutrals(true)
             .setCanSeeTeammateKillerRole(false).setCanUseInstinctAndNightVision(false).setDefaultMax(1)
             .setDefaultEnableChance(1000).setDefaultEnableNeededPlayerCount(12)
-            .setBeSeenInstinctType(InstinctType.DEFAULT, InstinctType.NONE);
+            .setBeSeenInstinctType(InstinctType.DEFAULT, InstinctType.NONE)
+            // 特殊中立
+            .setSpecialNeutral(true);
 
     /**
      * 秉烛人角色 - 中立阵营
@@ -3135,7 +3143,9 @@ public class ModRoles {
             .setInstinctType(InstinctType.DEFAULT, InstinctType.NONE)
             .setDefaultMax(0)
             .setCanBeRandomedByOtherRoles(false).addBothRelatedModifier(SEModifiers.BLACK_WHITE)
-            .setAllBeSeenInstinctType(InstinctType.NONE);
+            .setAllBeSeenInstinctType(InstinctType.NONE)
+            // 特殊中立
+            .setSpecialNeutral(true);
 
     // ─────────────────────── 信使 Courier ───────────────────────
     public static final ResourceLocation COURIER_ID = Noellesroles.id("courier");

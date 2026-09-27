@@ -494,6 +494,11 @@ public class CustomRoleLoader {
         // === 职业通用属性补全 ===
         if (data.neutralForInnocent != null)
             role.setNeutralForInnocent(data.neutralForInnocent);
+        // 事件中立：自定义职业工具无法配置事件中立，恒为 false
+        role.setEventNeutral(false);
+        // 特殊中立：显式标记；未标记的其余中立会由 isIndependentWinNeutral() 自动归入独立胜利中立
+        if (data.specialNeutral != null)
+            role.setSpecialNeutral(data.specialNeutral);
         if (data.canSeeBodyName != null)
             role.setCanSeeBodyName(data.canSeeBodyName);
         if (data.canUseSkillWhileSpectator != null)

@@ -311,7 +311,7 @@ public class MatchRecordsScreen extends Screen {
     private static String factionKey(int faction) {
         return switch (faction) {
             case 1 -> "display.type.role.innocent";
-            case 2 -> "display.type.role.neutral";
+            case 2 -> "display.type.role.neutral_all";
             case 3 -> "display.type.role.neutral_for_killer";
             case 4 -> "display.type.role.killer";
             case 5 -> "display.type.role.vigilante";

@@ -13,7 +13,7 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public class PriestRole extends CustomWinnerRole {
 
-    public PriestRole(ResourceLocation identifier, int color, RoleType roleType, MoodType moodType,
+    public PriestRole(ResourceLocation identifier, int color, io.wifi.starrailexpress.api.RoleTeam roleType, MoodType moodType,
             int maxSprintTime, boolean canSeeTime) {
         super(identifier, color, roleType, moodType, maxSprintTime, canSeeTime);
     }

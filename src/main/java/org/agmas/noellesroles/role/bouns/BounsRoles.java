@@ -543,7 +543,9 @@ public class BounsRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setSpecialMapRolesCondition(features -> features.contains(MapSpecialFeatures.LAB))
             // 每局 60% 且在 LAB 地图才启用；触发条件由 PurpleMonsterRole 按需查询 isEventEnabled
-            .setEventEnableChance(6000);
+            .setEventEnableChance(6000)
+            // 事件中立：登场由每局开局的随机事件掷骰决定
+            .setEventNeutral(true);
 
     public static void init() {
         THRedHouseRoles.init();

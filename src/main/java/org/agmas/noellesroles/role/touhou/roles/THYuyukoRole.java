@@ -35,7 +35,7 @@ public class THYuyukoRole extends TouhouRole {
     public static final int INSTINCT_REWARD_TIME_PLAYER = 20 * 15;
     public static final int INSTINCT_REWARD_TIME_FOOD = 20 * 5;
 
-    public THYuyukoRole(ResourceLocation identifier, int color, RoleType roleType, MoodType moodType, int maxSprintTime,
+    public THYuyukoRole(ResourceLocation identifier, int color, io.wifi.starrailexpress.api.RoleTeam roleType, MoodType moodType, int maxSprintTime,
             boolean canSeeTime) {
         super(identifier, color, roleType, moodType, maxSprintTime, canSeeTime);
         setInstinctType(InstinctType.DEFAULT, InstinctType.customWithFunction((self, target, selfRole, targetRole) -> {

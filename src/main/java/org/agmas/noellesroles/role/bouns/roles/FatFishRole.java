@@ -79,7 +79,7 @@ public class FatFishRole extends EggRole {
     /** 消化冷却（tick） */
     public static final int FEED_COOLDOWN_TICKS = FEED_COOLDOWN_SECONDS * 20;
 
-    public FatFishRole(ResourceLocation identifier, int color, RoleType roleType,
+    public FatFishRole(ResourceLocation identifier, int color, io.wifi.starrailexpress.api.RoleTeam roleType,
             MoodType moodType, int maxSprintTime, boolean canSeeTime) {
         super(identifier, color, roleType, moodType, maxSprintTime, canSeeTime);
     }

@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 /** Keeps Purple Monster in the special-neutral team while allowing faction attachment after its goal. */
 public final class PurpleMonsterRoleDefinition extends NormalRole implements CustomWinnerRoleInterface {
-    public PurpleMonsterRoleDefinition(ResourceLocation id, int color, RoleType roleType, MoodType moodType,
+    public PurpleMonsterRoleDefinition(ResourceLocation id, int color, io.wifi.starrailexpress.api.RoleTeam roleType, MoodType moodType,
                                        int maxSprintTime, boolean canSeeTime) {
         super(id, color, roleType, moodType, maxSprintTime, canSeeTime);
     }

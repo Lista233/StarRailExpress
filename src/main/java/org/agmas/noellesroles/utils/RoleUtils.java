@@ -826,7 +826,8 @@ public class RoleUtils extends MCItemsUtils {
         if (roleType == 1) {
             teamName = Component.translatable("display.type.role.innocent").withStyle(ChatFormatting.GREEN);
         } else if (roleType == 2) {
-            teamName = Component.translatable("display.type.role.neutral").withStyle(ChatFormatting.YELLOW);
+            // 仅有 int 阵营号、无法细分时退回「中立阵营」（细分由 getNeutralSubTeamName 处理）
+            teamName = Component.translatable("display.type.role.neutral_all").withStyle(ChatFormatting.YELLOW);
         } else if (roleType == 3) {
             teamName = Component.translatable("display.type.role.neutral_for_killer")
                     .withStyle(ChatFormatting.LIGHT_PURPLE);
@@ -843,7 +844,7 @@ public class RoleUtils extends MCItemsUtils {
         if (roleType == 1) {
             teamName = Component.translatable("display.type.role.innocent");
         } else if (roleType == 2) {
-            teamName = Component.translatable("display.type.role.neutral");
+            teamName = Component.translatable("display.type.role.neutral_all");
         } else if (roleType == 3) {
             teamName = Component.translatable("display.type.role.neutral_for_killer");
         } else if (roleType == 4) {
@@ -863,15 +864,62 @@ public class RoleUtils extends MCItemsUtils {
     }
 
     public static Component getRoleTypeName(SRERole role) {
+        // 优先按阵营枚举取中立细分名
+        Component sub = getNeutralSubTeamName(role, true);
+        if (sub != null) {
+            return sub;
+        }
         return switch (PlayerRoleWeightManager.getRoleType(role)) {
             case 0, 1 -> Component.translatable("display.type.role.innocent").withStyle(ChatFormatting.GREEN);
-            case 2 -> Component.translatable("display.type.role.neutral").withStyle(ChatFormatting.YELLOW);
+            case 2 -> Component.translatable("display.type.role.neutral_all").withStyle(ChatFormatting.YELLOW);
             case 3 -> Component.translatable("display.type.role.neutral_for_killer")
                     .withStyle(ChatFormatting.LIGHT_PURPLE);
             case 4 -> Component.translatable("display.type.role.killer").withStyle(ChatFormatting.RED);
             case 5 -> Component.translatable("display.type.role.vigilante").withStyle(ChatFormatting.AQUA);
             default -> Component.literal("UNKNOWN");
         };
+    }
+
+    /**
+     * 取该职业「最具体的中立细分」阵营名（偏好中立 / 杀手方中立 / 事件中立 / 特殊中立 / 独立胜利中立）。
+     * 不属于任何中立细分时返回 {@code null}，调用方再退回按 roleType 的粗略阵营名。
+     *
+     * @param role      职业
+     * @param withColor 是否附带阵营色调
+     * @return 细分阵营名；非中立细分则为 null
+     */
+    private static Component getNeutralSubTeamName(SRERole role, boolean withColor) {
+        if (role == null) {
+            return null;
+        }
+        io.wifi.starrailexpress.api.RoleTeam sub = io.wifi.starrailexpress.api.RoleTeam.getNeutralSubTeam(role);
+        if (sub == null) {
+            return null;
+        }
+        String key = switch (sub) {
+            case NEUTRAL_INNOCENT -> "display.type.role.neutral_innocent";
+            case NEUTRAL_KILLER -> "display.type.role.neutral_for_killer";
+            case NEUTRAL_EVENT -> "display.type.role.neutral_event";
+            case NEUTRAL_SPECIAL -> "display.type.role.neutral_special";
+            case NEUTRAL_INDEPENDENT_WIN -> "display.type.role.neutral_independent_win";
+            default -> null;
+        };
+        if (key == null) {
+            return null;
+        }
+        if (!withColor) {
+            return Component.translatable(key);
+        }
+        // 色调约定：偏好中立深绿、杀手方中立品红、特殊中立淡棕（用 GOLD 近似）、
+        // 事件中立淡灰、独立胜利中立沿用原本中立的黄色
+        ChatFormatting style = switch (sub) {
+            case NEUTRAL_INNOCENT -> ChatFormatting.DARK_GREEN;
+            case NEUTRAL_KILLER -> ChatFormatting.LIGHT_PURPLE;
+            case NEUTRAL_SPECIAL -> ChatFormatting.GOLD;
+            case NEUTRAL_EVENT -> ChatFormatting.GRAY;
+            default -> ChatFormatting.YELLOW;
+        };
+        return Component.translatable(key).withStyle(style);
     }
 
     public static Component getTeamNameWithoutColor(ResourceLocation roleId) {
@@ -887,11 +935,21 @@ public class RoleUtils extends MCItemsUtils {
     }
 
     public static Component getTeamNameWithoutColor(SRERole role) {
+        // 优先按阵营枚举取中立细分名，让轮选 / 志愿海选等界面能区分
+        // 偏好中立、特殊中立、事件中立、独立胜利中立
+        Component sub = getNeutralSubTeamName(role, false);
+        if (sub != null) {
+            return sub;
+        }
         int roleType = PlayerRoleWeightManager.getRoleType(role);
         return getTeamNameWithoutColor(roleType);
     }
 
     public static Component getTeamName(SRERole role) {
+        Component sub = getNeutralSubTeamName(role, true);
+        if (sub != null) {
+            return sub;
+        }
         int roleType = PlayerRoleWeightManager.getRoleType(role);
         return getTeamName(roleType);
     }

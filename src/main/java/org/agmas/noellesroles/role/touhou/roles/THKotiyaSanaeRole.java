@@ -41,7 +41,7 @@ import net.minecraft.world.effect.MobEffects;
 public class THKotiyaSanaeRole extends TouhouRole {
     public static final int COST = 175;
 
-    public THKotiyaSanaeRole(ResourceLocation identifier, int color, RoleType roleType, MoodType moodType,
+    public THKotiyaSanaeRole(ResourceLocation identifier, int color, io.wifi.starrailexpress.api.RoleTeam roleType, MoodType moodType,
             int maxSprintTime, boolean canSeeTime) {
         super(identifier, color, roleType, moodType, maxSprintTime, canSeeTime);
     }

@@ -30,7 +30,7 @@ import net.minecraft.world.item.ItemStack;
 
 public class THHatanokokoroRole extends TouhouRole {
 
-    public THHatanokokoroRole(ResourceLocation identifier, int color, RoleType roleType, MoodType moodType,
+    public THHatanokokoroRole(ResourceLocation identifier, int color, io.wifi.starrailexpress.api.RoleTeam roleType, MoodType moodType,
             int maxSprintTime, boolean canSeeTime) {
         super(identifier, color, roleType, moodType, maxSprintTime, canSeeTime);
     }

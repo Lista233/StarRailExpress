@@ -313,12 +313,15 @@ public class EntityInteractionBlockEntity extends BlockEntity {
         }
 
         boolean result = switch (targetTeamType) {
-            case CIVILIAN -> role.isInnocent() && !role.isVigilanteTeam();
-            case SHERIFF -> role.isVigilanteTeam();
-            case NEUTRAL -> role.isNeutrals() || (!role.isInnocent() && !role.canUseKiller());
-            case NEUTRAL_KILLER -> role.isNeutrals() && role.isNeutralForKiller();
-            case NEUTRAL_SPECIAL -> role.isNeutrals() && !role.isNeutralForKiller();
-            case KILLER -> role.canUseKiller() && !role.isInnocent();
+            case CIVILIAN -> io.wifi.starrailexpress.api.RoleTeam.CIVILIAN.matches(role);
+            case SHERIFF -> io.wifi.starrailexpress.api.RoleTeam.SHERIFF.matches(role);
+            case NEUTRAL -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL.matches(role);
+            case NEUTRAL_INNOCENT -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INNOCENT.matches(role);
+            case NEUTRAL_KILLER -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_KILLER.matches(role);
+            case NEUTRAL_SPECIAL -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_SPECIAL.matches(role);
+            case NEUTRAL_EVENT -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_EVENT.matches(role);
+            case NEUTRAL_INDEPENDENT_WIN -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INDEPENDENT_WIN.matches(role);
+            case KILLER -> io.wifi.starrailexpress.api.RoleTeam.KILLER.matches(role);
             default -> true;
         };
 
@@ -912,12 +915,16 @@ public class EntityInteractionBlockEntity extends BlockEntity {
                     yield false;
                 yield switch (condition.teamType) {
                     case ALL -> true; // 所有职业都匹配
-                    case CIVILIAN -> role.isInnocent() && !role.isVigilanteTeam();
-                    case SHERIFF -> role.isVigilanteTeam();
-                    case NEUTRAL -> role.isNeutrals();
-                    case NEUTRAL_KILLER -> role.isNeutrals() && role.isNeutralForKiller();
-                    case NEUTRAL_SPECIAL -> role.isNeutrals() && !role.isNeutralForKiller();
-                    case KILLER -> role.canUseKiller() && !role.isNeutrals() && !role.isNeutralForKiller();
+                    case CIVILIAN -> io.wifi.starrailexpress.api.RoleTeam.CIVILIAN.matches(role);
+                    case SHERIFF -> io.wifi.starrailexpress.api.RoleTeam.SHERIFF.matches(role);
+                    case NEUTRAL -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL.matches(role);
+                    case NEUTRAL_INNOCENT -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INNOCENT.matches(role);
+                    case NEUTRAL_KILLER -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_KILLER.matches(role);
+                    case NEUTRAL_SPECIAL -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_SPECIAL.matches(role);
+                    case NEUTRAL_EVENT -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_EVENT.matches(role);
+                    case NEUTRAL_INDEPENDENT_WIN -> io.wifi.starrailexpress.api.RoleTeam.NEUTRAL_INDEPENDENT_WIN
+                            .matches(role);
+                    case KILLER -> io.wifi.starrailexpress.api.RoleTeam.KILLER.matches(role);
                 };
             }
             case HAS_KILLED -> {
@@ -2031,9 +2038,10 @@ public class EntityInteractionBlockEntity extends BlockEntity {
         EQUALS, GREATER, LESS, GREATER_EQUAL, LESS_EQUAL
     }
 
-    // 阵营类型枚举
+    // 阵营类型枚举（中立细分与 io.wifi.starrailexpress.api.RoleTeam 对齐）
     public enum TeamType {
-        ALL, CIVILIAN, SHERIFF, NEUTRAL, NEUTRAL_KILLER, NEUTRAL_SPECIAL, KILLER
+        ALL, CIVILIAN, SHERIFF, NEUTRAL, NEUTRAL_INNOCENT, NEUTRAL_KILLER, NEUTRAL_SPECIAL, NEUTRAL_EVENT,
+        NEUTRAL_INDEPENDENT_WIN, KILLER
     }
 
     // 直线范围方向枚举

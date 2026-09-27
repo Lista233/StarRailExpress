@@ -53,6 +53,8 @@ public class THHumanVillageRoles {
                     SREPlayerShopComponent.KEY.get(player).addToBalance(50);
                 }
             })
+            // 特殊中立
+            .setSpecialNeutral(true)
             .setAddedVersion("4.3");
 
     // 东风谷早苗 kotiya_sanae

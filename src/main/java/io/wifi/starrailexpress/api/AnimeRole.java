@@ -35,7 +35,7 @@ public class AnimeRole extends EggRole {
         this.addFlag("anime");
     }
 
-    public AnimeRole(ResourceLocation identifier, int color, RoleType roleType, MoodType moodType,
+    public AnimeRole(ResourceLocation identifier, int color, RoleTeam roleType, MoodType moodType,
             int maxSprintTime, boolean canSeeTime) {
         super(identifier, color, roleType, moodType, maxSprintTime, canSeeTime);
         this.addFlag("anime");

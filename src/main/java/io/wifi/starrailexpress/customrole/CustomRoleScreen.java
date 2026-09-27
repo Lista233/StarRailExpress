@@ -248,20 +248,19 @@ public class CustomRoleScreen extends CustomEditorScreen {
     // ══════════════════════════════════════════════════════════════════
     private void buildAdvancedTab() {
         int r = 0;
+        // ── 阵营分组：中立阵营 / 警长阵营 / 杀手方中立 / 偏好中立 / 特殊中立 ──
         r = cluster(r, null,
-                toggleCell(PREFIX + ".can_see_coin", data.canSeeCoin, value -> data.canSeeCoin = value, false));
-        r = cluster(r, null,
-                triCell(PREFIX + ".able_pickup_revolver", data.ableToPickUpRevolver,
-                        value -> data.ableToPickUpRevolver = value, false),
-                triCell(PREFIX + ".set_neutrals", data.setNeutrals, value -> data.setNeutrals = value, true));
-        r = cluster(r, null,
-                triCell(PREFIX + ".set_neutral_for_killer", data.setNeutralForKiller,
-                        value -> data.setNeutralForKiller = value, true),
+                triCell(PREFIX + ".set_neutrals", data.setNeutrals, value -> data.setNeutrals = value, true),
                 triCell(PREFIX + ".set_vigilante_team", data.setVigilanteTeam,
                         value -> data.setVigilanteTeam = value, false));
         r = cluster(r, null,
-                triCell(PREFIX + ".can_see_teammate_killer", data.canSeeTeammateKiller,
-                        value -> data.canSeeTeammateKiller = value, false));
+                triCell(PREFIX + ".set_neutral_for_killer", data.setNeutralForKiller,
+                        value -> data.setNeutralForKiller = value, true),
+                triCell(PREFIX + ".neutral_for_innocent", data.neutralForInnocent,
+                        value -> data.neutralForInnocent = value, false));
+        r = cluster(r, null,
+                triCell(PREFIX + ".special_neutral", data.specialNeutral,
+                        value -> data.specialNeutral = value, false));
 
         r = numRow(r, PREFIX + ".label.occupied_role_count", String.valueOf(data.occupiedRoleCount), 80,
                 PREFIX + ".hint.default_one", value -> {
@@ -277,6 +276,15 @@ public class CustomRoleScreen extends CustomEditorScreen {
                     } catch (Exception ignored) {
                     }
                 });
+
+        // ── 与阵营分开的三项：可看到金币 / 可捡起左轮手枪 / 看到队友杀手身份（置于被动收入之前）──
+        r = cluster(r, null,
+                toggleCell(PREFIX + ".can_see_coin", data.canSeeCoin, value -> data.canSeeCoin = value, false),
+                triCell(PREFIX + ".able_pickup_revolver", data.ableToPickUpRevolver,
+                        value -> data.ableToPickUpRevolver = value, false));
+        r = cluster(r, null,
+                triCell(PREFIX + ".can_see_teammate_killer", data.canSeeTeammateKiller,
+                        value -> data.canSeeTeammateKiller = value, false));
 
         r = cluster(r, null,
                 triCell(PREFIX + ".can_auto_add_money", data.canAutoAddMoney,
@@ -305,8 +313,6 @@ public class CustomRoleScreen extends CustomEditorScreen {
         // === 职业通用属性补全 ===
         r = gap(r);
         r = cluster(r, null,
-                triCell(PREFIX + ".neutral_for_innocent", data.neutralForInnocent,
-                        value -> data.neutralForInnocent = value, false),
                 triCell(PREFIX + ".mafia_team", data.mafiaTeam, value -> data.mafiaTeam = value, false));
         r = cluster(r, null,
                 triCell(PREFIX + ".can_see_body_name", data.canSeeBodyName, value -> data.canSeeBodyName = value,

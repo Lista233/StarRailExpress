@@ -35,7 +35,7 @@ public class EggRole extends NormalRole implements EggRoleInterface {
         this.addFlag("bouns");
     }
 
-    public EggRole(ResourceLocation identifier, int color, RoleType roleType, MoodType moodType,
+    public EggRole(ResourceLocation identifier, int color, RoleTeam roleType, MoodType moodType,
             int maxSprintTime, boolean canSeeTime) {
         super(identifier, color, roleType, moodType, maxSprintTime, canSeeTime);
         this.addFlag("bouns");

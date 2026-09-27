@@ -19,36 +19,45 @@ package io.wifi.starrailexpress.api;
  * 职业阵营（用于「按阵营」限制 / 筛选，例如修饰符的 {@code setCannotAppliedToTeam}）。
  *
  * <p>
- * 判定全部基于 {@link SRERole} 上的阵营标记。其中「中立」系阵营额外要求
- * {@code !isInnocent() && !canUseKiller()}（既不是好人阵营、也没有杀手能力），
+ * 判定全部基于 {@link SRERole} 上的阵营标记。其中「中立」系阵营额外要求修饰前提
+ * {@link SRERole#isNeutralTeamBase()}（既不是好人阵营、也没有杀手能力，且带有任意中立标记），
  * 「杀手」额外要求 {@code !isInnocent()}：
  * <ul>
  * <li>{@link #CIVILIAN} 平民：{@code isInnocent() && !isVigilanteTeam()}</li>
  * <li>{@link #SHERIFF} 警长：{@code isVigilanteTeam()}</li>
- * <li>{@link #NEUTRAL} 中立：{@code !isInnocent() && !canUseKiller()} 且为任意中立（好人方中立 / 杀手方中立 / 特殊中立）</li>
- * <li>{@link #NEUTRAL_INNOCENT} 好人方中立：{@code !isInnocent() && !canUseKiller() && isNeutralForInnocent()}</li>
- * <li>{@link #NEUTRAL_KILLER} 杀手方中立：{@code !isInnocent() && !canUseKiller() && isNeutralForKiller()}</li>
- * <li>{@link #NEUTRAL_SPECIAL} 特殊中立：{@code !isInnocent() && !canUseKiller()} 且为除好人方中立、杀手方中立以外的中立</li>
- * <li>{@link #KILLER} 杀手：{@code !isInnocent() && canUseKiller()}</li>
+ * <li>{@link #NEUTRAL} 中立（泛）：任意中立都命中，包含下面全部中立细分</li>
+ * <li>{@link #NEUTRAL_INNOCENT} 偏好中立（好人方中立）：随好人一同胜利的中立</li>
+ * <li>{@link #NEUTRAL_KILLER} 杀手方中立：随杀手一同胜利的中立</li>
+ * <li>{@link #NEUTRAL_SPECIAL} 特殊中立：显式打过 {@code setSpecialNeutral(true)} 标记的中立</li>
+ * <li>{@link #NEUTRAL_EVENT} 事件中立：显式打过 {@code setEventNeutral(true)} 标记的中立</li>
+ * <li>{@link #NEUTRAL_INDEPENDENT_WIN} 独立胜利中立：命中泛中立，但不属于偏好 / 杀手方 /
+ * 事件 / 特殊中立的其余中立，由 {@link SRERole#isIndependentWinNeutral()} 自动归纳</li>
+ * <li>{@link #KILLER} 杀手：拥有杀手能力</li>
  * </ul>
  *
  * <p>
  * 注意：只设置了 {@link SRERole#isNeutralForInnocent()}（而没有 {@code isNeutrals()}）的职业
  * 也会被 {@link #NEUTRAL} 与 {@link #NEUTRAL_INNOCENT} 命中；完全没有任何阵营标记的职业则不属于以上任一。
+ * 各中立细分彼此**互斥**且判定有优先级（偏好 / 杀手方 → 事件 → 特殊 → 独立胜利），
+ * 取「最具体的那一个」时应按此顺序判断。
  */
 public enum RoleTeam {
     /** 平民：好人阵营且不属于警长阵营。 */
     CIVILIAN,
     /** 警长阵营。 */
     SHERIFF,
-    /** 中立（任意中立，含好人方中立、杀手方中立、特殊中立）。 */
+    /** 中立（泛）：任意中立，含偏好中立、杀手方中立、特殊中立、事件中立、独立胜利中立。 */
     NEUTRAL,
-    /** 好人方中立：与好人一同胜利的中立。 */
+    /** 偏好中立（好人方中立）：与好人一同胜利的中立。 */
     NEUTRAL_INNOCENT,
     /** 杀手方中立：与杀手一同胜利的中立。 */
     NEUTRAL_KILLER,
-    /** 特殊中立：除好人方中立、杀手方中立以外的中立。 */
+    /** 特殊中立：显式标记为特殊中立的中立职业。 */
     NEUTRAL_SPECIAL,
+    /** 事件中立：显式标记为事件中立的中立职业（由局内随机事件决定是否登场）。 */
+    NEUTRAL_EVENT,
+    /** 独立胜利中立：不属于偏好 / 杀手方 / 事件 / 特殊中立的其余中立，自动归纳。 */
+    NEUTRAL_INDEPENDENT_WIN,
     /** 杀手：拥有杀手能力。 */
     KILLER;
 
@@ -60,18 +69,39 @@ public enum RoleTeam {
         return switch (this) {
             case CIVILIAN -> role.isInnocent() && !role.isVigilanteTeam();
             case SHERIFF -> role.isVigilanteTeam();
-            case NEUTRAL -> isNeutralBase(role)
-                    && (role.isNeutrals() || role.isNeutralForInnocent() || role.isNeutralForKiller());
-            case NEUTRAL_INNOCENT -> isNeutralBase(role) && role.isNeutralForInnocent();
-            case NEUTRAL_KILLER -> isNeutralBase(role) && role.isNeutralForKiller();
-            case NEUTRAL_SPECIAL -> isNeutralBase(role) && role.isNeutrals()
-                    && !role.isNeutralForInnocent() && !role.isNeutralForKiller();
+            case NEUTRAL -> role.isNeutralTeamBase();
+            case NEUTRAL_INNOCENT -> role.isNeutralTeamBase() && role.isNeutralForInnocent();
+            case NEUTRAL_KILLER -> role.isNeutralTeamBase() && role.isNeutralForKiller();
+            case NEUTRAL_SPECIAL -> role.isNeutralTeamBase() && role.isSpecialNeutral();
+            case NEUTRAL_EVENT -> role.isNeutralTeamBase() && role.isEventNeutral();
+            case NEUTRAL_INDEPENDENT_WIN -> role.isIndependentWinNeutral();
             case KILLER -> !role.isInnocent() && role.canUseKiller();
         };
     }
 
-    /** 中立系阵营的公共前置条件：既不是好人阵营，也没有杀手能力。 */
-    private static boolean isNeutralBase(SRERole role) {
-        return !role.isInnocent() && !role.canUseKiller();
+    /**
+     * 该职业命中的「最具体的中立细分阵营」（偏好 / 杀手方 / 事件 / 特殊 / 独立胜利）。
+     * 不属于任何中立时返回 {@code null}。用于需要区分中立细分的 UI 展示。
+     */
+    public static RoleTeam getNeutralSubTeam(SRERole role) {
+        if (role == null) {
+            return null;
+        }
+        if (NEUTRAL_INNOCENT.matches(role)) {
+            return NEUTRAL_INNOCENT;
+        }
+        if (NEUTRAL_KILLER.matches(role)) {
+            return NEUTRAL_KILLER;
+        }
+        if (NEUTRAL_EVENT.matches(role)) {
+            return NEUTRAL_EVENT;
+        }
+        if (NEUTRAL_SPECIAL.matches(role)) {
+            return NEUTRAL_SPECIAL;
+        }
+        if (NEUTRAL_INDEPENDENT_WIN.matches(role)) {
+            return NEUTRAL_INDEPENDENT_WIN;
+        }
+        return null;
     }
 }

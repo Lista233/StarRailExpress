@@ -52,7 +52,8 @@ public class CustomPendingHud {
                     if (roleType == 1) {
                         teamName = Component.translatable("display.type.role.innocent").withStyle(ChatFormatting.GREEN);
                     } else if (roleType == 2) {
-                        teamName = Component.translatable("display.type.role.neutral").withStyle(ChatFormatting.YELLOW);
+                        teamName = Component.translatable("display.type.role.neutral_all")
+                                .withStyle(ChatFormatting.YELLOW);
                     } else if (roleType == 3) {
                         teamName = Component.translatable("display.type.role.neutral_for_killer")
                                 .withStyle(ChatFormatting.LIGHT_PURPLE);

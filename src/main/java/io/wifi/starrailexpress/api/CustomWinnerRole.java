@@ -21,7 +21,7 @@ import net.minecraft.server.level.ServerPlayer;
 import org.agmas.noellesroles.utils.RoleUtils;
 
 public abstract class CustomWinnerRole extends NormalRole implements CustomWinnerRoleInterface {
-    public CustomWinnerRole(ResourceLocation identifier, int color, RoleType roleType, MoodType moodType,
+    public CustomWinnerRole(ResourceLocation identifier, int color, RoleTeam roleType, MoodType moodType,
             int maxSprintTime, boolean canSeeTime) {
         super(identifier, color, roleType, moodType, maxSprintTime, canSeeTime);
     }
