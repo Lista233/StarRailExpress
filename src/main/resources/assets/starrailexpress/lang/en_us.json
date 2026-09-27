@@ -4048,6 +4048,8 @@
   "sre.custom_block.team.neutral_innocent": "Neutral (innocent)",
   "sre.custom_block.team.neutral_killer": "Neutral (killer)",
   "sre.custom_block.team.neutral_special": "Neutral (special)",
+  "sre.custom_block.team.neutral_event": "Neutral (event)",
+  "sre.custom_block.team.neutral_independent_win": "Neutral (independent win)",
   "sre.custom_block.team.killer": "Killer",
   "sre.custom_block.event_type.right_click": "Right click",
   "sre.custom_block.event_type.step": "Step on",
