@@ -2545,6 +2545,7 @@
   "message.gamemode.evil_war.tip.role.yakumo_yukari": "你的技能冷却减半",
   "message.gamemode.evil_war.tip.role.hata_no_kokoro": "你的面具使用次数+3",
   "message.gamemode.evil_war.tip.role.ayayaya": "邪恶战争专属：按技能键偷取视线内目标背包中的一个物品（优先非信件/钥匙）",
+  "message.gamemode.evil_war.tip.role.silent_killer": "你释放技能不再要求金币为0，可随时华丽收场",
   "skill.noellesroles.aya_steal": "文文偷拍",
   "message.noellesroles.aya.no_target": "附近没有可偷取的目标",
   "message.noellesroles.aya.empty": "目标背包中没有可偷取的物品",
