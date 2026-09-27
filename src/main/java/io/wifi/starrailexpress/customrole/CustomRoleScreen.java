@@ -280,7 +280,12 @@ public class CustomRoleScreen extends CustomEditorScreen {
 
         r = cluster(r, null,
                 triCell(PREFIX + ".can_auto_add_money", data.canAutoAddMoney,
-                        value -> data.canAutoAddMoney = value, false));
+                        value -> data.canAutoAddMoney = value, false),
+                triCell(PREFIX + ".can_auto_add_minigame_token", data.canAutoAddMiniGameToken,
+                        value -> data.canAutoAddMiniGameToken = value, false));
+        r = cluster(r, null,
+                triCell(PREFIX + ".can_climb_walls", data.canClimbWalls,
+                        value -> data.canClimbWalls = value, false));
         r = cluster(r, null,
                 toggleCell(PREFIX + ".can_be_randomed", data.canBeRandomedByOtherRoles,
                         value -> data.canBeRandomedByOtherRoles = value, false),
@@ -341,6 +346,14 @@ public class CustomRoleScreen extends CustomEditorScreen {
                         value -> data.fallDamageImmune = value, false),
                 triCell(PREFIX + ".darkness_immune", data.darknessImmune, value -> data.darknessImmune = value,
                         false));
+        // 摔落致死高度：不免疫摔落时生效；-1 = 跟随地图设置（需要数值，用输入框填写）
+        r = numRow(r, PREFIX + ".label.fall_to_death_height", String.valueOf(data.fallToDeathHeight), 80,
+                PREFIX + ".hint.fall_to_death_height", value -> {
+                    try {
+                        data.fallToDeathHeight = Integer.parseInt(value);
+                    } catch (Exception ignored) {
+                    }
+                });
         r = cluster(r, null,
                 triCell(PREFIX + ".environmental_immune", data.environmentalImmune,
                         value -> data.environmentalImmune = value, false),
@@ -979,6 +992,10 @@ public class CustomRoleScreen extends CustomEditorScreen {
                         } catch (Exception ignored) {
                         }
                     }));
+            // 货币类型按钮：金币（默认）/ 游戏币（参考网警商店）
+            cells.add(stateButtonCell(
+                    () -> Component.translatable(PREFIX + ".shop.currency." + currentCurrencyKey(entry.currency)),
+                    () -> entry.currency = "money".equals(entry.currency) ? "minigame_token" : "money", false));
             // 冷却(仅 item 和 custom)
             if (isItem || isCustom) {
                 cells.add(fixedBox(String.valueOf(entry.cooldownSeconds), LIMIT_NUMBER, 50,
@@ -1023,6 +1040,11 @@ public class CustomRoleScreen extends CustomEditorScreen {
             data.shopEntries.add(new ShopEntryData());
             requestRebuild();
         });
+    }
+
+    /** 商店货币的显示键：仅识别 minigame_token（游戏币），其余一律视为 money（金币，默认）。 */
+    private static String currentCurrencyKey(String currency) {
+        return currency != null && "minigame_token".equalsIgnoreCase(currency.trim()) ? "minigame_token" : "money";
     }
 
     // ══════════════════════════════════════════════════════════════════

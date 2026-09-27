@@ -176,6 +176,19 @@ public class GameConstants {
         };
     }
 
+    /**
+     * 被动游戏币收入节拍器：与被动金币共用 {@code passiveMoneyInterval} 间隔，
+     * 每次固定发放 1 枚游戏币（MiniGameToken）。
+     */
+    public static Function<Long, Integer> getPassiveMiniGameTokenTicker() {
+        return time -> {
+            if (time % (SREConfig.instance().passiveMoneyInterval * 20) == 0) {
+                return 1;
+            }
+            return 0;
+        };
+    }
+
     public static int getMoneyPerKill() {
         return SREConfig.instance().moneyPerKill;
     }

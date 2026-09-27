@@ -1334,6 +1334,7 @@ public abstract class SRERole extends SREAbstractInfoClass {
 
     protected Consumer<LimitedInventoryScreen> addChild;
     protected boolean canAutoAddMoney = false;
+    protected boolean canAutoAddMiniGameToken = false;
     protected boolean bodyKillerVisibility = false;
     public ArrayList<String> defaultSpawnMaps = new ArrayList<>();
     protected boolean bodyNameVisibility = false;
@@ -1402,6 +1403,17 @@ public abstract class SRERole extends SREAbstractInfoClass {
 
     public SRERole setPassiveIncome(boolean bl) {
         this.canAutoAddMoney = bl;
+        return this;
+    }
+
+    /**
+     * 设置是否拥有被动游戏币收入：开启后该职业会随时间自然获得游戏币（MiniGameToken）。
+     *
+     * @param bl
+     * @return
+     */
+    public SRERole setCanAutoAddMiniGameToken(boolean bl) {
+        this.canAutoAddMiniGameToken = bl;
         return this;
     }
 
@@ -1533,6 +1545,11 @@ public abstract class SRERole extends SREAbstractInfoClass {
 
     public boolean canAutoAddMoney() {
         return this.canAutoAddMoney;
+    }
+
+    /** 是否拥有被动游戏币收入（自然增长游戏币）。 */
+    public boolean canAutoAddMiniGameToken() {
+        return this.canAutoAddMiniGameToken;
     }
 
     /**
@@ -2559,6 +2576,25 @@ public abstract class SRERole extends SREAbstractInfoClass {
 
     public boolean isFallDamageImmune() {
         return fallDamageImmune;
+    }
+
+    // ---------- 摔落致死高度覆盖 ----------
+    /** 该职业专属的摔落致死高度（格）；null = 跟随地图的 fallToDeathHeight 设置 */
+    protected Integer fallToDeathHeightOverride = null;
+
+    /**
+     * 设置该职业专属的摔落致死高度：摔落距离达到该值即判死。
+     * 优先级高于地图的 {@code fallToDeathHeight}；传 {@code null} 恢复跟随地图设置。
+     * 「是否会被摔死」本身仍由 {@link #isFallDamageImmune()} 与 {@link #onFallOnGround} 决定。
+     */
+    public SRERole setFallToDeathHeightOverride(Integer height) {
+        this.fallToDeathHeightOverride = height;
+        return this;
+    }
+
+    /** 获取该职业专属的摔落致死高度；{@code null} = 跟随地图设置。 */
+    public Integer getFallToDeathHeightOverride() {
+        return fallToDeathHeightOverride;
     }
 
     // ---------- 免疫黑暗死亡（地图配置：在黑暗中待多少秒会死亡） ----------

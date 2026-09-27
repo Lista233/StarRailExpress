@@ -106,6 +106,14 @@ public class CustomRoleData {
     @SerializedName("canAutoAddMoney")
     public Boolean canAutoAddMoney = null;
 
+    /** 是否拥有被动游戏币收入（自然增长游戏币），对应 {@code SRERole#setCanAutoAddMiniGameToken}。 */
+    @SerializedName("canAutoAddMiniGameToken")
+    public Boolean canAutoAddMiniGameToken = null;
+
+    /** 是否可攀爬（爬墙），对应 {@code SRERole#setCanClimbWalls}。 */
+    @SerializedName("canClimbWalls")
+    public Boolean canClimbWalls = null;
+
     @SerializedName("canBeRandomedByOtherRoles")
     public boolean canBeRandomedByOtherRoles = true;
 
@@ -400,6 +408,13 @@ public class CustomRoleData {
     @SerializedName("fallDamageImmune")
     public Boolean fallDamageImmune = null; // 免疫摔落伤害
 
+    /**
+     * 该职业专属的摔落致死高度（格）：摔落距离达到该值即判死；{@code -1} = 跟随地图的
+     * {@code fallToDeathHeight} 设置。对应 {@code SRERole#setFallToDeathHeightOverride}。
+     */
+    @SerializedName("fallToDeathHeight")
+    public int fallToDeathHeight = -1;
+
     @SerializedName("darknessImmune")
     public Boolean darknessImmune = null; // 免疫黑暗死亡
 
@@ -566,6 +581,13 @@ public class CustomRoleData {
 
         @SerializedName("price")
         public int price = 0;
+
+        /**
+         * 该商品的货币类型（参考网警商店）：{@code money} 金币（默认）/ {@code minigame_token} 游戏币。
+         * 见 {@code ShopEntry.Currency#fromSerializedName}。
+         */
+        @SerializedName("currency")
+        public String currency = "money";
 
         @SerializedName("cooldownSeconds")
         public int cooldownSeconds = 0;

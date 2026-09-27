@@ -1345,6 +1345,14 @@ public class SREGameWorldComponent implements AutoSyncedComponent, ServerTicking
         return role.canAutoAddMoney();
     }
 
+    /** 该职业是否拥有被动游戏币收入（自然增长游戏币）。 */
+    public boolean canAutoAddMiniGameToken(ServerPlayer player) {
+        var role = this.getRole(player);
+        if (role == null)
+            return false;
+        return role.canAutoAddMiniGameToken();
+    }
+
     public boolean isVigilanteTeam(ServerPlayer player) {
         var role = this.getRole(player);
         if (role == null)

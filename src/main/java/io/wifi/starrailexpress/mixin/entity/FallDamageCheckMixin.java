@@ -70,8 +70,14 @@ public abstract class FallDamageCheckMixin {
                 var fresult = role.allowFallToDeathInner(player, y, onGround, blockState, blockPos);
                 boolean shouldDeath = false;
                 var cca = AreasWorldComponent.KEY.get(player.level());
-                if (cca.areasSettings.fallToDeathHeight > 0) {
-                    if (self.fallDistance >= cca.areasSettings.fallToDeathHeight) {
+                // 摔落致死高度：职业专属覆盖优先，其次地图设置
+                int fallToDeathHeight = cca.areasSettings.fallToDeathHeight;
+                Integer roleHeight = role.getFallToDeathHeightOverride();
+                if (roleHeight != null) {
+                    fallToDeathHeight = roleHeight;
+                }
+                if (fallToDeathHeight > 0) {
+                    if (self.fallDistance >= fallToDeathHeight) {
                         shouldDeath = true;
                     }
                 }

@@ -958,6 +958,7 @@ public class ModRoles {
      * - 真实心情系统
      * - 与平民一致的体力，隐藏计分板
      * - 无金币系统，不显示金币
+     * - 拥有被动游戏币收入（canAutoAddMiniGameToken），随时间自然获得游戏币
      * - 完成普通任务获得 1 个游戏代币；完成小游戏任务额外获得 1 个游戏代币
      * - 完成小游戏任务额外恢复 30% 理智；小游戏任务刷新不受轮换模式普通任务限制
      * - 商店使用小游戏代币依次购买 Dream 铁斧/钻石剑/重锤（见 RoleShopHandler）
@@ -975,6 +976,7 @@ public class ModRoles {
                     && t.contains(MapSpecialFeatures.MINIGAME_QUEST))
             // 小游戏任务独立计算：不并入轮换派发，始终独立计时刷新
             .setIndependentMinigameTiming(true)
+            .setCanAutoAddMiniGameToken(true)
             .setRoleData(NetCopRoleData::new);
     public static final ResourceLocation GUARD_ID = Noellesroles.id("guard");
     public static SRERole GUARD = TMMRoles.registerRole(new NormalRole(GUARD_ID, new Color(170, 170, 170).getRGB(),

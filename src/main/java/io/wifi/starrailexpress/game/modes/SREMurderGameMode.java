@@ -776,6 +776,13 @@ public class SREMurderGameMode extends GameMode {
                     if (balanceToAdd > 0)
                         SREPlayerShopComponent.KEY.get(player).addToBalance(balanceToAdd);
                 }
+                // passive minigame token（被动游戏币收入：每次自然增加 1 枚游戏币）
+                if (gameWorldComponent.canAutoAddMiniGameToken(player)) {
+                    Integer tokensToAdd = GameConstants.getPassiveMiniGameTokenTicker()
+                            .apply(serverWorld.getGameTime());
+                    if (tokensToAdd > 0)
+                        SREPlayerMinigameTaskComponent.KEY.get(player).addTokens(tokensToAdd);
+                }
                 if (gameWorldComponent.isRole(player, TMMRoles.VIGILANTE)
                         && !GameUtils.isPlayerEliminated(player)
                         && serverWorld.getGameTime() % VIGILANTE_PASSIVE_MONEY_INTERVAL_TICKS == 0) {
