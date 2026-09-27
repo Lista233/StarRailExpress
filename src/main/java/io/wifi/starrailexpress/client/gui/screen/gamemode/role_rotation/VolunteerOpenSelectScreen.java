@@ -42,7 +42,6 @@ import net.minecraft.util.Mth;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.client.NoellesrolesClient;
 import org.agmas.noellesroles.client.screen.RoleIntroduceScreen;
-import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.utils.RoleUtils;
 
 import java.util.*;
@@ -242,7 +241,8 @@ public class VolunteerOpenSelectScreen extends Screen {
     private void refreshRoleList() {
         filteredRoles.clear();
         List<SRERole> all = new ArrayList<>(Noellesroles.getAllRolesSorted(false));
-        all.removeIf(r -> r == null || r.identifier().equals(ModRoles.MERCENARY_ID)
+        // 排除：修机模式职业、其它模式职业（游客/职业待定/超级亡命徒/土块/寻找者等）
+        all.removeIf(r -> r == null || r.isOtherModeRole()
                 || r instanceof net.exmo.sre.repair.role.RepairRole);
         // 按「大阵营 + 中立细分」统一排序（与 U 键介绍一致）：
         // 平民 → 警长 → 杀手 → 中立（偏好 → 杀手方 → 事件 → 特殊 → 独立胜利）
