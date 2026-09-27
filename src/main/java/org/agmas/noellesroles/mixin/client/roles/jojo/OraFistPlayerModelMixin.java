@@ -21,7 +21,7 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import org.agmas.noellesroles.role_data.vigilante.JojoRoleData;
+import org.agmas.noellesroles.content.item.ora.OraPunchManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -36,7 +36,7 @@ public abstract class OraFistPlayerModelMixin<T extends LivingEntity> {
     @Inject(method = "setupAnim", at = @At("RETURN"))
     private void noellesroles$oraBothArms(T entity, float limbSwing, float limbSwingAmount, float ageInTicks,
             float netHeadYaw, float headPitch, CallbackInfo ci) {
-        if (!(entity instanceof Player player) || !JojoRoleData.isRushing(player)) {
+        if (!(entity instanceof Player player) || !OraPunchManager.isRushing(player)) {
             return;
         }
         HumanoidModel<?> model = (HumanoidModel<?>) (Object) this;

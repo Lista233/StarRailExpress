@@ -25,7 +25,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import org.agmas.noellesroles.role_data.vigilante.JojoRoleData;
+import org.agmas.noellesroles.content.item.ora.OraPunchManager;
 
 /**
  * 欧拉一拳持有时的金色手臂包裹：沿时间做金-橙渐变，略带发光。
@@ -35,7 +35,7 @@ public final class OraGoldArmRenderer {
     }
 
     public static boolean shouldWrap(AbstractClientPlayer player) {
-        return JojoRoleData.isHoldingOraPunch(player);
+        return OraPunchManager.isHoldingOraPunch(player);
     }
 
     public static int goldColor(float ageInTicks) {

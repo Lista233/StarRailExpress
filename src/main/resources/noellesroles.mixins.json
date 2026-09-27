@@ -197,7 +197,8 @@
     "roles.photographer.BlindnessEffectMixin",
     "client.spear.ItemInHandRendererSpearMixin",
     "client.spear.MinecraftSpearAttackMixin",
-    "client.spear.HumanoidModelSpearMixin"
+    "client.spear.HumanoidModelSpearMixin",
+    "client.roles.nature_spirit.HumanoidModelBambooSpearMixin"
   ],
   "overwrites": {
     "requireAnnotations": true

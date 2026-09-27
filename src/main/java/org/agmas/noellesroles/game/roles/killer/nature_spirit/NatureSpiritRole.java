@@ -8,7 +8,6 @@ import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.util.ShopEntry;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.Direction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -22,9 +21,9 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.AbstractSkullBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.Vec3;
 import org.agmas.noellesroles.config.NoellesRolesConfig;
 import org.agmas.noellesroles.init.ModItems;
@@ -97,7 +96,7 @@ public class NatureSpiritRole extends io.wifi.starrailexpress.api.NormalRole {
     private static boolean disguiseAsFloorBlock(ServerPlayer player) {
         BlockPos floor = player.getOnPos();
         BlockState state = player.level().getBlockState(floor);
-        if (state.isAir() || state.getRenderShape() == RenderShape.INVISIBLE) {
+        if (!canCamouflageAs(state)) {
             player.displayClientMessage(Component.translatable("message.noellesroles.nature_spirit.camouflage.fail")
                     .withStyle(ChatFormatting.RED), true);
             return false;
@@ -105,19 +104,19 @@ public class NatureSpiritRole extends io.wifi.starrailexpress.api.NormalRole {
 
         CompoundTag nbt = new CompoundTag();
         nbt.put("BlockState", NbtUtils.writeBlockState(state));
-        if (!EntityDisguise.disguise(player, EntityType.FALLING_BLOCK, nbt, 0)) {
+        // 保持玩家自己的眼高：地毯、压力板这类薄方块的碰撞箱只有几像素高，
+        // 跟着实体眼高压下去相机会掉进地板，玩家自己就什么都看不见了。
+        if (!EntityDisguise.disguiseKeepEyeHeight(player, EntityType.FALLING_BLOCK, nbt, 0)) {
             player.displayClientMessage(Component.translatable("message.noellesroles.nature_spirit.camouflage.fail")
                     .withStyle(ChatFormatting.RED), true);
             return false;
         }
 
-        VoxelShape shape = state.getCollisionShape(player.level(), floor);
-        double top = shape.isEmpty() ? 1.0 : shape.max(Direction.Axis.Y);
-        if (Double.isNaN(top) || top <= 0.0) {
-            top = 1.0;
-        }
+        // 只把水平位置对齐到方格中心，<b>高度保持不变</b>：按方块碰撞箱顶面下压会让
+        // 薄方块（地毯）下的自然精灵整个陷进地板里。竖直方向的观感由渲染端负责
+        // （按 shift 时对齐到整数方格，见 EntityDisguiseRenderer）。
         double x = floor.getX() + 0.5;
-        double y = floor.getY() + top;
+        double y = player.getY();
         double z = floor.getZ() + 0.5;
         player.connection.teleport(x, y, z, player.getYRot(), player.getXRot());
         player.setDeltaMovement(Vec3.ZERO);
@@ -131,6 +130,25 @@ public class NatureSpiritRole extends io.wifi.starrailexpress.api.NormalRole {
         player.displayClientMessage(Component.translatable("message.noellesroles.nature_spirit.camouflage.start")
                 .withStyle(ChatFormatting.GREEN), true);
         return true;
+    }
+
+    /**
+     * 能不能扮成这个方块。
+     * <p>
+     * 只收<b>普通方块模型</b>：
+     * <ul>
+     * <li>{@link RenderShape#INVISIBLE}（空气、屏障、水……）会让自然精灵彻底隐形，是白给的无敌；</li>
+     * <li>{@link RenderShape#ENTITYBLOCK_ANIMATED}（箱子、告示牌、床、旗帜、头颅……）的外形来自
+     * 方块实体渲染器，falling_block 只画得出静态方块模型，扮出来是个空壳；</li>
+     * <li><b>头颅</b>额外显式拒绝：头颅在 1.21 里是 ENTITYBLOCK_ANIMATED，上面一条已经拦住了，
+     * 但这是需求明确点名的限制，写死一条免得以后原版把它改成普通模型时悄悄放行。</li>
+     * </ul>
+     */
+    private static boolean canCamouflageAs(BlockState state) {
+        if (state.isAir() || state.getRenderShape() != RenderShape.MODEL) {
+            return false;
+        }
+        return !(state.getBlock() instanceof AbstractSkullBlock);
     }
 
     @Override

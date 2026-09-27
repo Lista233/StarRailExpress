@@ -688,7 +688,9 @@ public class ModRoles {
             TMMRoles.CIVILIAN.getMaxSprintTime(),
             false // 不隐藏计分板
     )).setCanSeeCoin(true).setVigilanteTeam(true).setCanBeRandomedByOtherRoles(false).setDefaultMax(0)
-            .setCanSetSpawnInfoInConfig(false).setCanPickUpRevolver(true).setRoleData(JojoRoleData::new);
+            .setCanSetSpawnInfoInConfig(false).setCanPickUpRevolver(true);
+    // 欧拉一拳的连打状态不再挂在职业数据上（改为 OraPunchManager 按 UUID 维护），
+    // 这样任何职业拿到欧拉一拳都能用，所以这里不再 setRoleData。
 
     // ==================== 已注册角色定义 ====================
     // 乘客阵营角色

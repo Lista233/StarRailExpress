@@ -13,24 +13,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package org.agmas.noellesroles.role_data.vigilante;
+package org.agmas.noellesroles.content.item.ora;
 
-import io.wifi.starrailexpress.api.data.RoleData;
-import io.wifi.starrailexpress.api.data.RoleDataContext;
-import io.wifi.starrailexpress.api.impl.SimpleRoleData;
-import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.event.OnGameEnd;
 import io.wifi.starrailexpress.event.OnPlayerDeath;
 import io.wifi.starrailexpress.game.GameUtils;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -42,6 +38,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.item.ItemCooldowns;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -50,11 +47,10 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import org.agmas.noellesroles.ModDataComponentTypes;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.init.FunnyItems;
 import org.agmas.noellesroles.init.ModEffects;
-import org.agmas.noellesroles.role.ModRoles;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
@@ -63,10 +59,21 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 承太郎：欧拉一拳绑定/连打状态。绑定目标无法移动、无法使用物品，
- * 并始终被固定在使用者前方，直到自身或目标死亡，或 6 秒内未打满 20 次而超时。
+ * 欧拉一拳（{@link FunnyItems#BOWEN_BADGE}）的连打逻辑。<b>不限职业</b>：谁拿到这个物品谁都能用。
+ * <p>
+ * 右键进入攻击期间，绑定第一个打到的目标；被绑定目标无法移动、无法使用物品，并始终被固定在
+ * 使用者水平正前方，直到自身或目标死亡，或 {@value #RUSH_TICKS} tick 内没打满
+ * {@value #PUNCHES_TO_KILL} 次而超时。
+ * <p>
+ * 状态存放方式（原来挂在承太郎的职业数据上，因此只有承太郎能用）：
+ * <ul>
+ * <li><b>服务端权威状态</b>在 {@link #ACTIVE} 里，按使用者 UUID 索引，与职业无关；</li>
+ * <li><b>客户端镜像</b>写在物品的 {@link ModDataComponentTypes#ORA_RUSH} 组件上，手持物品会自动
+ * 同步给所有能看见持有者的玩家，渲染（金色挥拳）与 HUD 直接读它，不用新增网络包；</li>
+ * <li>事件只注册<b>一次</b>（{@link #registerEvents()}），逐个使用者在统一的服务端 tick 里结算。</li>
+ * </ul>
  */
-public class JojoRoleData extends SimpleRoleData {
+public final class OraPunchManager {
 
     public static final int RUSH_TICKS = 6 * 20;
     public static final int PUNCHES_TO_KILL = 20;
@@ -79,20 +86,26 @@ public class JojoRoleData extends SimpleRoleData {
 
     private static final DustParticleOptions GOLD_DUST =
             new DustParticleOptions(new Vector3f(1.0f, 0.84f, 0.18f), 1.15f);
+    /** 使用者 UUID → 连打进度。仅服务端。 */
+    private static final Map<UUID, Rush> ACTIVE = new ConcurrentHashMap<>();
+    /** 被绑定目标 UUID → 使用者 UUID。仅服务端。 */
     private static final Map<UUID, UUID> BOUND_TARGET_TO_ATTACKER = new ConcurrentHashMap<>();
     private static boolean eventsRegistered = false;
 
-    public boolean attacking = false;
-    public boolean nextOffhandSwing = false;
-    public int punchCount = 0;
-    public long rushEndGameTime = 0;
-    public long lastPunchGameTime = 0;
-    @Nullable
-    public UUID targetUuid = null;
-
-    public JojoRoleData(RoleDataContext context) {
-        super(context);
+    private OraPunchManager() {
     }
+
+    /** 一次连打的服务端进度。 */
+    private static final class Rush {
+        @Nullable
+        UUID targetUuid = null;
+        int punchCount = 0;
+        long rushEndGameTime = 0L;
+        long lastPunchGameTime = 0L;
+        boolean nextOffhandSwing = false;
+    }
+
+    // ==================== 注册 ====================
 
     public static void registerEvents() {
         if (eventsRegistered) {
@@ -128,22 +141,39 @@ public class JojoRoleData extends SimpleRoleData {
             return InteractionResult.FAIL;
         });
 
-        OnPlayerDeath.EVENT.register((victim, deathReason) -> {
-            endRushIfInvolved(victim, false);
+        OnPlayerDeath.EVENT.register((victim, deathReason) -> endRushIfInvolved(victim, false));
+
+        OnGameEnd.EVENT.register((level, game) -> {
+            // 清表之前先把镜像擦掉，免得「还在寻找目标」的快照（没有倒计时）留到下一局。
+            for (UUID attackerId : ACTIVE.keySet()) {
+                syncMirror(level.getPlayerByUUID(attackerId), null);
+            }
+            ACTIVE.clear();
+            BOUND_TARGET_TO_ATTACKER.clear();
         });
 
-        OnGameEnd.EVENT.register((level, game) -> BOUND_TARGET_TO_ATTACKER.clear());
+        // 统一的服务端 tick：逐个结算当前正在连打的使用者，不给每个使用者单独注册事件。
+        ServerTickEvents.END_SERVER_TICK.register(OraPunchManager::serverTick);
     }
 
+    // ==================== 查询（两端可用） ====================
+
+    /** 是否正被别人的欧拉一拳绑住（服务端权威，客户端不参与判定）。 */
     public static boolean isBoundTarget(Player player) {
         return player != null && BOUND_TARGET_TO_ATTACKER.containsKey(player.getUUID());
     }
 
+    /**
+     * 是否正在连打（已绑定目标且未超时）。渲染与动画用，两端都能调。
+     * <p>
+     * 读的是手持物品上的镜像组件，所以对「别人」也成立——这正是第三人称疯狂挥拳需要的。
+     */
     public static boolean isRushing(Player player) {
-        JojoRoleData data = RoleData.getNullable(JojoRoleData.class, player);
-        return data != null && data.attacking && data.targetUuid != null;
+        OraRushState state = stateOf(player);
+        return state != null && state.bound() && !state.isExpired(player.level());
     }
 
+    /** 主手或副手是否拿着欧拉一拳。 */
     public static boolean isHoldingOraPunch(Player player) {
         if (player == null) {
             return false;
@@ -152,106 +182,136 @@ public class JojoRoleData extends SimpleRoleData {
                 || player.getOffhandItem().is(FunnyItems.BOWEN_BADGE);
     }
 
-    private static void endRushIfInvolved(Player victim, boolean applyFailCooldown) {
-        if (victim == null) {
+    /**
+     * 手持的欧拉一拳上属于该玩家自己的连打快照；没有连打、或快照属于别人（物品被捡走）时返回 null。
+     */
+    @Nullable
+    public static OraRushState stateOf(@Nullable Player player) {
+        if (player == null) {
+            return null;
+        }
+        OraRushState state = readMirror(player.getMainHandItem(), player.getUUID());
+        return state != null ? state : readMirror(player.getOffhandItem(), player.getUUID());
+    }
+
+    /** 连打是否已超时。服务端查权威表，客户端查物品镜像。 */
+    public static boolean isRushExpired(@Nullable Player player) {
+        if (player == null) {
+            return false;
+        }
+        if (!player.level().isClientSide) {
+            Rush rush = ACTIVE.get(player.getUUID());
+            return rush != null && isExpired(player.level(), rush);
+        }
+        OraRushState state = stateOf(player);
+        return state != null && state.isExpired(player.level());
+    }
+
+    // ==================== 服务端逻辑 ====================
+
+    /** 右键欧拉一拳：开始寻找目标 / 继续连打。只在服务端调用。 */
+    public static void onOraUse(Player user) {
+        if (!(user instanceof ServerPlayer attacker) || attacker.level().isClientSide) {
             return;
         }
-        JojoRoleData selfData = RoleData.getNullable(JojoRoleData.class, victim);
-        if (selfData != null && selfData.attacking) {
-            selfData.endRush(applyFailCooldown);
-        }
-        UUID attackerId = BOUND_TARGET_TO_ATTACKER.remove(victim.getUUID());
-        if (attackerId == null || victim.level() == null) {
+        if (!GameUtils.isPlayerAliveAndSurvival(attacker)) {
             return;
         }
-        Player attacker = victim.level().getPlayerByUUID(attackerId);
-        JojoRoleData attackerData = RoleData.getNullable(JojoRoleData.class, attacker);
-        if (attackerData != null && attackerData.attacking) {
-            attackerData.endRush(applyFailCooldown);
+        Rush rush = ACTIVE.get(attacker.getUUID());
+        if (rush != null && isExpired(attacker.level(), rush)) {
+            endRush(attacker, true);
+            return;
+        }
+        if (attacker.getCooldowns().isOnCooldown(FunnyItems.BOWEN_BADGE)) {
+            return;
+        }
+        if (rush == null) {
+            rush = startSeeking(attacker);
+        }
+        tryPunch(attacker, rush);
+    }
+
+    private static void serverTick(MinecraftServer server) {
+        if (ACTIVE.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<UUID, Rush> entry : ACTIVE.entrySet()) {
+            ServerPlayer attacker = server.getPlayerList().getPlayer(entry.getKey());
+            if (attacker == null) {
+                // 使用者掉线：直接放人，否则目标会被 MOVE_BANED 永久锁在原地。
+                ACTIVE.remove(entry.getKey(), entry.getValue());
+                unbind(entry.getValue(), entry.getKey());
+                continue;
+            }
+            tickRush(attacker, entry.getValue());
         }
     }
 
-    @Override
-    public boolean shouldSyncWith(ServerPlayer player) {
-        return true;
+    private static void tickRush(ServerPlayer attacker, Rush rush) {
+        if (!GameUtils.isPlayerAliveAndSurvival(attacker)) {
+            endRush(attacker, false);
+            return;
+        }
+        if (rush.targetUuid != null) {
+            if (isExpired(attacker.level(), rush)) {
+                endRush(attacker, true);
+                return;
+            }
+            Player target = attacker.level().getPlayerByUUID(rush.targetUuid);
+            if (target == null || !GameUtils.isPlayerAliveAndSurvival(target)) {
+                endRush(attacker, true);
+                return;
+            }
+            restrainBoundTarget(attacker, target);
+            if (attacker.level().getGameTime() % 5 == 0) {
+                lockTargetItems(target);
+            }
+        }
+        // 换手 / 重新拿起物品后补写镜像；值没变时 ItemStack 不会被判定为变化，不会多发包。
+        syncMirror(attacker, rush);
     }
 
-    @Override
-    public void clear() {
-        unbindTarget();
-        this.attacking = false;
-        this.punchCount = 0;
-        this.rushEndGameTime = 0;
-        this.lastPunchGameTime = 0;
-        this.nextOffhandSwing = false;
-        this.targetUuid = null;
-    }
-
-    public void onOraUse(Player user) {
-        if (user.level().isClientSide || !(user instanceof ServerPlayer serverPlayer)) {
-            return;
-        }
-        if (!GameUtils.isPlayerAliveAndSurvival(serverPlayer)) {
-            return;
-        }
-        if (endRushIfExpired(serverPlayer.level())) {
-            return;
-        }
-        if (serverPlayer.getCooldowns().isOnCooldown(FunnyItems.BOWEN_BADGE)) {
-            return;
-        }
-        if (!attacking) {
-            startSeeking(serverPlayer);
-        }
-        tryPunch(serverPlayer);
-    }
-
-    private void startSeeking(ServerPlayer serverPlayer) {
-        this.attacking = true;
-        this.punchCount = 0;
-        this.targetUuid = null;
-        this.rushEndGameTime = 0;
-        this.nextOffhandSwing = false;
-        serverPlayer.displayClientMessage(
+    private static Rush startSeeking(ServerPlayer attacker) {
+        Rush rush = new Rush();
+        ACTIVE.put(attacker.getUUID(), rush);
+        attacker.displayClientMessage(
                 Component.translatable("message.noellesroles.jojo.ora.seeking")
                         .withStyle(ChatFormatting.GOLD),
                 true);
-        this.sync();
+        syncMirror(attacker, rush);
+        return rush;
     }
 
-    private void tryPunch(ServerPlayer attacker) {
-        if (endRushIfExpired(attacker.level())) {
-            return;
-        }
+    private static void tryPunch(ServerPlayer attacker, Rush rush) {
         Player looked = findPunchTarget(attacker);
-        if (targetUuid == null) {
+        if (rush.targetUuid == null) {
             if (looked == null || looked.getUUID().equals(attacker.getUUID())) {
                 return;
             }
-            bindTarget(attacker, looked);
-            applyPunch(attacker, looked);
+            bindTarget(attacker, looked, rush);
+            applyPunch(attacker, looked, rush);
             return;
         }
-        Player bound = attacker.level().getPlayerByUUID(targetUuid);
+        Player bound = attacker.level().getPlayerByUUID(rush.targetUuid);
         if (bound == null || !GameUtils.isPlayerAliveAndSurvival(bound)) {
-            endRush(true);
+            endRush(attacker, true);
             return;
         }
-        if (looked == null || !looked.getUUID().equals(targetUuid)) {
+        if (looked == null || !looked.getUUID().equals(rush.targetUuid)) {
             return;
         }
         long now = attacker.level().getGameTime();
-        if (now - lastPunchGameTime < MIN_PUNCH_INTERVAL_TICKS) {
+        if (now - rush.lastPunchGameTime < MIN_PUNCH_INTERVAL_TICKS) {
             return;
         }
-        applyPunch(attacker, bound);
+        applyPunch(attacker, bound, rush);
     }
 
-    private void bindTarget(ServerPlayer attacker, Player target) {
-        unbindTarget();
-        this.targetUuid = target.getUUID();
-        this.punchCount = 0;
-        this.rushEndGameTime = attacker.level().getGameTime() + RUSH_TICKS;
+    private static void bindTarget(ServerPlayer attacker, Player target, Rush rush) {
+        unbind(rush, attacker.getUUID());
+        rush.targetUuid = target.getUUID();
+        rush.punchCount = 0;
+        rush.rushEndGameTime = attacker.level().getGameTime() + RUSH_TICKS;
         BOUND_TARGET_TO_ATTACKER.put(target.getUUID(), attacker.getUUID());
         lockTargetItems(target);
         restrainBoundTarget(attacker, target);
@@ -265,15 +325,15 @@ public class JojoRoleData extends SimpleRoleData {
                             .withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
                     true);
         }
-        this.sync();
+        syncMirror(attacker, rush);
     }
 
-    private void applyPunch(ServerPlayer attacker, Player target) {
-        this.punchCount++;
-        this.lastPunchGameTime = attacker.level().getGameTime();
-        InteractionHand hand = nextOffhandSwing ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+    private static void applyPunch(ServerPlayer attacker, Player target, Rush rush) {
+        rush.punchCount++;
+        rush.lastPunchGameTime = attacker.level().getGameTime();
+        InteractionHand hand = rush.nextOffhandSwing ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
         attacker.swing(hand, true);
-        this.nextOffhandSwing = !this.nextOffhandSwing;
+        rush.nextOffhandSwing = !rush.nextOffhandSwing;
 
         target.invulnerableTime = 0;
         target.hurt(attacker.damageSources().playerAttack(attacker), 1.0F);
@@ -282,74 +342,126 @@ public class JojoRoleData extends SimpleRoleData {
         lockTargetItems(target);
         restrainBoundTarget(attacker, target);
 
-        if (punchCount >= PUNCHES_TO_KILL) {
-            finishKill(attacker, target);
+        if (rush.punchCount >= PUNCHES_TO_KILL) {
+            finishKill(attacker, target, rush);
             return;
         }
         attacker.displayClientMessage(
                 Component.translatable(
                         "message.noellesroles.jojo.ora.punch",
-                        punchCount,
+                        rush.punchCount,
                         PUNCHES_TO_KILL,
-                        remainingSeconds(attacker.level()))
+                        remainingSeconds(attacker.level(), rush))
                         .withStyle(ChatFormatting.YELLOW),
                 true);
-        this.sync();
+        syncMirror(attacker, rush);
     }
 
-    private void finishKill(ServerPlayer attacker, Player target) {
+    private static void finishKill(ServerPlayer attacker, Player target, Rush rush) {
         GameUtils.killPlayer(target, true, attacker, Noellesroles.id("bowen"));
         attacker.displayClientMessage(
                 Component.translatable("message.noellesroles.jojo.ora.kill", target.getName())
                         .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
                 true);
+        // killPlayer 会触发 OnPlayerDeath → endRushIfInvolved，那边已经把表清掉了（不带冷却），
+        // 这里补上击杀该有的完整冷却，并确保镜像被擦掉。
         applyItemCooldown(attacker, FULL_COOLDOWN_TICKS);
-        unbindTarget();
-        this.attacking = false;
-        this.punchCount = 0;
-        this.rushEndGameTime = 0;
-        this.targetUuid = null;
-        this.sync();
+        ACTIVE.remove(attacker.getUUID(), rush);
+        unbind(rush, attacker.getUUID());
+        syncMirror(attacker, null);
     }
 
-    public boolean isRushExpired(Level level) {
-        return attacking && targetUuid != null && rushEndGameTime > 0
-                && level != null && level.getGameTime() >= rushEndGameTime;
-    }
-
-    private boolean endRushIfExpired(Level level) {
-        if (!isRushExpired(level)) {
-            return false;
-        }
-        endRush(true);
-        return true;
-    }
-
-    public void endRush(boolean failCooldown) {
-        if (!attacking && targetUuid == null) {
+    /**
+     * 结束某个使用者的连打。
+     *
+     * @param failCooldown 是否按「没打完」结算（一半冷却 + 超时提示）
+     */
+    public static void endRush(@Nullable Player attacker, boolean failCooldown) {
+        if (attacker == null) {
             return;
         }
-        Player attacker = this.player;
-        if (failCooldown && attacker != null) {
+        Rush rush = ACTIVE.remove(attacker.getUUID());
+        if (rush == null) {
+            return;
+        }
+        unbind(rush, attacker.getUUID());
+        if (failCooldown) {
             applyItemCooldown(attacker, FAIL_COOLDOWN_TICKS);
             attacker.displayClientMessage(
                     Component.translatable("message.noellesroles.jojo.ora.timeout")
                             .withStyle(ChatFormatting.RED),
                     true);
         }
-        unbindTarget();
-        this.attacking = false;
-        this.punchCount = 0;
-        this.rushEndGameTime = 0;
-        this.targetUuid = null;
-        this.sync();
+        syncMirror(attacker, null);
     }
 
-    private void unbindTarget() {
-        if (targetUuid != null) {
-            BOUND_TARGET_TO_ATTACKER.remove(targetUuid, player.getUUID());
+    /** 死亡时：自己是使用者就收掉连打，自己是被绑目标就放开并结束绑定者的连打。 */
+    private static void endRushIfInvolved(Player victim, boolean applyFailCooldown) {
+        if (victim == null) {
+            return;
+        }
+        endRush(victim, applyFailCooldown);
+        UUID attackerId = BOUND_TARGET_TO_ATTACKER.remove(victim.getUUID());
+        if (attackerId == null || victim.level() == null) {
+            return;
+        }
+        endRush(victim.level().getPlayerByUUID(attackerId), applyFailCooldown);
+    }
+
+    private static void unbind(Rush rush, UUID attackerId) {
+        if (rush.targetUuid != null) {
+            BOUND_TARGET_TO_ATTACKER.remove(rush.targetUuid, attackerId);
         }
     }
+
+    private static boolean isExpired(Level level, Rush rush) {
+        return rush.targetUuid != null && rush.rushEndGameTime > 0 && level != null
+                && level.getGameTime() >= rush.rushEndGameTime;
+    }
+
+    private static float remainingSeconds(Level level, Rush rush) {
+        if (rush.rushEndGameTime <= 0 || level == null) {
+            return 0.0F;
+        }
+        return Math.max(0.0F, (rush.rushEndGameTime - level.getGameTime()) / 20.0F);
+    }
+
+    // ==================== 客户端镜像 ====================
+
+    /** 把服务端进度写到手上的欧拉一拳里；{@code rush} 为 null 表示擦除。 */
+    private static void syncMirror(@Nullable Player attacker, @Nullable Rush rush) {
+        if (attacker == null) {
+            return;
+        }
+        OraRushState state = rush == null ? null
+                : new OraRushState(attacker.getUUID(), rush.targetUuid != null, rush.punchCount,
+                        rush.rushEndGameTime);
+        writeMirror(attacker.getMainHandItem(), state);
+        writeMirror(attacker.getOffhandItem(), state);
+    }
+
+    private static void writeMirror(ItemStack stack, @Nullable OraRushState state) {
+        if (!stack.is(FunnyItems.BOWEN_BADGE)) {
+            return;
+        }
+        if (state == null) {
+            stack.remove(ModDataComponentTypes.ORA_RUSH);
+        } else {
+            stack.set(ModDataComponentTypes.ORA_RUSH, state);
+        }
+    }
+
+    @Nullable
+    private static OraRushState readMirror(ItemStack stack, UUID holder) {
+        if (!stack.is(FunnyItems.BOWEN_BADGE)) {
+            return null;
+        }
+        OraRushState state = stack.get(ModDataComponentTypes.ORA_RUSH);
+        // 物品被丢掉再被别人捡走时快照还在，靠 owner 把它和当前持有者区分开。
+        return state != null && holder.equals(state.owner()) ? state : null;
+    }
+
+    // ==================== 目标控制与表现 ====================
 
     private static void applyItemCooldown(Player player, int ticks) {
         if (player == null) {
@@ -359,7 +471,7 @@ public class JojoRoleData extends SimpleRoleData {
     }
 
     private static void lockTargetItems(Player target) {
-        var cooldowns = target.getCooldowns();
+        ItemCooldowns cooldowns = target.getCooldowns();
         applyCooldownIfPresent(cooldowns, target.getMainHandItem(), 10);
         applyCooldownIfPresent(cooldowns, target.getOffhandItem(), 10);
         for (ItemStack stack : target.getInventory().items) {
@@ -367,8 +479,7 @@ public class JojoRoleData extends SimpleRoleData {
         }
     }
 
-    private static void applyCooldownIfPresent(net.minecraft.world.item.ItemCooldowns cooldowns, ItemStack stack,
-            int ticks) {
+    private static void applyCooldownIfPresent(ItemCooldowns cooldowns, ItemStack stack, int ticks) {
         if (stack == null || stack.isEmpty()) {
             return;
         }
@@ -447,64 +558,5 @@ public class JojoRoleData extends SimpleRoleData {
         level.playSound(null, x, y, z, SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.PLAYERS, 0.9F, pitch);
         level.playSound(null, x, y, z, SoundEvents.PLAYER_ATTACK_STRONG, SoundSource.PLAYERS, 0.55F,
                 1.1f + attacker.getRandom().nextFloat() * 0.3f);
-    }
-
-    public float remainingSeconds(Level level) {
-        if (rushEndGameTime <= 0 || level == null) {
-            return 0f;
-        }
-        return Math.max(0f, (rushEndGameTime - level.getGameTime()) / 20.0f);
-    }
-
-    @Override
-    public void serverTick() {
-        if (player == null || player.level().isClientSide) {
-            return;
-        }
-        SREGameWorldComponent game = SREGameWorldComponent.KEY.get(player.level());
-        if (game == null || !game.isRole(player, ModRoles.JOJO)) {
-            return;
-        }
-        if (!attacking) {
-            return;
-        }
-        if (!GameUtils.isPlayerAliveAndSurvival(player)) {
-            endRush(false);
-            return;
-        }
-        if (targetUuid != null) {
-            if (endRushIfExpired(player.level())) {
-                return;
-            }
-            Player target = player.level().getPlayerByUUID(targetUuid);
-            if (target == null || !GameUtils.isPlayerAliveAndSurvival(target)) {
-                endRush(true);
-                return;
-            }
-            restrainBoundTarget(player, target);
-            if (player.level().getGameTime() % 5 == 0) {
-                lockTargetItems(target);
-            }
-        }
-    }
-
-    @Override
-    public void writeToSyncNbt(@NotNull CompoundTag tag, HolderLookup.Provider registryLookup) {
-        tag.putBoolean("attacking", this.attacking);
-        tag.putBoolean("nextOffhandSwing", this.nextOffhandSwing);
-        tag.putInt("punchCount", this.punchCount);
-        tag.putLong("rushEndGameTime", this.rushEndGameTime);
-        if (this.targetUuid != null) {
-            tag.putUUID("targetUuid", this.targetUuid);
-        }
-    }
-
-    @Override
-    public void readFromSyncNbt(@NotNull CompoundTag tag, HolderLookup.Provider registryLookup) {
-        this.attacking = tag.getBoolean("attacking");
-        this.nextOffhandSwing = tag.getBoolean("nextOffhandSwing");
-        this.punchCount = tag.getInt("punchCount");
-        this.rushEndGameTime = tag.getLong("rushEndGameTime");
-        this.targetUuid = tag.hasUUID("targetUuid") ? tag.getUUID("targetUuid") : null;
     }
 }

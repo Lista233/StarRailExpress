@@ -40,7 +40,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 
 /**
- * 竹枪 —— 右键后竹子模型沿视线向前伸长，最长 10 格 / 最多 3 秒；碰到玩家即击杀并收回。
+ * 竹刀 —— 右键后竹子沿视线向前伸长，最长 10 格、<b>1.5 秒</b>伸到底；碰到玩家即击杀并立刻收回。
  * 3 点耐久，每次成功释放消耗 1 点；冷却 15 秒。
  */
 public class BambooSpearItem extends Item implements TrainWeapon {

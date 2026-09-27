@@ -15,7 +15,6 @@
 
 package org.agmas.noellesroles.content.item;
 
-import io.wifi.starrailexpress.api.data.RoleData;
 import io.wifi.starrailexpress.util.AdventureUsable;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
@@ -28,12 +27,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.agmas.noellesroles.content.item.ora.OraPunchManager;
 import org.agmas.noellesroles.init.FunnyItems;
-import org.agmas.noellesroles.role_data.vigilante.JojoRoleData;
 
 /**
  * 欧拉一拳：右键进入攻击期间，绑定第一个打到的目标，6 秒内右键 20 次即可击杀。
  * 被绑定目标无法移动，并始终固定在使用者前方。开门等其他特性仍由方块侧检测本物品。
+ * <p>
+ * <b>不限职业</b>：连打状态由 {@link OraPunchManager} 按玩家 UUID 维护，拿到物品的人都能用。
  */
 public class BowenBadgeItem extends Item implements AdventureUsable {
 
@@ -42,7 +43,7 @@ public class BowenBadgeItem extends Item implements AdventureUsable {
     }
 
     public static boolean isHolding(Player player) {
-        return JojoRoleData.isHoldingOraPunch(player);
+        return OraPunchManager.isHoldingOraPunch(player);
     }
 
     @Override
@@ -54,15 +55,15 @@ public class BowenBadgeItem extends Item implements AdventureUsable {
         if (player.isSpectator()) {
             return InteractionResultHolder.fail(itemStack);
         }
-        JojoRoleData data = RoleData.getNullable(JojoRoleData.class, player);
-        if (data != null && data.isRushExpired(level)) {
+        if (OraPunchManager.isRushExpired(player)) {
+            // 已超时：本次右键只用来结算超时（一半冷却），不算一次出拳。
             if (!level.isClientSide) {
-                data.onOraUse(player);
+                OraPunchManager.onOraUse(player);
             }
             return InteractionResultHolder.fail(itemStack);
         }
-        if (!level.isClientSide && data != null) {
-            data.onOraUse(player);
+        if (!level.isClientSide) {
+            OraPunchManager.onOraUse(player);
         }
         return InteractionResultHolder.consume(itemStack);
     }

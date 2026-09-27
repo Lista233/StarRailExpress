@@ -106,6 +106,12 @@ public final class EntityDisguise {
             "PersistenceRequired", "CanPickUpLoot", "DeathLootTable", "DeathLootTableSeed",
             "Leash", "CannotEnterHiveTicks", "SleepTimer", "SleepingX", "SleepingY", "SleepingZ");
 
+    /**
+     * 眼高哨兵值：负数表示「保持玩家自己的眼高」，见 {@link #applyEyeHeight}。
+     * {@link #project} 算不出眼高时也返回这个值。
+     */
+    public static final float KEEP_EYE_HEIGHT = -1.0F;
+
     private EntityDisguise() {
     }
 
@@ -167,6 +173,22 @@ public final class EntityDisguise {
      */
     public static boolean disguise(ServerPlayer player, EntityType<?> type, @Nullable CompoundTag nbt,
             int durationTicks, @Nullable Predicate<ServerPlayer> endPredicate) {
+        return disguise(player, type, nbt, durationTicks, endPredicate, false);
+    }
+
+    /**
+     * 伪装但<b>保持玩家自己的眼高</b>：相机不随伪装实体的碰撞箱下压。
+     * <p>
+     * 给「伪装成薄东西」用——地毯、压力板、告示牌之类的碰撞箱只有几像素高，
+     * 按实体眼高压下去相机就掉进地板里了，玩家自己什么都看不见。
+     */
+    public static boolean disguiseKeepEyeHeight(ServerPlayer player, EntityType<?> type, @Nullable CompoundTag nbt,
+            int durationTicks) {
+        return disguise(player, type, nbt, durationTicks, null, true);
+    }
+
+    private static boolean disguise(ServerPlayer player, EntityType<?> type, @Nullable CompoundTag nbt,
+            int durationTicks, @Nullable Predicate<ServerPlayer> endPredicate, boolean keepEyeHeight) {
         if (player == null || type == null) {
             return false;
         }
@@ -179,7 +201,9 @@ public final class EntityDisguise {
         CompoundTag clean = sanitizeNbt(nbt);
         // 一次探针同时得到「要发的外观 NBT」与眼高。
         Projection projection = project(player.level(), type, clean);
-        EntityDisguiseState state = EntityDisguiseState.of(type, projection.renderNbt(), projection.eyeHeight());
+        // KEEP_EYE_HEIGHT 是 applyEyeHeight 认的哨兵值（负数 = 保持原样）。
+        float eyeHeight = keepEyeHeight ? KEEP_EYE_HEIGHT : projection.eyeHeight();
+        EntityDisguiseState state = EntityDisguiseState.of(type, projection.renderNbt(), eyeHeight);
         return EntityDisguiseManager.set(player, state, expireAt(durationTicks), endPredicate);
     }
 

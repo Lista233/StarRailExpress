@@ -31,7 +31,9 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
@@ -117,9 +119,34 @@ public final class EntityDisguiseRenderer {
         Entity entity = dummy.entity();
         copyPlayerState(player, entity);
         poseStack.pushPose();
+        applyBlockGridSnap(player, state, tickDelta, poseStack);
         dummy.renderer().render(entity, yaw, tickDelta, poseStack, bufferSource, packedLight);
         poseStack.popPose();
         return true;
+    }
+
+    /**
+     * 伪装成方块且<b>按住 shift</b> 时，把方块画到整数方格上，而不是跟着玩家的小数坐标飘在格子之间。
+     * <p>
+     * {@code FallingBlockRenderer} 画出的模型范围是相对实体原点
+     * {@code (-0.5, 0, -0.5)}~{@code (+0.5, 1, +0.5)}，所以要让它正好占满 {@code (bx, by, bz)} 这一格，
+     * 原点必须落在 {@code (bx+0.5, by, bz+0.5)}。
+     * <p>
+     * 进来时 PoseStack 已经被渲染派发器推到玩家的<b>插值位置</b>上了，所以这里平移的是
+     * 「目标位置 − 玩家插值位置」的差值，不能直接 translate 绝对坐标。
+     * <p>
+     * 刻意<b>不判断职业</b>：职业是保密信息，别的客户端并不知道谁是自然精灵。
+     * 判定只看「伪装成掉落方块 + 正在按 shift」，对所有观察者（含本人第三人称）表现一致。
+     */
+    private static void applyBlockGridSnap(AbstractClientPlayer player, EntityDisguiseState state, float tickDelta,
+            PoseStack poseStack) {
+        if (state.type() != EntityType.FALLING_BLOCK || !player.isShiftKeyDown()) {
+            return;
+        }
+        double x = Mth.lerp(tickDelta, player.xo, player.getX());
+        double y = Mth.lerp(tickDelta, player.yo, player.getY());
+        double z = Mth.lerp(tickDelta, player.zo, player.getZ());
+        poseStack.translate(Mth.floor(x) + 0.5 - x, Mth.floor(y) - y, Mth.floor(z) + 0.5 - z);
     }
 
     /**

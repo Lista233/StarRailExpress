@@ -36,7 +36,7 @@ import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.role.touhou.THMiscRoles;
-import org.agmas.noellesroles.role_data.vigilante.JojoRoleData;
+import org.agmas.noellesroles.content.item.ora.OraPunchManager;
 import org.agmas.noellesroles.utils.RoleUtils;
 
 public class InvisbleHandItem {
@@ -46,7 +46,7 @@ public class InvisbleHandItem {
             if (itemStack.is(FunnyItems.BOWEN_BADGE)) {
                 return ItemStack.EMPTY;
             }
-            if (!mainHand && JojoRoleData.isRushing(player) && JojoRoleData.isHoldingOraPunch(player)) {
+            if (!mainHand && OraPunchManager.isRushing(player) && OraPunchManager.isHoldingOraPunch(player)) {
                 return ItemStack.EMPTY;
             }
             return null;

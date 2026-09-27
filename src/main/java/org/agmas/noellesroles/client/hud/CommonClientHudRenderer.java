@@ -79,7 +79,8 @@ import org.agmas.noellesroles.role.touhou.THMountainRoles;
 import org.agmas.noellesroles.role.touhou.THRedHouseRoles;
 import org.agmas.noellesroles.role_data.neutral.RemiliaBloodServantRoleData;
 import org.agmas.noellesroles.role_data.vigilante.HoanMeirinRoleData;
-import org.agmas.noellesroles.role_data.vigilante.JojoRoleData;
+import org.agmas.noellesroles.content.item.ora.OraPunchManager;
+import org.agmas.noellesroles.content.item.ora.OraRushState;
 import org.agmas.noellesroles.utils.MessageDetail;
 
 import java.awt.*;
@@ -990,24 +991,36 @@ public class CommonClientHudRenderer {
         guiGraphics.drawString(font, text, xOffset - font.width(text), yOffset - font.lineHeight - 4,
             Color.WHITE.getRGB());
       }
-      JojoRoleData jojo = RoleData.getNullable(JojoRoleData.class, client.player);
-      if (jojo != null && jojo.attacking) {
-        Component oraText;
-        if (jojo.targetUuid != null) {
-          oraText = Component.translatable(
-                  "hud.noellesroles.jojo.ora.rush",
-                  jojo.punchCount,
-                  JojoRoleData.PUNCHES_TO_KILL,
-                  String.format("%.1f", jojo.remainingSeconds(client.level)))
-              .withStyle(ChatFormatting.GOLD);
-        } else {
-          oraText = Component.translatable("hud.noellesroles.jojo.ora.seeking")
-              .withStyle(ChatFormatting.YELLOW);
-        }
-        guiGraphics.drawString(font, oraText, xOffset - font.width(oraText),
-            yOffset - font.lineHeight * 2 - 8, Color.WHITE.getRGB());
-      }
       return;
+    });
+    // 欧拉一拳的连打提示：不限职业，所以挂在通用 HUD 上而不是 JOJO 的职业 HUD 上。
+    // 位置与上面 JOJO 的技能行保持一致（右下角再往上一行），非 JOJO 玩家那一行本来就是空的。
+    CommonHudRenderCallback.EVENT.register((guiGraphics, deltaTracker) -> {
+      var client = Minecraft.getInstance();
+      if (client.player == null || client.level == null) {
+        return;
+      }
+      OraRushState ora = OraPunchManager.stateOf(client.player);
+      if (ora == null) {
+        return;
+      }
+      var font = client.font;
+      int yOffset = guiGraphics.guiHeight() - 10 - font.lineHeight;
+      int xOffset = guiGraphics.guiWidth() - 10;
+      Component oraText;
+      if (ora.bound()) {
+        oraText = Component.translatable(
+                "hud.noellesroles.jojo.ora.rush",
+                ora.punchCount(),
+                OraPunchManager.PUNCHES_TO_KILL,
+                String.format("%.1f", ora.remainingSeconds(client.level)))
+            .withStyle(ChatFormatting.GOLD);
+      } else {
+        oraText = Component.translatable("hud.noellesroles.jojo.ora.seeking")
+            .withStyle(ChatFormatting.YELLOW);
+      }
+      guiGraphics.drawString(font, oraText, xOffset - font.width(oraText),
+          yOffset - font.lineHeight * 2 - 8, Color.WHITE.getRGB());
     });
     RoleHudRenderCallback.EVENT.register(THRedHouseRoles.MAID_SAKUYA_ID, (guiGraphics, deltaTracker) -> {
       // 渲染SAKUYA的提示

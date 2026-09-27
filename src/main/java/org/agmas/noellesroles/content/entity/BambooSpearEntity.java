@@ -41,16 +41,20 @@ import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.init.ModItems;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * 竹枪延伸体：从持有者手部沿视线伸长，最长 10 格、最多 3 秒；命中玩家则击杀并收回。
+ * 竹刀延伸体：右键后从持有者手部沿视线慢慢伸长，最长 10 格、<b>1.5 秒</b>伸到底；
+ * 命中玩家则目标立即死亡、竹刀收回（耐久由 {@code BambooSpearItem} 在释放时扣 1 点）。
  */
 public class BambooSpearEntity extends Entity {
 
     public static final float MAX_LENGTH = 10.0f;
-    public static final int EXTEND_TICKS = 20 * 3;
+    /** 伸到最长所需的时间：1.5 秒。 */
+    public static final int EXTEND_TICKS = 30;
     public static final int RETRACT_TICKS = 10;
 
     private static final EntityDataAccessor<Float> LENGTH = SynchedEntityData.defineId(BambooSpearEntity.class,
@@ -75,9 +79,24 @@ public class BambooSpearEntity extends Entity {
     private static final EntityDataAccessor<Float> DIR_Z = SynchedEntityData.defineId(BambooSpearEntity.class,
             EntityDataSerializers.FLOAT);
 
+    /**
+     * 客户端侧「哪些玩家正在放竹刀」：UUID → 最后一次客户端 tick 时的世界时间。
+     * <p>
+     * 渲染端（手臂姿态 mixin）每帧都要问，所以用一张表代替遍历实体；只在客户端 tick /
+     * 实体移除时写，读写都在客户端主线程。存时间戳而不是单纯存 UUID 是为了自愈——
+     * 退出重进时客户端世界是整个丢掉的，不保证每个实体都走过 {@link #remove}，
+     * 残留条目会因为时间戳对不上而自动失效。
+     */
+    private static final Map<UUID, Long> CLIENT_ACTIVE_OWNERS = new HashMap<>();
+
     private boolean killed;
     private float clientLength;
     private float clientPrevLength;
+    /** 客户端插值用：上一 tick / 本 tick 的权威眼睛位置与视线方向。 */
+    private Vec3 clientPrevEye;
+    private Vec3 clientEye;
+    private Vec3 clientPrevDir;
+    private Vec3 clientDir;
     /**
      * 最后一格耐久使用时物品会碎裂（背包里不再有竹枪），
      * 置为 true 后本条「持有者必须持有竹枪」的检查被跳过，
@@ -116,8 +135,44 @@ public class BambooSpearEntity extends Entity {
         return this.entityData.get(OWNER_UUID).orElse(null);
     }
 
+    /** 客户端：该玩家是否正在放竹刀（渲染手臂姿态用）。只认这一 tick 或上一 tick 刚更新过的条目。 */
+    public static boolean isClientActiveOwner(@Nullable Player player) {
+        if (player == null) {
+            return false;
+        }
+        Long stamp = CLIENT_ACTIVE_OWNERS.get(player.getUUID());
+        if (stamp == null) {
+            return false;
+        }
+        long now = player.level().getGameTime();
+        return stamp == now || stamp == now - 1L;
+    }
+
+    /** 插值后的眼睛位置，未就绪返回 null。 */
+    public @Nullable Vec3 getInterpolatedEye(float partialTick) {
+        if (this.clientEye == null) {
+            return null;
+        }
+        if (this.clientPrevEye == null) {
+            return this.clientEye;
+        }
+        return this.clientPrevEye.lerp(this.clientEye, partialTick);
+    }
+
+    /** 插值后的视线方向（已归一化），未就绪返回 null。 */
+    public @Nullable Vec3 getInterpolatedDir(float partialTick) {
+        if (this.clientDir == null) {
+            return null;
+        }
+        if (this.clientPrevDir == null) {
+            return this.clientDir;
+        }
+        Vec3 lerped = this.clientPrevDir.lerp(this.clientDir, partialTick);
+        return lerped.lengthSqr() < 1.0e-6 ? this.clientDir : lerped.normalize();
+    }
+
     /** 服务端每 tick 同步的权威眼睛位置（持有者当前视角下的眼睛）。未就绪返回 null。 */
-    public @Nullable Vec3 getEyePos() {
+    public @Nullable Vec3 getSyncedEyePos() {
         float x = this.entityData.get(EYE_X);
         float y = this.entityData.get(EYE_Y);
         float z = this.entityData.get(EYE_Z);
@@ -128,7 +183,7 @@ public class BambooSpearEntity extends Entity {
     }
 
     /** 服务端每 tick 同步的权威视线方向（已归一化）。未就绪返回 null。 */
-    public @Nullable Vec3 getLookDir() {
+    public @Nullable Vec3 getSyncedLookDir() {
         float x = this.entityData.get(DIR_X);
         float y = this.entityData.get(DIR_Y);
         float z = this.entityData.get(DIR_Z);
@@ -176,6 +231,18 @@ public class BambooSpearEntity extends Entity {
         if (this.level().isClientSide) {
             this.clientPrevLength = this.clientLength;
             this.clientLength = getLength();
+            // 同步数据是「每 tick 一跳」的，直接拿来画会让其他玩家看到 20Hz 的抖动；
+            // 这里存上一 tick 的值，渲染端再按 partialTick 插值。
+            Vec3 eye = getSyncedEyePos();
+            Vec3 dir = getSyncedLookDir();
+            this.clientPrevEye = this.clientEye == null ? eye : this.clientEye;
+            this.clientPrevDir = this.clientDir == null ? dir : this.clientDir;
+            this.clientEye = eye;
+            this.clientDir = dir;
+            UUID owner = getOwnerUuid();
+            if (owner != null) {
+                CLIENT_ACTIVE_OWNERS.put(owner, this.level().getGameTime());
+            }
             return;
         }
         if (!(this.level() instanceof ServerLevel serverLevel)) {
@@ -256,12 +323,23 @@ public class BambooSpearEntity extends Entity {
         this.entityData.set(RETRACTING, retracting);
     }
 
-    /** 设置「持有者不再持有竹枪」的检查豁免（最后一格耐久碎裂时使用）。 */
+    /** 设置「持有者不再持有竹刀」的检查豁免（最后一格耐久碎裂时使用）。 */
     public void setItemCheckBypassed(boolean bypassed) {
         this.itemCheckBypassed = bypassed;
     }
 
-    /** 竹枪可以伸出最多 10 格，渲染剔除盒按最大长度扩 大，避免杆身伸出视锥剔除范围被整体裁掉。 */
+    @Override
+    public void remove(RemovalReason reason) {
+        if (this.level().isClientSide) {
+            UUID owner = getOwnerUuid();
+            if (owner != null) {
+                CLIENT_ACTIVE_OWNERS.remove(owner);
+            }
+        }
+        super.remove(reason);
+    }
+
+    /** 竹刀可以伸出最多 10 格，渲染剔除盒按最大长度扩大，避免杆身伸出视锥剔除范围被整体裁掉。 */
     @Override
     public AABB getBoundingBoxForCulling() {
         return this.getBoundingBox().inflate(MAX_LENGTH + 1.0F);

@@ -24,7 +24,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
-import org.agmas.noellesroles.role_data.vigilante.JojoRoleData;
+import org.agmas.noellesroles.content.item.ora.OraPunchManager;
 import org.spongepowered.asm.mixin.Mixin;
 
 /**
@@ -37,7 +37,7 @@ public class OraFistFirstPersonSwingMixin {
     private void noellesroles$oraBothHands(AbstractClientPlayer player, float partialTicks, float pitch,
             InteractionHand hand, float swingProgress, ItemStack stack, float equippedProgress, PoseStack poseStack,
             MultiBufferSource buffer, int packedLight, Operation<Void> original) {
-        if (player != null && JojoRoleData.isRushing(player)) {
+        if (player != null && OraPunchManager.isRushing(player)) {
             float wave = (player.tickCount + partialTicks) * 1.85f;
             float phase = hand == InteractionHand.OFF_HAND ? wave + (float) Math.PI : wave;
             swingProgress = (Mth.sin(phase) + 1.0f) * 0.5f;

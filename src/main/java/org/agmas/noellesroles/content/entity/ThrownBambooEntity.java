@@ -29,6 +29,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
@@ -45,6 +46,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.init.ModItems;
 
 import java.util.ArrayList;
@@ -53,8 +55,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 投掷竹子：水平直线飞行，途中最多将 2 名玩家挂在竹子上；撞墙后钉在墙上不再位移，
- * 从发射起 12 秒后（含钉墙时间）统一消失。
+ * 投掷竹子（竹枪）：水平直线飞行，途中最多把 2 名玩家挂在竹杆上带着一起走；
+ * 撞墙后整根钉在墙上不再位移，被挂的玩家也一起钉在墙上无法移动，
+ * <b>从发射到消失总共 10 秒</b>（飞行 + 带人 + 钉墙都算在这 10 秒内）。
  * <p>
  * 防卡墙：挂人位置 / 下竹位置都会做碰撞检测并检查与竹子本体之间无墙阻挡，
  * 找不到安全位就落地放人，绝不把人传送到墙对面。
@@ -62,8 +65,8 @@ import java.util.UUID;
 public class ThrownBambooEntity extends AbstractArrow {
 
     public static final int MAX_HANG = 2;
-    /** 从发射到消失的总时长（含钉在墙上的时间）。 */
-    public static final int LIFETIME_TICKS = 20 * 12;
+    /** 从发射到消失的总时长（飞行 + 钉在墙上的时间全算在内）。 */
+    public static final int LIFETIME_TICKS = 20 * 10;
     /** 发射速度。 */
     public static final float THROW_SPEED = 2.04F;
 
@@ -84,17 +87,24 @@ public class ThrownBambooEntity extends AbstractArrow {
     /** 渲染朝向：显式同步的水平 yaw，不依赖原版箭矢的旋转插值。 */
     private static final EntityDataAccessor<Float> FACING_YAW = SynchedEntityData.defineId(ThrownBambooEntity.class,
             EntityDataSerializers.FLOAT);
+    /**
+     * 是否已钉在墙上。<b>必须同步</b>：客户端也要用它算挂人的挂点（钉墙后挂点从杆前挪到杆后），
+     * 不同步的话客户端会把被挂玩家画到墙里去；渲染端也靠它做入墙的震颤。
+     */
+    private static final EntityDataAccessor<Boolean> PINNED = SynchedEntityData.defineId(ThrownBambooEntity.class,
+            EntityDataSerializers.BOOLEAN);
 
     private final List<UUID> hungPlayers = new ArrayList<>(2);
 
-    /** 是否已钉在墙上。 */
-    private boolean pinned;
+    /** 钉墙点与钉墙朝向：仅服务端权威，客户端位置由同步包给出。 */
     private Vec3 pinPos = Vec3.ZERO;
     private float pinYaw;
 
     /** 客户端平滑朝向。 */
     private float renderYaw;
     private float prevRenderYaw;
+    /** 客户端：钉墙后经过的 tick 数，用于入墙震颤。 */
+    private int clientPinTicks = -1;
 
     public ThrownBambooEntity(EntityType<? extends AbstractArrow> entityType, Level level) {
         super(entityType, level);
@@ -126,15 +136,26 @@ public class ThrownBambooEntity extends AbstractArrow {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(FACING_YAW, 0.0F);
+        builder.define(PINNED, false);
     }
 
     public float getFacingYaw() {
         return this.entityData.get(FACING_YAW);
     }
 
+    /** 是否已钉在墙上（两端可读）。 */
+    public boolean isPinned() {
+        return this.entityData.get(PINNED);
+    }
+
     /** 客户端插值后的渲染朝向。 */
     public float getRenderYaw(float partialTick) {
         return Mth.lerp(partialTick, this.prevRenderYaw, this.renderYaw);
+    }
+
+    /** 客户端：钉墙后经过的时间（tick），未钉墙返回 -1。渲染端据此做入墙震颤。 */
+    public int getClientPinTicks() {
+        return this.clientPinTicks;
     }
 
     // ------------------------------------------------------------------ 基础行为
@@ -177,7 +198,7 @@ public class ThrownBambooEntity extends AbstractArrow {
         Vec3 forward = this.forward();
         Vec3 right = rightOf(forward);
         // 钉墙后把人挂在竹杆后方（投掷者一侧），避免穿到墙对面。
-        double along = this.pinned ? -0.95 : HANG_FORWARD;
+        double along = this.isPinned() ? -0.95 : HANG_FORWARD;
         return forward.scale(along).add(right.scale(side)).add(0.0, HANG_UP, 0.0);
     }
 
@@ -191,7 +212,7 @@ public class ThrownBambooEntity extends AbstractArrow {
             Vec3 safe = this.findFreeSpot(passenger, target);
             if (safe != null) {
                 target = safe;
-            } else if (!this.pinned) {
+            } else if (!this.isPinned()) {
                 // 飞行中附近没空位：先贴着竹子本体，下一 tick 再检查；仍会卡墙就放下来。
                 moveFunction.accept(passenger, this.getX(), this.getY(), this.getZ());
                 return;
@@ -204,7 +225,7 @@ public class ThrownBambooEntity extends AbstractArrow {
 
     @Override
     protected boolean canHitEntity(Entity entity) {
-        if (this.pinned) {
+        if (this.isPinned()) {
             return false;
         }
         if (this.hungPlayers.size() >= MAX_HANG) {
@@ -268,7 +289,7 @@ public class ThrownBambooEntity extends AbstractArrow {
 
     @Override
     protected void onHitBlock(BlockHitResult blockHitResult) {
-        if (this.pinned) {
+        if (this.isPinned()) {
             this.applyPin();
             return;
         }
@@ -305,7 +326,7 @@ public class ThrownBambooEntity extends AbstractArrow {
         }
         this.pinPos = new Vec3(chosen.x, this.getY(), chosen.z);
         this.pinYaw = this.getFacingYaw();
-        this.pinned = true;
+        this.entityData.set(PINNED, true);
     }
 
     /** 强制保持钉墙状态（抵消原版 startFalling / 位移 / 旋转抖动）。 */
@@ -327,15 +348,19 @@ public class ThrownBambooEntity extends AbstractArrow {
 
     @Override
     public void tick() {
-        if (this.pinned) {
+        if (this.isPinned()) {
             // 原版箭矢 tick 在「钉点所在方块为空气」时会解除 inGround 并重新飞行，
             // 而钉墙时实体本体停在墙外空气中，所以钉墙期间完全绕过原版箭矢逻辑：
-            // 只维持位置/朝向、计时与乘客管理，保证钉在墙上 12 秒后消失。
+            // 只维持位置/朝向、计时与乘客管理，保证从发射算起满 10 秒后消失。
             this.tickCount++;
             if (this.level().isClientSide) {
-                this.prevRenderYaw = this.renderYaw;
-                this.renderYaw = Mth.rotLerp(0.35F, this.renderYaw, this.getFacingYaw());
-                this.applyPin();
+                this.tickRenderYaw();
+                this.clientPinTicks++;
+                // 客户端没有钉墙点（那是服务端字段），位置由同步包给出；
+                // 这里只掐掉运动，别让客户端副本自己接着往前飞。
+                this.setDeltaMovement(Vec3.ZERO);
+                this.setXRot(0.0F);
+                this.xRotO = 0.0F;
                 return;
             }
             this.applyPin();
@@ -347,38 +372,48 @@ public class ThrownBambooEntity extends AbstractArrow {
             this.unstickRiders();
             return;
         }
-        {
-            // 保持水平直线飞行，速度恒定，朝向始终跟运动方向。
-            Vec3 motion = this.getDeltaMovement();
-            Vec3 horiz = new Vec3(motion.x, 0.0, motion.z);
-            if (horiz.lengthSqr() > 1.0E-6) {
-                horiz = horiz.normalize().scale(THROW_SPEED);
-                this.setDeltaMovement(horiz.x, 0.0, horiz.z);
+        // 保持水平直线飞行，速度恒定，朝向始终跟运动方向。
+        Vec3 motion = this.getDeltaMovement();
+        Vec3 horiz = new Vec3(motion.x, 0.0, motion.z);
+        if (horiz.lengthSqr() > 1.0E-6) {
+            horiz = horiz.normalize().scale(THROW_SPEED);
+            this.setDeltaMovement(horiz.x, 0.0, horiz.z);
+            if (!this.level().isClientSide) {
                 this.entityData.set(FACING_YAW, yawFrom(horiz));
             }
-            this.setXRot(0.0f);
-            this.xRotO = 0.0f;
         }
+        this.setXRot(0.0f);
+        this.xRotO = 0.0f;
         if (this.level().isClientSide) {
-            this.prevRenderYaw = this.renderYaw;
-            this.renderYaw = Mth.rotLerp(0.35F, this.renderYaw, this.getFacingYaw());
+            this.tickRenderYaw();
         }
         super.tick();
         if (this.tickCount > LIFETIME_TICKS) {
             this.remove(RemovalReason.DISCARDED);
             return;
         }
-        if (this.pinned) {
-            this.applyPin();
+        if (this.isPinned()) {
+            if (this.level().isClientSide) {
+                this.clientPinTicks = 0;
+            } else {
+                this.applyPin();
+            }
         }
         if (this.level().isClientSide) {
             return;
         }
-        if (!this.pinned) {
+        // super.tick() 里可能刚刚撞墙钉住，这一 tick 就不要再扫掠挂人了。
+        if (!this.isPinned()) {
             this.sweepHang();
         }
         this.remountHungPlayers();
         this.unstickRiders();
+    }
+
+    /** 客户端朝向平滑：同步值是每 tick 一跳的，这里追一个软化后的角度给渲染端插值。 */
+    private void tickRenderYaw() {
+        this.prevRenderYaw = this.renderYaw;
+        this.renderYaw = Mth.rotLerp(0.35F, this.renderYaw, this.getFacingYaw());
     }
 
     /** 飞行中用整根竹杆扫掠挂人：命中判定覆盖杆头到杆尾，比原版箭矢判定大得多。 */
@@ -413,8 +448,23 @@ public class ThrownBambooEntity extends AbstractArrow {
             if (serverPlayer.getVehicle() != this) {
                 serverPlayer.startRiding(this, true);
             }
+            banMovement(serverPlayer);
             return false;
         });
+    }
+
+    /**
+     * 被挂在竹杆上的玩家不能动：骑乘本身已经吃掉了大部分移动输入，
+     * 这里再叠一层 MOVE_BANED 兜底（钉在墙上期间尤其重要，否则玩家能靠位移把自己蹭下来）。
+     * <p>
+     * 只在剩余时长不足半秒时续期，避免每 tick 都把效果同步包发一遍。
+     */
+    private static void banMovement(ServerPlayer player) {
+        MobEffectInstance current = player.getEffect(ModEffects.MOVE_BANED);
+        if (current != null && current.getDuration() > 10) {
+            return;
+        }
+        player.addEffect(new MobEffectInstance(ModEffects.MOVE_BANED, 40, 0, false, false, false));
     }
 
     /** 兜底：万一玩家还是嵌在方块里，找安全位；找不到就下竹落地，绝不把人传送到墙对面。 */
@@ -528,6 +578,12 @@ public class ThrownBambooEntity extends AbstractArrow {
 
     @Override
     public void remove(RemovalReason reason) {
+        // 竹子消失时立刻把「不能动」解掉，别让玩家继续被 MOVE_BANED 的剩余时长按在原地。
+        for (Entity passenger : this.getPassengers()) {
+            if (passenger instanceof ServerPlayer player) {
+                player.removeEffect(ModEffects.MOVE_BANED);
+            }
+        }
         this.ejectPassengers();
         super.remove(reason);
     }
@@ -550,8 +606,8 @@ public class ThrownBambooEntity extends AbstractArrow {
             list.add(NbtUtils.createUUID(uuid));
         }
         compoundTag.put("HungPlayers", list);
-        compoundTag.putBoolean("Pinned", this.pinned);
-        if (this.pinned) {
+        compoundTag.putBoolean("Pinned", this.isPinned());
+        if (this.isPinned()) {
             compoundTag.putDouble("PinX", this.pinPos.x);
             compoundTag.putDouble("PinY", this.pinPos.y);
             compoundTag.putDouble("PinZ", this.pinPos.z);
@@ -567,8 +623,8 @@ public class ThrownBambooEntity extends AbstractArrow {
         for (Tag tag : list) {
             hungPlayers.add(NbtUtils.loadUUID(tag));
         }
-        this.pinned = compoundTag.getBoolean("Pinned");
-        if (this.pinned) {
+        this.entityData.set(PINNED, compoundTag.getBoolean("Pinned"));
+        if (this.isPinned()) {
             this.pinPos = new Vec3(compoundTag.getDouble("PinX"), compoundTag.getDouble("PinY"),
                     compoundTag.getDouble("PinZ"));
             this.pinYaw = compoundTag.getFloat("PinYaw");
