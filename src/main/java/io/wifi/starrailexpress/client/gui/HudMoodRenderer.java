@@ -48,6 +48,8 @@ public class HudMoodRenderer {
     public static final ResourceLocation MOOD_PSYCHO_EYES = SRE.watheId("hud/mood_psycho_eyes");
     // 中立和 Vigilante 图标 (来自 noellesroles 资源包)
     public static final ResourceLocation MOOD_NEU = Noellesroles.id("hud/mood_neu");
+    public static final ResourceLocation MOOD_NEU_EVENT = Noellesroles.id("hud/mood_neu_event");
+    public static final ResourceLocation MOOD_NEU_SPECIAL = Noellesroles.id("hud/mood_neu_special");
     public static final ResourceLocation MOOD_VIG = Noellesroles.id("hud/mood_vig");
     // 小丑图标 (来自 noellesroles 资源包)
     public static final ResourceLocation MOOD_JESTER = Noellesroles.id("hud/mood_jester");
@@ -163,8 +165,12 @@ public class HudMoodRenderer {
             return MOOD_JESTER;
         }
         if (RoleTeam.NEUTRAL_SPECIAL.matches(role)) {
-            // 特殊中立：归入中立图标
-            return MOOD_NEU;
+            // 特殊中立
+            return MOOD_NEU_SPECIAL;
+        }
+        if (RoleTeam.NEUTRAL_EVENT.matches(role)) {
+            // 事件中立
+            return MOOD_NEU_EVENT;
         }
         if (RoleTeam.CIVILIAN.matches(role)) {
             return MOOD_HAPPY;
@@ -196,8 +202,12 @@ public class HudMoodRenderer {
             return Noellesroles.id("textures/gui/sprites/hud/mood_jester.png");
         }
         if (RoleTeam.NEUTRAL_SPECIAL.matches(role)) {
-            // 特殊中立：归入中立图标
-            return Noellesroles.id("textures/gui/sprites/hud/mood_neu.png");
+            // 特殊中立
+            return Noellesroles.id("textures/gui/sprites/hud/mood_neu_special.png");
+        }
+        if (RoleTeam.NEUTRAL_EVENT.matches(role)) {
+            // 事件中立
+            return Noellesroles.id("textures/gui/sprites/hud/mood_neu_event.png");
         }
         if (RoleTeam.CIVILIAN.matches(role)) {
             return SRE.watheId("textures/gui/sprites/hud/mood_happy.png");
