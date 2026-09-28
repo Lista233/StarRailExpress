@@ -79,7 +79,7 @@ public class StarRailExpressTitleScreen extends Screen {
     private static final Component TITLE = Component.translatable("narrator.screen.title");
 
     public static final String QQ_GROUP_URL = "https://qm.qq.com/q/8XXqKRjT7q";
-    public static final String DISCORD_URL = "https://discord.gg/T7R5NkMHt3";
+    public static final String DISCORD_URL = "https://discord.gg/GSC3zqqpQT";
     public static final String FEEDBACK_URL = "https://github.com/catmoon-train/StarRailExpress/issues";
 
     /** 菜单项纵向间距 */
