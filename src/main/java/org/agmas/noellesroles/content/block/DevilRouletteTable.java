@@ -51,7 +51,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.agmas.noellesroles.content.block_entity.DevilRouletteTableEntity;
-import org.agmas.noellesroles.minigame.DevilRouletteGame;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
@@ -249,8 +248,8 @@ public class DevilRouletteTable extends Block implements EntityBlock, AutoResetB
                 var seatPos = seatEntity.getSeatPos();
                 if (seatPos != null && table.isSeatAvailable(seatPos)) {
                     boolean isFront = table.isFrontSeat(seatPos);
-                    // 游戏未开始时，如果游戏模式是轮盘赌模式，则不允许自动开启
-                    if (!table.isGameActive() && table.getGameMode() != DevilRouletteGame.GameMode.Roulette) {
+                    // 游戏未开始时：由玩家自行入座并点击桌子中心开局（轮盘赌模式同样如此）
+                    if (!table.isGameActive()) {
                         // 满足开始条件，且操作玩家位置正确：开始游戏
                         if (corePos.equals(hit.getBlockPos()) && table.checkCanStartGame() &&
                                 table.checkPlayerInRightSeat(player, isFront)) {
