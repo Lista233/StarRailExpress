@@ -99,6 +99,11 @@ public class RoleShopHandler {
     public static final String OLDMAN_EASTER_EGG_PIG_NO_STEP_TAG = "sre_oldman_easter_egg_pig_no_step";
     private static boolean oldmanEasterEggTriggeredInRound = false;
 
+    /** 破法者商店：破法药剂的价格（金币） */
+    private static final int SPELLBREAKER_POTION_PRICE = 35;
+    /** 破法者商店：沉默图腾的价格（金币） */
+    private static final int SILENCE_TOTEM_PRICE = 80;
+
     private static boolean hasNetCopDreamWeapon(Player player) {
         return MCItemsUtils.hasItem(player, ModItems.DREAM_AXE)
                 || MCItemsUtils.hasItem(player, ModItems.DREAM_DIAMOND_SWORD)
@@ -2092,25 +2097,13 @@ public class RoleShopHandler {
         }
 
         // 正片开始 (Spellbreaker)
+        // 商店 = 原版杀手商店（刀 / 左轮 / 手雷）+ 破法药剂 / 沉默图腾
         {
-            var SHOP = new ArrayList<ShopEntry>();
-            SHOP.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(), SREConfig.instance().lockpickPrice,
-                    ShopEntry.Type.TOOL));
-            SHOP.add(
-                    new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(), SREConfig.instance().crowbarPrice,
-                            ShopEntry.Type.TOOL));
-            SHOP.add(
-                    new KillerKnifeShopEntry(SREConfig.instance().knifePrice));
-            SHOP.add(new ShopEntry(TMMItems.REVOLVER.getDefaultInstance(), SREConfig.instance().revolverPrice,
-                    ShopEntry.Type.WEAPON));
-            SHOP.add(new ShopEntry(ModItems.SHORT_SHOTGUN.getDefaultInstance(), SREConfig.instance().shortShotgunPrice,
-                    ShopEntry.Type.WEAPON));
-            SHOP.add(new ShopEntry(TMMItems.GRENADE.getDefaultInstance(), SREConfig.instance().grenadePrice,
-                    ShopEntry.Type.WEAPON));
-            SHOP.add(new ShopEntry(ModItems.SPELLBREAKER_POTION.getDefaultInstance(), 75, ShopEntry.Type.TOOL));
-            SHOP.add(new ShopEntry(ModItems.SILENCE_TOTEM.getDefaultInstance(), 130, ShopEntry.Type.TOOL));
-            // 关灯 - 使用配置价格
-            SHOP.add(ShopContent.getBlackoutShopEntry());
+            List<ShopEntry> SHOP = ShopContent.getDefaultKnifeEntries();
+            SHOP.add(new ShopEntry(ModItems.SPELLBREAKER_POTION.getDefaultInstance(),
+                    SPELLBREAKER_POTION_PRICE, ShopEntry.Type.TOOL));
+            SHOP.add(new ShopEntry(ModItems.SILENCE_TOTEM.getDefaultInstance(),
+                    SILENCE_TOTEM_PRICE, ShopEntry.Type.TOOL));
             ShopContent.customEntries.put(ModRoles.SPELLBREAKER.getIdentifier(), SHOP);
         }
 

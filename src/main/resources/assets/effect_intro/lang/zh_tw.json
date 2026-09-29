@@ -48,7 +48,7 @@
   "effect.noellesroles.jump_decrease.desc": "降低跳躍強度。等級越高跳得越矮。",
   "effect.noellesroles.inventory_baned.desc": "無法打開背包或操作物品欄。",
   "effect.noellesroles.eat_meat_food.desc": "限制進食邏輯，與食肉相關職業/機制配合。",
-  "effect.noellesroles.next_skill_baned.desc": "下一次技能會被封印。破咒者藥劑會給目標施加此效果。",
+  "effect.noellesroles.next_skill_baned.desc": "下一次技能會被封印。破法者藥劑會給目標施加此效果。",
   "effect.noellesroles.tarot_assembly.desc": "塔羅集結標記。在特定座標區域可改變死亡判定。",
   "effect.noellesroles.black_monitor.desc": "黑屏：客戶端畫面被遮擋，常與操控/禁錮效果一起出現。",
   "effect.noellesroles.ghost_state.desc": "進入幽靈狀態，用於靈魂出竅或幽靈相關職業。",
