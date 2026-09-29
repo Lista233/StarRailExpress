@@ -22,7 +22,6 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import io.wifi.starrailexpress.SRE;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
@@ -236,7 +235,7 @@ public final class MapBackdropRenderer {
         }
         ResourceLocation resolved = null;
         for (String pattern : new String[] { BACKGROUND_PATH, THUMBNAIL_PATH }) {
-            ResourceLocation location = ResourceLocation.tryBuild(SRE.MOD_ID, String.format(pattern, id));
+            ResourceLocation location = MapUiGraphics.mapTexture(pattern, id);
             if (textureExists(location)) {
                 resolved = location;
                 break;

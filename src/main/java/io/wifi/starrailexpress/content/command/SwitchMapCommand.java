@@ -126,7 +126,8 @@ public class SwitchMapCommand {
         return -1;
       }
       ServerLevel serverLevel = context.getSource().getLevel();
-      List<String> availableMaps = MapManager.getAvailableMaps(serverLevel, false);
+      // 子文件夹里的地图也要扫描（id 形如 "文件夹名/地图配置名"）
+      List<String> availableMaps = MapManager.getAvailableMaps(serverLevel, true);
       int idx = 0;
       final int total = availableMaps.size();
       final AreasWorldComponent areas = AreasWorldComponent.KEY.get(serverWorld);
@@ -221,7 +222,8 @@ public class SwitchMapCommand {
         return -1;
       }
       ServerLevel serverLevel = context.getSource().getLevel();
-      List<String> availableMaps = MapManager.getAvailableMaps(serverLevel, false);
+      // 子文件夹里的地图也要扫描（id 形如 "文件夹名/地图配置名"）
+      List<String> availableMaps = MapManager.getAvailableMaps(serverLevel, true);
       int idx = 0;
       final int total = availableMaps.size();
       final AreasWorldComponent areas = AreasWorldComponent.KEY.get(serverWorld);

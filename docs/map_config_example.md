@@ -26,7 +26,10 @@
     // ===== 普通地图条目 =====
     {
       // --- 基础标识 ---
-      "id": "areas3",                                            // [必填] 对应 train_maps/ 下的 JSON 文件名
+      // [必填] 对应 train_maps/ 下的 JSON 文件名；支持子目录写法（相对路径，不含 .json）
+      // 例："areas3"        -> train_maps/areas3.json
+      //     "season1/ice"   -> train_maps/season1/ice.json
+      "id": "areas3",
       "displayName": "gui.sre.map_selector.pirate_ship",         // [必填] 显示名(翻译键或直)
       "description": "gui.sre.map_selector.pirate_ship.desc",    // [可选] 描述(翻译键或直)
 
@@ -110,7 +113,7 @@
 ```
 
 ## 第 2 层：地图实例配置
-**文件路径：** `<world>/train_maps/<mapName>.json`  
+**文件路径：** `<world>/train_maps/<mapName>.json`（支持子目录，如 `<world>/train_maps/season1/ice.json`，此时 id 为 `season1/ice`）
 **加载类：** `MapManager.java (loadMap)`  
 **设置模型：** `AreasSettings.java`
 
@@ -390,3 +393,18 @@
 - `13000` = 夜晚开始
 - `18000` = 午夜
 - `23000` = 黎明前夕
+
+## 附录 E：地图背景图 / 缩略图
+
+投票页（`MapVoteScreen`）与轮换页按地图 id 自动查找贴图，id 里的 `/` 会保留为目录层级：
+
+| 用途 | 资源路径 | 说明 |
+| --- | --- | --- |
+| 全屏背景（优先） | `assets/starrailexpress/textures/gui/maps/background/<id>.png` | 找不到时退回缩略图 |
+| 缩略图 | `assets/starrailexpress/textures/gui/maps/<id>.png` | 找不到时画程序化占位图 |
+
+例：id 为 `season1/ice` 时，依次查找 `.../maps/background/season1/ice.png` 与 `.../maps/season1/ice.png`。
+
+- 内置贴图由 **sre-resources**（必装依赖，mod id `sre_resource`）提供，与 `panorama` 等同仓库资源放在一起。
+- 贴图通过客户端 `ResourceManager` 实时查询，因此**任意已启用的资源包都可以覆盖或新增**地图背景，F3+T 重载后生效；服务端不做校验（`VERIFY_RESOURCE_PACK_HASHES` 默认关闭）。
+- 资源路径只允许 `a-z 0-9 / _ - .`，大写或空格会被归一化（小写化 + 非法字符替换为 `_`）后再查找一次，例如 id `My Maps/Map A` 会去查 `my_maps/map_a.png`。

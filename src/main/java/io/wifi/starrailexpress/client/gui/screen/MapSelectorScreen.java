@@ -17,14 +17,13 @@ package io.wifi.starrailexpress.client.gui.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
-import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.cca.MapVotingComponent;
 import io.wifi.starrailexpress.client.InputHandler;
 import io.wifi.starrailexpress.client.SREClient;
+import io.wifi.starrailexpress.client.gui.screen.mapui.MapUiGraphics;
 import io.wifi.starrailexpress.game.data.MapConfig;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
@@ -666,9 +665,9 @@ public class MapSelectorScreen extends Screen {
 
     private void drawMapPreviewImage(GuiGraphics guiGraphics, String id, int x, int y, int width, int height) {
         try {
-            ResourceLocation textureLocation = ResourceLocation.tryBuild(SRE.MOD_ID,
-                    "textures/gui/maps/" + id + ".png");
-            if (textureLocation != null && textureExists(textureLocation)) {
+            // 与投票界面共用解析规则：支持 "文件夹名/地图配置名" 这类子目录 id
+            ResourceLocation textureLocation = MapUiGraphics.mapTexture("textures/gui/maps/%s.png", id);
+            if (textureLocation != null && MapUiGraphics.textureExists(textureLocation)) {
                 guiGraphics.blit(textureLocation, x, y, 0, 0, width, height, width, height);
                 return;
             }
@@ -677,14 +676,6 @@ public class MapSelectorScreen extends Screen {
         }
 
         drawPlaceholderImage(guiGraphics, id, x, y, width, height);
-    }
-
-    private boolean textureExists(ResourceLocation resourceLocation) {
-        try {
-            return Minecraft.getInstance().getResourceManager().getResource(resourceLocation).isPresent();
-        } catch (Exception ignored) {
-            return false;
-        }
     }
 
     private void drawPlaceholderImage(GuiGraphics guiGraphics, String mapId, int x, int y, int width, int height) {

@@ -126,8 +126,42 @@ public final class MapUiGraphics {
         }
     }
 
+    /**
+     * 按模板拼出地图贴图路径。
+     *
+     * <p>
+     * 地图 id 允许是 {@code train_maps} 下的相对路径（子文件夹会被枚举成
+     * {@code "文件夹名/地图配置名"}），所以这里必须保留 {@code /} 而不是当成扁平文件名。
+     * {@link ResourceLocation} 的路径只允许 {@code a-z 0-9 / _ - .}，
+     * 因此遇到大写或空格等字符时再退回一次归一化写法（小写化 + 非法字符替换为 {@code _}），
+     * 让 {@code "My Maps/Map A"} 也能命中 {@code my_maps/map_a.png}。
+     */
+    public static ResourceLocation mapTexture(String pattern, String mapId) {
+        if (pattern == null || mapId == null || mapId.isEmpty()) {
+            return null;
+        }
+        String path = String.format(pattern, mapId);
+        ResourceLocation location = ResourceLocation.tryBuild(SRE.MOD_ID, path);
+        if (location != null) {
+            return location;
+        }
+        return ResourceLocation.tryBuild(SRE.MOD_ID, sanitizePath(path));
+    }
+
+    /** 把路径里不被 {@link ResourceLocation} 接受的字符替换掉，保留目录分隔符。 */
+    private static String sanitizePath(String path) {
+        StringBuilder out = new StringBuilder(path.length());
+        for (int i = 0; i < path.length(); i++) {
+            char c = Character.toLowerCase(path.charAt(i));
+            boolean valid = c == '/' || c == '_' || c == '-' || c == '.'
+                    || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+            out.append(valid ? c : '_');
+        }
+        return out.toString();
+    }
+
     public static ResourceLocation thumbnailTexture(String mapId) {
-        ResourceLocation location = ResourceLocation.tryBuild(SRE.MOD_ID, String.format(THUMBNAIL_PATH, mapId));
+        ResourceLocation location = mapTexture(THUMBNAIL_PATH, mapId);
         return textureExists(location) ? location : null;
     }
 
