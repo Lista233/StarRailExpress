@@ -15,9 +15,11 @@
 
 package org.agmas.noellesroles.game.wallbreak;
 
+import io.wifi.StarRailExpressID;
 import io.wifi.starrailexpress.util.ParticleFx;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -45,6 +47,9 @@ public final class WallBreakManager {
 
     /** 恢复延迟：5 秒。 */
     private static final int RESTORE_DELAY_TICKS = 100;
+
+    /** 屏障镶板的方块路径：OP 建造用，即使是 -1 硬度也不允许破墙弹拆除。 */
+    private static final String BARRIER_PANEL_PATH = "barrier_panel";
 
     private WallBreakManager() {
     }
@@ -86,6 +91,8 @@ public final class WallBreakManager {
     /**
      * 能否拆除：跳过空气、液体、不可破坏方块（基岩/屏障），以及一切带 BlockEntity/NBT 的方块
      * （容器、售货机、抽奖机、供给箱、小游戏任务点、赌台等均为 BaseEntityBlock，此判定即可全部排除）。
+     * 本模组为防玩家手拆而把车厢装修方块设为 destroyTime = -1，破墙弹对这批方块放行，见
+     * {@link #isUnbreakableButRemovable(BlockState)}。
      */
     private static boolean isBreakable(ServerLevel world, BlockPos pos, BlockState state) {
         if (state.isAir()) {
@@ -94,10 +101,33 @@ public final class WallBreakManager {
         if (state.getBlock() instanceof LiquidBlock) {
             return false;
         }
-        if (state.getDestroySpeed(world, pos) < 0) {
+        if (state.getDestroySpeed(world, pos) < 0 && !isUnbreakableButRemovable(state)) {
             return false;
         }
         return !state.hasBlockEntity();
+    }
+
+    /**
+     * 硬度为 -1（destroyTime = -1）但破墙弹仍可临时拆除的方块：
+     * 车厢装修方块（乌木/桃花心木/布宾加木板、不锈钢、船体玻璃、moquette 地毯等）为了
+     * 防止玩家用手或工具拆掉车厢，全部注册为不可破坏；破墙弹是临时拆除且 5 秒后原样恢复，
+     * 因此对本模组相关命名空间放行。
+     * <p>
+     * 仅放行 trainmurdermystery / starrailexpress / wathe* 命名空间，避免误拆第三方模组的不可破坏方块。
+     * 屏障镶板（barrier_panel，OP 建造用）不放行。
+     */
+    private static boolean isUnbreakableButRemovable(BlockState state) {
+        ResourceLocation id = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        if (id == null) {
+            return false;
+        }
+        if (BARRIER_PANEL_PATH.equals(id.getPath())) {
+            return false;
+        }
+        String namespace = id.getNamespace();
+        return namespace.equals(StarRailExpressID.TMM_MOD_ID)
+                || namespace.equals(StarRailExpressID.MOD_ID)
+                || namespace.startsWith(StarRailExpressID.WATHE_MOD_ID);
     }
 
     /** 每服务端 tick：恢复到期的被拆方块（读取持久化记录，重启后照常继续）。 */
