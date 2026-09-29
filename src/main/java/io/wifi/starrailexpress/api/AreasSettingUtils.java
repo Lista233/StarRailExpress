@@ -41,7 +41,9 @@ public class AreasSettingUtils {
         /** 仅实验室地图生成（实验室专属职业） */
         LAB,
         /** 仅爬山地图生成（童子军！！！） */
-        PEAK
+        PEAK,
+        /** 仅攻城手地图生成（攻城手） */
+        SIEGE
     }
 
     public static class StoreableAABB {

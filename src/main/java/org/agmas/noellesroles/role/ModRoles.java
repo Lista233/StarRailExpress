@@ -38,6 +38,7 @@ import org.agmas.noellesroles.game.roles.innocence.veteran.VeteranKnifeHandler;
 import org.agmas.noellesroles.game.roles.killer.manipulator.ManipulatorRole;
 import org.agmas.noellesroles.game.roles.killer.ninja.NinjaRole;
 import org.agmas.noellesroles.game.roles.killer.nostalgist.NostalgistRole;
+import org.agmas.noellesroles.game.roles.killer.siege.SiegeRole;
 import org.agmas.noellesroles.game.roles.killer.undead_lord.UndeadLordRole;
 import org.agmas.noellesroles.game.roles.killer.watcher.WatcherRole;
 import org.agmas.noellesroles.game.roles.killer.wraith_assassin.WraithAssassinRole;
@@ -180,6 +181,8 @@ public class ModRoles {
     public static ResourceLocation DOCTOR_ID = Noellesroles.id("doctor");
     public static ResourceLocation ATTENDANT_ID = Noellesroles.id("attendant");
     public static ResourceLocation CORONER_ID = Noellesroles.id("coroner");
+    /** 攻城手角色 ID - 仅攻城手（SIEGE）地图刷新 */
+    public static final ResourceLocation SIEGE_ID = Noellesroles.id("siege");
     public static ResourceLocation PATROLLER_ID = Noellesroles.id("patroller");
     public static final ResourceLocation SHERIFF_ID = Noellesroles.id("sheriff");
     // 鬼眼·杨间角色 ID - 警长阵营
@@ -1811,6 +1814,24 @@ public class ModRoles {
             .setToggledOnInstinctType(InstinctType.OBSERVER_ROLE_COLOR)
             .setRoleData(org.agmas.noellesroles.role_data.vigilante.DictatorRoleData::new)
             .setAddedVersion("4.4");
+
+    /**
+     * 攻城手 - 杀手阵营
+     * - 属于杀手阵营 (isInnocent = false, canUseKiller = true)
+     * - 假心情系统、无限冲刺时间、在计分板上显示
+     * - 仅在使用「攻城手」（{@code MapSpecialFeatures.SIEGE}）标签的地图刷新，刷新概率 30%
+     * - 无法被其它职业（赌徒等）随机到
+     * - 商店：普通杀手商店 + 破墙弹（200 金币）/ 粘液弹（140 金币），见
+     * {@link SiegeRole#getShopEntries()}
+     */
+    public static SRERole SIEGE = TMMRoles
+            .registerRole(new SiegeRole(SIEGE_ID, new Color(178, 84, 42).getRGB(), false,
+                    true, SRERole.MoodType.FAKE, Integer.MAX_VALUE, true))
+            .setSpecialMapRole(MapSpecialFeatures.SIEGE) // 仅攻城手地图
+            .setCanBeRandomedByOtherRoles(false)         // 无法被其它职业随机到
+            .setDefaultEnableChance(3000)                // 刷新概率 30%
+            .setAddedVersion("4.4")
+            .setDefaultMax(1);
 
     public static SRERole HUNTER = TMMRoles
             .registerRole(new NormalRole(HUNTER_ID, new Color(160, 82, 45).getRGB(), false,

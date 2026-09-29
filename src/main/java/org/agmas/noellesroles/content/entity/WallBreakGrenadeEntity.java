@@ -34,7 +34,7 @@ import org.agmas.noellesroles.init.ModItems;
 public class WallBreakGrenadeEntity extends NoHeavyWaterInfluencedThrowableItemProjectile {
 
     /** 拆墙半径。 */
-    public static final int BREAK_RADIUS = 2;
+    public static final int BREAK_RADIUS = 3;
 
     public WallBreakGrenadeEntity(EntityType<? extends NoHeavyWaterInfluencedThrowableItemProjectile> entityType,
             Level world) {
