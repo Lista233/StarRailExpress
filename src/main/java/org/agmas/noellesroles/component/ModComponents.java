@@ -96,6 +96,9 @@ public class ModComponents implements EntityComponentInitializer, WorldComponent
       ResourceLocation.fromNamespaceAndPath(Noellesroles.MOD_ID, "infected"),
       InfectedPlayerComponent.class);
 
+  // QUST 组件键已移至 QUSTComponentKeys.Keys 延迟持有类中，
+  // 避免 ModComponents 静态初始化时级联加载组件类 → QUSTRoles → getOrCreate 失败。
+
   public ModComponents() {
     // CCA 需要无参构造函数
   }
@@ -173,6 +176,43 @@ public class ModComponents implements EntityComponentInitializer, WorldComponent
     registry.beginRegistration(Player.class, INFECTED)
         .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
         .end(InfectedPlayerComponent::new);
+
+    // 注册 QUST 组件 — 通过 QUSTComponentKeys.Keys 延迟持有类获取 ComponentKey，
+    // 首次访问 Keys 内部类时才会加载组件类和调用 getOrCreate，
+    // 此时 CCA 元数据已处理完毕。
+    var qk = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.class; // 触发内部类加载
+
+    registry.beginRegistration(Player.class, org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.DRAGON_GIRL)
+        .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
+        .end(p -> new org.agmas.noellesroles.role.qust.roles.dragon_girl.DragonGirlPlayerComponent(p));
+
+    registry.beginRegistration(Player.class, org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.MASCOT)
+        .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
+        .end(p -> new org.agmas.noellesroles.role.qust.roles.mascot.MascotPlayerComponent(p));
+
+    registry.beginRegistration(Player.class, org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.AMERICAN_POLICE)
+        .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
+        .end(p -> new org.agmas.noellesroles.role.qust.roles.american_police.AmericanPolicePlayerComponent(p));
+
+    registry.beginRegistration(Player.class, org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.PRESSURE_MONSTER)
+        .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
+        .end(p -> new org.agmas.noellesroles.role.qust.roles.pressure_monster.PressureMonsterPlayerComponent(p));
+
+    registry.beginRegistration(Player.class, org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.MINIGAME_MASTER)
+        .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
+        .end(p -> new org.agmas.noellesroles.role.qust.roles.minigame_master.MinigameMasterPlayerComponent(p));
+
+    registry.beginRegistration(Player.class, org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.SUPER_RECORDER)
+        .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
+        .end(p -> new org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPlayerComponent(p));
+
+    registry.beginRegistration(Player.class, org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.WANDERER)
+        .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
+        .end(p -> new org.agmas.noellesroles.role.qust.roles.wanderer.WandererPlayerComponent(p));
+
+    registry.beginRegistration(Player.class, org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.SUPER_DOCTOR)
+        .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
+        .end(p -> new org.agmas.noellesroles.role.qust.roles.super_doctor.SuperDoctorPlayerComponent(p));
 
     // 注册 Dream 虚拟血量：挂在所有玩家身上
     registry.beginRegistration(Player.class, DREAM_HEALTH)

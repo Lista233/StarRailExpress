@@ -129,6 +129,13 @@ public class PlayerJoinUtils {
         if (gameWorldComponent.getGameStatus() == GameStatus.ACTIVE) {
             if (player.isSpectator())
                 return true;
+            // 游荡者隐身平民：初次死亡后以冒险模式自由活动，重连时位置合法，
+            // 不能被 adjustPlayerPosition 强制传送到旁观者出生点并切旁观。
+            // 直接与 WandererPlayerComponent 解耦判定，不再依赖 GhostStateComponent。
+            var wanderer = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.WANDERER
+                    .maybeGet(player).orElse(null);
+            if (wanderer != null && wanderer.isGhost() && !wanderer.isFinalDeath())
+                return true;
             return false;
         }
         final ServerLevel serverWorld = player.serverLevel();

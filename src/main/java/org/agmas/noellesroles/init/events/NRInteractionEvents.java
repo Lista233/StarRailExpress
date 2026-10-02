@@ -281,6 +281,15 @@ public class NRInteractionEvents {
     private static void registerDropRules() {
         DropRules.canDrop.add((player) -> {
             var mainHandItem = player.getMainHandItem();
+            // 小游戏券可丢弃（用于赠予其他玩家）
+            if (mainHandItem.is(ModItems.MINIGAME_TICKET))
+                return true;
+            // 击退剑可丢弃
+            if (mainHandItem.is(ModItems.KNOCKBACK_SWORD))
+                return true;
+            // 华容道挑战可丢弃（未通关不消耗，可转赠）
+            if (mainHandItem.is(ModItems.KLOTSKI_CHALLENGE))
+                return true;
             if (mainHandItem.is(ModItems.INSURANCE)) {
                 return InsuranceRoleHandler.isInsuranceClerk(player);
             }

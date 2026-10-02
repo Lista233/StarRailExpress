@@ -419,6 +419,13 @@ public class SREAbilityPlayerComponent
                     unifiedStateChanged = true;
                     if (state.cooldown == 0) {
                         hasZeroCooldown = true;
+                        // 冷却结束时恢复使用次数
+                        if (state.maxCharges > 0 && state.charges < state.maxCharges) {
+                            state.charges = state.maxCharges;
+                            // 同步到旧的统一冷却系统
+                            charges = state.charges;
+                            maxCharges = state.maxCharges;
+                        }
                     }
                 }
             }

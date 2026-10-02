@@ -84,6 +84,10 @@ public abstract class KeyBindingMixin {
         if (SREClient.gameComponent != null && SREClient.gameComponent.isRunning()
                 && SREClient.isPlayerAliveAndInSurvival()) {
             if (this.same(options.keyJump)) {
+                // 灵魂出窍自由相机时不抑制跳跃键
+                if (org.agmas.noellesroles.role.qust.roles.wanderer.WandererClientHandlers.isFreeCamActive()) {
+                    return false;
+                }
                 if (SREClient.areaComponent.areasSettings.canSwim) {
                     if (SREClient.cached_player != null && SREClient.cached_player.isInWater()) {
                         if (!SREClient.gameComponent.isJumpAvailable()) {

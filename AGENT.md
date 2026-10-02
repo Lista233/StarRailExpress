@@ -5,6 +5,8 @@
 
 如果写职业，请先看 `docs/AI创建新职业攻略.md` (./AI创建新职业攻略.md)：里面是可直接抄的模板、真实文件路径、翻译键位置对照表与踩坑清单（原则：职业逻辑集中在 SRERole 子类与 RoleData 里，便于维护且更节省token）。
 
+**QUST 分支新增职业**：请先看 `docs/QUST职业开发指南.md`：所有 QUST 职业代码集中在 `role/qust/` 包下，避免与上游冲突。
+
 如果写方块，请先看 `docs/新增方块攻略.md`：注册 / 方块状态 / 资源 / 语言 / 创造分页的模板与真实文件路径，外加踩坑清单（不可见方块、区域效果方块、中键保留状态等）。
 
 文件中的AI提示词与注释十分重要，你不能忽视。
@@ -115,3 +117,20 @@ CustomParticleHandlers.register(id, (level, origin, durationTicks, params) -> {
 
 # Javadoc 语言
 请使用中文而不是英文。开发者均为简体中文使用者。
+
+# QUST 职业开发规范
+
+**所有 QUST 分支新增的职业必须放在 `org.agmas.noellesroles.role.qust` 包下**，详见 `docs/QUST职业开发指南.md`。
+
+核心要求：
+- 职业类写在 `role/qust/roles/` 下
+- RoleData 写在 `role/qust/role_data/` 下
+- 客户端逻辑（HUD/本能高亮）写在 `role/qust/client/` 下
+- 专属物品写在 `role/qust/items/` 下
+- **不要跨包散放**：不要把 QUST 职业的 handler 写到 `handler/BounsHandlers.java` 或 `handler/TouhouHandlers.java` 里
+- **不要改共享文件**：不改 `XiaoNaoHandler.java`、`RoleInstinctRegister.java` 的主体逻辑、`ModRoles.java` 等
+- XiaoNao 豁免用 `canBeXiaonao()` / `canXiaonao()` 覆写，不改 XiaoNaoHandler
+- 本能透视用 `setInstinctType()` / `setBeSeenInstinctType()` 或在 `role/qust/client/QUSTInstincts.java` 注册
+- 可调数值使用独立 `QUSTConfig`（不改 `NoellesRolesConfig`），服主可通过 `config/qust_roles.json` 热调
+- 语言文件只改 `zh_cn.json`，追加在末尾，跳过 `zh_tw.json` 和 `en_us.json`
+- 唯一允许修改的共享文件：`AAAHandlerFather.java`（加一行 `QUSTHandlers.register()`）

@@ -1142,6 +1142,10 @@
   "item.noellesroles.defibrillator.tooltip": "右鍵對存活的玩家使用，若該玩家在120秒內死亡，將在30秒後復活",
   "item.noellesroles.antidote_reagent": "驗毒試劑",
   "item.noellesroles.antidote_reagent.tooltip": "右鍵對玩家使用，檢測其中毒或感染狀態，不會損壞",
+  "item.noellesroles.repentance_gun": "悔改之槍",
+  "item.noellesroles.minigame_ticket": "小遊戲券",
+  "item.noellesroles.knockback_stick": "擊退棒",
+  "item.noellesroles.minigame_baseball_bat": "棒球棍",
   "item.noellesroles.time_stop_clock": "時停鐘",
   "item.noellesroles.time_stop_clock.tooltip": "右鍵時停 %s 秒，還可以使用 %s 次",
   "item.noellesroles.time_stop_clock.tooltip.cooldown": "時停冷卻: %s 秒",
@@ -5507,5 +5511,11 @@
   "hud.noellesroles.mushroom_scholar.skill.essence": "調製蘑菇素",
   "hud.noellesroles.mushroom_scholar.cooldown": "冷卻：%ss",
   "hud.noellesroles.mushroom_scholar.ready": "就緒",
-  "hud.noellesroles.magic_apprentice.toggle_spell": "按 %s 鍵切換法術"
+  "hud.noellesroles.magic_apprentice.toggle_spell": "按 %s 鍵切換法術",
+
+  "item.minigame_master.klotski_challenge": "華容道挑戰",
+  "item.minigame_master.klotski_challenge.lore": "通關後乘客陣營直接勝利",
+  "item.minigame_master.klotski_challenge.lore2": "我們是小遊戲之王！",
+  "message.minigame_master.klotski_challenge_win": "我們是小遊戲之王！",
+  "message.minigame_master.low_san": "你的san值過低啦，請先恢復san值再遊玩哦"
 }

@@ -121,7 +121,15 @@
       "starrailexpress:mailbox",
       "starrailexpress:player_damage_tracker",
       "starrailexpress:custom_item_hit_marker",
-      "starrailexpress:custom_item_cooldown"
+      "starrailexpress:custom_item_cooldown",
+      "qust:mascot",
+      "qust:dragon_girl",
+      "qust:american_police",
+      "qust:pressure_monster",
+      "qust:minigame_master",
+      "qust:super_recorder",
+      "qust:wanderer",
+      "qust:super_doctor"
     ],
     "loom:injected_interfaces": {
       "net/minecraft/class_5483/class_5496": [

@@ -314,7 +314,42 @@ public class SREPayloadRegister {
         PayloadTypeRegistry.playS2C().register(net.exmo.sre.record.network.RecordReplayS2CPayload.ID,
                 net.exmo.sre.record.network.RecordReplayS2CPayload.CODEC);
 
-        // 通用"自定义形状粒子"包：服务端发 id + 原点 + 参数，客户端按 id 生成形状
+        // 通用“自定义形状粒子”包：服务端发 id + 原点 + 参数，客户端按 id 生成形状
         PayloadTypeRegistry.playS2C().register(CustomParticleS2CPayload.ID, CustomParticleS2CPayload.CODEC);
+    
+        // 小游戏达人网络包
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.minigame_master.ItemMinigamePayload.OpenItemGame.TYPE,
+                org.agmas.noellesroles.role.qust.roles.minigame_master.ItemMinigamePayload.OpenItemGame.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.role.qust.roles.minigame_master.ItemMinigamePayload.CompleteItemGame.TYPE,
+                org.agmas.noellesroles.role.qust.roles.minigame_master.ItemMinigamePayload.CompleteItemGame.CODEC);
+
+        // 超级记录员网络包
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.MarkPlayer.TYPE,
+                org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.MarkPlayer.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.OpenMarkScreen.TYPE,
+                org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.OpenMarkScreen.CODEC);
+
+        // 游荡者网络包
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.SoulOutState.TYPE,
+                org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.SoulOutState.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.GhostVisibility.TYPE,
+                org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.GhostVisibility.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.EnterGhostState.TYPE,
+                org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.EnterGhostState.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.ToggleGhostVisibility.TYPE,
+                org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.ToggleGhostVisibility.CODEC);
+
+        // 超级医生悔改之枪 C2S
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.role.qust.roles.super_doctor.SuperDoctorPayload.TYPE,
+                org.agmas.noellesroles.role.qust.roles.super_doctor.SuperDoctorPayload.CODEC);
     }
 }

@@ -1097,6 +1097,10 @@
   "item.noellesroles.defibrillator.tooltip": "Right-click on a living player; if they die within 120 seconds, they will revive after 30 seconds",
   "item.noellesroles.antidote_reagent": "Toxin Detector",
   "item.noellesroles.antidote_reagent.tooltip": "Right-click on a player to check their poisoning or infection status, not consumed",
+  "item.noellesroles.repentance_gun": "Repentance Gun",
+  "item.noellesroles.minigame_ticket": "Minigame Ticket",
+  "item.noellesroles.knockback_stick": "Knockback Stick",
+  "item.noellesroles.minigame_baseball_bat": "Baseball Bat",
   "item.noellesroles.time_stop_clock": "Time-Stop Clock",
   "item.noellesroles.time_stop_clock.tooltip": "Right-click to stop time for %s seconds, can be used %s more times",
   "item.noellesroles.time_stop_clock.tooltip.cooldown": "Time-stop cooldown: %s seconds",
@@ -4997,5 +5001,11 @@
   "message.noellesroles.nature_spirit.entry": "A nature spirit's whisper drifts out of the woods",
   "message.noellesroles.nature_spirit.camouflage.start": "You turned into the block beneath you",
   "message.noellesroles.nature_spirit.camouflage.end": "You returned to your true form",
-  "message.noellesroles.nature_spirit.camouflage.fail": "There is no block you can disguise as beneath you"
+  "message.noellesroles.nature_spirit.camouflage.fail": "There is no block you can disguise as beneath you",
+
+  "item.minigame_master.klotski_challenge": "Klotski Challenge",
+  "item.minigame_master.klotski_challenge.lore": "Win to lead passengers to victory",
+  "item.minigame_master.klotski_challenge.lore2": "We are the kings of minigames!",
+  "message.minigame_master.klotski_challenge_win": "We are the kings of minigames!",
+  "message.minigame_master.low_san": "Your sanity is too low! Please recover your sanity before playing"
 }

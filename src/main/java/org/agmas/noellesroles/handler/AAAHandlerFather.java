@@ -15,11 +15,14 @@
 
 package org.agmas.noellesroles.handler;
 
+import org.agmas.noellesroles.role.qust.QUSTHandlers;
+
 public class AAAHandlerFather {
     
     public static void register(){
         TouhouHandlers.register();
         BounsHandlers.register();
         AnimeHandlers.register();
+        QUSTHandlers.register();
     }
 }

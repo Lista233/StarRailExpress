@@ -67,3 +67,16 @@ CustomParticleHandlers.register(id, (level, origin, durationTicks, params) -> { 
 
 # 测试/调试
 必须完成一个功能块再一次性进行test
+
+# QUST 职业开发规范
+
+**所有 QUST 分支新增的职业必须放在 `org.agmas.noellesroles.role.qust` 包下**，详见 `docs/QUST职业开发指南.md`。
+
+核心要求：
+- 所有 QUST 代码集中在 `role/qust/` 包下（roles/ + role_data/ + client/ + items/）
+- 不跨包散放，不改共享文件（XiaoNaoHandler、ModRoles 等）
+- XiaoNao 豁免用 `canBeXiaonao()` / `canXiaonao()` 覆写
+- 本能透视用 `setInstinctType()` 或在 `role/qust/client/QUSTInstincts.java` 注册
+- 可调数值使用独立 `QUSTConfig`（不改 `NoellesRolesConfig`），配置文件 `config/qust_roles.json`
+- 语言文件只改 `zh_cn.json`，追加在末尾
+- 唯一允许改的共享文件：`AAAHandlerFather.java`（加一行）

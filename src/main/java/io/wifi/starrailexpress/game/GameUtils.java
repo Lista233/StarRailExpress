@@ -1405,6 +1405,16 @@ public class GameUtils {
     public static boolean isPlayerEliminated(Player player) {
         if (isPlayerReallyAliveOrDead(player) == SPAliveResult.ALIVE)
             return false;
+        // 游荡者隐身平民：初次死亡后保持冒险模式自由活动，但结算上视同已死亡
+        //（不影响杀手杀完其他人的胜负判定）。直接与 WandererPlayerComponent 解耦判定，
+        // 不再依赖 GHOST_STATE 效果 / GhostStateComponent（ReturnTraveler 仍会使用该效果）。
+        if (player != null) {
+            var wanderer = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.WANDERER
+                    .maybeGet(player).orElse(null);
+            if (wanderer != null && wanderer.isGhost() && !wanderer.isFinalDeath()) {
+                return true;
+            }
+        }
         return player == null || !player.isAlive() || player.isCreative() || player.isSpectator();
     }
 

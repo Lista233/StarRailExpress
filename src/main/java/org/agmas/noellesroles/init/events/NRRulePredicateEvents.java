@@ -213,6 +213,7 @@ public class NRRulePredicateEvents {
                 "minecraft:lantern",
                 "noellesroles:passbook",
                 "noellesroles:tomato",
+                "noellesroles:klotski_challenge",
                 "minecraft:written_book"));
     }
 

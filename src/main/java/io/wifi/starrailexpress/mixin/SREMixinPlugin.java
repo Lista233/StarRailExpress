@@ -54,6 +54,10 @@ public class SREMixinPlugin implements IMixinConfigPlugin {
                 && mixinClassName.contains("io.wifi.starrailexpress.mixin.compat.dashloader")) {
             return false;
         }
+        if (!FabricLoader.getInstance().isModLoaded("iris")
+                && mixinClassName.contains("net.exmo.mixin.client.IrisShaderReload")) {
+            return false;
+        }
         return true;
     }
 

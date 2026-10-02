@@ -524,6 +524,7 @@ public class NoellesrolesClient implements ClientModInitializer {
         org.agmas.noellesroles.client.ClientAmonState.register();
         ScoutClimbClient.register();
         FatFishSkinHandler.register();
+        org.agmas.noellesroles.role.qust.client.QUSTClient.register();
         CommonClientHudRenderer.registerRenderersEvent();
         WorldRenderEvents.AFTER_TRANSLUCENT.register((renderContext) -> {
             TaskBlockOverlayRenderer.render(renderContext);

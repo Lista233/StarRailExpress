@@ -246,6 +246,30 @@ public class ModItems {
     public static final Item ONCE_REVOLVER = register(
             new OnceRevolverItem((new Item.Properties()).stacksTo(1).durability(1)), "once_revolver",
             WEAPONS_GROUP);
+    /** 悔改之枪 - 超级医生专属一次性枪械 */
+    public static final Item REPENTANCE_GUN = register(
+            new org.agmas.noellesroles.role.qust.roles.super_doctor.content.RepentanceGunItem(
+                    (new Item.Properties()).stacksTo(1).durability(1)),
+            "repentance_gun", WEAPONS_GROUP);
+
+    /** 小游戏券 - 小游戏达人专属，右键开启随机小游戏 */
+    public static final Item MINIGAME_TICKET = register(
+            new org.agmas.noellesroles.role.qust.roles.minigame_master.MinigameTicketItem(
+                    new Item.Properties().stacksTo(16)),
+            "minigame_ticket", ROLE_ITEMS_GROUP);
+
+    /** 击退剑 - 小游戏达人商店武器，持有左键攻击只击退，6点耐久 */
+    public static final Item KNOCKBACK_SWORD = register(
+            new org.agmas.noellesroles.role.qust.roles.minigame_master.KnockbackSwordItem(
+                    new Item.Properties().stacksTo(1)
+                            .durability(org.agmas.noellesroles.role.qust.roles.minigame_master.KnockbackSwordItem.KNOCKBACK_SWORD_MAX_DURABILITY)),
+            "knockback_sword", WEAPONS_GROUP);
+
+    /** 华容道挑战 - 小游戏达人商店物品，通关后平民与义警阵营胜利 */
+    public static final Item KLOTSKI_CHALLENGE = register(
+            new org.agmas.noellesroles.role.qust.roles.minigame_master.KlotskiChallengeItem(
+                    new Item.Properties().stacksTo(1)),
+            "klotski_challenge", ROLE_ITEMS_GROUP);
     public static final Item HANDCUFFS = register(
             new HandCuffsItem((new Item.Properties()).stacksTo(1)), "handcuffs",
             TOOLS_GROUP);
