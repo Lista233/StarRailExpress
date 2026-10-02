@@ -143,6 +143,22 @@ public class QUSTRoles {
             .setDefaultMax(1)
             .setDefaultEnableChance(5000);
 
+    // ── 黑客 (Hacker / 林然) ──
+    public static final ResourceLocation HACKER_ID = id("hacker");
+    public static final ResourceLocation HACKER_MARK_SKILL_ID = id("hacker_mark");
+    public static final ResourceLocation HACKER_SEND_SKILL_ID = id("hacker_send");
+
+    public static SRERole HACKER = TMMRoles.registerRole(
+            new org.agmas.noellesroles.role.qust.roles.hacker.HackerRole(HACKER_ID,
+                    new java.awt.Color(100, 100, 100).getRGB(),
+                    false, false, MoodType.FAKE,
+                    TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, false))
+            .setNeutrals(true)
+            .setComponentKey(QUSTComponentKeys.Keys.HACKER)
+            .setDefaultMax(1)
+            .setDefaultEnableChance(5000)
+            .setDefaultEnableNeededPlayerCount(10);
+
     public static void init() {
         // 触发类加载，确保静态字段被初始化
         //

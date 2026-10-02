@@ -108,6 +108,12 @@ public interface SREFumoBlocks {
             new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
     Block LIANGJIE_PLUSH = registerBlock("liangjie_plush",
             new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block MX_PLUSH = registerBlock("mx_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block LISTA_PLUSH = registerBlock("lista_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block THIS_HACKER_PLUSH = registerBlock("this_hacker_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
     // 自定义玩家 plush：单个动态方块，按绑定的玩家名渲染该玩家皮肤
     Block CUSTOM_PLAYER_PLUSH = registerBlock("custom_player_plush",
             new org.agmas.noellesroles.content.block.CustomPlayerPlushBlock(
@@ -163,6 +169,12 @@ public interface SREFumoBlocks {
     Item HAOZI_PLUSH_ITEM = SREItems.registerBlock(new SREPlushItem(HAOZI_PLUSH, new Item.Properties().stacksTo(64)));
     Item LIANGJIE_PLUSH_ITEM = SREItems
             .registerBlock(new SREPlushItem(LIANGJIE_PLUSH, new Item.Properties().stacksTo(64)));
+    Item MX_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(MX_PLUSH, new Item.Properties().stacksTo(64)));
+    Item LISTA_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(LISTA_PLUSH, new Item.Properties().stacksTo(64)));
+    Item THIS_HACKER_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(THIS_HACKER_PLUSH, new Item.Properties().stacksTo(64)));
     Item CUSTOM_PLAYER_PLUSH_ITEM = SREItems
             .registerBlock(new SREPlushItem(CUSTOM_PLAYER_PLUSH, new Item.Properties().stacksTo(64)));
     /**
@@ -176,7 +188,9 @@ public interface SREFumoBlocks {
                     LENGXIAOCN_PLUSH, LICRAFTLQ_PLUSH, LUOYERUOSHUI_PLUSH, MIFAN520_PLUSH,
                     NONE_PLUSH, OTITH_PLUSH, THEF0RS4KEN_PLUSH, TOMATO_PLUSH,
                     XIAO_HEI_HAND_PLUSH, XIAOZHANQWQ_PLUSH, ALLINTOKYO_PLUSH, MILK_DRAGON_PLUSH,
-                    AQIONG_PLUSH, HAOZI_PLUSH, LIANGJIE_PLUSH, CUSTOM_PLAYER_PLUSH }));
+                    AQIONG_PLUSH, HAOZI_PLUSH, LIANGJIE_PLUSH,
+                    MX_PLUSH, LISTA_PLUSH, THIS_HACKER_PLUSH,
+                    CUSTOM_PLAYER_PLUSH }));
 
     public static Block registerBlock(String id, Block block) {
         return onlyRegisterBlock(Noellesroles.id(id), block);
@@ -222,6 +236,9 @@ public interface SREFumoBlocks {
                     itemGroup.accept(AQIONG_PLUSH_ITEM);
                     itemGroup.accept(HAOZI_PLUSH_ITEM);
                     itemGroup.accept(LIANGJIE_PLUSH_ITEM);
+                    itemGroup.accept(MX_PLUSH_ITEM);
+                    itemGroup.accept(LISTA_PLUSH_ITEM);
+                    itemGroup.accept(THIS_HACKER_PLUSH_ITEM);
                     itemGroup.accept(CUSTOM_PLAYER_PLUSH_ITEM);
                 });
         blockEntityRegistrar.registerEntries();

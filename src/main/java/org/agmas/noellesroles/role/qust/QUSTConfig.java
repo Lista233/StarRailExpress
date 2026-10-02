@@ -156,4 +156,12 @@ public class QUSTConfig implements ConfigData {
 
     /** 悔改之枪商店价格 */
     public int superDoctorRepentanceGunPrice = 350;
+
+    // ==================== 黑客 (Hacker / 林然) ====================
+
+    /** 干扰芯片技能冷却（秒） */
+    public int hackerMarkCooldownSeconds = 5;
+
+    /** 发送终端技能冷却（秒） */
+    public int hackerSendCooldownSeconds = 5;
 }

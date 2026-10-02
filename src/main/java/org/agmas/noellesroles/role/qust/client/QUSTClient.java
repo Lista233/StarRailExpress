@@ -40,6 +40,8 @@ public class QUSTClient {
         SuperRecorderHud.register();
         WandererHud.register();
         SuperDoctorHud.register();
+        org.agmas.noellesroles.role.qust.roles.hacker.HackerHud.register();
+        org.agmas.noellesroles.role.qust.roles.hacker.HackerClientHandlers.register();
 
         // 注册客户端 tick 事件：驱动游荡者灵魂出窍自由相机
         ClientTickEvents.END_CLIENT_TICK.register(client -> clientTick());

@@ -129,7 +129,8 @@
       "qust:minigame_master",
       "qust:super_recorder",
       "qust:wanderer",
-      "qust:super_doctor"
+      "qust:super_doctor",
+      "qust:hacker"
     ],
     "loom:injected_interfaces": {
       "net/minecraft/class_5483/class_5496": [

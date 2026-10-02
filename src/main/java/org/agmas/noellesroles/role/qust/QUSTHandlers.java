@@ -48,6 +48,7 @@ public class QUSTHandlers {
         registerWandererNetworkHandlers();
         registerSuperDoctorSkills();
         registerSuperDoctorNetworkHandlers();
+        registerHackerSkills();
     }
 
     // ==================== 龙娘技能注册 ====================
@@ -710,5 +711,184 @@ public class QUSTHandlers {
                         }
                     });
                 });
+    }
+
+    // ==================== 黑客技能注册 ====================
+
+    private static void registerHackerSkills() {
+        // 技能1: 干扰芯片 (G键) - 标记玩家
+        RoleSkill.register(QUSTRoles.HACKER,
+                RoleSkill.skill(
+                                QUSTRoles.HACKER_MARK_SKILL_ID,
+                                "skill.qust.hacker.mark",
+                                (context) -> {
+                                    var player = context.player();
+                                    var target = context.target();
+                                    if (target == null) {
+                                        player.displayClientMessage(
+                                                net.minecraft.network.chat.Component.translatable(
+                                                        "message.hacker.no_target")
+                                                        .withStyle(net.minecraft.ChatFormatting.RED),
+                                                true);
+                                        return false;
+                                    }
+
+                                    var targetPlayer = player.level().getPlayerByUUID(target);
+                                    if (targetPlayer == null || !(targetPlayer instanceof ServerPlayer sp)) {
+                                        player.displayClientMessage(
+                                                net.minecraft.network.chat.Component.translatable(
+                                                        "message.hacker.no_target")
+                                                        .withStyle(net.minecraft.ChatFormatting.RED),
+                                                true);
+                                        return false;
+                                    }
+
+                                    // 不能标记自己
+                                    if (sp.getUUID().equals(player.getUUID())) {
+                                        player.displayClientMessage(
+                                                net.minecraft.network.chat.Component.literal("§c不能标记自己！"),
+                                                true);
+                                        return false;
+                                    }
+
+                                    var data = QUSTComponentKeys.Keys.HACKER.maybeGet(player).orElse(null);
+                                    if (data == null) return false;
+
+                                    // 检查是否已标记
+                                    if (data.isMarked(sp.getUUID())) {
+                                        player.displayClientMessage(
+                                                net.minecraft.network.chat.Component.literal("§e该玩家已被标记！"),
+                                                true);
+                                        return false;
+                                    }
+
+                                    // 标记玩家
+                                    data.markPlayer(sp.getUUID());
+
+                                    // 获取IP地址（模拟）
+                                    String ip = sp.getIpAddress();
+                                    if (ip == null || ip.isEmpty() || ip.contains("/")) {
+                                        // 提取IP地址（去掉端口号）
+                                        String fullAddress = sp.getIpAddress();
+                                        if (fullAddress != null && fullAddress.contains("/")) {
+                                            ip = fullAddress.substring(fullAddress.lastIndexOf("/") + 1);
+                                            if (ip.contains(":")) {
+                                                ip = ip.substring(0, ip.indexOf(":"));
+                                            }
+                                        } else {
+                                            ip = "192.168.1.1"; // 本地测试默认IP
+                                        }
+                                    }
+
+                                    // 发送给黑客：显示标记信息
+                                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                                            (ServerPlayer) player,
+                                            new org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.ShowMarkedInfo(
+                                                    sp.getName().getString(),
+                                                    sp.getUUID(),
+                                                    ip
+                                            )
+                                    );
+
+                                    player.displayClientMessage(
+                                            net.minecraft.network.chat.Component.literal("§a已标记玩家：" + sp.getName().getString()),
+                                            true);
+
+                                    return true;
+                                }
+                        ).withTarget()
+                        .announceToSelf()
+                        .showOnHud(true)
+                        .cooldownSeconds(QUSTConfig.instance().hackerMarkCooldownSeconds)
+                        .build(),
+
+                // 技能2: 发送终端 (Shift+G) - 向所有已标记的玩家发送消息
+                RoleSkill.skill(
+                                QUSTRoles.HACKER_SEND_SKILL_ID,
+                                "skill.qust.hacker.send",
+                                (context) -> {
+                                    var player = context.player();
+                                    var data = QUSTComponentKeys.Keys.HACKER.maybeGet(player).orElse(null);
+                                    if (data == null) return false;
+
+                                    if (data.markedPlayers.isEmpty()) {
+                                        player.displayClientMessage(
+                                                net.minecraft.network.chat.Component.literal("§c没有已标记的玩家！"),
+                                                true);
+                                        return false;
+                                    }
+
+                                    int newSent = 0;
+                                    // 向所有已标记但未发送的玩家发送消息
+                                    for (java.util.UUID uuid : data.markedPlayers) {
+                                        if (data.hasSent(uuid)) {
+                                            continue; // 已经发送过，跳过
+                                        }
+
+                                        ServerPlayer target = player.getServer().getPlayerList().getPlayer(uuid);
+                                        if (target != null && io.wifi.starrailexpress.game.GameUtils.isPlayerAliveAndSurvival(target)) {
+                                            // 获取IP
+                                            String ip = target.getIpAddress();
+                                            if (ip != null && ip.contains("/")) {
+                                                ip = ip.substring(ip.lastIndexOf("/") + 1);
+                                                if (ip.contains(":")) {
+                                                    ip = ip.substring(0, ip.indexOf(":"));
+                                                }
+                                            } else {
+                                                ip = "192.168.1.1";
+                                            }
+
+                                            // 发送给被标记玩家
+                                            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                                                    target,
+                                                    new org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.ShowBeenMarked(
+                                                            target.getName().getString(),
+                                                            target.getUUID(),
+                                                            ip
+                                                    )
+                                            );
+                                            newSent++;
+                                        }
+                                    }
+
+                                    // 更新已发送列表
+                                    int totalSent = data.sendTerminal((ServerPlayer) player);
+
+                                    if (newSent > 0) {
+                                        // 发送确认消息给黑客
+                                        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                                                (ServerPlayer) player,
+                                                new org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.SendConfirm(newSent)
+                                        );
+
+                                        // 检查胜利条件
+                                        if (data.hasWon()) {
+                                            player.displayClientMessage(
+                                                    net.minecraft.network.chat.Component.literal("§6§l任务完成！你已达成胜利条件！"),
+                                                    true);
+                                            // 触发胜利
+                                            if (player.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+                                                org.agmas.noellesroles.utils.RoleUtils.customWinnerWin(
+                                                        sl,
+                                                        io.wifi.starrailexpress.game.GameUtils.WinStatus.CUSTOM,
+                                                        "hacker",
+                                                        java.util.OptionalInt.of(new java.awt.Color(100, 100, 100).getRGB())
+                                                );
+                                            }
+                                        }
+                                    } else {
+                                        player.displayClientMessage(
+                                                net.minecraft.network.chat.Component.literal("§e所有已标记的玩家都已发送过了！"),
+                                                true);
+                                    }
+
+                                    return newSent > 0;
+                                }
+                        ).shifted(true)
+                        .announceToSelf()
+                        .showOnHud(true)
+                        .cooldownSeconds(QUSTConfig.instance().hackerSendCooldownSeconds)
+                        .build()
+        );
     }
 }

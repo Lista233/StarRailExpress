@@ -56,6 +56,8 @@ public class AmericanPolicePlayerComponent implements RoleComponent, ServerTicki
 
     public int getCompletedTaskCount() { return completedTaskCount; }
 
+    public int getTasksPerCharge() { return tasksForNextCharge; }
+
     /** 是否被标记（读取自身组件） */
     public boolean isMarked() {
         return marked;
@@ -91,7 +93,7 @@ public class AmericanPolicePlayerComponent implements RoleComponent, ServerTicki
         if (!(player instanceof ServerPlayer serverPlayer))
             return false;
 
-        // 在目标自身的组件上记录“被标记”状态并同步：
+        // 在目标自身的组件上记录”被标记”状态并同步：
         // 客户端皮肤处理与小脑豁免都读取被标记者自己的组件，因此标记必须写在目标身上。
         var targetComp = QUSTComponentKeys.Keys.AMERICAN_POLICE.maybeGet(serverTarget).orElse(null);
         if (targetComp != null) {
@@ -111,7 +113,6 @@ public class AmericanPolicePlayerComponent implements RoleComponent, ServerTicki
                         "message.american_police.you_marked"),
                 true);
 
-        sync();
         return true;
     }
 

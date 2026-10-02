@@ -14,9 +14,9 @@ import java.awt.*;
 /**
  * 美国警察 HUD 显示
  * <ul>
- *   <li>技能剩余使用次数</li>
+ *   <li>技能剩余使用次数（标记数量）</li>
  *   <li>技能冷却时间</li>
- *   <li>已完成任务数</li>
+ *   <li>已完成任务数（显示为进度格式）</li>
  * </ul>
  */
 public class AmericanPoliceHud {
@@ -33,26 +33,30 @@ public class AmericanPoliceHud {
             int charges = ability.charges;
             float cooldownSec = ability.getCooldownSeconds();
 
-            // 技能次数
+            var comp = QUSTComponentKeys.Keys.AMERICAN_POLICE.maybeGet(client.player).orElse(null);
+
+            // 标记数量（移到上面，避免和"已就绪"重叠）
             Component chargesText = Component.translatable(
                     "hud.noellesroles.american_police.charges", charges);
-            context.drawString(font, chargesText, sw - font.width(chargesText) - 8, sy - 36,
+            context.drawString(font, chargesText, sw - font.width(chargesText) - 8, sy - 72,
                     new Color(255, 215, 0).getRGB());
 
             // 冷却时间
             if (cooldownSec > 0) {
                 Component cooldownText = Component.translatable(
                         "hud.noellesroles.american_police.cooldown", String.format("%.1f", cooldownSec));
-                context.drawString(font, cooldownText, sw - font.width(cooldownText) - 8, sy - 48,
+                context.drawString(font, cooldownText, sw - font.width(cooldownText) - 8, sy - 60,
                         new Color(255, 100, 100).getRGB());
             }
 
-            // 任务进度
-            var comp = QUSTComponentKeys.Keys.AMERICAN_POLICE.maybeGet(client.player).orElse(null);
+            // 任务进度（显示为 X/7 格式）
             if (comp != null) {
+                int completedTasks = comp.getCompletedTaskCount();
+                int tasksPerCharge = comp.getTasksPerCharge();
+                int progress = completedTasks % tasksPerCharge;
                 Component taskText = Component.translatable(
-                        "hud.noellesroles.american_police.tasks", comp.getCompletedTaskCount());
-                context.drawString(font, taskText, sw - font.width(taskText) - 8, sy - 60,
+                        "hud.noellesroles.american_police.task_progress", progress, tasksPerCharge);
+                context.drawString(font, taskText, sw - font.width(taskText) - 8, sy - 48,
                         new Color(200, 200, 200).getRGB());
             }
         });

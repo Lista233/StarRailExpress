@@ -410,5 +410,16 @@ public class ModPackets {
 
         PayloadTypeRegistry.playC2S().register(PriestChantC2SPacket.ID, PriestChantC2SPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(PriestHeavenStateS2CPacket.ID, PriestHeavenStateS2CPacket.CODEC);
+
+        // 黑客网络包
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.ShowMarkedInfo.TYPE,
+                org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.ShowMarkedInfo.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.ShowBeenMarked.TYPE,
+                org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.ShowBeenMarked.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.SendConfirm.TYPE,
+                org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.SendConfirm.CODEC);
     }
 }
