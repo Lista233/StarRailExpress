@@ -55,16 +55,4 @@ public class AmericanPoliceRole extends NormalRole {
                 QUSTConfig.instance().americanPoliceHandcuffPrice, ShopEntry.Type.TOOL));
         return entries;
     }
-
-    @Override
-    public boolean canXiaonao(Player victim, Player killer, ResourceLocation deathReason) {
-        // 只有当受害者被标记时，美国警察才能跳过小脑惩罚
-        // 如果击杀的是未标记的玩家，依然触发惩罚
-        var comp = QUSTComponentKeys.Keys.AMERICAN_POLICE.maybeGet(victim).orElse(null);
-        if (comp != null && comp.isMarked()) {
-            return true; // 击杀被标记的玩家，跳过小脑惩罚
-        }
-        // 击杀未标记的玩家，应该触发惩罚
-        return super.canXiaonao(victim, killer, deathReason);
-    }
 }

@@ -2318,6 +2318,13 @@
   "block.noellesroles.mx_plush": "MX Fumo",
   "block.noellesroles.lista_plush": "Lista Fumo",
   "block.noellesroles.this_hacker_plush": "This Hacker Fumo",
+  "block.noellesroles.aevule0v0_plush": "Aevule Fumo",
+  "block.noellesroles.thezhanghuayu_plush": "Thezhanghuayu Fumo",
+  "block.noellesroles.nekoviet13_plush": "Nekoviet13 Fumo",
+  "block.noellesroles.zhuchen_l_plush": "Zhuchen_l Fumo",
+  "block.noellesroles.huayiyaaa_plush": "Huayiyaaa Fumo",
+  "block.noellesroles.linran_plush": "LinRan Fumo",
+  "block.noellesroles.zshixing_plush": "Zshixing Fumo",
   "block.noellesroles.vending_machines": "Vending Machine",
   "block.noellesroles.lottery_machine": "Lottery Machine",
   "block.noellesroles.devil_roulette_table": "Roulette Table",
@@ -5010,5 +5017,8 @@
   "item.minigame_master.klotski_challenge.lore": "Win to lead passengers to victory",
   "item.minigame_master.klotski_challenge.lore2": "We are the kings of minigames!",
   "message.minigame_master.klotski_challenge_win": "We are the kings of minigames!",
-  "message.minigame_master.low_san": "Your sanity is too low! Please recover your sanity before playing"
+  "message.minigame_master.low_san": "Your sanity is too low! Please recover your sanity before playing",
+
+  "message.american_police.punishment_death": "You killed an innocent civilian! You died on the spot and dropped your guns",
+  "message.american_police.punishment_san": "You killed an innocent civilian! Your sanity has been completely drained"
 }

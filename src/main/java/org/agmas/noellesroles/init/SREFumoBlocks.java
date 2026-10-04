@@ -114,6 +114,20 @@ public interface SREFumoBlocks {
             new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
     Block THIS_HACKER_PLUSH = registerBlock("this_hacker_plush",
             new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block AEVULE0V0_PLUSH = registerBlock("aevule0v0_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block THEZHANGHUAYU_PLUSH = registerBlock("thezhanghuayu_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block NEKOVIET13_PLUSH = registerBlock("nekoviet13_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block ZHUCHEN_L_PLUSH = registerBlock("zhuchen_l_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block HUAYIYAAA_PLUSH = registerBlock("huayiyaaa_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block LINRAN_PLUSH = registerBlock("linran_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block ZSHIXING_PLUSH = registerBlock("zshixing_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
     // 自定义玩家 plush：单个动态方块，按绑定的玩家名渲染该玩家皮肤
     Block CUSTOM_PLAYER_PLUSH = registerBlock("custom_player_plush",
             new org.agmas.noellesroles.content.block.CustomPlayerPlushBlock(
@@ -175,6 +189,20 @@ public interface SREFumoBlocks {
             .registerBlock(new SREPlushItem(LISTA_PLUSH, new Item.Properties().stacksTo(64)));
     Item THIS_HACKER_PLUSH_ITEM = SREItems
             .registerBlock(new SREPlushItem(THIS_HACKER_PLUSH, new Item.Properties().stacksTo(64)));
+    Item AEVULE0V0_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(AEVULE0V0_PLUSH, new Item.Properties().stacksTo(64)));
+    Item THEZHANGHUAYU_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(THEZHANGHUAYU_PLUSH, new Item.Properties().stacksTo(64)));
+    Item NEKOVIET13_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(NEKOVIET13_PLUSH, new Item.Properties().stacksTo(64)));
+    Item ZHUCHEN_L_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(ZHUCHEN_L_PLUSH, new Item.Properties().stacksTo(64)));
+    Item HUAYIYAAA_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(HUAYIYAAA_PLUSH, new Item.Properties().stacksTo(64)));
+    Item LINRAN_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(LINRAN_PLUSH, new Item.Properties().stacksTo(64)));
+    Item ZSHIXING_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(ZSHIXING_PLUSH, new Item.Properties().stacksTo(64)));
     Item CUSTOM_PLAYER_PLUSH_ITEM = SREItems
             .registerBlock(new SREPlushItem(CUSTOM_PLAYER_PLUSH, new Item.Properties().stacksTo(64)));
     /**
@@ -190,6 +218,9 @@ public interface SREFumoBlocks {
                     XIAO_HEI_HAND_PLUSH, XIAOZHANQWQ_PLUSH, ALLINTOKYO_PLUSH, MILK_DRAGON_PLUSH,
                     AQIONG_PLUSH, HAOZI_PLUSH, LIANGJIE_PLUSH,
                     MX_PLUSH, LISTA_PLUSH, THIS_HACKER_PLUSH,
+                    AEVULE0V0_PLUSH, THEZHANGHUAYU_PLUSH,
+                    NEKOVIET13_PLUSH, ZHUCHEN_L_PLUSH, HUAYIYAAA_PLUSH,
+                    LINRAN_PLUSH, ZSHIXING_PLUSH,
                     CUSTOM_PLAYER_PLUSH }));
 
     public static Block registerBlock(String id, Block block) {
@@ -239,6 +270,13 @@ public interface SREFumoBlocks {
                     itemGroup.accept(MX_PLUSH_ITEM);
                     itemGroup.accept(LISTA_PLUSH_ITEM);
                     itemGroup.accept(THIS_HACKER_PLUSH_ITEM);
+                    itemGroup.accept(AEVULE0V0_PLUSH_ITEM);
+                    itemGroup.accept(THEZHANGHUAYU_PLUSH_ITEM);
+                    itemGroup.accept(NEKOVIET13_PLUSH_ITEM);
+                    itemGroup.accept(ZHUCHEN_L_PLUSH_ITEM);
+                    itemGroup.accept(HUAYIYAAA_PLUSH_ITEM);
+                    itemGroup.accept(LINRAN_PLUSH_ITEM);
+                    itemGroup.accept(ZSHIXING_PLUSH_ITEM);
                     itemGroup.accept(CUSTOM_PLAYER_PLUSH_ITEM);
                 });
         blockEntityRegistrar.registerEntries();

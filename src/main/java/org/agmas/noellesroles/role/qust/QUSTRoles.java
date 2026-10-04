@@ -68,6 +68,7 @@ public class QUSTRoles {
                     TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, false))
             .setCanSeeCoin(true)
             .setVigilanteTeam(true)
+            .setCanXiaonao(true) // 完全跳过系统小脑惩罚，由自定义击杀事件处理
             .setComponentKey(QUSTComponentKeys.Keys.AMERICAN_POLICE)
             .setTaskReward(QUSTConfig.instance().americanPoliceTasksForGun, 1,
                     io.wifi.starrailexpress.index.TMMItems.REVOLVER.getDefaultInstance())

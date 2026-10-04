@@ -122,14 +122,77 @@ public class QUSTHandlers {
     // ==================== 美国警察事件注册 ====================
 
     private static void registerAmericanPoliceEvents() {
-        // 击杀事件：如果美国警察击杀了杀手或中立角色，奖励一次技能使用次数
+        // 击杀事件
         OnKillPlayerTriggered.EVENT.register((victim, spawnBody, killer, deathReason, forceDeath) -> {
             if (killer == null) return TrueFalseResult.PASS;
             if (!org.agmas.noellesroles.utils.RoleUtils.isPlayerTheJob(killer, QUSTRoles.AMERICAN_POLICE))
                 return TrueFalseResult.PASS;
+
+            var gameWorldComponent = io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(killer.level());
+
+            // ── 自定义小脑惩罚（系统小脑已通过 setCanXiaonao(true) 跳过） ──
+            var victimComp = QUSTComponentKeys.Keys.AMERICAN_POLICE.maybeGet(victim).orElse(null);
+            boolean isMarked = victimComp != null && victimComp.isMarked();
+            var victimRole = gameWorldComponent.getRole(victim);
+            boolean isVictimInnocent = victimRole != null && victimRole.isInnocent();
+            io.wifi.starrailexpress.SRE.LOGGER.info("[AmericanPolice] kill: k={}, v={}, marked={}, innocent={}, role={}",
+                    killer.getName().getString(), victim.getName().getString(),
+                    isMarked, isVictimInnocent, victimRole != null ? victimRole.identifier() : "null");
+
+            // 击杀被标记的玩家 → 不触发任何惩罚，但仍给予击杀奖励
+            if (isMarked) {
+                QUSTComponentKeys.Keys.AMERICAN_POLICE.get(killer).onKillPlayer(victim);
+                return TrueFalseResult.PASS;
+            }
+            // 击杀巫毒师或吉祥物 → 不触发惩罚，但仍给予击杀奖励
+            if (gameWorldComponent.isRole(victim, org.agmas.noellesroles.role.ModRoles.VOODOO)
+                    || gameWorldComponent.isRole(victim, QUSTRoles.MASCOT)) {
+                QUSTComponentKeys.Keys.AMERICAN_POLICE.get(killer).onKillPlayer(victim);
+                return TrueFalseResult.PASS;
+            }
+
+            // 击杀奖励逻辑（击杀杀手/中立角色增加技能次数）
             QUSTComponentKeys.Keys.AMERICAN_POLICE.get(killer).onKillPlayer(victim);
+
+            // 仅当受害者是平民/义警时才触发自定义惩罚
+            if (!isVictimInnocent) {
+                return TrueFalseResult.PASS; // 击杀杀手/中立 → 不惩罚
+            }
+
+            // 击杀未标记的平民 → 50% 立即死亡并掉枪 / 50% san值清空
+            if (killer.getRandom().nextBoolean()) {
+                dropGuns(killer);
+                io.wifi.starrailexpress.game.GameUtils.forceKillPlayer(
+                        killer, true, null,
+                        io.wifi.starrailexpress.game.GameConstants.DeathReasons.SHOT_INNOCENT);
+                killer.displayClientMessage(
+                        net.minecraft.network.chat.Component.translatable(
+                                "message.american_police.punishment_death"),
+                        true);
+            } else {
+                var mood = SREPlayerMoodComponent.KEY.get(killer);
+                mood.setMood(0);
+                killer.displayClientMessage(
+                        net.minecraft.network.chat.Component.translatable(
+                                "message.american_police.punishment_san"),
+                        true);
+            }
             return TrueFalseResult.PASS;
         });
+    }
+
+    /**
+     * 将玩家背包中所有枪械物品丢出
+     */
+    private static void dropGuns(net.minecraft.world.entity.player.Player player) {
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.items.size(); i++) {
+            var stack = inventory.items.get(i);
+            if (!stack.isEmpty() && stack.is(io.wifi.starrailexpress.index.tag.TMMItemTags.GUNS)) {
+                var dropped = player.drop(stack.copy(), false, true);
+                inventory.items.set(i, net.minecraft.world.item.ItemStack.EMPTY);
+            }
+        }
     }
 
     // ==================== 压力怪技能注册 ====================
