@@ -112,6 +112,7 @@
     "client.entity.EntityDisguisePlayerRenderMixin",
     "client.entity.EntityDisguiseSelfRenderMixin",
     "client.compat.inv_move.InvMoveBaned",
+    "content.item.client.DeliveryBoxItemUseMixin",
     "client.fake_steve.FakeSteveClientInputMixin",
     "client.game.ChairWheelKeyMappingMixin",
     "client.general.AmonHideTargetMixin",
