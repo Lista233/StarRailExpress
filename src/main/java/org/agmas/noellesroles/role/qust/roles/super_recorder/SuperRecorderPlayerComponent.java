@@ -33,6 +33,12 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
     /** 已标记的玩家（UUID → 角色 ID） */
     private final Map<UUID, String> markedPlayers = new HashMap<>();
 
+    /** 所有玩家的实际职业（UUID → 角色 ID），用于真相之书显示 */
+    private final Map<UUID, String> playerRoles = new HashMap<>();
+
+    /** 真相之书快照（UUID → 角色 ID），首次使用时固定，不再刷新 */
+    private final Map<UUID, String> truthBookSnapshot = new LinkedHashMap<>();
+
     /** 最近死亡位置列表（客户端渲染用，最多保留 10 个） */
     private final List<double[]> deathLocations = new ArrayList<>();
 
@@ -55,6 +61,8 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
     public void init() {
         startPlayers.clear();
         markedPlayers.clear();
+        playerRoles.clear();
+        truthBookSnapshot.clear();
         deathLocations.clear();
         totalPlayerCount = 0;
         initialized = false;
@@ -75,6 +83,21 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
             initialized = true;
         }
 
+        // 延迟填充玩家职业：等待角色分配完成后记录所有玩家的实际职业
+        if (initialized && playerRoles.isEmpty() && player instanceof ServerPlayer sp) {
+            SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(sp.level());
+            for (Player p : sp.level().players()) {
+                if (p.getUUID().equals(sp.getUUID())) continue;
+                var role = gameWorld.getRole(p);
+                if (role != null) {
+                    playerRoles.put(p.getUUID(), role.identifier().toString());
+                }
+            }
+            if (!playerRoles.isEmpty()) {
+                QUSTComponentKeys.Keys.SUPER_RECORDER.sync(sp);
+            }
+        }
+
         // 死亡位置过期清理
         if (!deathLocations.isEmpty()) {
             deathLocationTimer++;
@@ -92,6 +115,10 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
     public void addMark(UUID targetUuid, ResourceLocation roleId) {
         markedPlayers.put(targetUuid, roleId.toString());
         checkVictoryCondition();
+        // 同步标记数据到客户端
+        if (player instanceof ServerPlayer sp) {
+            QUSTComponentKeys.Keys.SUPER_RECORDER.sync(sp);
+        }
     }
 
     public boolean isMarked(UUID targetUuid) {
@@ -104,6 +131,41 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
 
     public Map<UUID, String> getMarkedPlayers() {
         return markedPlayers;
+    }
+
+    /** 获取所有玩家的实际职业（用于真相之书） */
+    public Map<UUID, String> getPlayerRoles() {
+        return playerRoles;
+    }
+
+    /** 是否已有真相之书快照 */
+    public boolean hasTruthBookSnapshot() {
+        return !truthBookSnapshot.isEmpty();
+    }
+
+    /** 获取真相之书快照（内容固定） */
+    public Map<UUID, String> getTruthBookSnapshot() {
+        return truthBookSnapshot;
+    }
+
+    /**
+     * 生成真相之书快照：将当前未标记的玩家及其职业固定下来。
+     * 之后再次打开真相之书时，始终显示这份固定列表。
+     */
+    public void captureTruthBookSnapshot() {
+        truthBookSnapshot.clear();
+        for (Map.Entry<UUID, String> entry : startPlayers.entrySet()) {
+            UUID uuid = entry.getKey();
+            if (markedPlayers.containsKey(uuid)) continue; // 已标记的跳过
+            String roleId = playerRoles.get(uuid);
+            if (roleId != null) {
+                truthBookSnapshot.put(uuid, roleId);
+            }
+        }
+        // 同步到客户端
+        if (player instanceof ServerPlayer sp) {
+            QUSTComponentKeys.Keys.SUPER_RECORDER.sync(sp);
+        }
     }
 
     /** 计算需要标记的玩家数（四分之三的总玩家数） */
@@ -193,7 +255,23 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
         tag.put("startPlayers", startTag);
         tag.putInt("totalPlayerCount", totalPlayerCount);
 
+        // 玩家职业
+        CompoundTag rolesTag = new CompoundTag();
+        for (Map.Entry<UUID, String> entry : playerRoles.entrySet()) {
+            rolesTag.putString(entry.getKey().toString(), entry.getValue());
+        }
+        tag.put("playerRoles", rolesTag);
+
         tag.putBoolean("initialized", initialized);
+
+        // 真相之书快照
+        if (!truthBookSnapshot.isEmpty()) {
+            CompoundTag snapshotTag = new CompoundTag();
+            for (Map.Entry<UUID, String> entry : truthBookSnapshot.entrySet()) {
+                snapshotTag.putString(entry.getKey().toString(), entry.getValue());
+            }
+            tag.put("truthBookSnapshot", snapshotTag);
+        }
 
         // 死亡位置
         if (!deathLocations.isEmpty()) {
@@ -233,6 +311,16 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
         totalPlayerCount = tag.getInt("totalPlayerCount");
         initialized = tag.getBoolean("initialized");
 
+        playerRoles.clear();
+        if (tag.contains("playerRoles", Tag.TAG_COMPOUND)) {
+            CompoundTag rolesTag = tag.getCompound("playerRoles");
+            for (String key : rolesTag.getAllKeys()) {
+                try {
+                    playerRoles.put(UUID.fromString(key), rolesTag.getString(key));
+                } catch (Exception ignored) {}
+            }
+        }
+
         deathLocations.clear();
         if (tag.contains("deathLocations", Tag.TAG_LIST)) {
             var list = tag.getList("deathLocations", Tag.TAG_COMPOUND);
@@ -243,6 +331,16 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
                         posTag.getDouble("y"),
                         posTag.getDouble("z")
                 });
+            }
+        }
+
+        truthBookSnapshot.clear();
+        if (tag.contains("truthBookSnapshot", Tag.TAG_COMPOUND)) {
+            CompoundTag snapshotTag = tag.getCompound("truthBookSnapshot");
+            for (String key : snapshotTag.getAllKeys()) {
+                try {
+                    truthBookSnapshot.put(UUID.fromString(key), snapshotTag.getString(key));
+                } catch (Exception ignored) {}
             }
         }
     }

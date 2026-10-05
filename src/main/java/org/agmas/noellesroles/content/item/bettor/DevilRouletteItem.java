@@ -32,8 +32,12 @@ public class DevilRouletteItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player user, InteractionHand hand) {
         ItemStack stack = user.getItemInHand(hand);
 
-        if (level.isClientSide() || !(user instanceof ServerPlayer sp)) {
-            return InteractionResultHolder.consume(stack);
+        if (level.isClientSide()) {
+            // 客户端直接放行，状态由服务端控制
+            return InteractionResultHolder.sidedSuccess(stack, true);
+        }
+        if (!(user instanceof ServerPlayer sp)) {
+            return InteractionResultHolder.fail(stack);
         }
 
         // 检查是否是筹客职业

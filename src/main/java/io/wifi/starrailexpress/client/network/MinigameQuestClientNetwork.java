@@ -90,6 +90,14 @@ public class MinigameQuestClientNetwork {
                             new SuperRecorderScreen(payload.mode())));
                 });
 
+        // 超级记录员：左键真相之书打开显示界面
+        ClientPlayNetworking.registerGlobalReceiver(SuperRecorderPayload.OpenTruthBook.TYPE,
+                (payload, context) -> {
+                    Minecraft client = context.client();
+                    client.execute(() -> client.setScreen(
+                            new org.agmas.noellesroles.client.screen.TruthBookScreen()));
+                });
+
         // 游荡者：灵魂出窍状态同步
         ClientPlayNetworking.registerGlobalReceiver(WandererPayload.SoulOutState.TYPE,
                 (payload, context) -> {

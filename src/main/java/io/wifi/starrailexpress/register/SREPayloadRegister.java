@@ -332,6 +332,9 @@ public class SREPayloadRegister {
         PayloadTypeRegistry.playS2C().register(
                 org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.OpenMarkScreen.TYPE,
                 org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.OpenMarkScreen.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.OpenTruthBook.TYPE,
+                org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.OpenTruthBook.CODEC);
 
         // 游荡者网络包
         PayloadTypeRegistry.playS2C().register(
@@ -354,5 +357,13 @@ public class SREPayloadRegister {
         PayloadTypeRegistry.playC2S().register(
                 org.agmas.noellesroles.role.qust.roles.super_doctor.SuperDoctorPayload.TYPE,
                 org.agmas.noellesroles.role.qust.roles.super_doctor.SuperDoctorPayload.CODEC);
+
+        // 筹客恶魔轮盘 S2C
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.StartRolling.TYPE,
+                org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.StartRolling.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.RouletteResult.TYPE,
+                org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.RouletteResult.CODEC);
     }
 }

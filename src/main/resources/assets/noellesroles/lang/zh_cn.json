@@ -5711,5 +5711,31 @@
   "message.super_doctor.repentance_hit_innocent": "你射中了平民！触发小脑惩罚！",
   "screen.super_recorder.truth_book_marked": "状态: 已标记",
   "screen.super_recorder.truth_book_unmarked": "状态: 未标记（真实职业）",
-  "screen.noellesroles.recorder.hasrecorded": "已记录"
+  "screen.super_recorder.truth_book_unmarked_hint": "未被记录笔记标记的玩家",
+  "announcement.star.win.super_recorder": "超级记录员胜利！",
+  "game.win.star.super_recorder": "超级记录员完成了所有记录，真相已被揭露！",
+  "screen.noellesroles.recorder.hasrecorded": "已记录",
+
+  "announcement.star.role.bettor": "筹客",
+  "announcement.star.goals.bettor": "以命为注，博取胜利",
+  "info.screen.roleid.bettor": "平民阵营\n商店购买恶魔轮盘（75金币）\n右键开始滚动数字（1-1000），再右键停止\n根据最终随机数获得不同效果：\n· 1：直接获胜\n· 2-39：获得德林加手枪\n· 40-89：直接死亡\n· 90-189：获得护盾\n· 190-239：获得左轮\n· 240-399：无敌10秒\n· 400-689：加速15秒\n· 690-1000：加速饼干",
+  "info.screen.roleid.bettor.simple": "平民阵营\n恶魔轮盘抽取\n以命博骰",
+
+  "item.bettor.devil_roulette": "恶魔轮盘",
+  "item.bettor.devil_roulette.lore": "右键开始滚动数字，再右键停止",
+  "item.bettor.devil_roulette.lore2": "根据最终数字获得不同效果！",
+
+  "message.bettor.rolling_start": "恶魔轮盘开始转动...",
+  "message.bettor.result.win": "§6§l大奖！你直接赢得了游戏！",
+  "message.bettor.result.derringer": "§a获得德林加手枪！",
+  "message.bettor.result.death": "§c§l轮盘吞噬了你...",
+  "message.bettor.result.shield": "§b获得一层护盾！",
+  "message.bettor.result.revolver": "§a获得左轮手枪！",
+  "message.bettor.result.invincible": "§d获得无敌效果 10秒！",
+  "message.bettor.result.speed": "§b获得速度提升 15秒！",
+  "message.bettor.result.cookie": "§7获得加速饼干",
+
+  "screen.bettor.devil_roulette.title": "恶魔轮盘",
+  "screen.bettor.devil_roulette.hint": "右键停止",
+  "screen.bettor.devil_roulette.result_title": "轮盘结果"
 }

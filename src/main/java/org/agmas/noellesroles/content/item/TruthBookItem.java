@@ -22,12 +22,14 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import org.agmas.noellesroles.role.qust.QUSTComponentKeys;
+import org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPlayerComponent;
 
 /**
  * 真相之书（超级记录员专属）。
  *
  * 商店购买后右键打开标记界面（仅显示未标记玩家）；可丢出。
- * 复用帕秋莉职业书逻辑：不检查角色、客户端打开 Screen、可丢弃。
+ * 首次使用时生成快照，之后内容固定不变（不会因标记进度而刷新）。
  */
 public class TruthBookItem extends Item {
 
@@ -45,6 +47,14 @@ public class TruthBookItem extends Item {
         // 必须存活（旁观/死亡不可用）
         if (!GameUtils.isPlayerAliveAndSurvival(user)) {
             return InteractionResultHolder.fail(stack);
+        }
+
+        // 服务端：首次使用时生成真相之书快照（内容固定，不再刷新）
+        if (!world.isClientSide() && user instanceof net.minecraft.server.level.ServerPlayer sp) {
+            var comp = QUSTComponentKeys.Keys.SUPER_RECORDER.maybeGet(sp).orElse(null);
+            if (comp != null && !comp.hasTruthBookSnapshot()) {
+                comp.captureTruthBookSnapshot();
+            }
         }
 
         if (world.isClientSide()) {

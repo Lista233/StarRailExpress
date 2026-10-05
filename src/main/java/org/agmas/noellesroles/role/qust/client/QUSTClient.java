@@ -42,18 +42,21 @@ public class QUSTClient {
         SuperDoctorHud.register();
         org.agmas.noellesroles.role.qust.roles.hacker.HackerHud.register();
         org.agmas.noellesroles.role.qust.roles.hacker.HackerClientHandlers.register();
+        org.agmas.noellesroles.role.qust.roles.bettor.BettorHud.register();
+        org.agmas.noellesroles.role.qust.roles.bettor.BettorClientHandlers.register();
 
         // 注册客户端 tick 事件：驱动游荡者灵魂出窍自由相机
         ClientTickEvents.END_CLIENT_TICK.register(client -> clientTick());
 
-        // 超级记录员：右键记录笔记 / 真相之书打开标记界面
+        // 超级记录员：右键记录笔记打开标记界面
+        // 真相之书右键由 TruthBookItem.use() 自行处理（打开 TruthBookScreen）
         registerSuperRecorderItemUse();
     }
 
     /**
-     * 超级记录员手持记录笔记（mode 0）或真相之书（mode 1）右键时，
-     * 直接在客户端打开标记界面，并返回 success 以取消原版行为
-     * （尤其阻止真相之书这类原版成书弹出原版阅读界面）。
+     * 超级记录员手持记录笔记右键时，
+     * 直接在客户端打开标记界面，并返回 success 以取消原版行为。
+     * <p>真相之书右键不在此拦截，由 {@code TruthBookItem.use()} → {@code TruthBookScreen} 处理。
      * <p>原版 {@code WrittenNoteItem.use()} 只对 {@code RECORDER} 生效，不认
      * {@code SUPER_RECORDER}，因此这里单独处理。
      */
@@ -64,16 +67,12 @@ public class QUSTClient {
             if (gameWorld == null || !gameWorld.isRole(player, QUSTRoles.SUPER_RECORDER)) {
                 return InteractionResultHolder.pass(stack);
             }
-            int mode;
+            // 只拦截记录笔记，真相之书交给 TruthBookItem.use() 处理
             if (stack.is(ModItems.WRITTEN_NOTE)) {
-                mode = 0;
-            } else if (SuperRecorderRole.isTruthBook(stack)) {
-                mode = 1;
-            } else {
-                return InteractionResultHolder.pass(stack);
+                Minecraft.getInstance().setScreen(new SuperRecorderScreen(0));
+                return InteractionResultHolder.success(stack);
             }
-            Minecraft.getInstance().setScreen(new SuperRecorderScreen(mode));
-            return InteractionResultHolder.success(stack);
+            return InteractionResultHolder.pass(stack);
         });
     }
 

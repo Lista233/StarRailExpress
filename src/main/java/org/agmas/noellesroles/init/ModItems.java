@@ -760,7 +760,7 @@ public class ModItems {
     /**
      * 真相之书
      * - 超级记录员商店可购买
-     * - 右键打开标记界面（仅显示未标记玩家）
+     * - 右键打开真相之书界面（显示未标记玩家的名称与真实职业）
      * - 可丢出
      */
     public static final Item TRUTH_BOOK = register(
@@ -1327,7 +1327,8 @@ public class ModItems {
 
     // 筹客恶魔轮盘（商店购买的基础物品，实际使用时由 BettorRole 自定义名称/Lore）
     public static final Item DEVIL_ROULETTE = register(
-            new Item(new Item.Properties().stacksTo(1)),
+            new org.agmas.noellesroles.content.item.bettor.DevilRouletteItem(
+                    new Item.Properties().stacksTo(1)),
             "devil_roulette", ROLE_ITEMS_GROUP);
 
     /**

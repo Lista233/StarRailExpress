@@ -46,4 +46,15 @@ public class SuperRecorderPayload {
         @Override
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
+
+    /**
+     * S2C：通知客户端打开真相之书显示界面（左键触发）
+     */
+    public record OpenTruthBook() implements CustomPacketPayload {
+        public static final Type<OpenTruthBook> TYPE = new Type<>(SRE.id("qust_super_recorder_open_truth_book"));
+        public static final StreamCodec<FriendlyByteBuf, OpenTruthBook> CODEC = StreamCodec.unit(new OpenTruthBook());
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
 }

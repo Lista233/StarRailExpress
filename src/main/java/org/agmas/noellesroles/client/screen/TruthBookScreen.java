@@ -32,12 +32,12 @@ import org.agmas.noellesroles.utils.RoleUtils;
 import java.util.*;
 
 /**
- * 真相之书界面 — 复古书页风格，复用推理之书的布局。
+ * 真相之书界面 — 复古书页风格。
  *
  * <p>
- * 每页显示一名玩家的 ID 与职业名。
- * <strong>优先显示未被超级记录员标记的玩家的真实职业</strong>，然后显示已标记的玩家。
+ * 每页显示一名"未被记录笔记标记的玩家"的名称与真实职业。
  * 左右方向键或翻页按钮切换。
+ * 数据来源：服务端同步的 {@link SuperRecorderPlayerComponent#getPlayerRoles()}。
  */
 public class TruthBookScreen extends Screen {
 
@@ -77,8 +77,8 @@ public class TruthBookScreen extends Screen {
     private PageButton backButton;
     private PageButton forwardButton;
 
-    // ---------- 缓存的标记列表 ----------
-    private List<Map.Entry<UUID, String>> markedEntries = new ArrayList<>();
+    // ---------- 缓存的未标记玩家列表 ----------
+    private List<Map.Entry<UUID, String>> unmarkedEntries = new ArrayList<>();
 
     public TruthBookScreen() {
         super(GameNarrator.NO_TITLE);
@@ -94,7 +94,7 @@ public class TruthBookScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        refreshMarkedEntries();
+        refreshUnmarkedEntries();
         calculateBookSize();
         createButtons();
         clampPage();
@@ -109,44 +109,19 @@ public class TruthBookScreen extends Screen {
         clampPage();
     }
 
-    private void refreshMarkedEntries() {
-        markedEntries.clear();
+    /**
+     * 从组件中获取真相之书快照（内容固定，不随标记进度变化）。
+     */
+    private void refreshUnmarkedEntries() {
+        unmarkedEntries.clear();
         SuperRecorderPlayerComponent comp = component();
         if (comp == null) return;
 
-        // 获取所有标记的玩家
-        Map<UUID, String> marked = comp.getMarkedPlayers();
-        Map<UUID, String> startPlayers = comp.getStartPlayers();
-
-        // 优先显示未被标记的玩家（显示他们的真实职业）
-        List<Map.Entry<UUID, String>> unmarkedEntries = new ArrayList<>();
-        List<Map.Entry<UUID, String>> markedPlayerEntries = new ArrayList<>();
-
-        // 遍历所有开局玩家，找出未标记的
-        for (Map.Entry<UUID, String> entry : startPlayers.entrySet()) {
-            UUID uuid = entry.getKey();
-            if (!marked.containsKey(uuid)) {
-                // 未标记的玩家 - 获取其真实职业
-                if (minecraft != null && minecraft.level != null) {
-                    var player = minecraft.level.getPlayerByUUID(uuid);
-                    if (player != null) {
-                        var gameWorld = io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(minecraft.level);
-                        var role = gameWorld.getRole(player);
-                        if (role != null) {
-                            // 添加到未标记列表（使用真实职业ID）
-                            unmarkedEntries.add(new AbstractMap.SimpleEntry<>(uuid, role.identifier().toString()));
-                        }
-                    }
-                }
-            }
+        // 从快照中读取固定的玩家列表
+        Map<UUID, String> snapshot = comp.getTruthBookSnapshot();
+        for (Map.Entry<UUID, String> entry : snapshot.entrySet()) {
+            unmarkedEntries.add(new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue()));
         }
-
-        // 添加已标记的玩家
-        markedPlayerEntries.addAll(marked.entrySet());
-
-        // 优先显示未标记的玩家
-        markedEntries.addAll(unmarkedEntries);
-        markedEntries.addAll(markedPlayerEntries);
     }
 
     private void calculateBookSize() {
@@ -193,22 +168,22 @@ public class TruthBookScreen extends Screen {
 
     private void updateButtonVisibility() {
         if (backButton != null) backButton.visible = page > 0;
-        if (forwardButton != null) forwardButton.visible = page < markedEntries.size() - 1;
+        if (forwardButton != null) forwardButton.visible = page < unmarkedEntries.size() - 1;
     }
 
     private void clampPage() {
-        if (markedEntries.isEmpty()) {
+        if (unmarkedEntries.isEmpty()) {
             page = 0;
         } else {
             if (page < 0) page = 0;
-            if (page >= markedEntries.size()) page = markedEntries.size() - 1;
+            if (page >= unmarkedEntries.size()) page = unmarkedEntries.size() - 1;
         }
     }
 
     // ==================== 翻页 ====================
 
     private void pageForward() {
-        if (page < markedEntries.size() - 1) {
+        if (page < unmarkedEntries.size() - 1) {
             page++;
             updateButtonVisibility();
         }
@@ -248,7 +223,7 @@ public class TruthBookScreen extends Screen {
         Component titleComp = Component.translatable("screen.super_recorder.truth_book_title");
         drawScaledCentered(g, titleComp, titleY, 1.3f, 0xFFD4A344);
 
-        if (markedEntries.isEmpty()) {
+        if (unmarkedEntries.isEmpty()) {
             Component emptyText = Component.translatable("screen.super_recorder.truth_book_empty")
                     .withStyle(ChatFormatting.GRAY);
             drawScaledCentered(g, emptyText, subtitleY + (int) (16 * scale), 1.0f, 0xFF888888);
@@ -256,17 +231,13 @@ public class TruthBookScreen extends Screen {
         }
 
         clampPage();
-        Map.Entry<UUID, String> entry = markedEntries.get(page);
+        Map.Entry<UUID, String> entry = unmarkedEntries.get(page);
         UUID targetUuid = entry.getKey();
         String roleIdStr = entry.getValue();
 
-        // 判断是否为已标记玩家
-        SuperRecorderPlayerComponent comp = component();
-        boolean isMarked = comp != null && comp.getMarkedPlayers().containsKey(targetUuid);
-
         // ---- 页码标签 ----
         Component pageLabel = Component.translatable(
-                "screen.super_recorder.truth_book_page", page + 1, markedEntries.size());
+                "screen.super_recorder.truth_book_page", page + 1, unmarkedEntries.size());
         drawScaledCentered(g, pageLabel, subtitleY, 1.0f, 0xFFEEDDAA);
 
         // ---- 玩家名 + 职业名 ----
@@ -274,6 +245,7 @@ public class TruthBookScreen extends Screen {
         int lineHeight = (int) (12 * scale);
 
         // 获取玩家名（从组件的 startPlayers 中取）
+        SuperRecorderPlayerComponent comp = component();
         String playerName = null;
         if (comp != null) {
             playerName = comp.getStartPlayers().get(targetUuid);
@@ -304,7 +276,16 @@ public class TruthBookScreen extends Screen {
             roleNameComp = Component.literal(roleIdStr);
         }
 
-        // 绘制玩家 ID
+        // 绘制提示标签
+        Component hintLine = Component.literal("❯ ")
+                .withStyle(ChatFormatting.DARK_GRAY)
+                .append(Component.translatable("screen.super_recorder.truth_book_unmarked_hint")
+                        .withStyle(ChatFormatting.YELLOW));
+        drawContentLine(g, hintLine, lineY, 0xFFFFFF88);
+        lineY += lineHeight;
+        lineY += (int) (4 * scale);
+
+        // 绘制玩家名
         Component playerLine = Component.literal("❯ ").withStyle(ChatFormatting.DARK_GRAY)
                 .append(Component.translatable("screen.super_recorder.truth_book_player",
                         Component.literal(playerName).withStyle(ChatFormatting.WHITE)));
@@ -323,25 +304,6 @@ public class TruthBookScreen extends Screen {
                 .append(Component.translatable("screen.super_recorder.truth_book_role",
                         roleNameComp.copy().withStyle(ChatFormatting.WHITE)));
         drawContentLine(g, roleLine, lineY, roleColor);
-        lineY += lineHeight;
-
-        // 绘制状态标签（未标记 / 已标记）
-        lineY += (int) (6 * scale);
-        Component statusLine;
-        int statusColor;
-        if (isMarked) {
-            statusLine = Component.literal("❯ ").withStyle(ChatFormatting.DARK_GRAY)
-                    .append(Component.translatable("screen.super_recorder.truth_book_marked")
-                            .withStyle(ChatFormatting.GREEN));
-            statusColor = 0xFF88FF88;
-        } else {
-            statusLine = Component.literal("❯ ").withStyle(ChatFormatting.DARK_GRAY)
-                    .append(Component.translatable("screen.super_recorder.truth_book_unmarked")
-                            .withStyle(ChatFormatting.YELLOW));
-            statusColor = 0xFFFFFF88;
-        }
-        drawContentLine(g, statusLine, lineY, statusColor);
-        lineY += lineHeight;
     }
 
     // ==================== 辅助绘制方法 ====================
