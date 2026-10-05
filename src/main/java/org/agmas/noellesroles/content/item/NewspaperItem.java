@@ -37,8 +37,6 @@ import io.wifi.starrailexpress.index.SREDataComponentTypes;
  * - 射命丸文专属物品，在商店以350金币购买
  * - 指针对准玩家并右键使用，打开传递界面
  * - 双方可以放入一样物品并交换
- *
- * 注意：实际的使用逻辑在客户端的 DeliveryBoxItemClient 中通过 Mixin 实现
  */
 public class NewspaperItem extends Item {
     public static BiFunction<ItemStack, InteractionHand, Boolean> runner = null;

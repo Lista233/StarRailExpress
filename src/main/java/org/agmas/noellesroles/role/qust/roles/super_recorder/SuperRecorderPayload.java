@@ -19,6 +19,7 @@ import java.util.UUID;
 public class SuperRecorderPayload {
 
     /**
+     *
      * C2S：客户端请求标记某玩家为某角色
      */
     public record MarkPlayer(UUID targetUuid, String roleId) implements CustomPacketPayload {

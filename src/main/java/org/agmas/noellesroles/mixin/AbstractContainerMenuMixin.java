@@ -23,7 +23,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.InventoryMenu;
 import org.agmas.noellesroles.client.screen.DetectiveInspectScreenHandler;
-import org.agmas.noellesroles.client.screen.PostmanScreenHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -40,7 +39,7 @@ public class AbstractContainerMenuMixin {
             return;
         if (instance1 instanceof CustomInventoryMenu)
             return;
-        if (!(instance1 instanceof InventoryMenu || instance1 instanceof PostmanScreenHandler
+        if (!(instance1 instanceof InventoryMenu
                 || instance1 instanceof DetectiveInspectScreenHandler  ||instance1.getClass().getPackage().getName().contains("supplementaries"))) {
             ci.cancel();
         }

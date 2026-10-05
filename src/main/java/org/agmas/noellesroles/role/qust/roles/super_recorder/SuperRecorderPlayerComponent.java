@@ -2,18 +2,12 @@ package org.agmas.noellesroles.role.qust.roles.super_recorder;
 
 import io.wifi.starrailexpress.api.RoleComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
-import io.wifi.starrailexpress.index.TMMItems;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
 import org.agmas.noellesroles.role.qust.QUSTComponentKeys;
 import net.minecraft.world.phys.Vec3;
@@ -26,7 +20,7 @@ import java.util.*;
  * <ul>
  *   <li>管理标记进度（记录员笔记猜对 = 标记）</li>
  *   <li>追踪死亡感知位置（15 格半径）</li>
- *   <li>管理超级亡命徒时刻状态</li>
+ *   <li>标记达到玩家人数 3/4 时直接胜利</li>
  * </ul>
  */
 public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickingComponent {
@@ -42,16 +36,7 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
     /** 最近死亡位置列表（客户端渲染用，最多保留 10 个） */
     private final List<double[]> deathLocations = new ArrayList<>();
 
-    /** 是否进入亡命徒时刻 */
-    private boolean outlawMode = false;
-
-    /** 亡命徒时刻击杀数（用于叠加速度等级） */
-    private int outlawKillCount = 0;
-
-    /** 亡命徒增益效果持续时间（tick） */
-    private static final int OUTLAW_EFFECT_DURATION = 30 * 20;
-
-    /** 开局玩家总数（用于计算 2/3 阈值） */
+    /** 开局玩家总数（用于计算 3/4 阈值） */
     private int totalPlayerCount = 0;
 
     /** 是否已初始化开局数据 */
@@ -71,7 +56,6 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
         startPlayers.clear();
         markedPlayers.clear();
         deathLocations.clear();
-        outlawMode = false;
         totalPlayerCount = 0;
         initialized = false;
     }
@@ -91,18 +75,6 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
             initialized = true;
         }
 
-        // 亡命徒时刻：持续刷新增益效果（参照原版亡命徒 serverTick）
-        if (outlawMode && player instanceof ServerPlayer sp
-                && io.wifi.starrailexpress.game.GameUtils.isPlayerAliveAndSurvival(sp)) {
-            if (sp.level().getGameTime() % 20 == 0) {
-                if (!sp.hasEffect(MobEffects.MOVEMENT_SPEED)
-                        || (sp.getEffect(MobEffects.MOVEMENT_SPEED) != null
-                            && sp.getEffect(MobEffects.MOVEMENT_SPEED).getDuration() <= 21)) {
-                    applyOutlawEffects(sp);
-                }
-            }
-        }
-
         // 死亡位置过期清理
         if (!deathLocations.isEmpty()) {
             deathLocationTimer++;
@@ -119,7 +91,7 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
 
     public void addMark(UUID targetUuid, ResourceLocation roleId) {
         markedPlayers.put(targetUuid, roleId.toString());
-        checkOutlawTransition();
+        checkVictoryCondition();
     }
 
     public boolean isMarked(UUID targetUuid) {
@@ -134,119 +106,29 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
         return markedPlayers;
     }
 
-    /** 计算需要标记的玩家数（三分之二的总玩家数，上限 13） */
+    /** 计算需要标记的玩家数（四分之三的总玩家数） */
     public int getRequiredMarkCount() {
-        return Math.min(13, Math.max(2, (int) Math.ceil(totalPlayerCount * 2.0 / 3.0)));
+        return Math.max(2, (int) Math.ceil(totalPlayerCount * 3.0 / 4.0));
     }
 
-    /** 检查是否进入亡命徒时刻 */
-    private void checkOutlawTransition() {
-        if (outlawMode) return;
-        if (getMarkCount() >= getRequiredMarkCount()) {
-            outlawMode = true;
-            if (player instanceof ServerPlayer sp) {
-                // 给予亡命徒增益效果（参照原版亡命徒）
-                applyOutlawEffects(sp);
-                sp.displayClientMessage(
+    /** 检查是否达成标记胜利条件（标记数 >= 3/4 玩家数） */
+    public boolean checkVictoryCondition() {
+        if (getMarkCount() < getRequiredMarkCount()) return false;
+        if (player instanceof ServerPlayer sp && sp.level() instanceof ServerLevel sl) {
+            org.agmas.noellesroles.utils.RoleUtils.customWinnerWin(
+                    sl, io.wifi.starrailexpress.game.GameUtils.WinStatus.CUSTOM,
+                    "super_recorder", java.util.OptionalInt.of(
+                            new java.awt.Color(100, 200, 255).getRGB()));
+            for (var p : sp.level().players()) {
+                p.displayClientMessage(
                         net.minecraft.network.chat.Component.translatable(
-                                "message.super_recorder.outlaw_mode_activated")
-                                .withStyle(net.minecraft.ChatFormatting.DARK_RED,
+                                "message.super_recorder.win", player.getName())
+                                .withStyle(net.minecraft.ChatFormatting.GOLD,
                                         net.minecraft.ChatFormatting.BOLD),
-                        false);
+                        true);
             }
         }
-    }
-
-    /** 给予/刷新亡命徒增益效果 */
-    private void applyOutlawEffects(ServerPlayer sp) {
-        sp.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED,
-                OUTLAW_EFFECT_DURATION, 1, true, false, true));
-        sp.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING,
-                OUTLAW_EFFECT_DURATION, 2, true, false, true));
-        sp.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE,
-                OUTLAW_EFFECT_DURATION, 1, true, false, true));
-    }
-
-    /** 亡命徒时刻击杀特效（参照原版亡命徒 + 超级亡命徒） */
-    public void onOutlawKill(ServerPlayer victim) {
-        if (!(player instanceof ServerPlayer sp)) return;
-        if (!(sp.level() instanceof ServerLevel sl)) return;
-
-        outlawKillCount++;
-
-        // 1. 叠加速度等级（每击杀 +1，最高 Speed X）
-        var existing = sp.getEffect(MobEffects.MOVEMENT_SPEED);
-        int newAmp = existing != null ? Math.min(existing.getAmplifier() + 1, 10) : 2;
-        sp.removeEffect(MobEffects.MOVEMENT_SPEED);
-        sp.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED,
-                OUTLAW_EFFECT_DURATION, newAmp, false, false, true));
-
-        // 2. 击杀奖励：时停钟或防御药剂（50% 概率）
-        int r = sp.level().getRandom().nextInt(100);
-        if (r < 50) {
-            var inv = sp.getInventory();
-            boolean hasRecovery = false;
-            for (var item : inv.items) {
-                if (item.isEmpty()) continue;
-                if (item.is(org.agmas.noellesroles.init.ModItems.TIME_STOP_CLOCK)
-                        && item.getDamageValue() > 0) {
-                    item.setDamageValue(item.getDamageValue() - 1);
-                    hasRecovery = true;
-                    break;
-                }
-            }
-            if (!hasRecovery) {
-                sp.addItem(new net.minecraft.world.item.ItemStack(
-                        org.agmas.noellesroles.init.ModItems.TIME_STOP_CLOCK));
-            }
-        } else {
-            sp.addItem(TMMItems.DEFENSE_VIAL.getDefaultInstance());
-        }
-
-        // 3. 击杀金币
-        io.wifi.starrailexpress.cca.SREPlayerShopComponent.KEY.get(sp).addToBalance(50);
-
-        // 4. 粒子特效（参照原版亡命徒 specialEffect）
-        Vec3 victimPos = victim.position();
-        Vec3 killerPos = sp.position();
-
-        // 击杀者周围红色粒子环
-        for (int i = 0; i < 20; i++) {
-            double angle = (Math.PI * 2 * i) / 20;
-            sl.sendParticles(ParticleTypes.CRIMSON_SPORE,
-                    killerPos.x() + Math.cos(angle) * 1.5,
-                    killerPos.y() + 1.5,
-                    killerPos.z() + Math.sin(angle) * 1.5,
-                    1, 0.1, 0.1, 0.1, 0.0);
-        }
-
-        // 受害者位置暴击粒子
-        sl.sendParticles(ParticleTypes.CRIT,
-                victimPos.x(), victimPos.y() + 1, victimPos.z(),
-                15, 0.5, 0.5, 0.5, 0.3);
-
-        // 受害者位置灵魂火焰
-        sl.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
-                victimPos.x(), victimPos.y() + 0.5, victimPos.z(),
-                15, 0.4, 0.6, 0.4, 0.05);
-
-        // 受害者位置大烟雾
-        sl.sendParticles(ParticleTypes.LARGE_SMOKE,
-                victimPos.x(), victimPos.y() + 0.8, victimPos.z(),
-                10, 0.3, 0.4, 0.3, 0.02);
-
-        // 5. 音效叠加
-        sl.playSound(null, victimPos.x(), victimPos.y(), victimPos.z(),
-                io.wifi.starrailexpress.index.TMMSounds.ITEM_KNIFE_STAB,
-                SoundSource.PLAYERS, 1.5f, 0.8f);
-        sl.playSound(null, victimPos.x(), victimPos.y(), victimPos.z(),
-                SoundEvents.CHAIN_HIT, SoundSource.PLAYERS, 1.0f, 1.2f);
-        sl.playSound(null, victimPos.x(), victimPos.y(), victimPos.z(),
-                SoundEvents.GHAST_SCREAM, SoundSource.PLAYERS, 0.6f, 0.7f);
-    }
-
-    public boolean isOutlawMode() {
-        return outlawMode;
+        return true;
     }
 
     // ==================== 开局玩家 ====================
@@ -311,9 +193,6 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
         tag.put("startPlayers", startTag);
         tag.putInt("totalPlayerCount", totalPlayerCount);
 
-        // 亡命徒模式
-        tag.putBoolean("outlawMode", outlawMode);
-        tag.putInt("outlawKillCount", outlawKillCount);
         tag.putBoolean("initialized", initialized);
 
         // 死亡位置
@@ -352,8 +231,6 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
             }
         }
         totalPlayerCount = tag.getInt("totalPlayerCount");
-        outlawMode = tag.getBoolean("outlawMode");
-        outlawKillCount = tag.getInt("outlawKillCount");
         initialized = tag.getBoolean("initialized");
 
         deathLocations.clear();

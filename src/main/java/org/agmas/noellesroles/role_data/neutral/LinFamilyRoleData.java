@@ -124,7 +124,6 @@ public class LinFamilyRoleData extends SimpleRoleData {
             () -> TMMItems.DISGUISE_3.getDefaultInstance(),
             () -> ModItems.RADIO.getDefaultInstance(),
             () -> ModItems.NEWSPAPER.getDefaultInstance(),
-            () -> ModItems.DELIVERY_BOX.getDefaultInstance(),
             () -> ModItems.FAKE_REVOLVER.getDefaultInstance(),
             () -> ModItems.FAKE_KNIFE.getDefaultInstance(),
             () -> ModItems.FAKE_LOCKPICK.getDefaultInstance(),

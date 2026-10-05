@@ -78,6 +78,12 @@ public class XiaoNaoHandler {
                     if (gameWorldComponent.isRole(victim, ModRoles.VOODOO)) {
                         return;
                     }
+                    // 美国警察标记的被标记者被任意玩家击杀 → 跳过小脑惩罚
+                    var victimPoliceComp = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.AMERICAN_POLICE
+                            .maybeGet(victim).orElse(null);
+                    if (victimPoliceComp != null && victimPoliceComp.isMarked()) {
+                        return;
+                    }
                     var victimRole = gameWorldComponent.getRole(victim);
                     var killerRole = gameWorldComponent.getRole(killer);
                     if (victimRole == null || killerRole == null)

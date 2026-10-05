@@ -343,6 +343,9 @@ public class SREPayloadRegister {
         PayloadTypeRegistry.playS2C().register(
                 org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.EnterGhostState.TYPE,
                 org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.EnterGhostState.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.DeathNotification.TYPE,
+                org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.DeathNotification.CODEC);
         PayloadTypeRegistry.playC2S().register(
                 org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.ToggleGhostVisibility.TYPE,
                 org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.ToggleGhostVisibility.CODEC);

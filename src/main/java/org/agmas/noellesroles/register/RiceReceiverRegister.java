@@ -44,12 +44,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import org.agmas.noellesroles.ConfigWorldComponent;
 import org.agmas.noellesroles.client.screen.DetectiveInspectScreenHandler;
-import org.agmas.noellesroles.client.screen.PostmanScreenHandler;
 import org.agmas.noellesroles.component.ModComponents;
 import org.agmas.noellesroles.content.entity.LockEntityManager;
 import org.agmas.noellesroles.content.entity.NiaoshoushouMissileEntity;
 import org.agmas.noellesroles.role_data.innocence.AthleteRoleData;
-import org.agmas.noellesroles.role_data.innocence.AyayayaRoleData;
 import org.agmas.noellesroles.role_data.innocence.BoxerRoleData;
 import org.agmas.noellesroles.role_data.innocence.AgentRoleData;
 import org.agmas.noellesroles.role_data.innocence.GreatDetectiveRoleData;
@@ -318,128 +316,6 @@ public class RiceReceiverRegister {
             // 获取电报员数据并发送消息
             RoleData.getOptional(TelegrapherRoleData.class, context.player())
                     .ifPresent(d -> d.sendAnonymousMessage(payload.message()));
-        });
-
-        // 处理射命丸文传递包
-        ServerPlayNetworking.registerGlobalReceiver(POSTMAN_PACKET, (payload, context) -> {
-            if (!GameUtils.isPlayerAliveAndSurvival(context.player()))
-                return;
-
-            switch (payload.action()) {
-                case OPEN_DELIVERY -> {
-                    AyayayaRoleData postmanComp = RoleData.getNullable(AyayayaRoleData.class, context.player());
-                    if (postmanComp == null)
-                        return;
-
-                    Player target = context.player().level().getPlayerByUUID(payload.targetPlayer());
-                    if (target == null || !GameUtils.isPlayerAliveAndSurvival(target))
-                        return;
-
-                    postmanComp.startDelivery(payload.targetPlayer(), target.getName().getString());
-
-                    if (context.player() instanceof ServerPlayer serverPlayer) {
-                        serverPlayer.openMenu(
-                                new net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory<java.util.UUID>() {
-                                    @Override
-                                    public Component getDisplayName() {
-                                        return Component.translatable("screen.noellesroles.postman.title");
-                                    }
-
-                                    @Override
-                                    public net.minecraft.world.inventory.AbstractContainerMenu createMenu(int syncId,
-                                            net.minecraft.world.entity.player.Inventory playerInventory,
-                                            Player player) {
-                                        return new PostmanScreenHandler(syncId, playerInventory,
-                                                payload.targetPlayer());
-                                    }
-
-                                    @Override
-                                    public java.util.UUID getScreenOpeningData(ServerPlayer player) {
-                                        return payload.targetPlayer();
-                                    }
-                                });
-                    }
-
-                    if (target instanceof ServerPlayer serverTarget) {
-                        final java.util.UUID postmanUuid = context.player().getUUID();
-                        serverTarget.openMenu(
-                                new net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory<java.util.UUID>() {
-                                    @Override
-                                    public Component getDisplayName() {
-                                        return Component.translatable("screen.noellesroles.postman.title");
-                                    }
-
-                                    @Override
-                                    public net.minecraft.world.inventory.AbstractContainerMenu createMenu(int syncId,
-                                            net.minecraft.world.entity.player.Inventory playerInventory,
-                                            Player player) {
-                                        return new PostmanScreenHandler(syncId, playerInventory, postmanUuid);
-                                    }
-
-                                    @Override
-                                    public java.util.UUID getScreenOpeningData(ServerPlayer player) {
-                                        return postmanUuid;
-                                    }
-                                });
-                    }
-                }
-                case SET_ITEM -> {
-                    AyayayaRoleData session = AyayayaRoleData.resolve(context.player());
-                    if (session == null || !session.isDeliveryActive())
-                        return;
-                    session.setItem(payload.item(), !session.isViewerReceiver(context.player()));
-                }
-                case CONFIRM -> {
-                    AyayayaRoleData session = AyayayaRoleData.resolve(context.player());
-                    if (session == null || !session.isDeliveryActive() || session.deliveryTarget == null)
-                        return;
-                    Player target = context.player().level().getPlayerByUUID(session.deliveryTarget);
-                    if (target == null)
-                        return;
-
-                    boolean isPostman = !session.isViewerReceiver(context.player());
-                    session.confirm(isPostman);
-
-                    if (session.isBothConfirmed()) {
-                        ItemStack postmanItem = session.putItem.copy();
-                        ItemStack targetItem = session.targetItem.copy();
-
-                        Player postmanPlayer = session.getPlayer();
-                        Player receiverPlayer = target;
-
-                        if (!targetItem.isEmpty()) {
-                            postmanPlayer.addItem(targetItem);
-                        }
-                        if (!postmanItem.isEmpty()) {
-                            receiverPlayer.addItem(postmanItem);
-                        }
-
-                        consumeDeliveryBox(postmanPlayer);
-
-                        session.init();
-                        SRE.REPLAY_MANAGER.recordCustomEvent(
-                            Component.translatable("replay.event.shameimaru.exchange_box",
-                                GameReplayUtils.getReplayPlayerDisplayText(postmanPlayer, true),
-                                GameReplayUtils.getReplayPlayerDisplayText(receiverPlayer, true)));
-
-                        if (context.player() instanceof ServerPlayer serverPlayer) {
-                            serverPlayer.closeContainer();
-                        }
-                        if (target instanceof ServerPlayer serverTarget) {
-                            serverTarget.closeContainer();
-                        }
-                        if (postmanPlayer instanceof ServerPlayer serverPostman && serverPostman != context.player()) {
-                            serverPostman.closeContainer();
-                        }
-                    }
-                }
-                case CANCEL -> {
-                    AyayayaRoleData session = AyayayaRoleData.resolve(context.player());
-                    if (session == null || !session.isDeliveryActive())
-                        return;
-                    session.init();
-                }
-            }
         });
 
         // 处理探员审查包
@@ -916,16 +792,5 @@ public class RiceReceiverRegister {
             return Vec3.ZERO;
         }
         return horizontal.normalize();
-    }
-
-    /**
-     * 消耗射命丸文的传递盒
-     * 在传递成功完成后调用
-     *
-     * @param postmanPlayer 射命丸文玩家
-     */
-    private static void consumeDeliveryBox(Player postmanPlayer) {
-        // 先检查主手
-        SREItemUtils.clearItem(postmanPlayer, ModItems.DELIVERY_BOX, 1);
     }
 }

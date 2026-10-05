@@ -23,18 +23,29 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import org.agmas.noellesroles.role.ModRoles;
+import org.agmas.noellesroles.role.qust.QUSTRoles;
 
 public class WrittenNoteItem extends Item {
 
     public WrittenNoteItem(Properties properties) {
         super(properties);
     }
+    /** 原版记录员的屏幕回调 */
     public static Runnable openScreenCallback = null;
+    /** 超级记录员的屏幕回调 */
+    public static Runnable superRecorderOpenScreenCallback = null;
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand usedHand) {
         if (level.isClientSide) {
-            // 检查是否为记录员角色
             SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(level);
+            // 超级记录员
+            if (gameWorld.isRole(player, QUSTRoles.SUPER_RECORDER)) {
+                if (superRecorderOpenScreenCallback != null) {
+                    superRecorderOpenScreenCallback.run();
+                }
+                return InteractionResultHolder.success(player.getItemInHand(usedHand));
+            }
+            // 原版记录员
             if (gameWorld.isRole(player, ModRoles.RECORDER)) {
                 if (openScreenCallback != null) {
                     openScreenCallback.run();

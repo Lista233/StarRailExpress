@@ -256,7 +256,7 @@ public class SuperRecorderScreen extends Screen {
         if (comp != null) {
             Component markInfo = Component.translatable("screen.super_recorder.mark_progress",
                     comp.getMarkCount(), comp.getRequiredMarkCount())
-                    .withStyle(comp.isOutlawMode() ? ChatFormatting.DARK_RED : ChatFormatting.AQUA);
+                    .withStyle(ChatFormatting.AQUA);
             context.drawCenteredString(font, markInfo, width / 2, height - 40, 0xFFFFFF);
         }
 

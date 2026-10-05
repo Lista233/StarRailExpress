@@ -12,7 +12,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,6 +35,21 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
     /** 已发送终端消息的玩家（使用发送终端后标记） */
     public final Set<UUID> sentPlayers = new LinkedHashSet<>();
 
+    /** 标记时间戳（玩家UUID -> 标记时的tick） */
+    public final Map<UUID, Integer> markTimestamps = new HashMap<>();
+
+    /** 待发送的延迟通知（标记后8秒通知被标记者） */
+    private final List<PendingNotification> pendingNotifications = new ArrayList<>();
+
+    /** 延迟通知数据 */
+    public record PendingNotification(UUID targetUuid, String targetName, String ip, int sendAtTick) {}
+
+    /** 同步到客户端的存活玩家数（用于HUD显示） */
+    public int syncedAliveCount = 0;
+
+    /** 同步到客户端的需要发送数（用于HUD显示） */
+    public int syncedRequiredCount = 0;
+
     public HackerRoleData(Player player) {
         this.player = player;
     }
@@ -44,12 +63,20 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
     public void init() {
         markedPlayers.clear();
         sentPlayers.clear();
+        markTimestamps.clear();
+        pendingNotifications.clear();
+        syncedAliveCount = 0;
+        syncedRequiredCount = 0;
     }
 
     @Override
     public void clear() {
         markedPlayers.clear();
         sentPlayers.clear();
+        markTimestamps.clear();
+        pendingNotifications.clear();
+        syncedAliveCount = 0;
+        syncedRequiredCount = 0;
     }
 
     @Override
@@ -77,6 +104,29 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
      */
     public boolean isMarked(UUID playerId) {
         return playerId != null && markedPlayers.contains(playerId);
+    }
+
+    /**
+     * 设置标记时间戳
+     */
+    public void setMarkTimestamp(UUID playerId, int tick) {
+        if (playerId != null) {
+            markTimestamps.put(playerId, tick);
+        }
+    }
+
+    /**
+     * 添加延迟通知（标记后8秒通知被标记者）
+     */
+    public void addPendingNotification(UUID targetUuid, String targetName, String ip, int currentTick) {
+        pendingNotifications.add(new PendingNotification(targetUuid, targetName, ip, currentTick + 160)); // 8秒 = 160 ticks
+    }
+
+    /**
+     * 获取标记时间戳
+     */
+    public int getMarkTimestamp(UUID playerId) {
+        return markTimestamps.getOrDefault(playerId, -1);
     }
 
     /**
@@ -161,9 +211,61 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
         return actualSent + "/" + requiredCount;
     }
 
+    /**
+     * 统计场上存活的玩家数（排除黑客自己），并更新同步字段
+     */
+    private int updateAliveCount() {
+        if (!(player instanceof ServerPlayer sp)) {
+            syncedAliveCount = 0;
+            syncedRequiredCount = 0;
+            return 0;
+        }
+        var gameWorld = SREGameWorldComponent.KEY.get(player.level());
+        int aliveCount = 0;
+        for (ServerPlayer p : sp.getServer().getPlayerList().getPlayers()) {
+            if (p.getUUID().equals(player.getUUID())) continue;
+            if (gameWorld.getRole(p) != null && GameUtils.isPlayerAliveAndSurvival(p)) {
+                aliveCount++;
+            }
+        }
+        syncedAliveCount = aliveCount;
+        syncedRequiredCount = Math.min((int) Math.ceil(aliveCount * 0.75), 15);
+        return aliveCount;
+    }
+
     @Override
     public void serverTick() {
-        // 不需要每tick更新
+        // 更新HUD同步数据
+        updateAliveCount();
+
+        if (!pendingNotifications.isEmpty()) {
+            int currentTick = (int) player.level().getGameTime();
+
+            List<PendingNotification> toRemove = new ArrayList<>();
+            for (PendingNotification pn : pendingNotifications) {
+                if (currentTick >= pn.sendAtTick()) {
+                    // 时间到了，发送通知给被标记者
+                    ServerPlayer target = player.getServer().getPlayerList().getPlayer(pn.targetUuid());
+                    if (target != null && GameUtils.isPlayerAliveAndSurvival(target)) {
+                        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                                target,
+                                new HackerPayload.ShowBeenMarked(
+                                        pn.targetName(),
+                                        pn.targetUuid(),
+                                        pn.ip()
+                                )
+                        );
+                        // 标记为已发送（用于胜利条件统计）
+                        sentPlayers.add(pn.targetUuid());
+                    }
+                    toRemove.add(pn);
+                }
+            }
+            if (!toRemove.isEmpty()) {
+                sync();
+            }
+            pendingNotifications.removeAll(toRemove);
+        }
     }
 
     @Override
@@ -201,10 +303,16 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
     @Override
     public void writeToSyncNbt(@NotNull CompoundTag tag, HolderLookup.Provider registryLookup) {
         writeToNbt(tag, registryLookup);
+        // 同步存活人数和需要发送数（用于客户端HUD显示）
+        updateAliveCount();
+        tag.putInt("SyncedAliveCount", syncedAliveCount);
+        tag.putInt("SyncedRequiredCount", syncedRequiredCount);
     }
 
     @Override
     public void readFromSyncNbt(@NotNull CompoundTag tag, HolderLookup.Provider registryLookup) {
         readFromNbt(tag, registryLookup);
+        syncedAliveCount = tag.getInt("SyncedAliveCount");
+        syncedRequiredCount = tag.getInt("SyncedRequiredCount");
     }
 }

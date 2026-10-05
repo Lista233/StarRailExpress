@@ -252,6 +252,12 @@ public class ModItems {
                     (new Item.Properties()).stacksTo(1).durability(1)),
             "repentance_gun", WEAPONS_GROUP);
 
+    /** 干扰芯片 - 黑客（林然）专属标记物品，手持右键对视线内玩家进行标记 */
+    public static final Item INTERFERENCE_CHIP = register(
+            new org.agmas.noellesroles.content.item.hacker.InterferenceChipItem(
+                    new Item.Properties().stacksTo(1)),
+            "interference_chip", ROLE_ITEMS_GROUP);
+
     /** 小游戏券 - 小游戏达人专属，右键开启随机小游戏 */
     public static final Item MINIGAME_TICKET = register(
             new org.agmas.noellesroles.role.qust.roles.minigame_master.MinigameTicketItem(
@@ -651,16 +657,6 @@ public class ModItems {
      * - 指针对准玩家并右键使用，打开传递界面
      * - 双方可以放入一样物品并交换
      */
-    public static final Item DELIVERY_BOX = register(
-            new DeliveryBoxItem(new Item.Properties().stacksTo(8)),
-            "delivery_box", ROLE_ITEMS_GROUP);
-    /**
-     * 快递包裹盒子
-     * - 射命丸文专属物品
-     * - 在商店以150金币购买
-     * - 指针对准玩家并右键使用，打开传递界面
-     * - 双方可以放入一样物品并交换
-     */
     public static final Item NEWSPAPER = register(
             new NewspaperItem(new Item.Properties().stacksTo(8)),
             "newspaper", ROLE_ITEMS_GROUP);
@@ -761,6 +757,16 @@ public class ModItems {
     public static final Item WRITTEN_NOTE = register(
             new WrittenNoteItem(new Item.Properties().stacksTo(1)),
             "written_note", ROLE_ITEMS_GROUP);
+    /**
+     * 真相之书
+     * - 超级记录员商店可购买
+     * - 右键打开标记界面（仅显示未标记玩家）
+     * - 可丢出
+     */
+    public static final Item TRUTH_BOOK = register(
+            new org.agmas.noellesroles.content.item.TruthBookItem(
+                    new Item.Properties().stacksTo(1)),
+            "truth_book", ROLE_ITEMS_GROUP);
     /**
      * 巨大便签
      * - 记者专属可购买道具
@@ -1318,6 +1324,11 @@ public class ModItems {
                     .withStyle(ChatFormatting.GRAY));
         }
     }, "telephone", MISC_ITEMS_GROUP);
+
+    // 筹客恶魔轮盘（商店购买的基础物品，实际使用时由 BettorRole 自定义名称/Lore）
+    public static final Item DEVIL_ROULETTE = register(
+            new Item(new Item.Properties().stacksTo(1)),
+            "devil_roulette", ROLE_ITEMS_GROUP);
 
     /**
      * C4炸药

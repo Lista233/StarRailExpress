@@ -42,4 +42,12 @@ public class WandererPayload {
                 StreamCodec.unit(new ToggleGhostVisibility());
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
+
+    /** S2C: 通知客户端显示死亡进入幽灵状态的大字提示 */
+    public record DeathNotification() implements CustomPacketPayload {
+        public static final Type<DeathNotification> TYPE = new Type<>(QUSTRoles.id("wanderer_qust_death_notify"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, DeathNotification> CODEC =
+                StreamCodec.unit(new DeathNotification());
+        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
 }

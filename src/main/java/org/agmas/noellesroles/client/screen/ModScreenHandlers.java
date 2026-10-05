@@ -31,20 +31,6 @@ import java.util.UUID;
 public class ModScreenHandlers {
     
     /**
-     * 射命丸文传递界面的 ScreenHandler 类型
-     * 使用 ExtendedScreenHandlerType 来传递目标玩家的 UUID
-     */
-    public static final ExtendedScreenHandlerType<PostmanScreenHandler, UUID> POSTMAN_SCREEN_HANDLER =
-        Registry.register(
-            BuiltInRegistries.MENU,
-            ResourceLocation.fromNamespaceAndPath(Noellesroles.MOD_ID, "postman"),
-            new ExtendedScreenHandlerType<>(
-                (syncId, playerInventory, data) -> new PostmanScreenHandler(syncId, playerInventory, data),
-                UUIDUtil.STREAM_CODEC.cast()
-            )
-        );
-    
-    /**
      * 探员审查界面的 ScreenHandler 类型
      * 使用 ExtendedScreenHandlerType 来传递目标玩家的 UUID
      */

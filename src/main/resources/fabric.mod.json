@@ -130,7 +130,8 @@
       "qust:super_recorder",
       "qust:wanderer",
       "qust:super_doctor",
-      "qust:hacker"
+      "qust:hacker",
+      "qust:bettor"
     ],
     "loom:injected_interfaces": {
       "net/minecraft/class_5483/class_5496": [

@@ -10,7 +10,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.qust.QUSTConfig;
@@ -26,7 +25,7 @@ import java.util.List;
  *   <li>拥有记录员笔记 + 开局假枪</li>
  *   <li>可做任务获得金币，商店可购买真相之书（150 金币）</li>
  *   <li>感知 15 格内死亡，右键尸体查看物品栏</li>
- *   <li>标记 2/3 玩家后进入超级亡命徒时刻，击杀所有人获胜</li>
+ *   <li>标记 3/4 玩家后直接胜利</li>
  * </ul>
  */
 public class SuperRecorderRole extends NormalRole {
@@ -78,7 +77,7 @@ public class SuperRecorderRole extends NormalRole {
      * 创建真相之书物品栈
      */
     public static ItemStack createTruthBookStack() {
-        ItemStack book = Items.WRITTEN_BOOK.getDefaultInstance();
+        ItemStack book = ModItems.TRUTH_BOOK.getDefaultInstance();
         book.set(net.minecraft.core.component.DataComponents.ITEM_NAME,
                 Component.translatable("item.super_recorder.truth_book")
                         .withStyle(ChatFormatting.LIGHT_PURPLE));
@@ -94,11 +93,8 @@ public class SuperRecorderRole extends NormalRole {
      * 判断物品是否为真相之书
      */
     public static boolean isTruthBook(ItemStack stack) {
-        if (!stack.is(Items.WRITTEN_BOOK)) return false;
-        Component name = stack.get(net.minecraft.core.component.DataComponents.ITEM_NAME);
-        if (name == null) return false;
-        String key = name.getString();
-        return key.contains("真相之书") || key.contains("Truth Book");
+        if (!stack.is(ModItems.TRUTH_BOOK)) return false;
+        return true;
     }
 
     // ==================== 尸体交互：可查看物品栏 ====================

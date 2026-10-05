@@ -520,8 +520,6 @@ public class ThiefRoleData extends SimpleRoleData {
             return true; // 警报陷阱
         if (stack.is(ModItems.LOCK_ITEM))
             return true; // 锁
-        if (stack.is(ModItems.DELIVERY_BOX))
-            return true; // 传递盒
         if (stack.is(ModItems.HALLUCINATION_BOTTLE))
             return true; // 迷幻瓶
         if (stack.is(ModItems.NIGHT_VISION_GLASSES))
@@ -1007,8 +1005,6 @@ public class ThiefRoleData extends SimpleRoleData {
             return true; // 警报陷阱
         if (stack.is(ModItems.LOCK_ITEM))
             return true; // 锁
-        if (stack.is(ModItems.DELIVERY_BOX))
-            return true; // 传递盒
         if (stack.is(ModItems.HALLUCINATION_BOTTLE))
             return true; // 迷幻瓶
         if (stack.is(ModItems.NIGHT_VISION_GLASSES))

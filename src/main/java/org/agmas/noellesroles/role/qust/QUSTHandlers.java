@@ -48,7 +48,7 @@ public class QUSTHandlers {
         registerWandererNetworkHandlers();
         registerSuperDoctorSkills();
         registerSuperDoctorNetworkHandlers();
-        registerHackerSkills();
+        registerHackerEvents();
     }
 
     // ==================== 龙娘技能注册 ====================
@@ -122,77 +122,16 @@ public class QUSTHandlers {
     // ==================== 美国警察事件注册 ====================
 
     private static void registerAmericanPoliceEvents() {
-        // 击杀事件
+        // 击杀奖励：击杀杀手/中立角色时增加技能使用次数
         OnKillPlayerTriggered.EVENT.register((victim, spawnBody, killer, deathReason, forceDeath) -> {
             if (killer == null) return TrueFalseResult.PASS;
             if (!org.agmas.noellesroles.utils.RoleUtils.isPlayerTheJob(killer, QUSTRoles.AMERICAN_POLICE))
                 return TrueFalseResult.PASS;
 
-            var gameWorldComponent = io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(killer.level());
-
-            // ── 自定义小脑惩罚（系统小脑已通过 setCanXiaonao(true) 跳过） ──
-            var victimComp = QUSTComponentKeys.Keys.AMERICAN_POLICE.maybeGet(victim).orElse(null);
-            boolean isMarked = victimComp != null && victimComp.isMarked();
-            var victimRole = gameWorldComponent.getRole(victim);
-            boolean isVictimInnocent = victimRole != null && victimRole.isInnocent();
-            io.wifi.starrailexpress.SRE.LOGGER.info("[AmericanPolice] kill: k={}, v={}, marked={}, innocent={}, role={}",
-                    killer.getName().getString(), victim.getName().getString(),
-                    isMarked, isVictimInnocent, victimRole != null ? victimRole.identifier() : "null");
-
-            // 击杀被标记的玩家 → 不触发任何惩罚，但仍给予击杀奖励
-            if (isMarked) {
-                QUSTComponentKeys.Keys.AMERICAN_POLICE.get(killer).onKillPlayer(victim);
-                return TrueFalseResult.PASS;
-            }
-            // 击杀巫毒师或吉祥物 → 不触发惩罚，但仍给予击杀奖励
-            if (gameWorldComponent.isRole(victim, org.agmas.noellesroles.role.ModRoles.VOODOO)
-                    || gameWorldComponent.isRole(victim, QUSTRoles.MASCOT)) {
-                QUSTComponentKeys.Keys.AMERICAN_POLICE.get(killer).onKillPlayer(victim);
-                return TrueFalseResult.PASS;
-            }
-
             // 击杀奖励逻辑（击杀杀手/中立角色增加技能次数）
             QUSTComponentKeys.Keys.AMERICAN_POLICE.get(killer).onKillPlayer(victim);
-
-            // 仅当受害者是平民/义警时才触发自定义惩罚
-            if (!isVictimInnocent) {
-                return TrueFalseResult.PASS; // 击杀杀手/中立 → 不惩罚
-            }
-
-            // 击杀未标记的平民 → 50% 立即死亡并掉枪 / 50% san值清空
-            if (killer.getRandom().nextBoolean()) {
-                dropGuns(killer);
-                io.wifi.starrailexpress.game.GameUtils.forceKillPlayer(
-                        killer, true, null,
-                        io.wifi.starrailexpress.game.GameConstants.DeathReasons.SHOT_INNOCENT);
-                killer.displayClientMessage(
-                        net.minecraft.network.chat.Component.translatable(
-                                "message.american_police.punishment_death"),
-                        true);
-            } else {
-                var mood = SREPlayerMoodComponent.KEY.get(killer);
-                mood.setMood(0);
-                killer.displayClientMessage(
-                        net.minecraft.network.chat.Component.translatable(
-                                "message.american_police.punishment_san"),
-                        true);
-            }
             return TrueFalseResult.PASS;
         });
-    }
-
-    /**
-     * 将玩家背包中所有枪械物品丢出
-     */
-    private static void dropGuns(net.minecraft.world.entity.player.Player player) {
-        var inventory = player.getInventory();
-        for (int i = 0; i < inventory.items.size(); i++) {
-            var stack = inventory.items.get(i);
-            if (!stack.isEmpty() && stack.is(io.wifi.starrailexpress.index.tag.TMMItemTags.GUNS)) {
-                var dropped = player.drop(stack.copy(), false, true);
-                inventory.items.set(i, net.minecraft.world.item.ItemStack.EMPTY);
-            }
-        }
     }
 
     // ==================== 压力怪技能注册 ====================
@@ -427,47 +366,7 @@ public class QUSTHandlers {
                     }
                 });
 
-        // 击杀事件：超级记录员在亡命徒模式下击杀所有存活玩家则胜利
-        OnKillPlayerTriggered.EVENT.register((victim, spawnBody, killer, deathReason, forceDeath) -> {
-            if (killer == null) return TrueFalseResult.PASS;
-            if (!org.agmas.noellesroles.utils.RoleUtils.isPlayerTheJob(killer, QUSTRoles.SUPER_RECORDER))
-                return TrueFalseResult.PASS;
-
-            var comp = QUSTComponentKeys.Keys.SUPER_RECORDER.maybeGet(killer).orElse(null);
-            if (comp == null || !comp.isOutlawMode()) return TrueFalseResult.PASS;
-
-            // 亡命徒击杀特效 + 奖励
-            comp.onOutlawKill((ServerPlayer) victim);
-
-            // 检查是否所有其他玩家都已死亡
-            var gameWorld = io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(killer.level());
-            boolean allDead = true;
-            for (var p : killer.level().players()) {
-                if (p.getUUID().equals(killer.getUUID())) continue;
-                if (gameWorld.getRole(p) != null
-                        && io.wifi.starrailexpress.game.GameUtils.isPlayerAliveAndSurvival(p)) {
-                    allDead = false;
-                    break;
-                }
-            }
-            if (allDead && killer.level() instanceof net.minecraft.server.level.ServerLevel sl) {
-                org.agmas.noellesroles.utils.RoleUtils.customWinnerWin(
-                        sl, io.wifi.starrailexpress.game.GameUtils.WinStatus.CUSTOM,
-                        "super_recorder", java.util.OptionalInt.of(
-                                new java.awt.Color(100, 200, 255).getRGB()));
-                for (var p : killer.level().players()) {
-                    p.displayClientMessage(
-                            net.minecraft.network.chat.Component.translatable(
-                                    "message.super_recorder.win", killer.getName())
-                                    .withStyle(net.minecraft.ChatFormatting.GOLD,
-                                            net.minecraft.ChatFormatting.BOLD),
-                            true);
-                }
-            }
-            return TrueFalseResult.PASS;
-        });
-
-        // 死亡事件：超级记录员死亡时清空尸体物品栏（参照原版亡命徒）
+        // 死亡事件：超级记录员死亡时清空尸体物品栏
         io.wifi.starrailexpress.event.OnPlayerDeathWithBody.EVENT.register(
                 (victim, killer, deathReason, body) -> {
                     if (org.agmas.noellesroles.utils.RoleUtils.isPlayerTheJob(victim, QUSTRoles.SUPER_RECORDER)) {
@@ -570,14 +469,15 @@ public class QUSTHandlers {
                                         return true;
                                     }
 
-                                    // 存活时：灵魂出窍
+                                    // 灵魂出窍中按 G 主动结束
                                     if (comp.isSoulOutActive()) {
+                                        comp.endSoulOut();
                                         player.displayClientMessage(
                                                 net.minecraft.network.chat.Component.translatable(
-                                                        "message.wanderer_qust.soul_out_active")
-                                                        .withStyle(net.minecraft.ChatFormatting.RED),
+                                                        "message.wanderer_qust.soul_out_ended")
+                                                        .withStyle(net.minecraft.ChatFormatting.AQUA),
                                                 true);
-                                        return false;
+                                        return true;
                                     }
 
                                     if (comp.startSoulOut()) {
@@ -612,7 +512,7 @@ public class QUSTHandlers {
             if (comp == null || !comp.isGhost() || comp.isFinalDeath()) {
                 return TrueFalseResult.PASS;
             }
-            if (killer != null && victim instanceof ServerPlayer sp) {
+            if (victim instanceof ServerPlayer sp) {
                 WandererRole.enterFinalDeath(sp, comp);
             }
             // 阻止正常死亡链（不给击杀奖励、不生成尸体）；
@@ -776,182 +676,16 @@ public class QUSTHandlers {
                 });
     }
 
-    // ==================== 黑客技能注册 ====================
+    // ==================== 黑客事件注册（干扰芯片为物品，不再注册技能） ====================
 
-    private static void registerHackerSkills() {
-        // 技能1: 干扰芯片 (G键) - 标记玩家
-        RoleSkill.register(QUSTRoles.HACKER,
-                RoleSkill.skill(
-                                QUSTRoles.HACKER_MARK_SKILL_ID,
-                                "skill.qust.hacker.mark",
-                                (context) -> {
-                                    var player = context.player();
-                                    var target = context.target();
-                                    if (target == null) {
-                                        player.displayClientMessage(
-                                                net.minecraft.network.chat.Component.translatable(
-                                                        "message.hacker.no_target")
-                                                        .withStyle(net.minecraft.ChatFormatting.RED),
-                                                true);
-                                        return false;
-                                    }
-
-                                    var targetPlayer = player.level().getPlayerByUUID(target);
-                                    if (targetPlayer == null || !(targetPlayer instanceof ServerPlayer sp)) {
-                                        player.displayClientMessage(
-                                                net.minecraft.network.chat.Component.translatable(
-                                                        "message.hacker.no_target")
-                                                        .withStyle(net.minecraft.ChatFormatting.RED),
-                                                true);
-                                        return false;
-                                    }
-
-                                    // 不能标记自己
-                                    if (sp.getUUID().equals(player.getUUID())) {
-                                        player.displayClientMessage(
-                                                net.minecraft.network.chat.Component.literal("§c不能标记自己！"),
-                                                true);
-                                        return false;
-                                    }
-
-                                    var data = QUSTComponentKeys.Keys.HACKER.maybeGet(player).orElse(null);
-                                    if (data == null) return false;
-
-                                    // 检查是否已标记
-                                    if (data.isMarked(sp.getUUID())) {
-                                        player.displayClientMessage(
-                                                net.minecraft.network.chat.Component.literal("§e该玩家已被标记！"),
-                                                true);
-                                        return false;
-                                    }
-
-                                    // 标记玩家
-                                    data.markPlayer(sp.getUUID());
-
-                                    // 获取IP地址（模拟）
-                                    String ip = sp.getIpAddress();
-                                    if (ip == null || ip.isEmpty() || ip.contains("/")) {
-                                        // 提取IP地址（去掉端口号）
-                                        String fullAddress = sp.getIpAddress();
-                                        if (fullAddress != null && fullAddress.contains("/")) {
-                                            ip = fullAddress.substring(fullAddress.lastIndexOf("/") + 1);
-                                            if (ip.contains(":")) {
-                                                ip = ip.substring(0, ip.indexOf(":"));
-                                            }
-                                        } else {
-                                            ip = "192.168.1.1"; // 本地测试默认IP
-                                        }
-                                    }
-
-                                    // 发送给黑客：显示标记信息
-                                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
-                                            (ServerPlayer) player,
-                                            new org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.ShowMarkedInfo(
-                                                    sp.getName().getString(),
-                                                    sp.getUUID(),
-                                                    ip
-                                            )
-                                    );
-
-                                    player.displayClientMessage(
-                                            net.minecraft.network.chat.Component.literal("§a已标记玩家：" + sp.getName().getString()),
-                                            true);
-
-                                    return true;
-                                }
-                        ).withTarget()
-                        .announceToSelf()
-                        .showOnHud(true)
-                        .cooldownSeconds(QUSTConfig.instance().hackerMarkCooldownSeconds)
-                        .build(),
-
-                // 技能2: 发送终端 (Shift+G) - 向所有已标记的玩家发送消息
-                RoleSkill.skill(
-                                QUSTRoles.HACKER_SEND_SKILL_ID,
-                                "skill.qust.hacker.send",
-                                (context) -> {
-                                    var player = context.player();
-                                    var data = QUSTComponentKeys.Keys.HACKER.maybeGet(player).orElse(null);
-                                    if (data == null) return false;
-
-                                    if (data.markedPlayers.isEmpty()) {
-                                        player.displayClientMessage(
-                                                net.minecraft.network.chat.Component.literal("§c没有已标记的玩家！"),
-                                                true);
-                                        return false;
-                                    }
-
-                                    int newSent = 0;
-                                    // 向所有已标记但未发送的玩家发送消息
-                                    for (java.util.UUID uuid : data.markedPlayers) {
-                                        if (data.hasSent(uuid)) {
-                                            continue; // 已经发送过，跳过
-                                        }
-
-                                        ServerPlayer target = player.getServer().getPlayerList().getPlayer(uuid);
-                                        if (target != null && io.wifi.starrailexpress.game.GameUtils.isPlayerAliveAndSurvival(target)) {
-                                            // 获取IP
-                                            String ip = target.getIpAddress();
-                                            if (ip != null && ip.contains("/")) {
-                                                ip = ip.substring(ip.lastIndexOf("/") + 1);
-                                                if (ip.contains(":")) {
-                                                    ip = ip.substring(0, ip.indexOf(":"));
-                                                }
-                                            } else {
-                                                ip = "192.168.1.1";
-                                            }
-
-                                            // 发送给被标记玩家
-                                            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
-                                                    target,
-                                                    new org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.ShowBeenMarked(
-                                                            target.getName().getString(),
-                                                            target.getUUID(),
-                                                            ip
-                                                    )
-                                            );
-                                            newSent++;
-                                        }
-                                    }
-
-                                    // 更新已发送列表
-                                    int totalSent = data.sendTerminal((ServerPlayer) player);
-
-                                    if (newSent > 0) {
-                                        // 发送确认消息给黑客
-                                        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
-                                                (ServerPlayer) player,
-                                                new org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload.SendConfirm(newSent)
-                                        );
-
-                                        // 检查胜利条件
-                                        if (data.hasWon()) {
-                                            player.displayClientMessage(
-                                                    net.minecraft.network.chat.Component.literal("§6§l任务完成！你已达成胜利条件！"),
-                                                    true);
-                                            // 触发胜利
-                                            if (player.level() instanceof net.minecraft.server.level.ServerLevel sl) {
-                                                org.agmas.noellesroles.utils.RoleUtils.customWinnerWin(
-                                                        sl,
-                                                        io.wifi.starrailexpress.game.GameUtils.WinStatus.CUSTOM,
-                                                        "hacker",
-                                                        java.util.OptionalInt.of(new java.awt.Color(100, 100, 100).getRGB())
-                                                );
-                                            }
-                                        }
-                                    } else {
-                                        player.displayClientMessage(
-                                                net.minecraft.network.chat.Component.literal("§e所有已标记的玩家都已发送过了！"),
-                                                true);
-                                    }
-
-                                    return newSent > 0;
-                                }
-                        ).shifted(true)
-                        .announceToSelf()
-                        .showOnHud(true)
-                        .cooldownSeconds(QUSTConfig.instance().hackerSendCooldownSeconds)
-                        .build()
-        );
+    private static void registerHackerEvents() {
+        // 角色分配时给予黑客干扰芯片物品
+        ModdedRoleAssigned.EVENT.register((player, role) -> {
+            if (!role.identifier().equals(QUSTRoles.HACKER_ID)) return;
+            if (!(player instanceof ServerPlayer sp)) return;
+            // 给予干扰芯片
+            org.agmas.noellesroles.utils.RoleUtils.insertStackInFreeSlot(
+                    sp, org.agmas.noellesroles.init.ModItems.INTERFERENCE_CHIP.getDefaultInstance());
+        });
     }
 }

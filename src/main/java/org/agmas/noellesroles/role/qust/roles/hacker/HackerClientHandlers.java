@@ -51,9 +51,8 @@ public class HackerClientHandlers {
         // 掩码IP
         String maskedIP = maskIP(ip);
 
-        // 查询属地
-        org.agmas.noellesroles.role.qust.util.SimpleIPLocator.IPInfo info =
-            org.agmas.noellesroles.role.qust.util.SimpleIPLocator.locate(ip);
+        // 查询属地（使用IPLocator）
+        String location = org.agmas.noellesroles.role.qust.util.IPLocator.locate(ip);
 
         // 使用Title API显示大标题
         Component title = Component.literal("§4§l您已被标记");
@@ -73,7 +72,7 @@ public class HackerClientHandlers {
         mc.player.displayClientMessage(Component.literal("§c§l玩家昵称：§f" + playerName), false);
         mc.player.displayClientMessage(Component.literal("§c§lUUID：§f" + uuid.toString()), false);
         mc.player.displayClientMessage(Component.literal("§c§lIP 地址：§f" + maskedIP), false);
-        mc.player.displayClientMessage(Component.literal("§c§lIP 属地：§f" + info.getProvinceCity()), false);
+        mc.player.displayClientMessage(Component.literal("§c§lIP 属地：§f" + location), false);
         mc.player.displayClientMessage(Component.literal(""), false);
     }
 

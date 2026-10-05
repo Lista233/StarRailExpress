@@ -31,9 +31,6 @@ public class RicePacketTypeRegister {
         // 注册电报员消息包
         PayloadTypeRegistry.playC2S().register(TelegrapherC2SPacket.ID, TelegrapherC2SPacket.CODEC);
 
-        // 注册射命丸文传递包
-        PayloadTypeRegistry.playC2S().register(PostmanC2SPacket.ID, PostmanC2SPacket.CODEC);
-
         // 注册探员审查包
         PayloadTypeRegistry.playC2S().register(DetectiveC2SPacket.ID, DetectiveC2SPacket.CODEC);
 

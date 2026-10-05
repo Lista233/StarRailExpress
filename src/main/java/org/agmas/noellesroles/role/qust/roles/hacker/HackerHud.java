@@ -9,7 +9,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import org.agmas.noellesroles.role.qust.QUSTRoles;
-import org.agmas.noellesroles.role.qust.util.SimpleIPLocator;
+import org.agmas.noellesroles.role.qust.util.IPLocator;
 
 import java.util.UUID;
 
@@ -33,7 +33,7 @@ public class HackerHud implements HudRenderCallback {
     private static String displayIP = null;
     private static String displayLocation = null;
     private static int displayTicks = 0;
-    private static final int DISPLAY_DURATION = 100; // 5秒 (100 ticks)
+    private static final int DISPLAY_DURATION = 120; // 6秒 (120 ticks)
 
     // 发送确认信息
     private static String sendConfirmMessage = null;
@@ -48,9 +48,8 @@ public class HackerHud implements HudRenderCallback {
         displayUUID = uuid.toString();
         displayIP = maskIP(ip);
 
-        // 查询IP属地
-        SimpleIPLocator.IPInfo info = SimpleIPLocator.locate(ip);
-        displayLocation = info.getProvinceCity();
+        // 查询IP属地（使用IPLocator）
+        displayLocation = IPLocator.locate(ip);
 
         displayTicks = DISPLAY_DURATION;
     }
@@ -193,7 +192,10 @@ public class HackerHud implements HudRenderCallback {
         var data = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.HACKER.maybeGet(player).orElse(null);
         if (data == null) return;
 
-        String progress = data.getProgress();
+        // 使用服务端同步的数值，避免客户端无法获取职业信息导致计算错误
+        int actualSent = data.sentPlayers.size();
+        int requiredCount = data.syncedRequiredCount;
+        String progress = actualSent + "/" + requiredCount;
         Component progressText = Component.literal("§e标记进度: §f" + progress);
 
         int x = screenWidth - 120;

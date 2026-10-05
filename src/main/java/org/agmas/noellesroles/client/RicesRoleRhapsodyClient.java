@@ -46,6 +46,7 @@ import org.agmas.noellesroles.content.item.ConspiracyPageItem;
 import org.agmas.noellesroles.content.item.DeductionBookItem;
 import org.agmas.noellesroles.content.item.DictatorBookItem;
 import org.agmas.noellesroles.content.item.JudgmentSwordItem;
+import org.agmas.noellesroles.content.item.TruthBookItem;
 import org.agmas.noellesroles.content.item.WrittenNoteItem;
 import org.agmas.noellesroles.role_data.innocence.AthleteRoleData;
 import org.agmas.noellesroles.role_data.innocence.BoxerRoleData;
@@ -169,6 +170,20 @@ public class RicesRoleRhapsodyClient {
             if (client.player == null)
                 return;
             client.setScreen(new RecorderScreen(client.player));
+        };
+        // 超级记录员：记录笔记 → 打开超级记录员标记界面（全部玩家）
+        WrittenNoteItem.superRecorderOpenScreenCallback = () -> {
+            Minecraft client = Minecraft.getInstance();
+            if (client.player == null)
+                return;
+            client.setScreen(new org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderScreen(0));
+        };
+        // 超级记录员：真相之书 → 打开书页风格界面显示已标记玩家和职业
+        TruthBookItem.openScreenCallback = () -> {
+            Minecraft client = Minecraft.getInstance();
+            if (client.player == null)
+                return;
+            client.setScreen(new org.agmas.noellesroles.client.screen.TruthBookScreen());
         };
         CustomRoleToolItem.openScreenCallback = (p) -> {
             Minecraft client = Minecraft.getInstance();
@@ -788,9 +803,6 @@ public class RicesRoleRhapsodyClient {
      * 注册Screen
      */
     public static void registerScreens() {
-        // 注册射命丸文传递界面
-        MenuScreens.register(ModScreenHandlers.POSTMAN_SCREEN_HANDLER, PostmanHandledScreen::new);
-
         // 注册探员审查界面
         MenuScreens.register(ModScreenHandlers.DETECTIVE_INSPECT_SCREEN_HANDLER, DetectiveInspectScreen::new);
     }

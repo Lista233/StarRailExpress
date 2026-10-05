@@ -43,7 +43,7 @@ public class AmericanPolicePlayerComponent implements RoleComponent, ServerTicki
      * 当前玩家是否被美国警察标记。
      * <p>标记状态存在被标记者自己的组件上（而非警察的组件），
      * 因为客户端皮肤处理 {@code AmericanPoliceClientState} 与小脑豁免
-     * {@code AmericanPoliceRole.canXiaonao} 都读取被标记者自身的组件。
+     * {@code XiaoNaoHandler} 都读取被标记者自身的组件。
      */
     private boolean marked = false;
 
@@ -167,7 +167,7 @@ public class AmericanPolicePlayerComponent implements RoleComponent, ServerTicki
     public boolean shouldSyncWith(ServerPlayer spectator) { return true; }
 
     @Override
-    public void clear() {}
+    public void clear() { init(); }
 
     @Override
     public void writeToSyncNbt(CompoundTag tag, HolderLookup.Provider registryLookup) {

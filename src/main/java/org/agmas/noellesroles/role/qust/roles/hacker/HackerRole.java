@@ -13,8 +13,8 @@ import org.agmas.noellesroles.utils.RoleUtils;
  *   <li>不能使用杀手能力 (canUseKiller = false)</li>
  *   <li>伪装心情 (MoodType.FAKE)</li>
  *   <li>胜利条件：标记并发送场上3/4的人（上限15人）</li>
- *   <li>技能1：干扰芯片 - 标记玩家并显示其IP/UUID等信息（5s CD）</li>
- *   <li>技能2：发送终端 - 向所有被标记的玩家发送"您已被标记"消息（5s CD）</li>
+ *   <li>物品：干扰芯片 - 手持右键对视线内玩家进行标记，获取其IP/UUID等信息</li>
+ *   <li>标记后8秒自动通知被标记者（延迟泄漏）</li>
  * </ul>
  */
 public class HackerRole extends CustomWinnerRole {

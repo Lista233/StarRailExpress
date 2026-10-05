@@ -35,6 +35,9 @@ import org.agmas.noellesroles.client.widget.RecorderRoleWidget;
 import org.agmas.noellesroles.component.ModComponents;
 import org.agmas.noellesroles.role_data.neutral.RecorderRoleData;
 import org.agmas.noellesroles.packet.RecorderC2SPacket;
+import org.agmas.noellesroles.role.qust.QUSTComponentKeys;
+import org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPlayerComponent;
+import org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload;
 import org.agmas.noellesroles.utils.RoleUtils;
 
 import java.awt.*;
@@ -66,6 +69,10 @@ public class RecorderScreen extends Screen {
     String searchContent = null;
     private RecorderRoleData recorderPlayerComponent = null;
 
+    // 超级记录员备用数据源
+    private SuperRecorderPlayerComponent superRecorderComp = null;
+    private boolean isSuperRecorder = false;
+
     // 角色列表
     private List<SRERole> roles = new ArrayList<>();
 
@@ -87,7 +94,11 @@ public class RecorderScreen extends Screen {
             if (recorderC != null) {
                 recorderPlayerComponent = recorderC;
             } else {
-                // onClose();
+                // 尝试超级记录员组件
+                superRecorderComp = QUSTComponentKeys.Keys.SUPER_RECORDER.maybeGet(player).orElse(null);
+                if (superRecorderComp != null) {
+                    isSuperRecorder = true;
+                }
             }
         }
     }
@@ -95,7 +106,7 @@ public class RecorderScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        if (recorderPlayerComponent == null) {
+        if (recorderPlayerComponent == null && !isSuperRecorder) {
             onClose();
             return;
         }
@@ -135,11 +146,16 @@ public class RecorderScreen extends Screen {
         if (minecraft == null || minecraft.level == null || minecraft.player == null)
             return;
 
-        // 尝试从组件获取开局玩家列表
-        RecorderRoleData recorder = io.wifi.starrailexpress.api.data.RoleData.getNullable(RecorderRoleData.class, minecraft.player);
-        if (recorder == null)
-            return;
-        Map<UUID, String> startPlayers = recorder.getStartPlayers();
+        // 获取开局玩家列表（支持原版记录员和超级记录员）
+        Map<UUID, String> startPlayers = null;
+        if (isSuperRecorder && superRecorderComp != null) {
+            startPlayers = superRecorderComp.getStartPlayers();
+        } else {
+            RecorderRoleData recorder = io.wifi.starrailexpress.api.data.RoleData.getNullable(RecorderRoleData.class, minecraft.player);
+            if (recorder == null)
+                return;
+            startPlayers = recorder.getStartPlayers();
+        }
 
         List<UUID> playerUuids = new ArrayList<>();
         Map<UUID, String> playerNames = new HashMap<>();
@@ -238,7 +254,11 @@ public class RecorderScreen extends Screen {
                 }
             }
             boolean hasGuessed = false;
-            hasGuessed = recorderPlayerComponent.hasGuessed(uuid);
+            if (isSuperRecorder && superRecorderComp != null) {
+                hasGuessed = superRecorderComp.isMarked(uuid);
+            } else if (recorderPlayerComponent != null) {
+                hasGuessed = recorderPlayerComponent.hasGuessed(uuid);
+            }
             RecorderPlayerWidget widget = new RecorderPlayerWidget(
                     this, x, y, widgetSize, uuid, name, skin, i, hasGuessed);
             playerWidgets.add(widget);
@@ -437,10 +457,16 @@ public class RecorderScreen extends Screen {
         if (minecraft == null || minecraft.player == null)
             return;
 
-        // 发送网络包到服务端
-        ClientPlayNetworking.send(new RecorderC2SPacket(
-                selectedPlayer,
-                role.identifier().toString()));
+        if (isSuperRecorder) {
+            // 超级记录员：发送 SuperRecorderPayload.MarkPlayer
+            ClientPlayNetworking.send(new SuperRecorderPayload.MarkPlayer(
+                    selectedPlayer, role.identifier().toString()));
+        } else {
+            // 原版记录员：发送 RecorderC2SPacket
+            ClientPlayNetworking.send(new RecorderC2SPacket(
+                    selectedPlayer,
+                    role.identifier().toString()));
+        }
 
         // 关闭屏幕
         onClose();

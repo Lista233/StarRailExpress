@@ -164,4 +164,9 @@ public class QUSTConfig implements ConfigData {
 
     /** 发送终端技能冷却（秒） */
     public int hackerSendCooldownSeconds = 5;
+
+    // ==================== 筹客 (Bettor) ====================
+
+    /** 恶魔轮盘商店价格 */
+    public int bettorDevilRoulettePrice = 75;
 }

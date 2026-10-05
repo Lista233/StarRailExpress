@@ -250,7 +250,7 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         io.wifi.starrailexpress.game.GameUtils.teleportBackToRoom(sp);
         sp.setGameMode(net.minecraft.world.level.GameType.ADVENTURE);
         // 清除死亡切旁观时残留的飞行能力，并归位物理状态，
-        // 确保隐身平民"不能飞、能正常行走"（不会漂浮/穿墙）。
+        // 确保隐身平民“不能飞、能正常行走”（不会漂浮/穿墙）。
         io.wifi.starrailexpress.game.GameUtils.releaseRoleFlight(sp);
         sp.noPhysics = false;
         sp.setNoGravity(false);
@@ -259,10 +259,9 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         if (!io.wifi.starrailexpress.compat.TrainVoicePlugin.isVoiceChatMissing()) {
             io.wifi.starrailexpress.compat.TrainVoicePlugin.addPlayer(sp.getUUID());
         }
-        sp.displayClientMessage(
-                net.minecraft.network.chat.Component.translatable("message.wanderer_qust.ghost_entered")
-                        .withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE),
-                false);
+        // 发送死亡通知包：客户端显示 8 秒大字提示
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                sp, new WandererPayload.DeathNotification());
     }
 
     // ── 彻底死亡 ──

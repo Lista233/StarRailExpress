@@ -18,6 +18,7 @@ import org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderRole;
 
 import org.agmas.noellesroles.role.qust.roles.wanderer.WandererRole;
 
+import org.agmas.noellesroles.role.qust.roles.bettor.BettorRole;
 import org.agmas.noellesroles.role.qust.roles.super_doctor.SuperDoctorRole;
 
 /**
@@ -68,7 +69,6 @@ public class QUSTRoles {
                     TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, false))
             .setCanSeeCoin(true)
             .setVigilanteTeam(true)
-            .setCanXiaonao(true) // 完全跳过系统小脑惩罚，由自定义击杀事件处理
             .setComponentKey(QUSTComponentKeys.Keys.AMERICAN_POLICE)
             .setTaskReward(QUSTConfig.instance().americanPoliceTasksForGun, 1,
                     io.wifi.starrailexpress.index.TMMItems.REVOLVER.getDefaultInstance())
@@ -144,6 +144,19 @@ public class QUSTRoles {
             .setDefaultMax(1)
             .setDefaultEnableChance(5000);
 
+    // ── 筹客 (Bettor) ──
+    public static final ResourceLocation BETTOR_ID = id("bettor");
+
+    public static SRERole BETTOR = TMMRoles.registerRole(
+            new BettorRole(BETTOR_ID,
+                    new java.awt.Color(255, 215, 0).getRGB(),
+                    true, false, MoodType.REAL,
+                    TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, false))
+            .setCanSeeCoin(true)
+            .setComponentKey(QUSTComponentKeys.Keys.BETTOR)
+            .setDefaultMax(1)
+            .setDefaultEnableChance(5000);
+
     // ── 黑客 (Hacker / 林然) ──
     public static final ResourceLocation HACKER_ID = id("hacker");
     public static final ResourceLocation HACKER_MARK_SKILL_ID = id("hacker_mark");
@@ -167,9 +180,16 @@ public class QUSTRoles {
         // 而 TMMRoles.registerRole 在 setComponentKey 之前执行，此刻 getComponentKey() 仍为 null，
         // 导致组件键没被收录进 TMMRoles.COMPONENT_KEYS。RoleMethodDispatcher.onStartGame/onEndGame
         // 只遍历 COMPONENT_KEYS 调 clear()，因此这些组件跨局不会被自动复位。
-        // 游荡者（Wanderer）受影响最严重：其 isGhost 隐身状态会跨局残留（并经 NBT 持久化），
-        // 既导致游戏结束后仍隐身，又让 GameUtils.isPlayerEliminated 把非游荡者误判为已淘汰。
-        // 这里显式补登记游荡者组件键，确保每局边界 clear()→init() 复位 isGhost 等状态。
+        // 这里显式补登记所有 QUST 组件键，确保每局边界 clear()→init() 复位状态。
+        TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.DRAGON_GIRL);
+        TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.MASCOT);
+        TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.AMERICAN_POLICE);
+        TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.PRESSURE_MONSTER);
+        TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.MINIGAME_MASTER);
+        TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.SUPER_RECORDER);
         TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.WANDERER);
+        TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.SUPER_DOCTOR);
+        TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.BETTOR);
+        TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.HACKER);
     }
 }

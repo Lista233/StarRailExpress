@@ -86,8 +86,8 @@ public class InterferenceChipItem extends Item {
         // 标记玩家
         data.markPlayer(target.getUUID());
 
-        // 记录标记时间戳（用于自动泄漏延迟）
-        int currentTick = hacker.getServer().getTickCount();
+        // 记录标记时间戳（用于延迟通知）
+        int currentTick = (int) level.getGameTime();
         data.setMarkTimestamp(target.getUUID(), currentTick);
 
         // 获取真实 IP 地址
@@ -96,11 +96,20 @@ public class InterferenceChipItem extends Item {
         // 获取目标职业名称
         String roleName = getTargetRoleName(target, gameWorld);
 
+        // 生成红石粉粒子效果（干扰芯片材质）
+        if (level instanceof net.minecraft.server.level.ServerLevel sl) {
+            for (int i = 0; i < 30; i++) {
+                sl.sendParticles(net.minecraft.core.particles.DustParticleOptions.REDSTONE,
+                        target.getX(), target.getY() + 1.0, target.getZ(),
+                        1, 0.5, 0.5, 0.5, 0);
+            }
+        }
+
         // 播放信标充能音效（低音量）
         level.playSound(null, hacker.blockPosition(),
                 SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 0.3F, 1.0F);
 
-        // 发送标记信息给黑客（真实 IP，不掩码）
+        // 发送标记信息给黑客（立即显示）
         ServerPlayNetworking.send(
                 hacker,
                 new HackerPayload.ShowMarkedInfo(
@@ -110,6 +119,9 @@ public class InterferenceChipItem extends Item {
                         roleName
                 )
         );
+
+        // 安排8秒后通知被标记者
+        data.addPendingNotification(target.getUUID(), target.getName().getString(), ip, currentTick);
 
         hacker.displayClientMessage(
                 Component.literal("§a已标记玩家：" + target.getName().getString()),

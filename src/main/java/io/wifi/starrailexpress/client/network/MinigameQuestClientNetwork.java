@@ -25,6 +25,7 @@ import org.agmas.noellesroles.role.qust.roles.minigame_master.ItemMinigamePayloa
 import org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload;
 import org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderScreen;
 import org.agmas.noellesroles.role.qust.roles.wanderer.WandererClientHandlers;
+import org.agmas.noellesroles.role.qust.roles.wanderer.WandererHud;
 import org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload;
 
 /**
@@ -126,6 +127,13 @@ public class MinigameQuestClientNetwork {
                             comp.setGhostState(true);
                         }
                     });
+                });
+
+        // 游荡者：死亡通知覆盖层
+        ClientPlayNetworking.registerGlobalReceiver(WandererPayload.DeathNotification.TYPE,
+                (payload, context) -> {
+                    Minecraft client = context.client();
+                    client.execute(() -> WandererHud.showDeathNotification());
                 });
     }
 }

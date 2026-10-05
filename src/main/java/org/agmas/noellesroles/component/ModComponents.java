@@ -218,6 +218,10 @@ public class ModComponents implements EntityComponentInitializer, WorldComponent
         .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
         .end(p -> new org.agmas.noellesroles.role.qust.roles.hacker.HackerRoleData(p));
 
+    registry.beginRegistration(Player.class, org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.BETTOR)
+        .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
+        .end(p -> new org.agmas.noellesroles.role.qust.roles.bettor.BettorPlayerComponent(p));
+
     // 注册 Dream 虚拟血量：挂在所有玩家身上
     registry.beginRegistration(Player.class, DREAM_HEALTH)
         .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)

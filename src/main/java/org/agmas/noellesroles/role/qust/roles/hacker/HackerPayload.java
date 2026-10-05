@@ -16,7 +16,7 @@ public class HackerPayload {
     /**
      * S2C: 显示被标记玩家的信息（发给黑客）
      */
-    public record ShowMarkedInfo(String playerName, UUID uuid, String ip) implements CustomPacketPayload {
+    public record ShowMarkedInfo(String playerName, UUID uuid, String ip, String roleName) implements CustomPacketPayload {
 
         public static final Type<ShowMarkedInfo> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath("qust", "hacker_show_marked"));
@@ -29,6 +29,8 @@ public class HackerPayload {
                 ShowMarkedInfo::uuid,
                 net.minecraft.network.codec.ByteBufCodecs.STRING_UTF8,
                 ShowMarkedInfo::ip,
+                net.minecraft.network.codec.ByteBufCodecs.STRING_UTF8,
+                ShowMarkedInfo::roleName,
                 ShowMarkedInfo::new
             );
 
