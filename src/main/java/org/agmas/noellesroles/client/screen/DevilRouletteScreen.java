@@ -1,11 +1,13 @@
 package org.agmas.noellesroles.client.screen;
 
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.GameNarrator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -224,5 +226,18 @@ public class DevilRouletteScreen extends Screen {
     public boolean shouldCloseOnEsc() {
         // 滚动中不允许 ESC 关闭（防止误操作）
         return !rolling;
+    }
+
+    /**
+     * 鼠标点击：滚动中任意点击发送停止请求到服务端。
+     */
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (rolling) {
+            // 发送 C2S 包请求停止轮盘
+            ClientPlayNetworking.send(new BettorPayload.StopRoulette());
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 }

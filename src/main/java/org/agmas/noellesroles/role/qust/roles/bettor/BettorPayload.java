@@ -50,4 +50,21 @@ public class BettorPayload {
             return TYPE;
         }
     }
+
+    /**
+     * C2S: 客户端请求停止轮盘（Screen 中点击时发送）
+     */
+    public record StopRoulette() implements CustomPacketPayload {
+
+        public static final Type<StopRoulette> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath("qust", "bettor_stop_roulette"));
+
+        public static final StreamCodec<FriendlyByteBuf, StopRoulette> CODEC =
+            StreamCodec.unit(new StopRoulette());
+
+        @Override
+        public @NotNull Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
 }

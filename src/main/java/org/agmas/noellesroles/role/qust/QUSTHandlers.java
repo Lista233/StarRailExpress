@@ -48,6 +48,7 @@ public class QUSTHandlers {
         registerWandererNetworkHandlers();
         registerSuperDoctorSkills();
         registerSuperDoctorNetworkHandlers();
+        registerBettorNetworkHandlers();
         registerHackerEvents();
     }
 
@@ -672,6 +673,44 @@ public class QUSTHandlers {
                                     player, true, null,
                                     io.wifi.starrailexpress.game.GameConstants.DeathReasons.SHOT_INNOCENT);
                         }
+                    });
+                });
+    }
+
+    // ==================== 筹客网络处理（恶魔轮盘停止） ====================
+
+    private static void registerBettorNetworkHandlers() {
+        // C2S: 客户端在 Screen 中点击请求停止轮盘
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
+                org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.StopRoulette.TYPE,
+                (payload, context) -> {
+                    ServerPlayer sp = context.player();
+                    sp.getServer().execute(() -> {
+                        var game = io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(sp.level());
+                        if (game == null || !game.isRole(sp, QUSTRoles.BETTOR)) return;
+
+                        var comp = QUSTComponentKeys.Keys.BETTOR.maybeGet(sp).orElse(null);
+                        if (comp == null || !comp.isRolling()) return;
+
+                        // 停止滚动，生成结果
+                        int result = comp.stopAndApplyResult(sp);
+
+                        // 播放音效
+                        sp.level().playSound(null, sp.blockPosition(),
+                                net.minecraft.sounds.SoundEvents.PLAYER_LEVELUP,
+                                net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 1.0F);
+
+                        // 消耗物品
+                        var hand = net.minecraft.world.InteractionHand.MAIN_HAND;
+                        var held = sp.getItemInHand(hand);
+                        if (held.is(org.agmas.noellesroles.init.ModItems.DEVIL_ROULETTE)) {
+                            held.shrink(1);
+                        }
+
+                        // 发送结果给客户端
+                        String desc = comp.getResultDescription();
+                        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
+                                new org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.RouletteResult(result, desc));
                     });
                 });
     }

@@ -365,5 +365,9 @@ public class SREPayloadRegister {
         PayloadTypeRegistry.playS2C().register(
                 org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.RouletteResult.TYPE,
                 org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.RouletteResult.CODEC);
+        // 筹客恶魔轮盘 C2S（Screen 中点击停止）
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.StopRoulette.TYPE,
+                org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.StopRoulette.CODEC);
     }
 }
