@@ -5708,5 +5708,8 @@
   "announcement.star.win.hacker": "黑客获胜！",
   "game.win.star.hacker": "黑客成功窃取了所有玩家的信息！",
   "message.super_doctor.repentance_hit_neutral": "悔改之枪击杀了中立角色",
-  "message.super_doctor.repentance_hit_innocent": "你射中了平民！触发小脑惩罚！"
+  "message.super_doctor.repentance_hit_innocent": "你射中了平民！触发小脑惩罚！",
+  "screen.super_recorder.truth_book_marked": "状态: 已标记",
+  "screen.super_recorder.truth_book_unmarked": "状态: 未标记（真实职业）",
+  "screen.noellesroles.recorder.hasrecorded": "已记录"
 }

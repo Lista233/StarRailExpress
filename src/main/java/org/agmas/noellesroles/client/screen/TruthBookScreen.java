@@ -35,7 +35,9 @@ import java.util.*;
  * 真相之书界面 — 复古书页风格，复用推理之书的布局。
  *
  * <p>
- * 每页显示一名已标记玩家的 ID 与职业名。左右方向键或翻页按钮切换。
+ * 每页显示一名玩家的 ID 与职业名。
+ * <strong>优先显示未被超级记录员标记的玩家的真实职业</strong>，然后显示已标记的玩家。
+ * 左右方向键或翻页按钮切换。
  */
 public class TruthBookScreen extends Screen {
 
@@ -111,7 +113,40 @@ public class TruthBookScreen extends Screen {
         markedEntries.clear();
         SuperRecorderPlayerComponent comp = component();
         if (comp == null) return;
-        markedEntries.addAll(comp.getMarkedPlayers().entrySet());
+
+        // 获取所有标记的玩家
+        Map<UUID, String> marked = comp.getMarkedPlayers();
+        Map<UUID, String> startPlayers = comp.getStartPlayers();
+
+        // 优先显示未被标记的玩家（显示他们的真实职业）
+        List<Map.Entry<UUID, String>> unmarkedEntries = new ArrayList<>();
+        List<Map.Entry<UUID, String>> markedPlayerEntries = new ArrayList<>();
+
+        // 遍历所有开局玩家，找出未标记的
+        for (Map.Entry<UUID, String> entry : startPlayers.entrySet()) {
+            UUID uuid = entry.getKey();
+            if (!marked.containsKey(uuid)) {
+                // 未标记的玩家 - 获取其真实职业
+                if (minecraft != null && minecraft.level != null) {
+                    var player = minecraft.level.getPlayerByUUID(uuid);
+                    if (player != null) {
+                        var gameWorld = io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(minecraft.level);
+                        var role = gameWorld.getRole(player);
+                        if (role != null) {
+                            // 添加到未标记列表（使用真实职业ID）
+                            unmarkedEntries.add(new AbstractMap.SimpleEntry<>(uuid, role.identifier().toString()));
+                        }
+                    }
+                }
+            }
+        }
+
+        // 添加已标记的玩家
+        markedPlayerEntries.addAll(marked.entrySet());
+
+        // 优先显示未标记的玩家
+        markedEntries.addAll(unmarkedEntries);
+        markedEntries.addAll(markedPlayerEntries);
     }
 
     private void calculateBookSize() {
@@ -225,6 +260,10 @@ public class TruthBookScreen extends Screen {
         UUID targetUuid = entry.getKey();
         String roleIdStr = entry.getValue();
 
+        // 判断是否为已标记玩家
+        SuperRecorderPlayerComponent comp = component();
+        boolean isMarked = comp != null && comp.getMarkedPlayers().containsKey(targetUuid);
+
         // ---- 页码标签 ----
         Component pageLabel = Component.translatable(
                 "screen.super_recorder.truth_book_page", page + 1, markedEntries.size());
@@ -235,7 +274,6 @@ public class TruthBookScreen extends Screen {
         int lineHeight = (int) (12 * scale);
 
         // 获取玩家名（从组件的 startPlayers 中取）
-        SuperRecorderPlayerComponent comp = component();
         String playerName = null;
         if (comp != null) {
             playerName = comp.getStartPlayers().get(targetUuid);
@@ -267,7 +305,7 @@ public class TruthBookScreen extends Screen {
         }
 
         // 绘制玩家 ID
-        Component playerLine = Component.literal("\u276F ").withStyle(ChatFormatting.DARK_GRAY)
+        Component playerLine = Component.literal("❯ ").withStyle(ChatFormatting.DARK_GRAY)
                 .append(Component.translatable("screen.super_recorder.truth_book_player",
                         Component.literal(playerName).withStyle(ChatFormatting.WHITE)));
         drawContentLine(g, playerLine, lineY, 0xFF99AABB);
@@ -281,10 +319,28 @@ public class TruthBookScreen extends Screen {
                 roleColor = role.color() | 0xFF000000; // 确保 alpha 为 255
             }
         }
-        Component roleLine = Component.literal("\u276F ").withStyle(ChatFormatting.DARK_GRAY)
+        Component roleLine = Component.literal("❯ ").withStyle(ChatFormatting.DARK_GRAY)
                 .append(Component.translatable("screen.super_recorder.truth_book_role",
                         roleNameComp.copy().withStyle(ChatFormatting.WHITE)));
         drawContentLine(g, roleLine, lineY, roleColor);
+        lineY += lineHeight;
+
+        // 绘制状态标签（未标记 / 已标记）
+        lineY += (int) (6 * scale);
+        Component statusLine;
+        int statusColor;
+        if (isMarked) {
+            statusLine = Component.literal("❯ ").withStyle(ChatFormatting.DARK_GRAY)
+                    .append(Component.translatable("screen.super_recorder.truth_book_marked")
+                            .withStyle(ChatFormatting.GREEN));
+            statusColor = 0xFF88FF88;
+        } else {
+            statusLine = Component.literal("❯ ").withStyle(ChatFormatting.DARK_GRAY)
+                    .append(Component.translatable("screen.super_recorder.truth_book_unmarked")
+                            .withStyle(ChatFormatting.YELLOW));
+            statusColor = 0xFFFFFF88;
+        }
+        drawContentLine(g, statusLine, lineY, statusColor);
         lineY += lineHeight;
     }
 
