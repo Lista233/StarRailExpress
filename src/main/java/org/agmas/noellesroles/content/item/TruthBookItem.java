@@ -29,7 +29,7 @@ import org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPlayer
  * 真相之书（超级记录员专属）。
  *
  * 商店购买后右键打开标记界面（仅显示未标记玩家）；可丢出。
- * 首次使用时生成快照，之后内容固定不变（不会因标记进度而刷新）。
+ * 每次使用消耗并生成新快照，揭示当前未标记玩家的身份。
  */
 public class TruthBookItem extends Item {
 
@@ -49,10 +49,10 @@ public class TruthBookItem extends Item {
             return InteractionResultHolder.fail(stack);
         }
 
-        // 服务端：首次使用时生成真相之书快照（内容固定，不再刷新）
+        // 服务端：每次使用生成新快照（每本书一次快照，揭示当前未标记玩家）
         if (!world.isClientSide() && user instanceof net.minecraft.server.level.ServerPlayer sp) {
             var comp = QUSTComponentKeys.Keys.SUPER_RECORDER.maybeGet(sp).orElse(null);
-            if (comp != null && !comp.hasTruthBookSnapshot()) {
+            if (comp != null) {
                 comp.captureTruthBookSnapshot();
             }
         }
@@ -63,7 +63,8 @@ public class TruthBookItem extends Item {
             }
         }
 
-        // 不消耗物品
+        // 消耗物品（每本书只能用一次）
+        stack.shrink(1);
         return InteractionResultHolder.sidedSuccess(stack, world.isClientSide());
     }
 }

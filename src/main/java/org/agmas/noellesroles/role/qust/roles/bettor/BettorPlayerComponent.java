@@ -148,9 +148,13 @@ public class BettorPlayerComponent implements RoleComponent {
                     300, 0, true, false, true));
             return "message.bettor.result.speed";
         } else {
-            // 690-1000：加速饼干
-            io.wifi.starrailexpress.util.SREItemUtils.insertStackInFreeSlot(
-                    sp, org.agmas.noellesroles.init.ModItems.COOKED_FOOD.getDefaultInstance());
+            // 690-1000：加速饼干（watheextraitems:flow_dust）
+            var flowDust = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .get(net.minecraft.resources.ResourceLocation.parse("watheextraitems:flow_dust"));
+            if (flowDust != net.minecraft.world.item.Items.AIR) {
+                io.wifi.starrailexpress.util.SREItemUtils.insertStackInFreeSlot(
+                        sp, flowDust.getDefaultInstance());
+            }
             return "message.bettor.result.cookie";
         }
     }

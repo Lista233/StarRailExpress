@@ -1,8 +1,8 @@
 package org.agmas.noellesroles.role.qust.roles.wanderer;
 
-import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.NormalRole;
 import io.wifi.starrailexpress.game.GameUtils;
+import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.util.ShopEntry;
 import io.wifi.starrailexpress.util.TrueFalseResult;
@@ -59,6 +59,15 @@ public class WandererRole extends NormalRole {
         comp.endSoulOut();
         comp.setGhostState(true);   // 解锁幽灵商店 + 应用隐身
 
+        // 初次死亡后金币变为原来的 1/4
+        var shopComp = SREPlayerShopComponent.KEY.get(sp);
+        int newBalance = shopComp.balance / 4;
+        shopComp.setBalance(newBalance);
+        sp.displayClientMessage(
+                Component.translatable("message.wanderer_qust.coins_quartered", newBalance)
+                        .withStyle(ChatFormatting.GOLD),
+                true);
+
         // 死亡链的最后会把玩家切到旁观者模式，这里延后一 tick 再传送回自己的房间并
         // 恢复冒险模式。WandererPlayerComponent.serverTick 还会做兜底：只要处于隐身平民
         // 状态却被切成旁观，就强制拉回冒险模式。死亡后若玩家已离线则不进行后续逻辑，
@@ -107,9 +116,10 @@ public class WandererRole extends NormalRole {
             return null;
         }
         ArrayList<ShopEntry> shop = new ArrayList<>();
+        // 撬棍：100 金币，限购一次
         if (!comp.hasBoughtCrowbar()) {
             shop.add(new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(),
-                    SREConfig.instance().crowbarPrice, ShopEntry.Type.TOOL) {
+                    100, ShopEntry.Type.TOOL) {
                 @Override
                 public boolean onBuy(@NotNull Player p) {
                     var c = QUSTComponentKeys.Keys.WANDERER.maybeGet(p).orElse(null);
@@ -120,19 +130,19 @@ public class WandererRole extends NormalRole {
                 }
             });
         }
-        if (!comp.hasBoughtNote()) {
-            shop.add(new ShopEntry(new ItemStack(TMMItems.NOTE, 4),
-                    SREConfig.instance().notePrice, ShopEntry.Type.TOOL) {
-                @Override
-                public boolean onBuy(@NotNull Player p) {
-                    var c = QUSTComponentKeys.Keys.WANDERER.maybeGet(p).orElse(null);
-                    if (c == null || c.hasBoughtNote()) return false;
-                    if (!super.onBuy(p)) return false;
-                    c.setBoughtNote(true);
-                    return true;
-                }
-            });
-        }
+        // 便签：不限购，每次给 2 个，价格每次翻倍（基础 150）
+        int notePrice = comp.getNotePrice();
+        shop.add(new ShopEntry(new ItemStack(TMMItems.NOTE, WandererPlayerComponent.NOTE_PER_PURCHASE),
+                notePrice, ShopEntry.Type.TOOL) {
+            @Override
+            public boolean onBuy(@NotNull Player p) {
+                var c = QUSTComponentKeys.Keys.WANDERER.maybeGet(p).orElse(null);
+                if (c == null) return false;
+                if (!super.onBuy(p)) return false;
+                c.incrementNotePurchase();
+                return true;
+            }
+        });
         return shop;
     }
 

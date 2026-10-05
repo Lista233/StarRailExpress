@@ -48,6 +48,12 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
     /** 是否已初始化开局数据 */
     private boolean initialized = false;
 
+    /** 标记失败次数（达到 5 次立即死亡） */
+    private int wrongMarkCount = 0;
+
+    /** 最大允许标记失败次数 */
+    public static final int MAX_WRONG_MARKS = 5;
+
     private static final int MAX_DEATH_LOCATIONS = 10;
     /** 死亡位置过期 tick（5 分钟后自动移除） */
     private static final int DEATH_LOCATION_EXPIRE_TICKS = 5 * 60 * 20;
@@ -66,6 +72,7 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
         deathLocations.clear();
         totalPlayerCount = 0;
         initialized = false;
+        wrongMarkCount = 0;
     }
 
     @Override
@@ -131,6 +138,33 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
 
     public Map<UUID, String> getMarkedPlayers() {
         return markedPlayers;
+    }
+
+    /** 获取标记失败次数 */
+    public int getWrongMarkCount() {
+        return wrongMarkCount;
+    }
+
+    /** 增加标记失败次数，达到上限时立即死亡 */
+    public void incrementWrongMarkCount() {
+        wrongMarkCount++;
+        if (player instanceof ServerPlayer sp) {
+            QUSTComponentKeys.Keys.SUPER_RECORDER.sync(sp);
+        }
+        // 达到上限，立即死亡
+        if (wrongMarkCount >= MAX_WRONG_MARKS && player instanceof ServerPlayer sp) {
+            io.wifi.starrailexpress.game.GameUtils.killPlayer(
+                    sp, true, null,
+                    io.wifi.starrailexpress.game.GameConstants.DeathReasons.GUN_SHOT);
+            for (var p : sp.level().players()) {
+                p.displayClientMessage(
+                        net.minecraft.network.chat.Component.translatable(
+                                "message.super_recorder.wrong_marks_exhausted", player.getName())
+                                .withStyle(net.minecraft.ChatFormatting.RED,
+                                        net.minecraft.ChatFormatting.BOLD),
+                        true);
+            }
+        }
     }
 
     /** 获取所有玩家的实际职业（用于真相之书） */
@@ -254,6 +288,7 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
         }
         tag.put("startPlayers", startTag);
         tag.putInt("totalPlayerCount", totalPlayerCount);
+        tag.putInt("wrongMarkCount", wrongMarkCount);
 
         // 玩家职业
         CompoundTag rolesTag = new CompoundTag();
@@ -310,6 +345,7 @@ public class SuperRecorderPlayerComponent implements RoleComponent, ServerTickin
         }
         totalPlayerCount = tag.getInt("totalPlayerCount");
         initialized = tag.getBoolean("initialized");
+        wrongMarkCount = tag.getInt("wrongMarkCount");
 
         playerRoles.clear();
         if (tag.contains("playerRoles", Tag.TAG_COMPOUND)) {

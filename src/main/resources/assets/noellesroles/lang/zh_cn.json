@@ -5652,6 +5652,8 @@
   "message.super_recorder.death_sensed": "感知到附近玩家死亡: %s",
   "message.super_recorder.mark_success": "成功标记 %s 的身份！",
   "message.super_recorder.mark_fail": "标记 %s 失败，职业猜测错误",
+  "message.super_recorder.wrong_marks_remaining": "剩余容错次数: %s",
+  "message.super_recorder.wrong_marks_exhausted": "%s 标记失败次数用尽，当场死亡！",
   "message.super_recorder.already_marked": "该玩家已被标记",
   "message.super_recorder.win": "%s 作为超级记录员完成了所有记录！",
   "screen.super_recorder.truth_book_title": "真相之书",
@@ -5666,6 +5668,9 @@
   "info.screen.roleid.wanderer_qust.simple": "平民阵营\n死亡后幽灵状态继续活动\n赖着不死",
   "skill.qust.wanderer.soul_out": "灵魂出窍/显形",
   "hud.wanderer_qust.soul_out": "灵魂出窍: %ss",
+  "hud.wanderer_qust.soul_out_timer": "灵魂出窍: %ss",
+  "hud.wanderer_qust.skill_alive": "灵魂出窍",
+  "hud.wanderer_qust.skill_dead": "显形",
   "hud.wanderer_qust.ghost_visible": "幽灵状态: 显形中",
   "hud.wanderer_qust.ghost_hidden": "幽灵状态: 隐身中",
   "message.wanderer_qust.soul_out_start": "灵魂出窍！7秒后回归本体",
@@ -5675,6 +5680,7 @@
   "message.wanderer_qust.final_death": "你已彻底死亡，进入旁观模式",
   "message.wanderer_qust.ghost_entered": "你已成为幽灵，回到了房间。按G显形，被击杀则彻底死亡。",
   "message.wanderer_qust.soul_out_ended": "灵魂出窍已主动结束",
+  "message.wanderer_qust.coins_quartered": "死亡惩罚：金币缩减至 %s",
   "hud.wanderer_qust.death_notify_title": "我还不想死",
   "hud.wanderer_qust.death_notify_subtitle": "您已进入游荡者状态，详见职业说明",
 
@@ -5737,5 +5743,6 @@
 
   "screen.bettor.devil_roulette.title": "恶魔轮盘",
   "screen.bettor.devil_roulette.hint": "右键停止",
-  "screen.bettor.devil_roulette.result_title": "轮盘结果"
+  "screen.bettor.devil_roulette.result_title": "轮盘结果",
+  "screen.bettor.devil_roulette.esc_hint": "按 ESC 退出"
 }

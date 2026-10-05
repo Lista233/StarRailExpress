@@ -80,12 +80,8 @@ public class DevilRouletteScreen extends Screen {
                 rollingTickCounter = 0;
                 currentDisplayNumber = ThreadLocalRandom.current().nextInt(1, 1001);
             }
-        } else if (resultDisplayTicks > 0) {
-            resultDisplayTicks--;
-            if (resultDisplayTicks <= 0) {
-                onClose();
-            }
         }
+        // 结果视图不再自动关闭，由玩家按 ESC 退出
     }
 
     @Override
@@ -170,14 +166,10 @@ public class DevilRouletteScreen extends Screen {
             g.drawCenteredString(font, descText, centerX, centerY + 40, descColor);
         }
 
-        // 剩余时间条
-        float progress = (float) resultDisplayTicks / RESULT_DURATION;
-        int barWidth = 160;
-        int barHeight = 4;
-        int barX = centerX - barWidth / 2;
-        int barY = centerY + 60;
-        g.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF333333);
-        g.fill(barX, barY, barX + (int) (barWidth * progress), barY + barHeight, 0xFFFFD700);
+        // ESC 退出提示
+        Component escHint = Component.translatable("screen.bettor.devil_roulette.esc_hint")
+                .withStyle(net.minecraft.ChatFormatting.GRAY);
+        g.drawCenteredString(font, escHint, centerX, centerY + 65, 0xFF888888);
     }
 
     /**
@@ -224,7 +216,7 @@ public class DevilRouletteScreen extends Screen {
 
     @Override
     public boolean shouldCloseOnEsc() {
-        // 滚动中不允许 ESC 关闭（防止误操作）
+        // 滚动中不允许 ESC 关闭（防止误操作），结果视图可以 ESC 退出
         return !rolling;
     }
 

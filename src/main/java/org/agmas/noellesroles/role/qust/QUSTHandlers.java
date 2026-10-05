@@ -426,12 +426,22 @@ public class QUSTHandlers {
                                         15, 0.3, 0.5, 0.3, 0.1);
                             }
                         } else {
+                            // 标记失败：增加失败计数（达到 5 次立即死亡）
+                            comp.incrementWrongMarkCount();
+                            int remaining = SuperRecorderPlayerComponent.MAX_WRONG_MARKS - comp.getWrongMarkCount();
                             player.displayClientMessage(
                                     net.minecraft.network.chat.Component.translatable(
                                             "message.super_recorder.mark_fail",
                                             target.getName().getString())
                                             .withStyle(net.minecraft.ChatFormatting.RED),
                                     true);
+                            if (remaining > 0) {
+                                player.displayClientMessage(
+                                        net.minecraft.network.chat.Component.translatable(
+                                                "message.super_recorder.wrong_marks_remaining", remaining)
+                                                .withStyle(net.minecraft.ChatFormatting.YELLOW),
+                                        true);
+                            }
                         }
                     });
                 });
@@ -496,7 +506,8 @@ public class QUSTHandlers {
                                     return false;
                                 }
                         ).announceToSelf()
-                        .showOnHud(true)
+                        .showOnHud(false)
+                        .toggleable(true)
                         .cooldownSeconds(WandererPlayerComponent.SOUL_OUT_COOLDOWN / 20)
                         .build()
         );

@@ -42,21 +42,27 @@ public class WandererHud {
             int xOffset = screenWidth - 10;
             int dy = screenHeight - 10 - font.lineHeight;
 
-            // 灵魂出窍状态（存活时）
-            if (comp.isSoulOutActive()) {
-                float seconds = comp.getSoulOutRemainingTicks() / 20.0f;
-                Component text = Component.translatable("hud.wanderer_qust.soul_out",
-                        String.format("%.1f", seconds))
-                        .withStyle(ChatFormatting.AQUA);
-                guiGraphics.drawString(font, text, xOffset - font.width(text), dy, 0xFFFFFF);
-                dy -= font.lineHeight + 2;
-            }
-
-            // 幽灵状态（死亡后）：只显示隐形/显形
-            if (comp.isGhost() && !comp.isFinalDeath()) {
+            if (!comp.isGhost()) {
+                // 存活状态：显示“灵魂出窍”或倒计时
+                if (comp.isSoulOutActive()) {
+                    float seconds = comp.getSoulOutRemainingTicks() / 20.0f;
+                    Component text = Component.translatable("hud.wanderer_qust.soul_out_timer",
+                            String.format("%.1f", seconds))
+                            .withStyle(ChatFormatting.AQUA);
+                    guiGraphics.drawString(font, text, xOffset - font.width(text), dy, 0xFFFFFF);
+                    dy -= font.lineHeight + 2;
+                } else {
+                    // 存活但未出窍：显示技能名“灵魂出窍”
+                    Component text = Component.translatable("hud.wanderer_qust.skill_alive")
+                            .withStyle(ChatFormatting.DARK_AQUA);
+                    guiGraphics.drawString(font, text, xOffset - font.width(text), dy, 0xFFFFFF);
+                    dy -= font.lineHeight + 2;
+                }
+            } else if (!comp.isFinalDeath()) {
+                // 幽灵状态（死亡后）：显示“显形”或“隐身”
                 Component ghostText;
                 if (comp.isGhostVisible()) {
-                    ghostText = Component.translatable("hud.wanderer_qust.ghost_visible")
+                    ghostText = Component.translatable("hud.wanderer_qust.skill_dead")
                             .withStyle(ChatFormatting.YELLOW);
                 } else {
                     ghostText = Component.translatable("hud.wanderer_qust.ghost_hidden")

@@ -46,8 +46,12 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
     private boolean shopUnlocked = false;
     /** 是否已购买撬棍（死亡后只能买一次） */
     private boolean boughtCrowbar = false;
-    /** 是否已购买便签（死亡后只能买一次） */
-    private boolean boughtNote = false;
+    /** 便签已购买次数（不限购，每次价格翻倍） */
+    private int notePurchaseCount = 0;
+    /** 便签基础价格 */
+    public static final int NOTE_BASE_PRICE = 75;
+    /** 便签每次购买数量 */
+    public static final int NOTE_PER_PURCHASE = 2;
 
     // ── 常量 ──
     public static final int SOUL_OUT_DURATION = 7 * 20; // 7s
@@ -69,7 +73,7 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         finalDeath = false;
         shopUnlocked = false;
         boughtCrowbar = false;
-        boughtNote = false;
+        notePurchaseCount = 0;
         // 状态复位后同步清除隐身标记，避免残留到下一局
         applyInvisibility();
     }
@@ -88,11 +92,15 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         // 灵魂出窍倒计时
         if (soulOutActive) {
             soulOutRemainingTicks--;
-            // 灵魂出窍时冻结本体位置
-            if (player instanceof ServerPlayer) {
+            // 灵魂出窍时冻结本体位置：禁止移动 + 减速效果
+            if (player instanceof ServerPlayer sp) {
                 player.noPhysics = true;
                 player.setNoGravity(true);
                 player.setDeltaMovement(0, 0, 0);
+                // 施加 255 级减速效果（每 tick 重新施加），使本体完全无法移动
+                player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                        net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN,
+                        3, 255, false, false, false));
             }
             if (soulOutRemainingTicks <= 0) {
                 endSoulOut();
@@ -174,6 +182,8 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         if (!isGhost && player instanceof ServerPlayer) {
             player.noPhysics = false;
             player.setNoGravity(false);
+            // 清除灵魂出窍期间施加的减速效果
+            player.removeEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN);
         }
         sync();
         // 通知客户端退出自由相机（含死亡/游戏结束等异常结束场景）
@@ -279,8 +289,10 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
     public boolean isShopUnlocked() { return shopUnlocked; }
     public boolean hasBoughtCrowbar() { return boughtCrowbar; }
     public void setBoughtCrowbar(boolean b) { boughtCrowbar = b; sync(); }
-    public boolean hasBoughtNote() { return boughtNote; }
-    public void setBoughtNote(boolean b) { boughtNote = b; sync(); }
+    /** 当前便签价格 = 基础价格 × 2^已购次数 */
+    public int getNotePrice() { return NOTE_BASE_PRICE * (1 << notePurchaseCount); }
+    public int getNotePurchaseCount() { return notePurchaseCount; }
+    public void incrementNotePurchase() { notePurchaseCount++; sync(); }
 
     // ── 辅助 ──
 
@@ -327,7 +339,7 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         tag.putBoolean("finalDeath", finalDeath);
         tag.putBoolean("shopUnlocked", shopUnlocked);
         tag.putBoolean("boughtCrowbar", boughtCrowbar);
-        tag.putBoolean("boughtNote", boughtNote);
+        tag.putInt("notePurchaseCount", notePurchaseCount);
     }
 
     @Override
@@ -339,6 +351,11 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         finalDeath = tag.getBoolean("finalDeath");
         shopUnlocked = tag.getBoolean("shopUnlocked");
         boughtCrowbar = tag.getBoolean("boughtCrowbar");
-        boughtNote = tag.getBoolean("boughtNote");
+        // 兼容旧存档：旧字段 boughtNote → 新字段 notePurchaseCount
+        if (tag.contains("notePurchaseCount")) {
+            notePurchaseCount = tag.getInt("notePurchaseCount");
+        } else if (tag.getBoolean("boughtNote")) {
+            notePurchaseCount = 1;
+        }
     }
 }
