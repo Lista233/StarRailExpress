@@ -19,6 +19,8 @@ loom {
             programArg "--username"
             programArg "debug_player" // 把这里改成你想要的游戏内名字
 
+            // 修复 Windows 上 Fabric Loader 并行重映射大量模组时 ClosedFileSystemException
+            vmArg "-Dfabric.remapper.parallel=false"
         }
     }
 }
