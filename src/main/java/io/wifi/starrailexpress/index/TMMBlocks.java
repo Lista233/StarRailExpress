@@ -749,6 +749,30 @@ public interface TMMBlocks {
             new net.minecraft.resources.ResourceKey[] { CreativeModeTabs.OP_BLOCKS,
                     org.agmas.noellesroles.init.ModSceneBlocks.QUEST_CREATIVE_GROUP });
 
+    // 随机小游戏任务点方块
+    Block RANDOM_MINIGAME_QUEST_BLOCK = sreBlockRegistrar.create("random_minigame_quest_block",
+            new RandomMinigameQuestBlock(BlockBehaviour.Properties.of()
+                    .strength(-1.0F, 3600000.8F)
+                    .noOcclusion()
+                    .noCollission()
+                    .sound(SoundType.STONE)));
+    Item RANDOM_MINIGAME_QUEST_BLOCK_ITEM = sreItemRegistrar.create("random_minigame_quest_block",
+            new BlockItem(RANDOM_MINIGAME_QUEST_BLOCK, new Item.Properties().rarity(Rarity.EPIC)),
+            new net.minecraft.resources.ResourceKey[] { CreativeModeTabs.OP_BLOCKS,
+                    org.agmas.noellesroles.init.ModSceneBlocks.QUEST_CREATIVE_GROUP });
+
+    // 随机小游戏任务点镶板
+    Block RANDOM_MINIGAME_QUEST_PANEL = sreBlockRegistrar.create("random_minigame_quest_panel",
+            new RandomMinigameQuestPanelBlock(BlockBehaviour.Properties.of()
+                    .strength(-1.0F, 3600000.8F)
+                    .noOcclusion()
+                    .noCollission()
+                    .sound(SoundType.STONE)));
+    Item RANDOM_MINIGAME_QUEST_PANEL_ITEM = sreItemRegistrar.create("random_minigame_quest_panel",
+            new BlockItem(RANDOM_MINIGAME_QUEST_PANEL, new Item.Properties().rarity(Rarity.EPIC)),
+            new net.minecraft.resources.ResourceKey[] { CreativeModeTabs.OP_BLOCKS,
+                    org.agmas.noellesroles.init.ModSceneBlocks.QUEST_CREATIVE_GROUP });
+
     Block TICKET_OFFICE = sreBlockRegistrar.create("ticket_office",
             new TicketOfficeBlock(BlockBehaviour.Properties.of()
                     .strength(-1.0F, 3600000.8F)

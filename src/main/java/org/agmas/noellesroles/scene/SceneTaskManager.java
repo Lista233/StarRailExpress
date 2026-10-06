@@ -64,7 +64,7 @@ public final class SceneTaskManager {
     }
 
     public enum Type {
-        LIGHT_STOVE, CLEAN_DUST, BE_ALONE, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP
+        LIGHT_STOVE, CLEAN_DUST, BE_ALONE, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP, HIT_FUMO, PLAY_MINIGAME
     }
 
     /** 5 秒。 */
@@ -76,6 +76,7 @@ public final class SceneTaskManager {
     private static final double STOVE_RADIUS = 4.0;
     private static final int CROP_BOUNCES = 4;
     private static final int DUST_STROKES = 4;
+    private static final int FUMO_HIT_COUNT = 10;
 
     private static final class State {
         Type type;
@@ -189,6 +190,24 @@ public final class SceneTaskManager {
             }
         } else if (hasSceneTask(player, Type.HARVEST_CROP)) {
             notifyTaskComponent(player, Type.HARVEST_CROP);
+        }
+    }
+
+    public static void reportFumoHit(ServerPlayer player) {
+        State s = ACTIVE.get(player.getUUID());
+        if (s != null && s.type == Type.HIT_FUMO) {
+            s.counter++;
+            if (s.counter >= FUMO_HIT_COUNT) {
+                complete(player);
+            }
+        }
+    }
+
+    /** 报告玩家完成了一个小游戏（用于「游玩小游戏」场景任务）。 */
+    public static void reportMinigameCompleted(ServerPlayer player) {
+        State s = ACTIVE.get(player.getUUID());
+        if (s != null && s.type == Type.PLAY_MINIGAME) {
+            complete(player);
         }
     }
 
@@ -307,6 +326,8 @@ public final class SceneTaskManager {
             case PRUNE_BUSH -> SREPlayerTaskComponent.Task.PRUNE_BUSH;
             case HARVEST_CROP -> SREPlayerTaskComponent.Task.HARVEST_CROP;
             case BE_ALONE -> SREPlayerTaskComponent.Task.BE_ALONE;
+            case HIT_FUMO -> SREPlayerTaskComponent.Task.HIT_FUMO;
+            case PLAY_MINIGAME -> SREPlayerTaskComponent.Task.PLAY_MINIGAME;
         };
         SREPlayerTaskComponent comp = SREPlayerTaskComponent.KEY.get(player);
         return comp != null && comp.tasks.get(taskType) instanceof SREPlayerTaskComponent.SceneTriggeredTask;

@@ -25,6 +25,13 @@ loom {
     }
 }
 
+// 确保 runClient 的 JVM 参数一定传递给游戏进程
+afterEvaluate {
+    runClient {
+        jvmArgs "-Dfabric.remapper.parallel=false"
+    }
+}
+
 fabricApi {
     configureDataGeneration {
         client = true
@@ -150,6 +157,7 @@ processResources {
     inputs.property "minecraft_version", project.minecraft_version
     inputs.property "loader_version", project.loader_version
     filteringCharset "UTF-8"
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     filesMatching("fabric.mod.json") {
         expand "version": project.version,

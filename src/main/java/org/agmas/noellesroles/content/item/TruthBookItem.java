@@ -22,14 +22,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import org.agmas.noellesroles.role.qust.QUSTComponentKeys;
-import org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPlayerComponent;
 
 /**
  * 真相之书（超级记录员专属）。
  *
  * 商店购买后右键打开标记界面（仅显示未标记玩家）；可丢出。
  * 每次使用消耗并生成新快照，揭示当前未标记玩家的身份。
+ * 消耗后自动将所有未标记玩家以正确职业标记到记录笔记中。
  */
 public class TruthBookItem extends Item {
 
@@ -49,15 +48,15 @@ public class TruthBookItem extends Item {
             return InteractionResultHolder.fail(stack);
         }
 
-        // 服务端：每次使用生成新快照（每本书一次快照，揭示当前未标记玩家）
-        if (!world.isClientSide() && user instanceof net.minecraft.server.level.ServerPlayer sp) {
-            var comp = QUSTComponentKeys.Keys.SUPER_RECORDER.maybeGet(sp).orElse(null);
-            if (comp != null) {
-                comp.captureTruthBookSnapshot();
-            }
+        // 服务端：自动标记所有未标记玩家（使用正确职业）
+        if (!world.isClientSide()) {
+            // 标记逻辑已由客户端发送 AutoMarkFromTruthBook 包在服务端处理
         }
 
         if (world.isClientSide()) {
+            // 发送 C2S 包请求服务端自动标记
+            net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+                    new org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.AutoMarkFromTruthBook());
             if (openScreenCallback != null) {
                 openScreenCallback.run();
             }

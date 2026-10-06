@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "noellesroles:block/maimaidx",
+      "y": 0
+    },
+    "facing=east": {
+      "model": "noellesroles:block/maimaidx",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "noellesroles:block/maimaidx",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "noellesroles:block/maimaidx",
+      "y": 270
+    }
+  }
+}

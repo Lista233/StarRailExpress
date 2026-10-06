@@ -77,7 +77,7 @@ public class TruthBookScreen extends Screen {
     private PageButton backButton;
     private PageButton forwardButton;
 
-    // ---------- 缓存的未标记玩家列表 ----------
+    // ---------- 动态计算的未标记玩家列表 ----------
     private List<Map.Entry<UUID, String>> unmarkedEntries = new ArrayList<>();
 
     public TruthBookScreen() {
@@ -110,17 +110,32 @@ public class TruthBookScreen extends Screen {
     }
 
     /**
-     * 从组件中获取真相之书快照（内容固定，不随标记进度变化）。
+     * 从组件实时数据动态计算未标记玩家列表。
+     * <ul>
+     *   <li>随机选一名未标记玩家揭露（排除记录员自己）</li>
+     * </ul>
      */
     private void refreshUnmarkedEntries() {
         unmarkedEntries.clear();
         SuperRecorderPlayerComponent comp = component();
         if (comp == null) return;
-
-        // 从快照中读取固定的玩家列表
-        Map<UUID, String> snapshot = comp.getTruthBookSnapshot();
-        for (Map.Entry<UUID, String> entry : snapshot.entrySet()) {
-            unmarkedEntries.add(new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue()));
+    
+        Map<UUID, String> playerRoles = comp.getPlayerRoles();
+        if (playerRoles.isEmpty()) return;
+    
+        // 收集所有未标记的玩家（排除记录员自己）
+        UUID selfUuid = comp.getPlayer().getUUID();
+        List<Map.Entry<UUID, String>> candidates = new ArrayList<>();
+        for (Map.Entry<UUID, String> e : playerRoles.entrySet()) {
+            if (e.getKey().equals(selfUuid)) continue;
+            if (comp.isMarked(e.getKey())) continue;
+            candidates.add(e);
+        }
+        // 随机选一人揭露
+        if (!candidates.isEmpty()) {
+            Map.Entry<UUID, String> pick = candidates.get(
+                    new Random().nextInt(candidates.size()));
+            unmarkedEntries.add(new AbstractMap.SimpleEntry<>(pick.getKey(), pick.getValue()));
         }
     }
 

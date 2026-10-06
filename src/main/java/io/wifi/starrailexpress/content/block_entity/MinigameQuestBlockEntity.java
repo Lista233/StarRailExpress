@@ -38,6 +38,7 @@ public class MinigameQuestBlockEntity extends SyncingBlockEntity {
     private int sabotageDuration = 60; // 破坏任务持续时间（秒），默认1分钟
     private int sabotageCooldown = 300; // 破坏任务冷却（秒），默认5分钟
     private long lastSabotageTime = 0; // 上次触发破坏任务的游戏时间（tick）
+    private boolean isRandom = false; // 是否随机小游戏（从池随机抽取）
 
     public MinigameQuestBlockEntity(BlockPos pos, BlockState state) {
         super(TMMBlockEntities.MINIGAME_QUEST, pos, state);
@@ -93,6 +94,9 @@ public class MinigameQuestBlockEntity extends SyncingBlockEntity {
         setChanged();
     }
 
+    public boolean isRandom() { return isRandom; }
+    public void setRandom(boolean v) { this.isRandom = v; setChanged(); }
+
     public long getLastSabotageTime() { return lastSabotageTime; }
     public void setLastSabotageTime(long time) { this.lastSabotageTime = time; sync(); }
 
@@ -122,6 +126,9 @@ public class MinigameQuestBlockEntity extends SyncingBlockEntity {
         if (tag.contains("SabotageCooldown")) {
             this.sabotageCooldown = tag.getInt("SabotageCooldown");
         }
+        if (tag.contains("IsRandom")) {
+            this.isRandom = tag.getBoolean("IsRandom");
+        }
         setChanged();
     }
 
@@ -144,6 +151,7 @@ public class MinigameQuestBlockEntity extends SyncingBlockEntity {
         tag.putInt("SabotageDuration", sabotageDuration);
         tag.putInt("SabotageCooldown", sabotageCooldown);
         tag.putLong("LastSabotageTime", lastSabotageTime);
+        tag.putBoolean("IsRandom", isRandom);
     }
 
     @Override
@@ -169,6 +177,9 @@ public class MinigameQuestBlockEntity extends SyncingBlockEntity {
         }
         if (tag.contains("LastSabotageTime")) {
             this.lastSabotageTime = tag.getLong("LastSabotageTime");
+        }
+        if (tag.contains("IsRandom")) {
+            this.isRandom = tag.getBoolean("IsRandom");
         }
     }
 }

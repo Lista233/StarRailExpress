@@ -1300,6 +1300,8 @@ public class GameUtilsCommand {
       case PRUNE_BUSH -> SceneTaskManager.Type.PRUNE_BUSH;
       case HARVEST_CROP -> SceneTaskManager.Type.HARVEST_CROP;
       case BE_ALONE -> SceneTaskManager.Type.BE_ALONE;
+      case HIT_FUMO -> SceneTaskManager.Type.HIT_FUMO;
+      case PLAY_MINIGAME -> SceneTaskManager.Type.PLAY_MINIGAME;
       default -> null;
     };
   }

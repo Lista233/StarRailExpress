@@ -64,7 +64,7 @@ public final class FakeSteveTaskPlanner {
         }
         return Optional.ofNullable(switch (task) {
             case SLEEP, RAED_BOOK, CHAIR, NOTE_BLOCK, TOILET,
-                    LIGHT_STOVE, CLEAN_DUST, TRANSPORT, PRUNE_BUSH -> Strategy.BLOCK_INTERACT;
+                    LIGHT_STOVE, CLEAN_DUST, TRANSPORT, PRUNE_BUSH, HIT_FUMO -> Strategy.BLOCK_INTERACT;
             case EAT, DRINK -> Strategy.CONSUME;
             case EXERCISE, BATHE, BE_ALONE, BREATHE, OUTSIDE, PRAY -> Strategy.HOLD_POSITION;
             case MEDITATE -> Strategy.CROUCH;
@@ -437,6 +437,7 @@ public final class FakeSteveTaskPlanner {
             case PRAY -> new int[] { 20 };
             case PRUNE_BUSH -> new int[] { 21 };
             case HARVEST_CROP -> new int[] { 22 };
+            case HIT_FUMO -> new int[] { 23 };
             default -> new int[0];
         };
     }

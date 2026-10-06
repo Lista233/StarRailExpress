@@ -393,6 +393,9 @@ public class TaskBlockOverlayRenderer {
                     case HARVEST_CROP:
                         shouldDisplay[22] = true; // 草垫 — 棕黄色
                         break;
+                    case HIT_FUMO:
+                        shouldDisplay[28] = true; // FUMO — 粉色
+                        break;
                     default:
                         break;
 
@@ -516,6 +519,11 @@ public class TaskBlockOverlayRenderer {
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
                                 new Color(255, 215, 0), 1f, true, 0f);
                     }
+                    break;
+                case 28:
+                    if (shouldDisplay[type])
+                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
+                                new Color(255, 105, 180), 1f, true, 0f);
                     break;
                 default:
                     if (TaskInstinctManager.isTaskInstinctTypeShowable(type)) {

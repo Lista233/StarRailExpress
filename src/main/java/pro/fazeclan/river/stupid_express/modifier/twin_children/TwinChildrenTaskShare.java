@@ -132,6 +132,7 @@ public final class TwinChildrenTaskShare {
             case PRUNE_BUSH -> SceneTaskManager.Type.PRUNE_BUSH;
             case HARVEST_CROP -> SceneTaskManager.Type.HARVEST_CROP;
             case BE_ALONE -> SceneTaskManager.Type.BE_ALONE;
+            case HIT_FUMO -> SceneTaskManager.Type.HIT_FUMO;
             default -> null;
         };
         if (sceneType != null) {

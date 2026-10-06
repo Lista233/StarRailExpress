@@ -100,7 +100,9 @@ public interface TMMBlockEntities {
       .create("minigame_quest",
           BlockEntityType.Builder.of(MinigameQuestBlockEntity::new,
               TMMBlocks.MINIGAME_QUEST_BLOCK,
-              TMMBlocks.MINIGAME_QUEST_PANEL));
+              TMMBlocks.MINIGAME_QUEST_PANEL,
+              TMMBlocks.RANDOM_MINIGAME_QUEST_BLOCK,
+              TMMBlocks.RANDOM_MINIGAME_QUEST_PANEL));
 
   BlockEntityType<TicketOfficeBlockEntity> TICKET_OFFICE = registrar.create("ticket_office",
       BlockEntityType.Builder.of(TicketOfficeBlockEntity::new, TMMBlocks.TICKET_OFFICE));

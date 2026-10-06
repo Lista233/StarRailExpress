@@ -113,6 +113,10 @@ public class MinigameQuestServerNetwork {
                                     io.wifi.starrailexpress.game.GameConstants.MINIGAME_TASK_TOKEN_REWARD,
                                     questBe.getMinigameId());
                 }
+                // 场景任务：「游玩小游戏」—— 完成任意小游戏即视为任务完成
+                if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                    org.agmas.noellesroles.scene.SceneTaskManager.reportMinigameCompleted(sp);
+                }
             }
         });
     }
@@ -126,6 +130,7 @@ public class MinigameQuestServerNetwork {
         data.putBoolean("IsSabotageTrigger", entity.isSabotageTrigger());
         data.putInt("SabotageDuration", entity.getSabotageDuration());
         data.putInt("SabotageCooldown", entity.getSabotageCooldown());
+        data.putBoolean("IsRandom", entity.isRandom());
         ServerPlayNetworking.send(player, new MinigameQuestPayload.OpenConfig(pos, data));
     }
 }

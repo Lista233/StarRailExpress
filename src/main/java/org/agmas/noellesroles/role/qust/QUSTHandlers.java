@@ -445,6 +445,60 @@ public class QUSTHandlers {
                         }
                     });
                 });
+
+        // C2S：真相之书消耗后自动标记一个未标记玩家（使用正确职业）
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
+                SuperRecorderPayload.AutoMarkFromTruthBook.TYPE,
+                (payload, context) -> {
+                    ServerPlayer player = context.player();
+                    player.getServer().execute(() -> {
+                        var comp = QUSTComponentKeys.Keys.SUPER_RECORDER.maybeGet(player).orElse(null);
+                        if (comp == null) return;
+                        if (!io.wifi.starrailexpress.game.GameUtils.isPlayerAliveAndSurvival(player)) return;
+
+                        java.util.Map<java.util.UUID, String> playerRoles = comp.getPlayerRoles();
+                        if (playerRoles.isEmpty()) return;
+
+                        // 收集所有未标记的玩家（排除记录员自己）
+                        java.util.List<java.util.Map.Entry<java.util.UUID, String>> candidates = new java.util.ArrayList<>();
+                        for (java.util.Map.Entry<java.util.UUID, String> entry : playerRoles.entrySet()) {
+                            java.util.UUID targetUuid = entry.getKey();
+                            if (comp.isMarked(targetUuid)) continue;
+                            if (targetUuid.equals(player.getUUID())) continue;
+                            candidates.add(entry);
+                        }
+                        if (candidates.isEmpty()) return;
+
+                        // 随机选取一个未标记玩家进行自动标记
+                        java.util.Map.Entry<java.util.UUID, String> picked = candidates.get(
+                                player.getRandom().nextInt(candidates.size()));
+                        net.minecraft.resources.ResourceLocation roleId =
+                                net.minecraft.resources.ResourceLocation.tryParse(picked.getValue());
+                        if (roleId == null) return;
+
+                        comp.addMark(picked.getKey(), roleId);
+
+                        // 获取玩家名用于提示
+                        String targetName = comp.getStartPlayers().get(picked.getKey());
+                        if (targetName == null) {
+                            var targetPlayer = player.level().getPlayerByUUID(picked.getKey());
+                            if (targetPlayer != null) targetName = targetPlayer.getName().getString();
+                        }
+                        if (targetName == null) targetName = picked.getKey().toString().substring(0, 8);
+
+                        player.displayClientMessage(
+                                net.minecraft.network.chat.Component.translatable(
+                                        "message.super_recorder.truth_book_auto_marked", targetName)
+                                        .withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE),
+                                true);
+                        // 粒子反馈
+                        if (player.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+                            sl.sendParticles(net.minecraft.core.particles.ParticleTypes.ENCHANT,
+                                    player.getX(), player.getY() + 1, player.getZ(),
+                                    15, 0.3, 0.5, 0.3, 0.1);
+                        }
+                    });
+                });
     }
 
     // ==================== 游荡者技能注册 ====================

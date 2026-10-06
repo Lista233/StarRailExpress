@@ -57,4 +57,15 @@ public class SuperRecorderPayload {
         @Override
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
+
+    /**
+     * C2S：真相之书消耗后，请求服务端自动标记所有未标记玩家（使用正确职业）
+     */
+    public record AutoMarkFromTruthBook() implements CustomPacketPayload {
+        public static final Type<AutoMarkFromTruthBook> TYPE = new Type<>(SRE.id("qust_super_recorder_auto_mark"));
+        public static final StreamCodec<FriendlyByteBuf, AutoMarkFromTruthBook> CODEC = StreamCodec.unit(new AutoMarkFromTruthBook());
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
 }

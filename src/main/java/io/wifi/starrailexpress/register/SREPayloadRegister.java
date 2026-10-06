@@ -335,6 +335,9 @@ public class SREPayloadRegister {
         PayloadTypeRegistry.playS2C().register(
                 org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.OpenTruthBook.TYPE,
                 org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.OpenTruthBook.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.AutoMarkFromTruthBook.TYPE,
+                org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPayload.AutoMarkFromTruthBook.CODEC);
 
         // 游荡者网络包
         PayloadTypeRegistry.playS2C().register(

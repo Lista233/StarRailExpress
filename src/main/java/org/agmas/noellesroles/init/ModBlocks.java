@@ -50,9 +50,17 @@ public interface ModBlocks {
     public static ResourceKey<CreativeModeTab> BLOCK_CREATIVE_GROUP = ResourceKey.create(
             Registries.CREATIVE_MODE_TAB,
             Noellesroles.id("block"));
+    public static ResourceKey<CreativeModeTab> QUST_GROUP = ResourceKey.create(
+            Registries.CREATIVE_MODE_TAB,
+            Noellesroles.id("qust"));
     public static final BlockRegistrar blockRegistrar = new BlockRegistrar(Noellesroles.MOD_ID);
     public static final BlockEntityTypeRegistrar blockEntityRegistrar = new BlockEntityTypeRegistrar(
             Noellesroles.MOD_ID);
+
+    Block MAIMAIDX = registerBlockMultiTab("maimaidx",
+            new MaimaiDxBlock(BlockBehaviour.Properties.of().strength(-1.0f, 3600000.0f)
+                    .noOcclusion().lightLevel(s -> 15)),
+            QUST_GROUP);
 
     Block VENDING_MACHINES_BLOCK = registerBlockMultiTab("vending_machines",
             new VendingMachinesBlock(BlockBehaviour.Properties.ofFullCopy(DARK_STEEL).noOcclusion()),
@@ -139,6 +147,11 @@ public interface ModBlocks {
                 })
                 .build());
                 
+        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, QUST_GROUP, FabricItemGroup.builder()
+                .title(Component.translatable("item_group.noellesroles.qust"))
+                .icon(() -> new ItemStack(MAIMAIDX.asItem()))
+                .build());
+
         Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, BLOCK_DOORS_GROUP, FabricItemGroup.builder()
                 .title(Component.translatable("item_group.starrailexpress.doors")).icon(() -> {
                     return new ItemStack(SREDoorBlocks.UP_GLASS_DOOR.asItem());

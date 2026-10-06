@@ -49,13 +49,18 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.agmas.noellesroles.content.block_entity.SREPlushBlockEntity;
 import org.agmas.noellesroles.init.NRSounds;
 import org.agmas.noellesroles.init.SREFumoBlocks;
+import org.agmas.noellesroles.scene.SceneTaskManager;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class SREPlushBlock extends PlushBlock {
+import io.wifi.starrailexpress.content.block.api.TaskInstinctShowableInterface;
+
+public class SREPlushBlock extends PlushBlock implements TaskInstinctShowableInterface {
    private static final MapCodec<SREPlushBlock> CODEC = simpleCodec(SREPlushBlock::new);
    public static final BooleanProperty WATERLOGGED;
    public static final EnumProperty<Direction> FACING;
+   public static final int TASK_INSTINCT_ID = 28;
    private static final VoxelShape SHAPE;
 
    public SREPlushBlock(BlockBehaviour.Properties settings) {
@@ -115,6 +120,10 @@ public class SREPlushBlock extends PlushBlock {
          if (blockEntity instanceof SREPlushBlockEntity) {
             SREPlushBlockEntity plushie = (SREPlushBlockEntity) blockEntity;
             plushie.squish(24);
+         }
+         // 场景任务：击打FUMO
+         if (player instanceof ServerPlayer sp) {
+            SceneTaskManager.reportFumoHit(sp);
          }
       }
 
@@ -214,6 +223,26 @@ public class SREPlushBlock extends PlushBlock {
    @Override
    public FluidState getFluidState(BlockState state) {
       return (Boolean) state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
+   }
+
+   // ══════════════════════════════════════════
+   // 任务路标接口（FUMO 场景任务透视）
+   // ══════════════════════════════════════════
+
+   @Override
+   public int taskInstinctId() {
+      return TASK_INSTINCT_ID;
+   }
+
+   @Override
+   public boolean shouldRenderTaskInstinct(Level level, BlockState state, BlockPos pos, Player player) {
+      // 始终显示金色透视（场景任务由 shouldDisplay 控制）
+      return true;
+   }
+
+   @Override
+   public java.awt.Color taskInstinctRenderColor(BlockState state, BlockPos pos, Player player) {
+      return new java.awt.Color(255, 105, 180); // 粉色
    }
 
    static {

@@ -121,6 +121,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
                     case PRAY -> Task.PRAY;
                     case PRUNE_BUSH -> Task.PRUNE_BUSH;
                     case HARVEST_CROP -> Task.HARVEST_CROP;
+                    case HIT_FUMO -> Task.HIT_FUMO;
                     default -> null;
                 };
                 if (taskType != null) {
@@ -574,6 +575,9 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
             case PRAY -> createSceneTriggeredTask(SceneTaskManager.Type.PRAY, "pray");
             case PRUNE_BUSH -> createSceneTriggeredTask(SceneTaskManager.Type.PRUNE_BUSH, "prune_bush");
             case HARVEST_CROP -> createSceneTriggeredTask(SceneTaskManager.Type.HARVEST_CROP, "harvest_crop");
+            case HIT_FUMO -> createSceneTriggeredTask(SceneTaskManager.Type.HIT_FUMO, "hit_fumo");
+            case PLAY_MINIGAME -> createSceneTriggeredTask(SceneTaskManager.Type.PLAY_MINIGAME, "play_minigame");
+            case CUDDLE -> new CuddleTask(GameConstants.CUDDLE_TASK_DURATION);
             case MANIC -> new ManicTask();
             default -> null;
         };
@@ -594,6 +598,8 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
             case PRAY -> SceneTaskManager.Type.PRAY;
             case PRUNE_BUSH -> SceneTaskManager.Type.PRUNE_BUSH;
             case HARVEST_CROP -> SceneTaskManager.Type.HARVEST_CROP;
+            case HIT_FUMO -> SceneTaskManager.Type.HIT_FUMO;
+            case PLAY_MINIGAME -> SceneTaskManager.Type.PLAY_MINIGAME;
             default -> null;
         };
         if (sceneType != null) {
@@ -664,6 +670,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
         CHAIR(nbt -> new ChairTask(nbt.getInt("timer")), TaskCategory.SOOTHING),
         NOTE_BLOCK(nbt -> new NoteBlockTask(nbt.getInt("timer")), TaskCategory.ACTIVE),
         BE_ALONE(nbt -> new BeAloneTask(nbt.getInt("timer")), TaskCategory.STATIC), // 一个人静静
+        CUDDLE(nbt -> new CuddleTask(nbt.getInt("timer")), TaskCategory.SOOTHING), // 贴贴
 
         // ───────── 场景任务 ─────────
         BREATHE(nbt -> new BreatheTask(nbt.getInt("timer")), TaskCategory.ACTIVE), // 呼吸新鲜空气
@@ -673,6 +680,8 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
         PRAY(nbt -> new SceneTriggeredTask("pray"), TaskCategory.SOOTHING), // 祷告
         PRUNE_BUSH(nbt -> new SceneTriggeredTask("prune_bush"), TaskCategory.ACTIVE), // 修剪灌木
         HARVEST_CROP(nbt -> new SceneTriggeredTask("harvest_crop"), TaskCategory.ACTIVE), // 活动筋骨
+        HIT_FUMO(nbt -> new SceneTriggeredTask("hit_fumo"), TaskCategory.ACTIVE), // 击打FUMO
+        PLAY_MINIGAME(nbt -> new SceneTriggeredTask("play_minigame"), TaskCategory.ACTIVE), // 游玩小游戏
 
         // ───────── 不可刷新任务 ─────────
         CUSTOM(nbt -> new CustomTask(nbt.getString("customName"), nbt.getString("customId")),
@@ -703,7 +712,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
             if (this.category == TaskCategory.NON_REFRESHABLE)
                 return true;
             return switch (this) {
-                case BREATHE, LIGHT_STOVE, CLEAN_DUST, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP -> true;
+                case BREATHE, LIGHT_STOVE, CLEAN_DUST, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP, HIT_FUMO, PLAY_MINIGAME -> true;
                 default -> false;
             };
         }
@@ -720,7 +729,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
         /** 非场景任务列表（在所有地图中都可刷出的任务）。 */
         private static final List<Task> availableTasksList = List.of(
                 SLEEP, RAED_BOOK, EAT, DRINK, EXERCISE, MEDITATE, BATHE,
-                CHAIR, NOTE_BLOCK, TOILET, BE_ALONE);
+                CHAIR, NOTE_BLOCK, TOILET, BE_ALONE, CUDDLE);
 
         public static List<Task> getAvailableTasksList() {
             return availableTasksList;
@@ -728,7 +737,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
 
         /** 场景任务列表（仅在地图启用时才能刷出）。 */
         private static final List<Task> sceneTasksList = List.of(
-                BREATHE, LIGHT_STOVE, CLEAN_DUST, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP);
+                BREATHE, LIGHT_STOVE, CLEAN_DUST, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP, HIT_FUMO, PLAY_MINIGAME);
 
         public static List<Task> getSceneTasksList() {
             return sceneTasksList;
@@ -815,6 +824,54 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
         public CompoundTag toNbt() {
             CompoundTag nbt = new CompoundTag();
             nbt.putInt("type", Task.BE_ALONE.ordinal());
+            nbt.putInt("timer", this.timer);
+            return nbt;
+        }
+    }
+
+    /**
+     * 贴贴任务类（通用任务）
+     * 玩家需要按住Shift（蹲下）在另一名玩家3格内持续4秒完成
+     */
+    public static class CuddleTask implements TrainTask {
+        private int timer;
+
+        public CuddleTask(int time) {
+            this.timer = time;
+        }
+
+        @Override
+        public void tick(@NotNull Player player) {
+            if (this.timer > 0 && player.isCrouching()) {
+                double radius = 3.0;
+                net.minecraft.world.phys.AABB box = player.getBoundingBox().inflate(radius);
+                boolean playerNearby = player.level().getEntitiesOfClass(Player.class, box,
+                        other -> other != player && other.isAlive() && !other.isSpectator()).size() > 0;
+                if (playerNearby) {
+                    this.timer--;
+                }
+            }
+        }
+
+        @Override
+        public boolean isFulfilled(@NotNull Player player) {
+            return this.timer <= 0;
+        }
+
+        @Override
+        public String getName() {
+            return "cuddle";
+        }
+
+        @Override
+        public Task getType() {
+            return Task.CUDDLE;
+        }
+
+        @Override
+        public CompoundTag toNbt() {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putInt("type", Task.CUDDLE.ordinal());
             nbt.putInt("timer", this.timer);
             return nbt;
         }

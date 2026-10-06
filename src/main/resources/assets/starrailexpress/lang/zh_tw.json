@@ -1,4 +1,4 @@
-﻿{
+{
   "=== END ===": "",
   "=== 遊戲管理UI ===": "",
   "============ 地圖構建助手 ============": "",
@@ -253,6 +253,8 @@
   "block.starrailexpress.lockable_small_button": "可上鎖列車小按鈕",
   "block.starrailexpress.minigame_quest_block": "小遊戲任務點方塊",
   "block.starrailexpress.minigame_quest_panel": "小遊戲任務點鑲板",
+  "block.starrailexpress.random_minigame_quest_block": "隨機小遊戲任務點方塊",
+  "block.starrailexpress.random_minigame_quest_panel": "隨機小遊戲任務點鑲板",
   "block.starrailexpress.plane_glass_door": "玻璃飛機門",
   "block.starrailexpress.plane_steel_door": "鐵飛機門",
   "block.starrailexpress.plane_wood_door": "木飛機門",
@@ -3307,6 +3309,8 @@
   "task.sleep": "睡一覺",
   "task.toilet": "自己上廁所 - 坐在馬桶方塊上",
   "task.transport": "運送物資 - 去運輸起始點拿取物資並運輸到終點",
+  "task.hit_fumo": "擊打FUMO - 擊打10次任意FUMO方塊",
+  "task.cuddle": "貼貼 - 按住Shift在一名玩家3格內4秒钟",
   "task_highlight_condition.always": "常駐",
   "task_highlight_condition.custom_task": "自定義任務",
   "task_highlight_condition.none": "無",

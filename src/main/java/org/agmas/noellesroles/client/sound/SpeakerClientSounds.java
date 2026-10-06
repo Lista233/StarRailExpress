@@ -100,7 +100,7 @@ public final class SpeakerClientSounds {
         }
     }
 
-    public static void updateChannelPositions(Map<SoundInstance, ChannelAccess.ChannelHandle> instanceToChannel) {
+    public static void updateChannelPositions(Map<SoundInstance, ChannelAccess  .ChannelHandle> instanceToChannel) {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || instanceToChannel == null || instanceToChannel.isEmpty()) {
             return;

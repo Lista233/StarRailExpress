@@ -246,6 +246,7 @@ public final class TwoDimensionalTaskArrowRenderer {
             case PRAY -> new int[] { 20 };
             case PRUNE_BUSH -> new int[] { 21 };
             case HARVEST_CROP -> new int[] { 22 };
+            case HIT_FUMO -> new int[] { 28 };
             default -> new int[0];
         };
     }
@@ -269,6 +270,10 @@ public final class TwoDimensionalTaskArrowRenderer {
             case 20 -> new Color(255, 255, 180);
             case 21 -> new Color(173, 255, 47);
             case 22 -> new Color(218, 165, 32);
+            case 23 -> new Color(255, 215, 0); // 抽奖机 — 金色
+            case 26 -> new Color(224, 173, 91); // 随机小游戏 — 与小游戏同色系
+            case 27 -> new Color(224, 173, 91); // 随机小游戏嵌板 — 与小游戏同色系
+            case 28 -> new Color(255, 105, 180); // FUMO — 粉色
             default -> Color.WHITE;
         };
     }

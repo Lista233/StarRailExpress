@@ -41,8 +41,8 @@ public enum AreaMapPointCategory {
     CHAIR(0xFF7EFFE4, 9),
     NOTE(0xFF7994FF, 10),
     SHOP(0xFFFF66AA, 11, 12, 23),
-    MINIGAME(0xFFE0AD5B, 14, 15),
-    SCENE(0xFFB18AE6, 16, 17, 18, 19, 20, 21),
+    MINIGAME(0xFFE0AD5B, 14, 15, 26, 27),
+    SCENE(0xFFB18AE6, 16, 17, 18, 19, 20, 21, 28),
     BELL(0xFFFFD700, 24);
 
     /** ARGB 显示颜色。 */
