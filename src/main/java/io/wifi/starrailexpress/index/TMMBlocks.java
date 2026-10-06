@@ -19,6 +19,8 @@ import dev.doctor4t.ratatouille.util.registrar.BlockRegistrar;
 import dev.doctor4t.ratatouille.util.registrar.ItemRegistrar;
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.content.block.*;
+import org.agmas.noellesroles.content.block.RandomMinigameQuestBlock;
+import org.agmas.noellesroles.content.block.RandomMinigameQuestPanelBlock;
 import io.wifi.starrailexpress.index.wathe_bridge.WatheBridgerBlocks;
 import io.wifi.starrailexpress.util.BlockSettingsAdditions;
 import net.fabricmc.fabric.api.object.builder.v1.block.type.BlockSetTypeBuilder;

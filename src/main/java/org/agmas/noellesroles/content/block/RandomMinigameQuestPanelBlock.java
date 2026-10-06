@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package io.wifi.starrailexpress.content.block;
+package org.agmas.noellesroles.content.block;
 
 import com.google.common.collect.Maps;
 import com.mojang.serialization.MapCodec;
@@ -24,7 +24,6 @@ import io.wifi.starrailexpress.content.block.api.TaskInstinctShowableInterface;
 import io.wifi.starrailexpress.content.block_entity.MinigameQuestBlockEntity;
 import io.wifi.starrailexpress.content.minigame.QuestMinigames;
 import io.wifi.starrailexpress.index.TMMBlockEntities;
-import io.wifi.starrailexpress.util.EditorGuard;
 import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -128,22 +127,20 @@ public class RandomMinigameQuestPanelBlock extends BaseEntityBlock
 
         BlockEntity be = world.getBlockEntity(pos);
         if (be instanceof MinigameQuestBlockEntity questBe) {
-            if (player instanceof ServerPlayer sp && EditorGuard.canEdit(sp)) {
-                questBe.openConfigUI(sp);
-            } else if (player instanceof ServerPlayer sp) {
-                if (SREGameWorldComponent.KEY.get(sp.level()).isRunning()) {
-                    if (isBlockOnCooldown(sp, pos)) {
-                        sp.displayClientMessage(
-                                net.minecraft.network.chat.Component.translatable("message.sre.minigame_cooldown"),
-                                true);
-                        return InteractionResult.SUCCESS;
-                    }
-                    String randomId = pickRandomMinigame(sp);
-                    if (randomId != null) {
-                        startBlockCooldown(sp, pos);
-                        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
-                                new io.wifi.starrailexpress.network.MinigameQuestPayload.OpenGame(pos, randomId));
-                    }
+            if (player instanceof ServerPlayer sp) {
+                // 检查冷却
+                if (SREGameWorldComponent.KEY.get(sp.level()).isRunning() && isBlockOnCooldown(sp, pos)) {
+                    sp.displayClientMessage(
+                            net.minecraft.network.chat.Component.translatable("message.sre.minigame_cooldown"),
+                            true);
+                    return InteractionResult.SUCCESS;
+                }
+                // 从小游戏池随机选取一个小游戏
+                String randomId = pickRandomMinigame(sp);
+                if (randomId != null) {
+                    startBlockCooldown(sp, pos);
+                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
+                            new io.wifi.starrailexpress.network.MinigameQuestPayload.OpenGame(pos, randomId));
                 }
             }
         }
