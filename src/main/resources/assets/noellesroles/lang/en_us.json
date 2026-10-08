@@ -1103,7 +1103,7 @@
   "announcement.star.role.wisadel": "Wisadel_Soulstar",
   "announcement.star.goals.wisadel": "Hunt players, harvest souls from corpses, summon the Ancestral Launcher",
   "info.screen.roleid.wisadel": "Killer faction\nRight-click a player corpse to harvest 1 Soul (each corpse can only be harvested once, max 7 stored)\nShop matches the default killer, plus:\n- Ancestral Launcher (350 coins, requires 5 Souls, consumes 5 on purchase, 150s purchase cooldown, vanishes after one use)\n- Pork Shank (25 coins, grants Speed I for 10s when eaten)",
-  "shop.wisadel.shotgun.need_soul": "The Ancestral Launcher requires at least 5 Souls",
+  "shop.wisadel.shotgun.need_soul": "The Ancestral Launcher requires at least %s Souls",
   "shop.wisadel.shotgun.cooldown": "The Ancestral Launcher is on purchase cooldown",
   "hud.wisadel.soul": "Souls: %s/%s",
   "hud.wisadel.ready": "Souls ready \u00b7 Ancestral Launcher available",

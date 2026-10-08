@@ -52,7 +52,8 @@ public class WisadelRole extends NormalRole {
                     return false;
                 }
                 if (!component.hasEnoughSouls()) {
-                    this.setFailedMessage(Component.translatable("shop.wisadel.shotgun.need_soul")
+                    this.setFailedMessage(Component.translatable("shop.wisadel.shotgun.need_soul",
+                            WisadelPlayerComponent.shotgunSoulCost())
                             .withStyle(ChatFormatting.RED));
                     return false;
                 }

@@ -35,7 +35,7 @@ public class WisadelPlayerComponent implements RoleComponent {
 
     private final Player player;
 
-    /** 当前存储的魂灵层数（0 ~ MAX_SOULS） */
+    /** 当前存储的魂灵层数（0 ~ maxSouls()） */
     private int souls = 0;
 
     /** 祖宗发射器下一次可购买的绝对游戏刻（<= 当前游戏刻表示可购买） */

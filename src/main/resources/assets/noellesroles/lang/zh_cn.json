@@ -1148,7 +1148,7 @@
   "announcement.star.role.wisadel": "维什戴尔_星魂",
   "announcement.star.goals.wisadel": "猎杀玩家，汲取尸体魂灵，召唤祖宗发射器",
   "info.screen.roleid.wisadel": "杀手阵营\n右键与玩家尸体交互可获得 1 层「魂灵」（每具尸体仅限一次，最多存储 7 层）\n商店与默认杀手一致，额外出售：\n· 祖宗发射器（350金币，需至少 5 层魂灵，购买消耗 5 层并进入 150 秒购买冷却，使用一次后消失）\n· 肘子（25金币，食用后获得速度 I 效果 10 秒）",
-  "shop.wisadel.shotgun.need_soul": "购买祖宗发射器需要至少 5 层魂灵",
+  "shop.wisadel.shotgun.need_soul": "购买祖宗发射器需要至少 %s 层魂灵",
   "shop.wisadel.shotgun.cooldown": "祖宗发射器购买冷却中",
   "hud.wisadel.soul": "魂灵：%s/%s",
   "hud.wisadel.ready": "魂灵已满 · 可购买祖宗发射器",
