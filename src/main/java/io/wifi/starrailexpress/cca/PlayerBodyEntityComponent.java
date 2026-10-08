@@ -40,6 +40,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
 
     public ResourceLocation playerRole = TMMRoles.CIVILIAN.identifier();
     public boolean vultured = false;
+    public boolean wisadelHarvested = false; // 维什戴尔已汲取过该尸体的魂灵（每具尸体只能汲取一次）
     public boolean isFakeBody = false; // 葬仪伪造的尸体标记
     public PlayerBodyEntity playerBodyEntity;
 
@@ -126,6 +127,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
     public void clear() {
         this.playerRole = TMMRoles.CIVILIAN.identifier();
         this.vultured = false;
+        this.wisadelHarvested = false;
         this.isFakeBody = false;
         this.killer = null;
         this.conspiratorEvidence = null;
@@ -153,6 +155,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
     public void writeToNbtFromBody(@NotNull CompoundTag tag, HolderLookup.Provider registryLookup) {
         tag.putString("playerRole", playerRole.toString());
         tag.putBoolean("vultured", vultured);
+        tag.putBoolean("wisadelHarvested", wisadelHarvested);
         tag.putBoolean("isFakeBody", isFakeBody);
         if (killer != null) {
             tag.putUUID("Killer", killer);
@@ -194,6 +197,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
         if (this.playerRole == null)
             this.playerRole = TMMRoles.CIVILIAN.identifier();
         this.vultured = tag.getBoolean("vultured");
+        this.wisadelHarvested = tag.getBoolean("wisadelHarvested");
         this.isFakeBody = tag.getBoolean("isFakeBody");
 
         if (tag.hasUUID("Killer")) {
@@ -245,6 +249,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
         if (playerRole != null)
             tag.putString("playerRole", playerRole.toString());
         tag.putBoolean("vultured", vultured);
+        tag.putBoolean("wisadelHarvested", wisadelHarvested);
         tag.putBoolean("isFakeBody", isFakeBody);
         if (killer != null) {
             tag.putUUID("Killer", killer);
@@ -267,6 +272,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
         if (this.playerRole == null)
             this.playerRole = TMMRoles.DISCOVERY_CIVILIAN.identifier();
         this.vultured = tag.contains("vultured") && tag.getBoolean("vultured");
+        this.wisadelHarvested = tag.contains("wisadelHarvested") && tag.getBoolean("wisadelHarvested");
         this.isFakeBody = tag.contains("isFakeBody") && tag.getBoolean("isFakeBody");
         if (tag.hasUUID("Killer")) {
             killer = tag.getUUID("Killer");

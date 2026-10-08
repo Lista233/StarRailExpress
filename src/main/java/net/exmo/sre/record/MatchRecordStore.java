@@ -78,6 +78,10 @@ public final class MatchRecordStore {
         return MysqlPlayerDataStore.tablePrefix() + "match_record_players";
     }
 
+    private static String playerNamesTableName() {
+        return MysqlPlayerDataStore.tablePrefix() + "player_names";
+    }
+
     public static CompletableFuture<Boolean> saveAsync(MatchRecord record) {
         if (record == null || record.matchId == null || !isAvailable()) {
             return CompletableFuture.completedFuture(false);
@@ -167,6 +171,7 @@ public final class MatchRecordStore {
                             .numbers(2);
                 }
                 replacePlayers(connection, record);
+                upsertPlayerNames(connection, record);
                 connection.commit();
                 tracked.record();
             } catch (SQLException exception) {
@@ -219,6 +224,36 @@ public final class MatchRecordStore {
             insert.executeBatch();
         }
         insertTracked.record();
+    }
+
+    /**
+     * 将本局所有参赛者的 UUID ↔ 昵称映射 UPSERT 到 {@code sre_player_names} 表。
+     * 跟随战绩保存的同一事务执行，不增加额外的数据库交互。
+     */
+    private static void upsertPlayerNames(Connection connection, MatchRecord record) throws SQLException {
+        if (record.players == null || record.players.isEmpty()) {
+            return;
+        }
+        String sql = "INSERT INTO " + playerNamesTableName()
+                + " (player_uuid, player_name, updated_at) VALUES (?, ?, ?)"
+                + " ON DUPLICATE KEY UPDATE player_name = VALUES(player_name), updated_at = VALUES(updated_at)";
+        TrafficRecorder.SqlStatement tracked = TrafficRecorder.sql("UPSERT", playerNamesTableName()).text(sql);
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setQueryTimeout(STATEMENT_TIMEOUT_SECONDS);
+            for (MatchRecord.MatchPlayer player : record.players) {
+                if (player == null || player.uuid == null || player.uuid.isBlank()) {
+                    continue;
+                }
+                String name = player.name == null ? "Unknown" : player.name;
+                statement.setString(1, player.uuid);
+                statement.setString(2, name);
+                statement.setLong(3, record.createdAt);
+                statement.addBatch();
+                tracked.param(player.uuid).param(name).numbers(1);
+            }
+            statement.executeBatch();
+        }
+        tracked.record();
     }
 
     private static MatchPage listWindow(int offset, int limit) {
@@ -321,16 +356,26 @@ public final class MatchRecordStore {
                 + "KEY idx_player_created_at (player_uuid, created_at),"
                 + "KEY idx_created_at (created_at)"
                 + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        String namesDdl = "CREATE TABLE IF NOT EXISTS " + playerNamesTableName() + " ("
+                + "player_uuid CHAR(36) NOT NULL,"
+                + "player_name VARCHAR(64) NOT NULL,"
+                + "updated_at BIGINT NOT NULL,"
+                + "PRIMARY KEY (player_uuid),"
+                + "KEY idx_player_name (player_name)"
+                + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
         TrafficRecorder.SqlStatement tracked = TrafficRecorder.sql("DDL", tableName()).text(ddl);
         TrafficRecorder.SqlStatement playerTracked = TrafficRecorder.sql("DDL", playerTableName()).text(playerDdl);
+        TrafficRecorder.SqlStatement namesTracked = TrafficRecorder.sql("DDL", playerNamesTableName()).text(namesDdl);
         try (Statement statement = connection.createStatement()) {
             statement.setQueryTimeout(STATEMENT_TIMEOUT_SECONDS);
             statement.execute(ddl);
             statement.execute(playerDdl);
+            statement.execute(namesDdl);
         }
         tracked.record();
         playerTracked.record();
+        namesTracked.record();
         schemaReady = true;
-        logger.info("全局战绩表 {} 已就绪。", tableName());
+        logger.info("全局战绩表 {} 与玩家名映射表 {} 已就绪。", tableName(), playerNamesTableName());
     }
 }

@@ -20,6 +20,7 @@ import org.agmas.noellesroles.role.qust.roles.wanderer.WandererRole;
 
 import org.agmas.noellesroles.role.qust.roles.bettor.BettorRole;
 import org.agmas.noellesroles.role.qust.roles.super_doctor.SuperDoctorRole;
+import org.agmas.noellesroles.role.qust.roles.wisadel.WisadelRole;
 
 /**
  * QUST 职业注册。
@@ -173,6 +174,20 @@ public class QUSTRoles {
             .setDefaultEnableChance(5000)
             .setDefaultEnableNeededPlayerCount(10);
 
+    // ── 维什戴尔_星魂 (Wisadel) ──
+    public static final ResourceLocation WISADEL_ID = id("wisadel");
+
+    public static SRERole WISADEL = TMMRoles.registerRole(
+            new WisadelRole(WISADEL_ID,
+                    new java.awt.Color(150, 0, 90).getRGB(),
+                    false, true, MoodType.FAKE,
+                    Integer.MAX_VALUE, true))
+            .setCanSeeCoin(true)
+            .setComponentKey(QUSTComponentKeys.Keys.WISADEL)
+            .setDefaultMax(1)
+            .setDefaultEnableNeededPlayerCount(12)
+            .setDefaultEnableChance(5000);
+
     public static void init() {
         // 触发类加载，确保静态字段被初始化
         //
@@ -191,5 +206,6 @@ public class QUSTRoles {
         TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.SUPER_DOCTOR);
         TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.BETTOR);
         TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.HACKER);
+        TMMRoles.addRoleComponents(QUSTComponentKeys.Keys.WISADEL);
     }
 }

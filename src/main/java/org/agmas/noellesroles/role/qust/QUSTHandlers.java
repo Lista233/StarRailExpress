@@ -50,6 +50,76 @@ public class QUSTHandlers {
         registerSuperDoctorNetworkHandlers();
         registerBettorNetworkHandlers();
         registerHackerEvents();
+        registerWisadelEvents();
+    }
+
+    // ==================== 维什戴尔_星魂事件注册 ====================
+
+    /**
+     * 维什戴尔右键与玩家尸体交互汲取 1 层「魂灵」：
+     * <ul>
+     *   <li>每具尸体只能被汲取一次（{@code wisadelHarvested} 标记随尸体持久化并同步）；</li>
+     *   <li>假尸体、 doomed 罪人尸体、安全时间、魂灵已满都会拦截汲取；</li>
+     *   <li>汲取成功后播放与秃鹫/DIO 进食同款的音效（{@code GENERIC_EAT}）。</li>
+     * </ul>
+     * 写法参考 {@code BoneBookItem.registerEvents()}：客户端只拦交互，结算交给服务端。
+     */
+    private static void registerWisadelEvents() {
+        net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
+            if (!(entity instanceof io.wifi.starrailexpress.content.entity.PlayerBodyEntity body)) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            var gameWorld = io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(level);
+            if (gameWorld == null || !gameWorld.isRole(player, QUSTRoles.WISADEL)) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            if (!io.wifi.starrailexpress.game.GameUtils.isPlayerAliveAndSurvival(player)) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            // 客户端只拦下这次交互（避免顺手打开尸体物品栏），实际结算交给服务端
+            if (level.isClientSide) {
+                return net.minecraft.world.InteractionResult.CONSUME;
+            }
+            if (!(player instanceof ServerPlayer serverPlayer)) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            var bodyComp = io.wifi.starrailexpress.cca.PlayerBodyEntityComponent.KEY.get(body);
+            if (bodyComp.isFakeBody
+                    || org.agmas.noellesroles.content.entity.DoomedSinnerBodyEntity.isDoomedSinnerBody(body)) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            if (serverPlayer.hasEffect(org.agmas.noellesroles.init.ModEffects.SAFE_TIME)
+                    || !gameWorld.isSkillAvailable) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            var comp = QUSTComponentKeys.Keys.WISADEL.get(serverPlayer);
+            if (comp == null) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            if (bodyComp.wisadelHarvested) {
+                serverPlayer.displayClientMessage(
+                        net.minecraft.network.chat.Component.translatable("message.wisadel.corpse_taken")
+                                .withStyle(net.minecraft.ChatFormatting.GRAY),
+                        true);
+                return net.minecraft.world.InteractionResult.CONSUME;
+            }
+            if (comp.getSouls() >= org.agmas.noellesroles.role.qust.roles.wisadel.WisadelPlayerComponent.MAX_SOULS) {
+                serverPlayer.displayClientMessage(
+                        net.minecraft.network.chat.Component.translatable("message.wisadel.soul_full",
+                                        org.agmas.noellesroles.role.qust.roles.wisadel.WisadelPlayerComponent.MAX_SOULS)
+                                .withStyle(net.minecraft.ChatFormatting.RED),
+                        true);
+                return net.minecraft.world.InteractionResult.CONSUME;
+            }
+            // 汲取成功：标记尸体、魂灵 +1、播放秃鹫同款进食音效
+            bodyComp.wisadelHarvested = true;
+            bodyComp.sync();
+            comp.addSoul();
+            serverPlayer.swing(hand, true);
+            level.playSound(null, body.getX(), body.getY(), body.getZ(),
+                    SoundEvents.GENERIC_EAT, SoundSource.PLAYERS, 1.0F, 0.8F);
+            return net.minecraft.world.InteractionResult.CONSUME;
+        });
     }
 
     // ==================== 龙娘技能注册 ====================

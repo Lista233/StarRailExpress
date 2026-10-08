@@ -60,5 +60,9 @@ public final class QUSTComponentKeys {
         public static final ComponentKey<org.agmas.noellesroles.role.qust.roles.hacker.HackerRoleData> HACKER =
             ComponentRegistry.getOrCreate(ResourceLocation.fromNamespaceAndPath("qust", "hacker"),
                 org.agmas.noellesroles.role.qust.roles.hacker.HackerRoleData.class);
+
+        public static final ComponentKey<org.agmas.noellesroles.role.qust.roles.wisadel.WisadelPlayerComponent> WISADEL =
+            ComponentRegistry.getOrCreate(ResourceLocation.fromNamespaceAndPath("qust", "wisadel"),
+                org.agmas.noellesroles.role.qust.roles.wisadel.WisadelPlayerComponent.class);
     }
 }

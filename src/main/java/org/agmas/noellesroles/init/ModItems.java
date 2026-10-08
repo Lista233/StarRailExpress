@@ -252,6 +252,20 @@ public class ModItems {
                     (new Item.Properties()).stacksTo(1).durability(1)),
             "repentance_gun", WEAPONS_GROUP, ModBlocks.QUST_GROUP);
 
+    /** 祖宗发射器 - QUST 页面收录的重型霰弹发射器：右键朝前方发射炮弹，落点爆炸并波及自己 */
+    public static final Item WISDEL_SHOTGUN = register(
+            new org.agmas.noellesroles.role.qust.content.WisdelShotgunItem(
+                    (new Item.Properties()).stacksTo(1)),
+            "wisdel_shotgun", WEAPONS_GROUP, ModBlocks.QUST_GROUP);
+    
+    /** 肘子（猪腿肉）- 维什戴尔_星魂商店可食物品，吃下获得速度 I 持续 10 秒 */
+    public static final Item PORK_LEG = register(
+            new org.agmas.noellesroles.role.qust.content.PorkLegItem(
+                    (new Item.Properties()).stacksTo(16)
+                            .food((new FoodProperties.Builder()).nutrition(6).saturationModifier(0.6F)
+                                    .fast().alwaysEdible().build())),
+            "pork_leg", CONSUMABLES_GROUP, ModBlocks.QUST_GROUP);
+
     /** 干扰芯片 - 黑客（林然）专属标记物品，手持右键对视线内玩家进行标记 */
     public static final Item INTERFERENCE_CHIP = register(
             new org.agmas.noellesroles.content.item.hacker.InterferenceChipItem(

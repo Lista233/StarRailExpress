@@ -44,6 +44,7 @@ public class QUSTClient {
         org.agmas.noellesroles.role.qust.roles.hacker.HackerClientHandlers.register();
         org.agmas.noellesroles.role.qust.roles.bettor.BettorHud.register();
         org.agmas.noellesroles.role.qust.roles.bettor.BettorClientHandlers.register();
+        org.agmas.noellesroles.role.qust.roles.wisadel.WisadelHud.register();
 
         // 注册客户端 tick 事件：驱动游荡者灵魂出窍自由相机
         ClientTickEvents.END_CLIENT_TICK.register(client -> clientTick());
