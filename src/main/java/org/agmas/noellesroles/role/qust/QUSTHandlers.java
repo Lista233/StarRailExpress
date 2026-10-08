@@ -103,10 +103,10 @@ public class QUSTHandlers {
                         true);
                 return net.minecraft.world.InteractionResult.CONSUME;
             }
-            if (comp.getSouls() >= org.agmas.noellesroles.role.qust.roles.wisadel.WisadelPlayerComponent.MAX_SOULS) {
+            if (comp.getSouls() >= org.agmas.noellesroles.role.qust.roles.wisadel.WisadelPlayerComponent.maxSouls()) {
                 serverPlayer.displayClientMessage(
                         net.minecraft.network.chat.Component.translatable("message.wisadel.soul_full",
-                                        org.agmas.noellesroles.role.qust.roles.wisadel.WisadelPlayerComponent.MAX_SOULS)
+                                        org.agmas.noellesroles.role.qust.roles.wisadel.WisadelPlayerComponent.maxSouls())
                                 .withStyle(net.minecraft.ChatFormatting.RED),
                         true);
                 return net.minecraft.world.InteractionResult.CONSUME;

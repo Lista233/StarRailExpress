@@ -131,7 +131,8 @@
       "qust:wanderer",
       "qust:super_doctor",
       "qust:hacker",
-      "qust:bettor"
+      "qust:bettor",
+      "qust:wisadel"
     ],
     "loom:injected_interfaces": {
       "net/minecraft/class_5483/class_5496": [

@@ -32,7 +32,6 @@ import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.index.TMMParticles;
 import io.wifi.starrailexpress.index.TMMSounds;
-import io.wifi.starrailexpress.util.Scheduler;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -58,9 +57,9 @@ import java.util.ArrayList;
  * 祖宗发射器 —— QUST 页面收录的重型霰弹发射器。
  * <p>
  * 与其它枪械一样具备左轮式握持姿势（{@link HeldLikeRevolver}）与枪口火光特效。
- * 右键开火：后坐力较大，朝视线正前方发射一发炮弹，用深红色粒子在 0.5 秒内描绘飞行弹道，
- * 最大射程 {@value #MAX_RANGE} 格；命中最近的方块 / 玩家 / 实体后在落点引爆，
- * 爆炸半径 {@value #BLAST_RADIUS} 格（爆炸特效参考 {@link GrenadeEntity}），并且<b>会波及发射者本人</b>。
+ * 右键开火：后坐力较大，朝视线正前方发射一发炮弹，深红色粒子一次性描绘整条曳光弹道，
+ * 最大射程 {@value #MAX_RANGE} 格；命中最近的方块 / 玩家 / 实体后<b>立即引爆</b>（无飞行延迟），
+ * 爆炸半径 {@value #BLAST_RADIUS} 格（强化的大爆炸 + 浓烟 + 火光特效），并且<b>会波及发射者本人</b>。
  * <p>
  * 只有在游戏正式开始（{@link SREGameWorldComponent#isRunning()}）后，爆炸范围内的玩家才会被结算击杀，
  * 死因为「手雷杀」（{@link GameConstants.DeathReasons#GRENADE}）。
@@ -71,8 +70,6 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
     public static final double MAX_RANGE = 12.0;
     /** 爆炸半径（格） */
     public static final float BLAST_RADIUS = 5.0F;
-    /** 弹道展示时长（ticks），10 tick = 0.5 秒 */
-    public static final int TRAVEL_TICKS = 10;
     /** 开火冷却（ticks） */
     public static final int COOLDOWN_TICKS = 30;
     /** 后坐力抬头的角度（度）——比左轮（4°）大得多 */
@@ -121,7 +118,7 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
             return InteractionResultHolder.consume(stack);
         }
 
-        // 服务端：权威判定冷却、计算弹道、播放音效并调度飞行 + 爆炸
+        // 服务端：权威判定冷却、计算弹道、播放音效并即时结算曳光 + 爆炸
         if (user.getCooldowns().isOnCooldown(this)) {
             return InteractionResultHolder.pass(stack);
         }
@@ -144,7 +141,7 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
 
     /**
      * 服务端开火：从眼睛沿视线投射一条最长 {@value #MAX_RANGE} 格的射线，取「方块命中」与「实体命中」的较近者
-     * 作为落点，然后用深红色粒子把这段弹道在 {@value #TRAVEL_TICKS} tick 内逐步描绘出来，最后引爆。
+     * 作为落点，一次性描绘整条深红色曳光弹道后<b>立即引爆</b>（无飞行延迟）。
      */
     private static void fire(ServerLevel level, Player shooter) {
         Vec3 eye = shooter.getEyePosition();
@@ -171,7 +168,24 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
         Vec3 hitPos = eye.add(dir.scale(travel));
         // 弹道从「世界系枪口」画到落点（视差：看起来从枪管射出并汇聚到准星处）
         Vec3 muzzle = muzzleWorldPos(shooter);
-        scheduleTrailStep(level, shooter, muzzle, hitPos, 1);
+        // 一次性打出整条曳光弹道（纯视觉，不再有逐 tick 飞行延迟），随后命中即爆
+        spawnTracer(level, muzzle, hitPos);
+        explode(level, shooter, hitPos);
+    }
+
+    /**
+     * 一次性描绘 {@code from}(枪口) 到 {@code to}(落点) 的整条深红色曳光弹道：
+     * 约每 0.25 格插值一个粒子点，弹头处加密一簇。粒子瞬时消失，只保留开火帧的视觉反馈。
+     */
+    private static void spawnTracer(ServerLevel level, Vec3 from, Vec3 to) {
+        DustParticleOptions bullet = new DustParticleOptions(new Vector3f(0.55F, 0.0F, 0.0F), 1.4F);
+        int steps = (int) Math.max(8, Math.ceil(from.distanceTo(to) * 4));
+        for (int i = 0; i <= steps; i++) {
+            Vec3 p = from.lerp(to, (double) i / steps);
+            level.sendParticles(bullet, p.x, p.y, p.z, 1, 0.02, 0.02, 0.02, 0.0);
+        }
+        // 弹头：落点附近加密一簇，强调命中瞬间
+        level.sendParticles(bullet, to.x, to.y, to.z, 4, 0.04, 0.04, 0.04, 0.0);
     }
 
     /**
@@ -188,40 +202,24 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
     }
 
     /**
-     * 弹道描绘的第 {@code step} 步：在 {@code from}(枪口) 到 {@code to}(落点) 之间按进度插值铺深红粒子，
-     * 并补几点拖尾；走完最后一步后在落点引爆。
-     */
-    private static void scheduleTrailStep(ServerLevel level, Player shooter, Vec3 from, Vec3 to, int step) {
-        Vec3 current = from.lerp(to, (double) step / TRAVEL_TICKS);
-        Vec3 previous = from.lerp(to, (double) (step - 1) / TRAVEL_TICKS);
-
-        DustParticleOptions bullet = new DustParticleOptions(new Vector3f(0.55F, 0.0F, 0.0F), 1.4F);
-        // 弹头：当前点一簇
-        level.sendParticles(bullet, current.x, current.y, current.z, 4, 0.04, 0.04, 0.04, 0.0);
-        // 拖尾：上一步到当前步之间插值补点
-        for (int k = 1; k <= 3; k++) {
-            double t = k / 4.0;
-            Vec3 trail = previous.lerp(current, t);
-            level.sendParticles(bullet, trail.x, trail.y, trail.z, 1, 0.02, 0.02, 0.02, 0.0);
-        }
-
-        if (step < TRAVEL_TICKS) {
-            Scheduler.schedule(() -> scheduleTrailStep(level, shooter, from, to, step + 1), 1);
-        } else {
-            explode(level, shooter, current);
-        }
-    }
-
-    /**
-     * 落点引爆：爆炸特效参考 {@link GrenadeEntity}（大爆炸 + 浓烟 + 手雷爆炸音效）。
-     * 游戏正式开始后，对爆炸范围内（含发射者本人）的玩家按「手雷杀」（{@link GameConstants.DeathReasons#GRENADE}）结算击杀。
+     * 落点引爆（命中即时触发）：强化爆炸特效——多层大爆炸sprite + 浓烟云团 + 深红冲击波，
+     * 配合手雷爆炸音效。游戏正式开始后，对爆炸范围内（含发射者本人）的玩家
+     * 按「手雷杀」（{@link GameConstants.DeathReasons#GRENADE}）结算击杀。
      */
     private static void explode(ServerLevel level, Player shooter, Vec3 pos) {
         double x = pos.x, y = pos.y, z = pos.z;
         level.playSound(null, x, y, z, TMMSounds.ITEM_GRENADE_EXPLODE, SoundSource.PLAYERS, 5f,
                 1f + level.getRandom().nextFloat() * 0.1f - 0.05f);
+        // 核心火球：巨型爆炸 sprite 多重叠加，中心 + 小范围散布，视觉上远大于手雷
         level.sendParticles(TMMParticles.BIG_EXPLOSION, x, y + 0.1, z, 1, 0, 0, 0, 0);
-        level.sendParticles(ParticleTypes.SMOKE, x, y + 0.1, z, 100, 0, 0, 0, 0.2f);
+        level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, x, y + 0.2, z, 4, 1.2, 0.6, 1.2, 0.0);
+        // 外围爆轰：在整颗爆炸半径内散布普通爆炸 sprite，让火球铺满 5 格范围
+        level.sendParticles(ParticleTypes.EXPLOSION, x, y + 0.1, z, 14, BLAST_RADIUS * 0.6, BLAST_RADIUS * 0.35, BLAST_RADIUS * 0.6, 0.0);
+        // 浓烟云团：量大、范围广、上飘
+        level.sendParticles(ParticleTypes.SMOKE, x, y + 0.3, z, 400, 2.2, 1.4, 2.2, 0.35f);
+        // 深红冲击波：贴地圆环扩散，呼应弹道颜色
+        DustParticleOptions shockwave = new DustParticleOptions(new Vector3f(0.55F, 0.0F, 0.0F), 2.0F);
+        level.sendParticles(shockwave, x, y + 0.05, z, 80, BLAST_RADIUS * 0.8, 0.15, BLAST_RADIUS * 0.8, 0.12);
 
         // 只有游戏正式开始后才产生击杀结算
         if (!SREGameWorldComponent.KEY.get(level).isRunning()) {

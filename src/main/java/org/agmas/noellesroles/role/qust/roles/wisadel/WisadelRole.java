@@ -75,7 +75,7 @@ public class WisadelRole extends NormalRole {
                     component.markShotgunPurchased(buyer.level().getGameTime());
                 } else {
                     // 发放失败（背包满等）：返还魂灵，避免白白消耗
-                    for (int i = 0; i < WisadelPlayerComponent.SHOTGUN_SOUL_COST; i++) {
+                    for (int i = 0; i < WisadelPlayerComponent.shotgunSoulCost(); i++) {
                         component.addSoul();
                     }
                 }

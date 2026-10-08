@@ -227,13 +227,14 @@ public class MinigameQuestBlock extends BaseEntityBlock
     @Override
     public boolean shouldRenderTaskInstinct(Level level, BlockState state, BlockPos pos, Player player) {
 
-        // 小游戏任务点(14/15)：仅在玩家有待办小游戏任务、该点本局未被使用、
-        // 且该点的 minigameId 与玩家指派的目标类型匹配（或无指定目标）时才金色透视
+        // 小游戏任务点(14/15)：仅在玩家有待办小游戏任务、
+        // 且该点的 minigameId 与玩家指派的目标类型匹配（或无指定目标）时才金色透视。
+        // 注意：不再因点击后的复用冷却而隐藏高亮（否则点一下引导就消失），冷却拦截仍由 useWithoutItem 负责。
         boolean isMinigamePoint = level.getBlockEntity(pos) instanceof MinigameQuestBlockEntity questBe
                 && !questBe.isSabotageTrigger();
         if (isMinigamePoint) {
             var mgComp = SREPlayerMinigameTaskComponent.KEY.get(player);
-            if (mgComp != null && mgComp.hasPendingTask() && !mgComp.isBlockUsed(pos)) {
+            if (mgComp != null && mgComp.hasPendingTask()) {
                 // 读取该方块的小游戏类型
                 boolean typeMatches = true;
                 if (level

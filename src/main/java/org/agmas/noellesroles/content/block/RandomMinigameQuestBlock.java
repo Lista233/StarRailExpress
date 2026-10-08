@@ -211,7 +211,8 @@ public class RandomMinigameQuestBlock extends BaseEntityBlock
 
     @Override
     public boolean shouldRenderTaskInstinct(Level level, BlockState state, BlockPos pos, Player player) {
-        // 随机小游戏方块：游戏运行中 + 该点未冷却 → 显示金色透视
+        // 随机小游戏方块：仅在游戏运行中且玩家有「待办小游戏任务」时显示金色透视；
+        // 不再因点击后的复用冷却而隐藏高亮（否则点一下引导就消失），冷却拦截仍由 useWithoutItem 负责
         if (!(level.getBlockEntity(pos) instanceof MinigameQuestBlockEntity questBe)) {
             return false;
         }
@@ -222,7 +223,7 @@ public class RandomMinigameQuestBlock extends BaseEntityBlock
             return false;
         }
         var mgComp = SREPlayerMinigameTaskComponent.KEY.get(player);
-        return mgComp == null || !mgComp.isBlockUsed(pos);
+        return mgComp != null && mgComp.hasPendingTask();
     }
 
     @Override

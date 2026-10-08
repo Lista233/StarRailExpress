@@ -169,4 +169,15 @@ public class QUSTConfig implements ConfigData {
 
     /** 恶魔轮盘商店价格 */
     public int bettorDevilRoulettePrice = 75;
+
+    // ==================== 维什戴尔 (Wisadel / 维什戴尔_星魂) ====================
+
+    /** 魂灵存储上限 */
+    public int wisadelMaxSouls = 7;
+
+    /** 购买一次祖宗发射器所需的魂灵层数（暂时调低为 2，便于测试；正式版建议 5） */
+    public int wisadelShotgunSoulCost = 2;
+
+    /** 祖宗发射器购买冷却（秒） */
+    public int wisadelShotgunPurchaseCooldownSeconds = 150;
 }
