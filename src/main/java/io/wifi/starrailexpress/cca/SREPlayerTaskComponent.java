@@ -122,6 +122,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
                     case PRUNE_BUSH -> Task.PRUNE_BUSH;
                     case HARVEST_CROP -> Task.HARVEST_CROP;
                     case HIT_FUMO -> Task.HIT_FUMO;
+                    case PLAY_MINIGAME -> Task.PLAY_MINIGAME;
                     default -> null;
                 };
                 if (taskType != null) {
@@ -620,6 +621,14 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
     public void drinkCocktail() {
         if (this.tasks.get(Task.DRINK) instanceof DrinkTask drinkTask)
             drinkTask.fulfilled = true;
+    }
+
+    /**
+     * 是否持有进行中的「游玩小游戏」Mood 场景任务。
+     * 任务表已同步到客户端，供小游戏任务点的高亮与交互判定使用（与独立代币系统 SREPlayerMinigameTaskComponent 并行）。
+     */
+    public boolean hasMinigameSceneTask() {
+        return this.tasks.get(Task.PLAY_MINIGAME) instanceof SceneTriggeredTask;
     }
 
     @Override

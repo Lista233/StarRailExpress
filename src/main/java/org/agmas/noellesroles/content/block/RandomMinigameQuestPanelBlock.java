@@ -249,7 +249,12 @@ public class RandomMinigameQuestPanelBlock extends BaseEntityBlock
             return false;
         }
         var mgComp = SREPlayerMinigameTaskComponent.KEY.get(player);
-        return mgComp != null && mgComp.hasPendingTask();
+        if (mgComp != null && mgComp.hasPendingTask()) {
+            return true;
+        }
+        // Mood 场景任务「游玩小游戏」：无待办代币任务时也高亮，任意小游戏点都可完成场景任务
+        var taskComp = io.wifi.starrailexpress.cca.SREPlayerTaskComponent.KEY.get(player);
+        return taskComp != null && taskComp.hasMinigameSceneTask();
     }
 
     @Override

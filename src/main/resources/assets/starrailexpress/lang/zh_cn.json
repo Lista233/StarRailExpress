@@ -3310,6 +3310,7 @@
   "task.toilet": "自己上厕所 - 坐在马桶方块上",
   "task.transport": "运送物资 - 去运输起始点拿取物资并运输到终点",
   "task.hit_fumo": "摸摸群友 - 击打10次任意FUMO方块",
+  "task.play_minigame": "游玩小游戏 - 前往小游戏任务点完成任意一局小游戏",
   "task.cuddle": "贴贴 - 按住Shift靠近一名玩家4秒钟",
   "task_highlight_condition.always": "常驻",
   "task_highlight_condition.custom_task": "自定义任务",

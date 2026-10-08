@@ -140,11 +140,20 @@ public class MinigameQuestBlock extends BaseEntityBlock
                     // 未开始游戏时：可随意打开（无任务 / 冷却限制）。
                     if (io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(sp.level()).isRunning()) {
                         var mgComp = io.wifi.starrailexpress.cca.SREPlayerMinigameTaskComponent.KEY.get(sp);
-                        if (!mgComp.hasPendingTask()) {
+                        var taskComp = io.wifi.starrailexpress.cca.SREPlayerTaskComponent.KEY.get(sp);
+                        boolean sceneMinigameTask = taskComp != null && taskComp.hasMinigameSceneTask();
+                        if (!mgComp.hasPendingTask() && !sceneMinigameTask) {
                             // 当前没有对应的小游戏任务：拒绝使用并提示
                             sp.displayClientMessage(
                                     net.minecraft.network.chat.Component.translatable("message.sre.minigame_no_task"),
                                     true);
+                            return InteractionResult.SUCCESS;
+                        }
+                        // Mood 场景任务「游玩小游戏」：接受任意小游戏点，跳过类型匹配与复用冷却拦截
+                        if (sceneMinigameTask) {
+                            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
+                                    new io.wifi.starrailexpress.network.MinigameQuestPayload.OpenGame(pos,
+                                            minigameId));
                             return InteractionResult.SUCCESS;
                         }
                         if (mgComp.isBlockUsed(pos)) {
@@ -248,6 +257,11 @@ public class MinigameQuestBlock extends BaseEntityBlock
                 if (typeMatches) {
                     return true;
                 }
+            }
+            // Mood 场景任务「游玩小游戏」：无指定目标类型，任意小游戏任务点都高亮
+            var taskComp = io.wifi.starrailexpress.cca.SREPlayerTaskComponent.KEY.get(player);
+            if (taskComp != null && taskComp.hasMinigameSceneTask()) {
+                return true;
             }
             return false;
         }
