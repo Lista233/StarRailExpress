@@ -29,7 +29,7 @@ import java.util.List;
 public class WisadelRole extends NormalRole {
 
     /** 祖宗发射器售价（金币） */
-    public static final int SHOTGUN_PRICE = 350;
+    public static final int SHOTGUN_PRICE = 325;
     /** 肘子售价（金币） */
     public static final int PORK_LEG_PRICE = 25;
 

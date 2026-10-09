@@ -66,6 +66,7 @@
   "item.noellesroles.short_shotgun.tooltip": "右鍵蓄力射擊，蓄力越久射程越遠（扇形2格至4格）",
   "item.noellesroles.short_shotgun.tooltip2": "擊殺射程達到3格後會擊退射程範圍外2格扇形範圍內的玩家，使用後損壞",
   "death_reason.noellesroles.short_shotgun": "短管霰彈槍",
+  "death_reason.noellesroles.wisdel_shotgun": "祖宗發射器",
   "death_reason.noellesroles.repair_trial_execution": "修機模式處決",
   "item.noellesroles.monitoring_terminal": "遠程監控終端",
   "item.noellesroles.dealer_package": "荷官包裹",

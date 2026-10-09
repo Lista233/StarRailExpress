@@ -295,6 +295,8 @@ public class GameConstants {
         public static ResourceLocation FIRE_AXE = Noellesroles.id("fire_axe");
         public static ResourceLocation NINJA_KNIFE_KILL = Noellesroles.id("ninja_knife_kill");
         public static ResourceLocation SHORT_SHOTGUN = Noellesroles.id("short_shotgun");
+        /** 祖宗发射器（维什戴尔 QUST）：炮弹落点范围爆炸致死，独立于手雷判定 */
+        public static ResourceLocation WISDEL_SHOTGUN = Noellesroles.id("wisdel_shotgun");
         public static ResourceLocation THROWING_KNIFE_HIT = Noellesroles.id("throwing_knife_hit");
         public static ResourceLocation BAMBOO_SPEAR = Noellesroles.id("bamboo_spear");
         public static ResourceLocation YINYANG_SWORD_AOE = Noellesroles.id("yinyang_sword_aoe");

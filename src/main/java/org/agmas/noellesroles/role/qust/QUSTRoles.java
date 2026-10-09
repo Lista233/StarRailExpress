@@ -179,7 +179,7 @@ public class QUSTRoles {
 
     public static SRERole WISADEL = TMMRoles.registerRole(
             new WisadelRole(WISADEL_ID,
-                    new java.awt.Color(150, 0, 90).getRGB(),
+                    new java.awt.Color(139, 0, 0).getRGB(),  // 深红色（0x8B0000），用于角色名等显示
                     false, true, MoodType.FAKE,
                     Integer.MAX_VALUE, true))
             .setCanSeeCoin(true)

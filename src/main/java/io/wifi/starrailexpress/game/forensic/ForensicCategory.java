@@ -73,7 +73,8 @@ public enum ForensicCategory {
             return POISON;
         }
         if (reason.equals(GameConstants.DeathReasons.GRENADE)
-                || reason.equals(GameConstants.DeathReasons.SELF_EXPLOSION)) {
+                || reason.equals(GameConstants.DeathReasons.SELF_EXPLOSION)
+                || reason.equals(GameConstants.DeathReasons.WISDEL_SHOTGUN)) {
             return EXPLOSIVE;
         }
         if (reason.equals(GameConstants.DeathReasons.FELL_OUT_OF_TRAIN)

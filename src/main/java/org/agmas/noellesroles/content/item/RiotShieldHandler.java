@@ -48,7 +48,8 @@ public class RiotShieldHandler {
                 && !deathReason.equals(GameConstants.DeathReasons.KNIFE)
                 && !deathReason.equals(GameConstants.DeathReasons.BAT)
                 && !deathReason.equals(SRE.TMMId("bat"))
-                && !deathReason.equals(GameConstants.DeathReasons.GRENADE))
+                && !deathReason.equals(GameConstants.DeathReasons.GRENADE)
+                && !deathReason.equals(GameConstants.DeathReasons.WISDEL_SHOTGUN))
             return true;
         // 如果受害者正在举盾且主手/副手持有我们的防暴盾，则阻挡并损坏盾
         if (!victim.isUsingItem())

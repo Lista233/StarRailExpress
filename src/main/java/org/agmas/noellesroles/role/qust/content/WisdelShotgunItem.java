@@ -62,7 +62,7 @@ import java.util.ArrayList;
  * 爆炸半径 {@value #BLAST_RADIUS} 格（强化的大爆炸 + 浓烟 + 火光特效），并且<b>会波及发射者本人</b>。
  * <p>
  * 只有在游戏正式开始（{@link SREGameWorldComponent#isRunning()}）后，爆炸范围内的玩家才会被结算击杀，
- * 死因为「手雷杀」（{@link GameConstants.DeathReasons#GRENADE}）。
+ * 死因为独立的「祖宗发射器」（{@link GameConstants.DeathReasons#WISDEL_SHOTGUN}），不再复用手雷死因判定。
  */
 public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver {
 
@@ -74,6 +74,8 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
     public static final int COOLDOWN_TICKS = 30;
     /** 后坐力抬头的角度（度）——比左轮（4°）大得多 */
     public static final float RECOIL_PITCH = 20.0F;
+    /** 游戏未开始时，爆炸对范围内玩家的击退强度（水平速度上限，随距离线性衰减） */
+    public static final double KNOCKBACK_STRENGTH = 1.2;
 
     // ─── 枪口对齐：由 128×128 贴图上枪口尖端像素 (23,13) 换算，三处效果共用 ───
     /** 贴图像素系：枪口尖端距左上角的 X */
@@ -124,6 +126,7 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
         }
         user.getCooldowns().addCooldown(this, COOLDOWN_TICKS);
 
+        boolean gameRunning = SREGameWorldComponent.KEY.get(world).isRunning();
         if (world instanceof ServerLevel serverLevel) {
             fire(serverLevel, user);
         }
@@ -134,8 +137,10 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
             SRE.REPLAY_MANAGER.recordItemUse(user.getUUID(),
                     net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(this));
         }
-        // 一次性：开火瞬间即消耗这支发射器（无论是否命中/爆炸）
-        stack.shrink(1);
+        // 仅游戏正式开始时一次性消耗；未开始时不消耗，可反复使用（此时只做击退，不结算击杀）
+        if (gameRunning) {
+            stack.shrink(1);
+        }
         return InteractionResultHolder.consume(stack);
     }
 
@@ -204,7 +209,7 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
     /**
      * 落点引爆（命中即时触发）：强化爆炸特效——多层大爆炸sprite + 浓烟云团 + 深红冲击波，
      * 配合手雷爆炸音效。游戏正式开始后，对爆炸范围内（含发射者本人）的玩家
-     * 按「手雷杀」（{@link GameConstants.DeathReasons#GRENADE}）结算击杀。
+     * 按「祖宗发射器」（{@link GameConstants.DeathReasons#WISDEL_SHOTGUN}）结算击杀。
      */
     private static void explode(ServerLevel level, Player shooter, Vec3 pos) {
         double x = pos.x, y = pos.y, z = pos.z;
@@ -221,11 +226,13 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
         DustParticleOptions shockwave = new DustParticleOptions(new Vector3f(0.55F, 0.0F, 0.0F), 2.0F);
         level.sendParticles(shockwave, x, y + 0.05, z, 80, BLAST_RADIUS * 0.8, 0.15, BLAST_RADIUS * 0.8, 0.12);
 
-        // 只有游戏正式开始后才产生击杀结算
+        ArrayList<Entity> affected = GrenadeEntity.getPlayersAffectedByExplosion(level, x, y, z, BLAST_RADIUS);
+        // 游戏未开始：不结算击杀，改为对爆炸范围内的玩家施加击退
         if (!SREGameWorldComponent.KEY.get(level).isRunning()) {
+            applyKnockback(level, pos, affected);
             return;
         }
-        ArrayList<Entity> affected = GrenadeEntity.getPlayersAffectedByExplosion(level, x, y, z, BLAST_RADIUS);
+        // 只有游戏正式开始后才产生击杀结算
         // 击杀金币结算：完全参照 GrenadeEntity —— 单价 grenadeMoneyPerKill × 击杀数，上限 grenadeMaxMoneyReward
         SREPlayerShopComponent killerShop = SREPlayerShopComponent.KEY.get(shooter);
         int balanceBefore = killerShop != null ? killerShop.balance : 0;
@@ -236,9 +243,9 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
                 if (victim != shooter) {
                     count++;
                 }
-                GameUtils.killPlayer(victim, true, shooter, GameConstants.DeathReasons.GRENADE);
+                GameUtils.killPlayer(victim, true, shooter, GameConstants.DeathReasons.WISDEL_SHOTGUN);
             } else if (entity instanceof PuppeteerBodyEntity bodyEntity) {
-                bodyEntity.playerHurt(shooter, GameConstants.DeathReasons.GRENADE);
+                bodyEntity.playerHurt(shooter, GameConstants.DeathReasons.WISDEL_SHOTGUN);
             }
         }
         if (killerShop != null) {
@@ -253,6 +260,37 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
             if (adjustment != 0) {
                 killerShop.addToBalance(adjustment);
             }
+        }
+    }
+
+    /**
+     * 游戏未开始时的击退：以爆炸中心 {@code center} 为源，对范围内每个玩家沿「爆心→玩家」的水平方向
+     * 施加击退速度，强度随距离线性衰减（越近越强），并附带一定上抛。不造成任何伤害或击杀。
+     */
+    private static void applyKnockback(ServerLevel level, Vec3 center, ArrayList<Entity> affected) {
+        for (Entity entity : affected) {
+            if (!(entity instanceof Player victim)) {
+                continue;
+            }
+            Vec3 fromCenter = victim.position().subtract(center);
+            double horizontal = Math.sqrt(fromCenter.x * fromCenter.x + fromCenter.z * fromCenter.z);
+            double distance = victim.position().distanceTo(center);
+            double power = KNOCKBACK_STRENGTH * Math.max(0.0, 1.0 - distance / (BLAST_RADIUS + 1.0E-3));
+            Vec3 push;
+            if (horizontal < 1.0E-3) {
+                // 正好位于爆心：给随机水平方向，避免原地不动
+                double angle = level.getRandom().nextDouble() * Math.PI * 2.0;
+                push = new Vec3(Math.cos(angle), 0.0, Math.sin(angle));
+            } else {
+                push = new Vec3(fromCenter.x / horizontal, 0.0, fromCenter.z / horizontal);
+            }
+            Vec3 motion = victim.getDeltaMovement();
+            victim.setDeltaMovement(
+                    motion.x + push.x * power,
+                    motion.y + power * 0.6,
+                    motion.z + push.z * power
+            );
+            victim.hurtMarked = true;
         }
     }
 
