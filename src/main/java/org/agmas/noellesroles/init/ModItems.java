@@ -1594,6 +1594,11 @@ public class ModItems {
             new NetheriteSpearItem(NetheriteSpearItem.createProperties()),
             "netherite_spear", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
 
+    /** Aimlabs 练习手枪 - 仅在练枪会话期间使用，不出现在创造模式标签页 */
+    public static final Item PRACTICE_REVOLVER = registrar.create("practice_revolver",
+            new org.agmas.noellesroles.role.qust.roles.aimlabs.PracticeRevolverItem(
+                    new Item.Properties().stacksTo(1)));
+
     public static Item register(Item item, String id, ResourceKey<CreativeModeTab>... extraGroups) {
         ResourceKey<CreativeModeTab>[] allGroups = java.util.Arrays.copyOf(extraGroups, extraGroups.length + 1);
         allGroups[extraGroups.length] = NOELLESROLES_ALL_GROUP;
@@ -1633,6 +1638,7 @@ public class ModItems {
         TMMItems.INVISIBLE_ITEMS.add(ModItems.DEALER_PACKAGE);
         TMMItems.INVISIBLE_ITEMS.add(ModItems.HONORED_NOTE);
         TMMItems.INVISIBLE_ITEMS.add(ModItems.SPIRIT_CLOAK);
+        TMMItems.INVISIBLE_ITEMS.add(ModItems.PRACTICE_REVOLVER);
         // TMMItems.INVISIBLE_ITEMS.add(TMMItems.KNIFE);
 
         // 为潜水靴添加深海探索者3附魔

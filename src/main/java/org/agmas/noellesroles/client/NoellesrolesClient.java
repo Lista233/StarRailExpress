@@ -485,6 +485,9 @@ public class NoellesrolesClient implements ClientModInitializer {
                 org.agmas.noellesroles.client.renderer.SuperPigHorseRenderer::new);
         EntityRendererRegistry.register(ModEntities.NIAOSHOU_SHOU_MISSILE,
                 net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
+        // Aimlabs 靶标实体渲染器
+        EntityRendererRegistry.register(ModEntities.AIMLABS_TARGET,
+                org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsTargetRenderer::new);
 
         EntityModelLayerRegistry.registerModelLayer(WheelchairEntityModel.LAYER_LOCATION,
                 WheelchairEntityModel::createBodyLayer);

@@ -46,6 +46,13 @@ public class QUSTClient {
         org.agmas.noellesroles.role.qust.roles.bettor.BettorClientHandlers.register();
         org.agmas.noellesroles.role.qust.roles.wisadel.WisadelHud.register();
 
+        // Aimlabs 练枪 HUD + 客户端状态 tick
+        org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsHud.register();
+        org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsPayload.registerClient();
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsClientState.tick();
+        });
+
         // 注册客户端 tick 事件：驱动游荡者灵魂出窍自由相机
         ClientTickEvents.END_CLIENT_TICK.register(client -> clientTick());
 

@@ -28,6 +28,7 @@ import net.minecraft.world.entity.MobCategory;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.content.block_entity.DevilRouletteTableEntity;
 import org.agmas.noellesroles.content.entity.*;
+import org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsTargetEntity;
 
 public class ModEntities {
     public static final EntityType<RoleMineEntity> ROLE_MINE_ENTITY_ENTITY_TYPE = Registry.register(
@@ -680,6 +681,17 @@ public class ModEntities {
                     .dimensions(EntityDimensions.fixed(1.0F, 0.2F))
                     .trackRangeBlocks(64)
                     .trackedUpdateRate(1)
+                    .build());
+
+    /** Aimlabs 靶标实体 - 隐形可命中球体 */
+    @SuppressWarnings("deprecation")
+    public static final EntityType<AimlabsTargetEntity> AIMLABS_TARGET = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            Noellesroles.id("aimlabs_target"),
+            FabricEntityTypeBuilder.<AimlabsTargetEntity>create(MobCategory.MISC, AimlabsTargetEntity::new)
+                    .dimensions(EntityDimensions.fixed(0.75F, 0.75F))
+                    .trackRangeBlocks(64)
+                    .trackedUpdateRate(2)
                     .build());
 
     /**

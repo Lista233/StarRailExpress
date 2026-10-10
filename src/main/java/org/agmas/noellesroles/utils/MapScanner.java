@@ -211,6 +211,8 @@ public class MapScanner {
             GameUtils.taskBlocks.put(savePos, 22); // 草垫 — 活动筋骨
         } else if (blockState.is(Blocks.BELL)) {
             GameUtils.taskBlocks.put(savePos, 24); // 钟 — 摇铃会议
+        } else if (blockState.is(ModBlocks.AIMLABS) || blockState.is(ModBlocks.AIMLABS_COUNT)) {
+            GameUtils.taskBlocks.put(savePos, 25); // aimlabs — 射击练习
         }
     }
 

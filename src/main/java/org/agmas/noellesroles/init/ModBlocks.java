@@ -37,6 +37,9 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.content.block.*;
 import org.agmas.noellesroles.content.block_entity.*;
+import org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsBlock;
+import org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsBlockEntity;
+import org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsCountBlock;
 import net.exmo.sre.repair.content.block.*;
 import net.exmo.sre.repair.content.block_entity.*;
 
@@ -61,6 +64,18 @@ public interface ModBlocks {
             new MaimaiDxBlock(BlockBehaviour.Properties.of().strength(-1.0f, 3600000.0f)
                     .noOcclusion().lightLevel(s -> 15)),
             QUST_GROUP);
+
+    // Aimlabs 练枪方块（计时模式）
+    Block AIMLABS = registerBlockMultiTab("aimlabs",
+            new AimlabsBlock(BlockBehaviour.Properties.of().strength(-1.0f, 3600000.0F).noOcclusion().noCollission()),
+            QUST_GROUP);
+    // Aimlabs 练枪方块（计次模式）
+    Block AIMLABS_COUNT = registerBlockMultiTab("aimlabs_count",
+            new AimlabsCountBlock(BlockBehaviour.Properties.of().strength(-1.0f, 3600000.0F).noOcclusion().noCollission()),
+            QUST_GROUP);
+    BlockEntityType<AimlabsBlockEntity> AIMLABS_BLOCK_ENTITY = blockEntityRegistrar.create(
+            "aimlabs",
+            BlockEntityType.Builder.of(AimlabsBlockEntity::new, AIMLABS, AIMLABS_COUNT));
 
     Block VENDING_MACHINES_BLOCK = registerBlockMultiTab("vending_machines",
             new VendingMachinesBlock(BlockBehaviour.Properties.ofFullCopy(DARK_STEEL).noOcclusion()),

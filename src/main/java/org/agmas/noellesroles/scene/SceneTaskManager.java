@@ -64,7 +64,7 @@ public final class SceneTaskManager {
     }
 
     public enum Type {
-        LIGHT_STOVE, CLEAN_DUST, BE_ALONE, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP, HIT_FUMO, PLAY_MINIGAME
+        LIGHT_STOVE, CLEAN_DUST, BE_ALONE, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP, HIT_FUMO, PLAY_MINIGAME, AIMLABS_PRACTICE
     }
 
     /** 5 秒。 */
@@ -77,6 +77,7 @@ public final class SceneTaskManager {
     private static final int CROP_BOUNCES = 4;
     private static final int DUST_STROKES = 4;
     private static final int FUMO_HIT_COUNT = 10;
+    private static final int AIMLABS_HIT_COUNT = 10;
 
     private static final class State {
         Type type;
@@ -211,6 +212,17 @@ public final class SceneTaskManager {
         }
     }
 
+    /** 报告玩家在 aimlabs 练习中击中了一次目标（用于「射击练习」场景任务）。 */
+    public static void reportAimlabsPracticeHit(ServerPlayer player) {
+        State s = ACTIVE.get(player.getUUID());
+        if (s != null && s.type == Type.AIMLABS_PRACTICE) {
+            s.counter++;
+            if (s.counter >= AIMLABS_HIT_COUNT) {
+                complete(player);
+            }
+        }
+    }
+
     // ───────────── 定时型任务（每世界 tick） ─────────────
 
     public static void tick(ServerLevel level) {
@@ -328,6 +340,7 @@ public final class SceneTaskManager {
             case BE_ALONE -> SREPlayerTaskComponent.Task.BE_ALONE;
             case HIT_FUMO -> SREPlayerTaskComponent.Task.HIT_FUMO;
             case PLAY_MINIGAME -> SREPlayerTaskComponent.Task.PLAY_MINIGAME;
+            case AIMLABS_PRACTICE -> SREPlayerTaskComponent.Task.AIMLABS_PRACTICE;
         };
         SREPlayerTaskComponent comp = SREPlayerTaskComponent.KEY.get(player);
         return comp != null && comp.tasks.get(taskType) instanceof SREPlayerTaskComponent.SceneTriggeredTask;

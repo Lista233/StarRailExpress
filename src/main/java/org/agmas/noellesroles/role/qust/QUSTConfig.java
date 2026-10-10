@@ -76,7 +76,7 @@ public class QUSTConfig implements ConfigData {
     public int mascotGlowDurationSeconds = 2;
 
     /** 完成任务后给周围玩家恢复心情/金币的范围（格） */
-    public double mascotBuffRange = 15.0;
+    public double mascotBuffRange = 8.0;
 
     // ==================== 美国警察 (American Police) ====================
 
@@ -95,7 +95,7 @@ public class QUSTConfig implements ConfigData {
     // ==================== 压力怪 (Pressure Monster) ====================
 
     /** 技能冷却时间（秒） */
-    public int pressureMonsterSkillCooldownSeconds = 180;
+    public int pressureMonsterSkillCooldownSeconds = 150;
 
     /** 初始冷却时间（秒） */
     public int pressureMonsterInitialCooldownSeconds = 60;
@@ -176,7 +176,7 @@ public class QUSTConfig implements ConfigData {
     public int wisadelMaxSouls = 7;
 
     /** 购买一次祖宗发射器所需的魂灵层数（暂时调低为 2，便于测试；正式版建议 5） */
-    public int wisadelShotgunSoulCost = 2;
+    public int wisadelShotgunSoulCost = 4;
 
     /** 祖宗发射器购买冷却（秒） */
     public int wisadelShotgunPurchaseCooldownSeconds = 150;

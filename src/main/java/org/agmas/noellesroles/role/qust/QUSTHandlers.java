@@ -51,6 +51,27 @@ public class QUSTHandlers {
         registerBettorNetworkHandlers();
         registerHackerEvents();
         registerWisadelEvents();
+        // Aimlabs 练枪方块
+        org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsPayload.register();
+        org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsCommand.register();
+        // 游戏正式开始时终止所有 aimlabs 练习会话
+        registerAimlabsGameStartCleanup();
+        // 全局 tick 驱动虚拟会话（不绑定方块的指令启动会话）
+        registerAimlabsVirtualTick();
+    }
+
+    /** 游戏正式开始时清理所有 aimlabs 会话（HUD + 练习手枪 + 靶标实体）。 */
+    private static void registerAimlabsGameStartCleanup() {
+        io.wifi.starrailexpress.event.OnGameStarted.EVENT.register(serverLevel -> {
+            // 终止所有活跃会话（会自动收回练习手枪、清理靶标、发送结束包）
+            org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsSession.endAll();
+        });
+    }
+
+    /** 全局 tick 驱动虚拟 aimlabs 会话（由 /aimlabs run 指令创建）。 */
+    private static void registerAimlabsVirtualTick() {
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(
+                server -> org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsSession.tickAll());
     }
 
     // ==================== 维什戴尔_星魂事件注册 ====================

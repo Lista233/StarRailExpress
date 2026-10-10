@@ -123,6 +123,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
                     case HARVEST_CROP -> Task.HARVEST_CROP;
                     case HIT_FUMO -> Task.HIT_FUMO;
                     case PLAY_MINIGAME -> Task.PLAY_MINIGAME;
+                    case AIMLABS_PRACTICE -> Task.AIMLABS_PRACTICE;
                     default -> null;
                 };
                 if (taskType != null) {
@@ -578,6 +579,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
             case HARVEST_CROP -> createSceneTriggeredTask(SceneTaskManager.Type.HARVEST_CROP, "harvest_crop");
             case HIT_FUMO -> createSceneTriggeredTask(SceneTaskManager.Type.HIT_FUMO, "hit_fumo");
             case PLAY_MINIGAME -> createSceneTriggeredTask(SceneTaskManager.Type.PLAY_MINIGAME, "play_minigame");
+            case AIMLABS_PRACTICE -> createSceneTriggeredTask(SceneTaskManager.Type.AIMLABS_PRACTICE, "aimlabs_practice");
             case CUDDLE -> new CuddleTask(GameConstants.CUDDLE_TASK_DURATION);
             case MANIC -> new ManicTask();
             default -> null;
@@ -601,6 +603,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
             case HARVEST_CROP -> SceneTaskManager.Type.HARVEST_CROP;
             case HIT_FUMO -> SceneTaskManager.Type.HIT_FUMO;
             case PLAY_MINIGAME -> SceneTaskManager.Type.PLAY_MINIGAME;
+            case AIMLABS_PRACTICE -> SceneTaskManager.Type.AIMLABS_PRACTICE;
             default -> null;
         };
         if (sceneType != null) {
@@ -691,6 +694,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
         HARVEST_CROP(nbt -> new SceneTriggeredTask("harvest_crop"), TaskCategory.ACTIVE), // 活动筋骨
         HIT_FUMO(nbt -> new SceneTriggeredTask("hit_fumo"), TaskCategory.ACTIVE), // 击打FUMO
         PLAY_MINIGAME(nbt -> new SceneTriggeredTask("play_minigame"), TaskCategory.ACTIVE), // 游玩小游戏
+        AIMLABS_PRACTICE(nbt -> new SceneTriggeredTask("aimlabs_practice"), TaskCategory.ACTIVE), // 射击练习
 
         // ───────── 不可刷新任务 ─────────
         CUSTOM(nbt -> new CustomTask(nbt.getString("customName"), nbt.getString("customId")),
@@ -721,7 +725,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
             if (this.category == TaskCategory.NON_REFRESHABLE)
                 return true;
             return switch (this) {
-                case BREATHE, LIGHT_STOVE, CLEAN_DUST, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP, HIT_FUMO, PLAY_MINIGAME -> true;
+                case BREATHE, LIGHT_STOVE, CLEAN_DUST, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP, HIT_FUMO, PLAY_MINIGAME, AIMLABS_PRACTICE -> true;
                 default -> false;
             };
         }
@@ -746,7 +750,7 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
 
         /** 场景任务列表（仅在地图启用时才能刷出）。 */
         private static final List<Task> sceneTasksList = List.of(
-                BREATHE, LIGHT_STOVE, CLEAN_DUST, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP, HIT_FUMO, PLAY_MINIGAME);
+                BREATHE, LIGHT_STOVE, CLEAN_DUST, TRANSPORT, PRAY, PRUNE_BUSH, HARVEST_CROP, HIT_FUMO, PLAY_MINIGAME, AIMLABS_PRACTICE);
 
         public static List<Task> getSceneTasksList() {
             return sceneTasksList;

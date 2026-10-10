@@ -520,6 +520,11 @@ public class TaskBlockOverlayRenderer {
                                 new Color(255, 215, 0), 1f, true, 0f);
                     }
                     break;
+                case 25:
+                    if (shouldDisplay[type])
+                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
+                                new Color(135, 206, 235), 1f, true, 0f); // 天蓝色 — 射击练习
+                    break;
                 case 28:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,

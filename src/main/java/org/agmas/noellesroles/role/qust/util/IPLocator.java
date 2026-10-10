@@ -12,7 +12,7 @@ import java.nio.ByteOrder;
  * IP 属地查询工具类（xdb 二进制格式）。
  * <p>
  * 直接读取 ip2region xdb v4 二进制文件，仅包含中国省市数据。
- * 非中国 IP 返回 "外国"。
+ * 非中国 IP 返回 "未知"。
  * <p>
  * xdb 格式：
  * <ul>
@@ -79,7 +79,7 @@ public class IPLocator {
      * 查询 IP 属地
      *
      * @param ip IP 地址字符串（IPv4）
-     * @return 属地信息（如 "广东省 广州市"），非中国 IP 返回 "外国"，IP 为空返回 "未知"
+     * @return 属地信息（如 "广东省 广州市"），非中国 IP 返回 "未知"，IP 为空返回 "未知"
      */
     public static String locate(String ip) {
         if (!loaded) {
@@ -98,7 +98,7 @@ public class IPLocator {
 
         // 仅支持 IPv4
         if (ip.contains(":")) {
-            return "外国";
+            return "未知";
         }
 
         try {
@@ -147,7 +147,7 @@ public class IPLocator {
             }
         }
 
-        return "外国";
+        return "未知";
     }
 
     /**
@@ -157,12 +157,12 @@ public class IPLocator {
      */
     private static String parseRegion(String region) {
         if (region == null || region.isEmpty()) {
-            return "外国";
+            return "未知";
         }
 
         String[] parts = region.split("\\|");
         if (parts.length < 3) {
-            return "外国";
+            return "未知";
         }
 
         String country = parts[0];
@@ -171,12 +171,12 @@ public class IPLocator {
 
         // 非中国数据
         if (!country.equals("中国")) {
-            return "外国";
+            return "未知";
         }
 
         // 清理 "0" 占位符
         if (province.equals("0") || province.isEmpty()) {
-            return "外国";
+            return "未知";
         }
 
         // 直辖市只显示一次
