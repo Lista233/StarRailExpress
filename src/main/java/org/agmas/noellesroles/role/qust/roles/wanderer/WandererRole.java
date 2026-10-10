@@ -167,8 +167,9 @@ public class WandererRole extends NormalRole {
 
     // ==================== 死后禁止击杀其他玩家 ====================
 
-    /** 是否处于「隐身平民」状态（初次死亡后、彻底死亡前）。 */
-    private static boolean isHiddenCivilian(Player player) {
+    /** 是否处于「隐身平民」状态（初次死亡后、彻底死亡前）。幽灵无碰撞体积的公共判定入口。 */
+    public static boolean isHiddenCivilian(Entity entity) {
+        if (!(entity instanceof Player player)) return false;
         var comp = QUSTComponentKeys.Keys.WANDERER.maybeGet(player).orElse(null);
         return comp != null && comp.isGhost() && !comp.isFinalDeath();
     }

@@ -4,6 +4,7 @@ import io.wifi.starrailexpress.api.RoleSkill;
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.cca.SREPlayerMoodComponent;
 import org.agmas.harpymodloader.events.ModdedRoleAssigned;
+import io.wifi.starrailexpress.event.CanCollideWith;
 import io.wifi.starrailexpress.event.OnKillPlayerTriggered;
 import io.wifi.starrailexpress.event.OnTeammateKilledTeammate;
 import io.wifi.starrailexpress.util.TrueFalseResult;
@@ -717,6 +718,14 @@ public class QUSTHandlers {
     // ==================== 游荡者事件注册 ====================
 
     private static void registerWandererEvents() {
+        // 幽灵无碰撞体积：任何实体（含玩家）移动时可直接穿过幽灵，幽灵移动时也不与实体碰撞阻挡；
+        // 彻底死亡（旁观者）后恢复原版行为。方块碰撞不受影响，幽灵仍正常行走。
+        CanCollideWith.ENTITY.register((self, other) -> {
+            if (WandererRole.isHiddenCivilian(self) || WandererRole.isHiddenCivilian(other)) {
+                return TrueFalseResult.FALSE;
+            }
+            return TrueFalseResult.PASS;
+        });
         // 幽灵被击杀：彻底死亡进入旁观者模式（替代原 Shift+G 强制死亡）。
         // 无击杀者的环境死亡（黑暗等）仅拦截，不让幽灵死亡。
         OnKillPlayerTriggered.EVENT.register((victim, spawnBody, killer, deathReason, forceDeath) -> {
