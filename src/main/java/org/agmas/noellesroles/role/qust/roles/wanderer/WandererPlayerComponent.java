@@ -38,7 +38,7 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
     private boolean isGhost = false;
     /** 幽灵是否当前显形 */
     private boolean ghostVisible = false;
-    /** 显形后自动隐身倒计时 tick（0.8s = 16 tick 内有人看到则隐身） */
+    /** 显形后自动隐身倒计时 tick（0.5s = 10 tick 内有人看到则隐身） */
     private int ghostVisibleAutoHideTicks = 0;
     /** 是否已彻底死亡（幽灵再次被击杀后进入旁观者模式） */
     private boolean finalDeath = false;
@@ -57,7 +57,9 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
     public static final int SOUL_OUT_DURATION = 7 * 20; // 7s
     public static final int SOUL_OUT_COOLDOWN = 20 * 20; // 20s
     public static final int GHOST_VISIBLE_COOLDOWN = 60 * 20; // 60s
-    public static final int GHOST_AUTO_HIDE_TICKS = 16; // 0.8s
+    public static final int GHOST_AUTO_HIDE_TICKS = 10; // 0.5s
+    /** 幽灵商店撬棍的耐久点数（逐栈 MAX_DAMAGE 组件标记，耗尽后撬棍损坏消失） */
+    public static final int CROWBAR_DURABILITY = 4;
 
     public WandererPlayerComponent(Player player) {
         this.player = player;

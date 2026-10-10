@@ -35,6 +35,7 @@ import org.agmas.noellesroles.init.FunnyItems;
 import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
+import org.agmas.noellesroles.role.qust.QUSTRoles;
 import org.agmas.noellesroles.role.touhou.THMiscRoles;
 import org.agmas.noellesroles.content.item.ora.OraPunchManager;
 import org.agmas.noellesroles.utils.RoleUtils;
@@ -129,6 +130,14 @@ public class InvisbleHandItem {
             }
 
             return null; // 不修改
+        });
+        // 游荡者隐身幽灵：手持任何物品都不渲染，避免暴露隐身位置（显形时正常显示）
+        AllowItemShowInHand.EVENT.register((player, itemStack, mainHand) -> {
+            if (!player.isInvisible()) {
+                return null;
+            }
+            SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(player.level());
+            return gameWorld.isRole(player, QUSTRoles.WANDERER) ? ItemStack.EMPTY : null;
         });
         // HoujuuNue
         AllowItemShowInHand.EVENT.register((player, itemStack, mainHand) -> {

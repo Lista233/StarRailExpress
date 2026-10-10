@@ -120,9 +120,14 @@ public class WandererRole extends NormalRole {
             return null;
         }
         ArrayList<ShopEntry> shop = new ArrayList<>();
-        // 撬棍：100 金币，限购一次
+        // 撬棍：100 金币，限购一次；带 4 点耐久（逐栈 MAX_DAMAGE 组件，仅标记游荡者购买的这一把，
+        // 耐久在 CrowbarItem 撬门成功时消耗，耗尽后物品损坏消失；其他来源的撬棍不受影响）
         if (!comp.hasBoughtCrowbar()) {
-            shop.add(new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(),
+            ItemStack crowbar = TMMItems.CROWBAR.getDefaultInstance();
+            crowbar.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE,
+                    WandererPlayerComponent.CROWBAR_DURABILITY);
+            crowbar.set(net.minecraft.core.component.DataComponents.DAMAGE, 0);
+            shop.add(new ShopEntry(crowbar,
                     100, ShopEntry.Type.TOOL) {
                 @Override
                 public boolean onBuy(@NotNull Player p) {

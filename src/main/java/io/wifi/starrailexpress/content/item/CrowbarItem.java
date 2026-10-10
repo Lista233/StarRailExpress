@@ -83,6 +83,12 @@ public class CrowbarItem extends Item implements AdventureUsable, DoorCustomOpen
                     sb.open(state, world, door, context.getClickedPos());
             }
             door.blast();
+            // 游荡者幽灵购买的撬棍带 MAX_DAMAGE 组件（耐久 4）：撬门成功后消耗 1 点，
+            // 耗尽后物品损坏消失；普通撬棍（无该组件）不受影响，仍然无限使用
+            if (!player.isCreative() && context.getItemInHand().has(net.minecraft.core.component.DataComponents.MAX_DAMAGE)) {
+                context.getItemInHand().hurtAndBreak(1, player,
+                        net.minecraft.world.entity.EquipmentSlot.MAINHAND);
+            }
             // 记录撬门事件（低频关键事件）
             if (!world.isClientSide && SRE.REPLAY_MANAGER != null) {
                 SRE.REPLAY_MANAGER.recordDoorPry(player.getUUID(), context.getClickedPos());
