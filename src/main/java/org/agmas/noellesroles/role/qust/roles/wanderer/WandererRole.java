@@ -1,6 +1,7 @@
 package org.agmas.noellesroles.role.qust.roles.wanderer;
 
 import io.wifi.starrailexpress.api.NormalRole;
+import io.wifi.starrailexpress.cca.SREAbilityPlayerComponent;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
 import io.wifi.starrailexpress.index.TMMItems;
@@ -16,6 +17,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import org.agmas.noellesroles.role.qust.QUSTComponentKeys;
+import org.agmas.noellesroles.role.qust.QUSTRoles;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,6 +60,8 @@ public class WandererRole extends NormalRole {
         // 并用原版 invisible 标记实现隐身，不再依赖 GhostStateComponent / GHOST_STATE 效果。
         comp.endSoulOut();
         comp.setGhostState(true);   // 解锁幽灵商店 + 应用隐身
+        // 清空出窍残留的共享技能冷却：出窍期间死亡时，残留的 20s 冷却不应阻止变幽灵后的首次显形
+        SREAbilityPlayerComponent.KEY.get(sp).setSkillCooldown(QUSTRoles.WANDERER_SKILL_ID, 0);
 
         // 初次死亡后金币变为原来的 1/4
         var shopComp = SREPlayerShopComponent.KEY.get(sp);

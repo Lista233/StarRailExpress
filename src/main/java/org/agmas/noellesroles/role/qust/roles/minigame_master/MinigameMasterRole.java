@@ -1,6 +1,5 @@
 package org.agmas.noellesroles.role.qust.roles.minigame_master;
 
-import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
 import io.wifi.starrailexpress.api.NormalRole;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.util.ShopEntry;
@@ -77,18 +76,12 @@ public class MinigameMasterRole extends NormalRole {
 
     /**
      * 创建华容道挑战商店条目（1200金币，通关后平民与义警阵营胜利）
-     * <p>仅在玩家余额足够时显示；购买获得物品，右键随时开始，未通关不消耗。</p>
+     * <p>购买获得物品，右键随时开始，未通关不消耗。</p>
      */
     public static ShopEntry createKlotskiChallengeEntry() {
         ItemStack challenge = createKlotskiChallengeStack();
         int price = QUSTConfig.instance().minigameMasterKlotskiChallengePrice;
         return new ShopEntry(challenge, price, ShopEntry.Type.TOOL) {
-            @Override
-            public boolean canDisplay(net.minecraft.world.entity.player.Player player) {
-                // 只在玩家金币足够时显示
-                return SREPlayerShopComponent.KEY.get(player).balance >= price;
-            }
-
             @Override
             public boolean onBuy(net.minecraft.world.entity.player.Player player) {
                 // 购买获得华容道挑战物品

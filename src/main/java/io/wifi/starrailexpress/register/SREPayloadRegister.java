@@ -356,7 +356,7 @@ public class SREPayloadRegister {
                 org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.ToggleGhostVisibility.TYPE,
                 org.agmas.noellesroles.role.qust.roles.wanderer.WandererPayload.ToggleGhostVisibility.CODEC);
 
-        // 超级医生悔改之枪 C2S
+        // 超级医生救赎之枪 C2S
         PayloadTypeRegistry.playC2S().register(
                 org.agmas.noellesroles.role.qust.roles.super_doctor.SuperDoctorPayload.TYPE,
                 org.agmas.noellesroles.role.qust.roles.super_doctor.SuperDoctorPayload.CODEC);

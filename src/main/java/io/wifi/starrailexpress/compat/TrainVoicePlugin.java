@@ -55,8 +55,10 @@ public class TrainVoicePlugin implements VoicechatPlugin {
         VoicechatConnection connection = SERVER_API.getConnectionOf(player);
         if (connection != null) {
             if (GROUP == null)
+                // NORMAL：与组外双向语音隔离。OPEN 组允许组内成员与组外近距离语音互通，
+                // 会导致存活玩家能听到死者频道里游荡者的声音。
                 GROUP = SERVER_API.groupBuilder().setHidden(true).setId(GROUP_ID).setName("Train Spectators")
-                        .setPersistent(true).setType(Group.Type.OPEN).build();
+                        .setPersistent(true).setType(Group.Type.NORMAL).build();
             if (GROUP != null)
                 connection.setGroup(GROUP);
         }

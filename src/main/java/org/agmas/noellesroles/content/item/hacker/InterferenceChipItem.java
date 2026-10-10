@@ -5,8 +5,6 @@ import io.wifi.starrailexpress.game.GameUtils;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
@@ -27,7 +25,7 @@ import org.agmas.noellesroles.role.qust.roles.hacker.HackerPayload;
  * 干扰芯片 - 黑客（林然）专属标记物品
  * <p>
  * 手持右键对视线内的玩家进行标记，获取其真实 IP 地址。
- * 标记成功时播放信标充能音效（低音量）。
+ * 标记成功不播放任何音效（保持标记行为隐匿，避免提前暴露）。
  */
 public class InterferenceChipItem extends Item {
 
@@ -43,6 +41,17 @@ public class InterferenceChipItem extends Item {
 
         if (level.isClientSide() || !(user instanceof ServerPlayer hacker)) {
             return InteractionResultHolder.consume(stack);
+        }
+
+        // 检查是否在冷却中（4秒 = 80 tick）
+        if (hacker.getCooldowns().isOnCooldown(this)) {
+            int remainingTicks = (int) Math.ceil(
+                    hacker.getCooldowns().getCooldownPercent(this, 0) * 80);
+            hacker.displayClientMessage(
+                    Component.translatable("message.hacker.chip_cooldown", remainingTicks / 20 + 1)
+                            .withStyle(net.minecraft.ChatFormatting.RED),
+                    true);
+            return InteractionResultHolder.fail(stack);
         }
 
         // 检查是否是黑客职业
@@ -105,9 +114,8 @@ public class InterferenceChipItem extends Item {
             }
         }
 
-        // 播放信标充能音效（低音量）
-        level.playSound(null, hacker.blockPosition(),
-                SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 0.3F, 1.0F);
+        // 标记不播放音效：音效会在黑客位置向周围广播，提前暴露标记行为，
+        // 破坏「8秒后延迟通知被标记者」的隐匿设计
 
         // 发送标记信息给黑客（立即显示）
         ServerPlayNetworking.send(
@@ -126,6 +134,9 @@ public class InterferenceChipItem extends Item {
         hacker.displayClientMessage(
                 Component.literal("§a已标记玩家：" + target.getName().getString()),
                 true);
+
+        // 添加4秒冷却（80 tick）
+        hacker.getCooldowns().addCooldown(this, 80);
 
         return InteractionResultHolder.consume(stack);
     }

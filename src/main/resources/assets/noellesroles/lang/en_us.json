@@ -5041,6 +5041,10 @@
   "item.minigame_master.klotski_challenge.lore2": "We are the kings of minigames!",
   "message.minigame_master.klotski_challenge_win": "We are the kings of minigames!",
   "message.minigame_master.low_san": "Your sanity is too low! Please recover your sanity before playing",
+  "message.minigame_master.san_restored": "Minigame completed! Restored a bit of sanity",
+  "message.minigame_master.combo_bonus": "Completed %s minigames! Bonus %s coins",
+  "item.noellesroles.hacker.blackout": "Hacked Power Grid",
+  "item.noellesroles.hacker.lockpick": "Social Engineering Key (Lockpick)",
 
   "message.american_police.punishment_death": "You killed an innocent civilian! You died on the spot and dropped your guns",
   "message.american_police.punishment_san": "You killed an innocent civilian! Your sanity has been completely drained"

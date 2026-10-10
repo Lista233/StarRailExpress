@@ -24,7 +24,7 @@ import org.agmas.noellesroles.role.qust.roles.super_doctor.SuperDoctorPayload;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * 悔改之枪 — 超级医生专属一次性枪械。
+ * 救赎之枪 — 超级医生专属一次性枪械。
  * <p>
  * 射中杀手 → 杀手变为医生职业；射中中立 → 无效果；
  * 射中平民/义警 → 不致死，但超级医生受小脑惩罚。
@@ -54,7 +54,7 @@ public class RepentanceGunItem extends SkinableItem {
             stack.hurtAndBreak(1, user,
                     hand.equals(InteractionHand.MAIN_HAND) ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
 
-            // 发送悔改之枪专用数据包
+            // 发送救赎之枪专用数据包
             HitResult collision = getGunTarget(user);
             if (collision instanceof EntityHitResult entityHitResult) {
                 Entity target = entityHitResult.getEntity();

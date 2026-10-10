@@ -246,7 +246,7 @@ public class ModItems {
     public static final Item ONCE_REVOLVER = register(
             new OnceRevolverItem((new Item.Properties()).stacksTo(1).durability(1)), "once_revolver",
             WEAPONS_GROUP);
-    /** 悔改之枪 - 超级医生专属一次性枪械 */
+    /** 救赎之枪 - 超级医生专属一次性枪械 */
     public static final Item REPENTANCE_GUN = register(
             new org.agmas.noellesroles.role.qust.roles.super_doctor.content.RepentanceGunItem(
                     (new Item.Properties()).stacksTo(1).durability(1)),

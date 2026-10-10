@@ -121,10 +121,6 @@ public class SREPlushBlock extends PlushBlock implements TaskInstinctShowableInt
             SREPlushBlockEntity plushie = (SREPlushBlockEntity) blockEntity;
             plushie.squish(24);
          }
-         // 场景任务：击打FUMO
-         if (player instanceof ServerPlayer sp) {
-            SceneTaskManager.reportFumoHit(sp);
-         }
       }
 
    }
@@ -144,6 +140,10 @@ public class SREPlushBlock extends PlushBlock implements TaskInstinctShowableInt
          BlockHitResult hit) {
       if (!world.isClientSide) {
          triggerPlush(state, world, pos, player);
+         // 场景任务：击打FUMO（右键摸摸触发，左键破坏不算）
+         if (player instanceof ServerPlayer sp) {
+            SceneTaskManager.reportFumoHit(sp);
+         }
       }
 
       return InteractionResult.SUCCESS;

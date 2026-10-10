@@ -3,8 +3,10 @@ package org.agmas.noellesroles.client.screen;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import org.agmas.noellesroles.packet.TerminalCommandC2SPacket;
 import org.agmas.noellesroles.role.bouns.roles.ProgrammerRole;
+import org.agmas.noellesroles.role.qust.QUSTRoles;
 import org.lwjgl.glfw.GLFW;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -14,6 +16,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * 终端界面：程序员右键终端后打开（由服务端经 OpenScreenManager 下发）。
@@ -209,6 +212,18 @@ public class TerminalScreen extends Screen {
         this.scrollOffset = 0;
     }
 
+    /**
+     * /help 准入：程序员与黑客（黑客商店同样出售终端）可见完整指令清单。
+     * 终端本身的门槛在 {@link ProgrammerRole#canUseTerminal}（不限职业，旁观者除外）。
+     */
+    private static boolean canViewHelp(Player player) {
+        if (ProgrammerRole.isProgrammer(player)) {
+            return true;
+        }
+        var gameWorld = SREGameWorldComponent.KEY.getNullable(player.level());
+        return gameWorld != null && gameWorld.isRole(player, QUSTRoles.HACKER);
+    }
+
     /** 提交输入框里的指令 */
     private void submitCommand() {
         if (this.input == null || this.minecraft == null || this.minecraft.player == null) {
@@ -223,8 +238,8 @@ public class TerminalScreen extends Screen {
         ProgrammerRole.TerminalCommand command = ProgrammerRole.parseTerminalCommand(raw);
         if (command.type() == ProgrammerRole.TerminalCommandType.HELP) {
             // 本地展开指令清单：不发包、不消耗终端。
-            // /help 只对程序员开放，其他人只能自己背指令。
-            if (ProgrammerRole.isProgrammer(this.minecraft.player)) {
+            // /help 只对程序员和黑客开放，其他人只能自己背指令。
+            if (canViewHelp(this.minecraft.player)) {
                 appendLog(ProgrammerRole.getTerminalHelpLines());
             } else {
                 appendLog(List.of(Component.translatable("screen.noellesroles.terminal.help_denied")

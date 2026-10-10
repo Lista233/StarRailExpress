@@ -3268,7 +3268,7 @@
   "task.transport": "Transport supplies - pick up from start point and deliver to end",
   "task.hit_fumo": "Hit FUMO - hit any FUMO block 10 times",
   "task.play_minigame": "Play a minigame - finish any minigame at a minigame quest point",
-  "task.aimlabs_practice": "Shooting Practice - interact with aimlabs block and hit 10 targets",
+  "task.aimlabs_practice": "Shooting Practice - interact with aimlabs block and hit 12 targets",
   "task.cuddle": "Cuddle - hold Shift within 3 blocks of a player for 4 seconds",
   "task_highlight_condition.always": "Always",
   "task_highlight_condition.custom_task": "Custom task",

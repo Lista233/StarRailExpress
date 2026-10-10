@@ -307,7 +307,7 @@ public class NRGameStateEvents {
             boolean hasDio = false, hasRecorder = false, hasCandlebearer = false, hasRaven = false, hasBee = false;
             boolean hasNianShou = false, hasArsonist = false, hasCuckoo = false, hasPelican = false,
                     hasGodfather = false, hasLeader = false, hasLicensedVillain = false, hasNatureSpirit = false;
-            boolean hasDictator = false;
+            boolean hasDictator = false, hasHacker = false, hasSuperRecorder = false;
             final var all_players = serverLevel.players();
 
             for (var p : all_players) {
@@ -352,6 +352,10 @@ public class NRGameStateEvents {
                     hasNatureSpirit = true;
                 } else if (gameWorldComponent.isRole(p, ModRoles.DICTATOR)) {
                     hasDictator = true;
+                } else if (gameWorldComponent.isRole(p, org.agmas.noellesroles.role.qust.QUSTRoles.HACKER)) {
+                    hasHacker = true;
+                } else if (gameWorldComponent.isRole(p, org.agmas.noellesroles.role.qust.QUSTRoles.SUPER_RECORDER)) {
+                    hasSuperRecorder = true;
                 }
             }
 
@@ -447,6 +451,24 @@ public class NRGameStateEvents {
                     if (p != null) {
                         BroadcastCommand.BroadcastMessage(p, Component
                                 .translatable("message.noellesroles.dictator.entry").withStyle(ChatFormatting.AQUA));
+                    }
+                });
+            }
+            // 黑客_林然：全场播报（灰色）
+            if (hasHacker) {
+                all_players.forEach((p) -> {
+                    if (p != null) {
+                        BroadcastCommand.BroadcastMessage(p, Component
+                                .translatable("message.noellesroles.hacker.entry").withStyle(ChatFormatting.GRAY));
+                    }
+                });
+            }
+            // 超级记录员_时星：全场播报（黄色）
+            if (hasSuperRecorder) {
+                all_players.forEach((p) -> {
+                    if (p != null) {
+                        BroadcastCommand.BroadcastMessage(p, Component
+                                .translatable("message.noellesroles.super_recorder.entry").withStyle(ChatFormatting.YELLOW));
                     }
                 });
             }

@@ -18,7 +18,7 @@ import java.util.List;
  * <p>
  * 平民阵营，默认概率。拥有与医生一样的机制以及商店，但不与毒师绑定生成。
  * 按 G 可以恢复周围人少量 san 值。
- * 可在商店购买"悔改之枪"（350 金币），一次性特殊枪械。
+ * 可在商店购买"救赎之枪"（350 金币），一次性特殊枪械。
  */
 public class SuperDoctorRole extends NormalRole {
 
@@ -27,7 +27,7 @@ public class SuperDoctorRole extends NormalRole {
         super(identifier, color, isInnocent, canUseKiller, moodType, maxSprintTime, canSeeTime);
     }
 
-    // ── 商店：与医生相同 + 悔改之枪 ──
+    // ── 商店：与医生相同 + 救赎之枪 ──
 
     @Override
     public @Nullable List<ShopEntry> getShopEntries(@Nullable Player player) {
@@ -37,13 +37,13 @@ public class SuperDoctorRole extends NormalRole {
         entries.add(new ShopEntry(ModItems.ANTIDOTE.getDefaultInstance(), 75, ShopEntry.Type.TOOL));
         entries.add(new ShopEntry(ModItems.createPillStack(false), 75, ShopEntry.Type.TOOL));
         entries.add(new ShopEntry(ModItems.PURIFY_BOMB.getDefaultInstance(), 225, ShopEntry.Type.TOOL));
-        // 悔改之枪 - 配置价格
+        // 救赎之枪 - 配置价格
         entries.add(createRepentanceGunEntry());
         return entries;
     }
 
     /**
-     * 创建悔改之枪商店条目
+     * 创建救赎之枪商店条目
      */
     public static ShopEntry createRepentanceGunEntry() {
         ItemStack gun = ModItems.REPENTANCE_GUN.getDefaultInstance();

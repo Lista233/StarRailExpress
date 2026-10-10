@@ -56,6 +56,8 @@ public class QUSTHandlers {
         org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsCommand.register();
         // 游戏正式开始时终止所有 aimlabs 练习会话
         registerAimlabsGameStartCleanup();
+        // 游戏结束时清理 aimlabs 会话与场景任务
+        registerAimlabsGameEndCleanup();
         // 全局 tick 驱动虚拟会话（不绑定方块的指令启动会话）
         registerAimlabsVirtualTick();
     }
@@ -65,6 +67,16 @@ public class QUSTHandlers {
         io.wifi.starrailexpress.event.OnGameStarted.EVENT.register(serverLevel -> {
             // 终止所有活跃会话（会自动收回练习手枪、清理靶标、发送结束包）
             org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsSession.endAll();
+        });
+    }
+
+    /** 游戏结束时清理所有 aimlabs 会话与场景任务状态。 */
+    private static void registerAimlabsGameEndCleanup() {
+        io.wifi.starrailexpress.event.OnGameEnd.EVENT.register((serverLevel, gameWorldComponent) -> {
+            // 终止所有活跃会话
+            org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsSession.endAll();
+            // 清理所有玩家的场景任务状态
+            org.agmas.noellesroles.scene.SceneTaskManager.clearAll();
         });
     }
 
@@ -253,9 +265,9 @@ public class QUSTHandlers {
                                         }
                                     }
 
-                                    // 播放看守者音效（监守者心跳声）
+                                    // 播放监守者咆哮音效（心跳声太轻几乎不可闻，改用咆哮增强压迫感）
                                     player.level().playSound(null, player.blockPosition(),
-                                            SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.5F, 1.0F);
+                                            SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.5F, 1.0F);
 
                                     if (hitAny) {
                                         player.displayClientMessage(
@@ -384,6 +396,32 @@ public class QUSTHandlers {
                                 ? cfg.minigameMasterKlotskiCoinReward
                                 : cfg.minigameMasterCoinReward;
                         io.wifi.starrailexpress.cca.SREPlayerShopComponent.KEY.get(player).addToBalance(reward);
+
+                        // 里程碑：达人自己用券完成的小游戏每满 N 个额外奖励 M 金币（计数随局清零）
+                        comp.ticketMinigameCompleted++;
+                        int comboCount = cfg.minigameMasterTicketComboCount;
+                        if (comboCount > 0 && comp.ticketMinigameCompleted % comboCount == 0) {
+                            int comboReward = cfg.minigameMasterTicketComboCoinReward;
+                            io.wifi.starrailexpress.cca.SREPlayerShopComponent.KEY.get(player).addToBalance(comboReward);
+                            player.displayClientMessage(
+                                    net.minecraft.network.chat.Component.translatable(
+                                            "message.minigame_master.combo_bonus",
+                                            comboCount, comboReward)
+                                            .withStyle(net.minecraft.ChatFormatting.GOLD),
+                                    true);
+                        }
+
+                        // 小游戏达人自己完成（接收器入口已过滤：仅达人本人的完成包会走到这里）
+                        // 时按概率恢复少量 san 值
+                        if (player.getRandom().nextFloat() < (float) cfg.minigameMasterSelfCompleteSanChance) {
+                            io.wifi.starrailexpress.cca.SREPlayerMoodComponent.KEY.get(player)
+                                    .addMood((float) cfg.minigameMasterSelfCompleteSanRestore);
+                            player.displayClientMessage(
+                                    net.minecraft.network.chat.Component.translatable(
+                                            "message.minigame_master.san_restored")
+                                            .withStyle(net.minecraft.ChatFormatting.GREEN),
+                                    true);
+                        }
 
                         // 完成反馈：粒子 + 音效
                         if (player.level() instanceof net.minecraft.server.level.ServerLevel sl) {
@@ -609,11 +647,25 @@ public class QUSTHandlers {
                                     if (comp.isGhost()) {
                                         // 切换显隐
                                         boolean newVisible = !comp.isGhostVisible();
+                                        // 显形受 60s 独立冷却限制；隐身（关闭）随时可用
+                                        if (newVisible && context.skillState().cooldown > 0) {
+                                            player.displayClientMessage(
+                                                    net.minecraft.network.chat.Component.translatable(
+                                                            "message.wanderer_qust.ghost_visible_cooldown",
+                                                            String.format("%.1f", context.skillState().cooldown / 20.0F))
+                                                            .withStyle(net.minecraft.ChatFormatting.RED),
+                                                    true);
+                                            return false;
+                                        }
                                         comp.setGhostVisible(newVisible);
                                         // 同步给客户端
                                         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
                                                 (ServerPlayer) player,
                                                 new WandererPayload.GhostVisibility(newVisible));
+                                        // 显形成功后进入 60s 冷却（隐身不设冷却）
+                                        if (newVisible) {
+                                            context.setSkillCooldown(WandererPlayerComponent.GHOST_VISIBLE_COOLDOWN);
+                                        }
                                         player.displayClientMessage(
                                                 net.minecraft.network.chat.Component.translatable(
                                                         newVisible ? "message.wanderer_qust.ghost_visible"
@@ -637,6 +689,8 @@ public class QUSTHandlers {
                                     }
 
                                     if (comp.startSoulOut()) {
+                                        // 出窍开始即进入 20s 冷却（注册冷却为 0，由 handler 手动管理）
+                                        context.setSkillCooldown(WandererPlayerComponent.SOUL_OUT_COOLDOWN);
                                         // 通知客户端进入自由相机
                                         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
                                                 (ServerPlayer) player,
@@ -653,7 +707,9 @@ public class QUSTHandlers {
                         ).announceToSelf()
                         .showOnHud(false)
                         .toggleable(true)
-                        .cooldownSeconds(WandererPlayerComponent.SOUL_OUT_COOLDOWN / 20)
+                        // 注册冷却保持 0：同一技能 ID 兼具「出窍 / 显隐」两种语义，
+                        // 冷却由 handler 按分支手动设置（出窍开始 20s、显形 60s），
+                        // 否则 markSkillUsed 会用注册值覆盖 handler 设置的冷却。
                         .build()
         );
     }
@@ -750,10 +806,10 @@ public class QUSTHandlers {
         );
     }
 
-    // ==================== 超级医生网络处理（悔改之枪） ====================
+    // ==================== 超级医生网络处理（救赎之枪） ====================
 
     private static void registerSuperDoctorNetworkHandlers() {
-        // C2S: 悔改之枪射击处理
+        // C2S: 救赎之枪射击处理
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
                 SuperDoctorPayload.TYPE,
                 (payload, context) -> {

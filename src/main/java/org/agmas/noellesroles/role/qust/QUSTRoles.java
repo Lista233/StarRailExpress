@@ -1,5 +1,6 @@
 package org.agmas.noellesroles.role.qust;
 
+import io.wifi.starrailexpress.api.InstinctType;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.api.SRERole.MoodType;
@@ -112,6 +113,8 @@ public class QUSTRoles {
                     TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, true))
             .setCanSeeCoin(true)
             .setCanSeeBodyItems(true)
+            // 杀手本能：开启本能透视时，绿色=平民阵营，红色=杀手阵营（杀手侧中立为橙色）
+            .setInstinctType(InstinctType.DEFAULT, InstinctType.KILLER_INSTINCT)
             .setComponentKey(QUSTComponentKeys.Keys.SUPER_RECORDER)
             .setDefaultMax(1)
             .setDefaultEnableChance(5000)
@@ -170,6 +173,29 @@ public class QUSTRoles {
                     TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, false))
             .setNeutrals(true)
             .setComponentKey(QUSTComponentKeys.Keys.HACKER)
+            // 本能：已标记玩家显示红色，未标记玩家显示灰色
+            .setInstinctType(
+                    io.wifi.starrailexpress.api.InstinctType.customWithFunction((self, target, selfRole, targetRole) -> {
+                        if (target == null) return io.wifi.starrailexpress.api.InstinctType.NONE;
+                        var data = QUSTComponentKeys.Keys.HACKER.maybeGet(self).orElse(null);
+                        if (data != null && data.isMarked(target.getUUID())) {
+                            // 已标记：红色
+                            return io.wifi.starrailexpress.api.InstinctType.custom(0xFFFF4444);
+                        }
+                        // 未标记：灰色
+                        return io.wifi.starrailexpress.api.InstinctType.custom(0xFF999999);
+                    }),
+                    io.wifi.starrailexpress.api.InstinctType.customWithFunction((self, target, selfRole, targetRole) -> {
+                        if (target == null) return io.wifi.starrailexpress.api.InstinctType.NONE;
+                        var data = QUSTComponentKeys.Keys.HACKER.maybeGet(self).orElse(null);
+                        if (data != null && data.isMarked(target.getUUID())) {
+                            // 已标记：红色
+                            return io.wifi.starrailexpress.api.InstinctType.custom(0xFFFF4444);
+                        }
+                        // 未标记：灰色
+                        return io.wifi.starrailexpress.api.InstinctType.custom(0xFF999999);
+                    })
+            )
             .setDefaultMax(1)
             .setDefaultEnableChance(5000)
             .setDefaultEnableNeededPlayerCount(10);

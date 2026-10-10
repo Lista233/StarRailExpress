@@ -5537,5 +5537,9 @@
   "item.minigame_master.klotski_challenge.lore": "通關後乘客陣營直接勝利",
   "item.minigame_master.klotski_challenge.lore2": "我們是小遊戲之王！",
   "message.minigame_master.klotski_challenge_win": "我們是小遊戲之王！",
-  "message.minigame_master.low_san": "你的san值過低啦，請先恢復san值再遊玩哦"
+  "message.minigame_master.low_san": "你的san值過低啦，請先恢復san值再遊玩哦",
+  "message.minigame_master.san_restored": "小遊戲完成！san 值恢復了些許",
+  "message.minigame_master.combo_bonus": "小遊戲完成 %s 個！額外獲得 %s 金幣",
+  "item.noellesroles.hacker.blackout": "黑入電力系統",
+  "item.noellesroles.hacker.lockpick": "社會工程學鑰匙(開鎖器)"
 }

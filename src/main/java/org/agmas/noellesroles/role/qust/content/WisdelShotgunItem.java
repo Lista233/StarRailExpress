@@ -294,7 +294,7 @@ public class WisdelShotgunItem extends SkinableItem implements HeldLikeRevolver 
         }
     }
 
-    /** 枪口火光（与左轮 / 悔改之枪一致的贴手粒子）。 */
+    /** 枪口火光（与左轮 / 救赎之枪一致的贴手粒子）。 */
     public static void spawnHandParticle() {
         HandParticle handParticle = new HandParticle()
                 .setTexture(StarRailExpressID.watheId("textures/particle/gunshot.png"))

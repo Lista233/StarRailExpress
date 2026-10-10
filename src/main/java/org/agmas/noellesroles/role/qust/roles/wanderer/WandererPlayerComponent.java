@@ -56,7 +56,7 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
     // ── 常量 ──
     public static final int SOUL_OUT_DURATION = 7 * 20; // 7s
     public static final int SOUL_OUT_COOLDOWN = 20 * 20; // 20s
-    public static final int GHOST_VISIBLE_COOLDOWN = 45 * 20; // 45s
+    public static final int GHOST_VISIBLE_COOLDOWN = 60 * 20; // 60s
     public static final int GHOST_AUTO_HIDE_TICKS = 16; // 0.8s
 
     public WandererPlayerComponent(Player player) {

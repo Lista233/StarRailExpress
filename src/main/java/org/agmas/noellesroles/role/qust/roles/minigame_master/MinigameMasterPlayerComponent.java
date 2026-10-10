@@ -8,14 +8,17 @@ import net.minecraft.world.entity.player.Player;
 import org.agmas.noellesroles.role.qust.QUSTComponentKeys;
 
 /**
- * 小游戏达人玩家组件
+ * 小游戏达人玩家组件（当局制，随开局 init / 结算 clear）
  * <p>
  * 击退 buff 已随技能一并移除（击退剑改为持有即可左键击退），
- * 目前仅作为角色组件占位保留。
+ * 目前仅记录本局达人自己用小游戏券完成的小游戏次数（里程碑奖励用）。
  */
 public class MinigameMasterPlayerComponent implements RoleComponent {
 
     private final Player player;
+
+    /** 本局达人自己用小游戏券完成的小游戏计数（每满配置数量发放一次里程碑金币） */
+    public int ticketMinigameCompleted = 0;
 
     public MinigameMasterPlayerComponent(Player player) {
         this.player = player;
@@ -27,6 +30,7 @@ public class MinigameMasterPlayerComponent implements RoleComponent {
 
     @Override
     public void init() {
+        this.ticketMinigameCompleted = 0;
     }
 
     // ==================== CCA 同步 ====================
@@ -39,6 +43,7 @@ public class MinigameMasterPlayerComponent implements RoleComponent {
 
     @Override
     public void clear() {
+        this.ticketMinigameCompleted = 0;
     }
 
     @Override

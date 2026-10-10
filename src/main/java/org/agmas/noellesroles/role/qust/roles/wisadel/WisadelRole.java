@@ -20,9 +20,9 @@ import java.util.List;
  * 维什戴尔_星魂（Wisadel）—— QUST 杀手阵营职业。
  * <ul>
  *   <li>杀手阵营，商店与默认杀手一致（{@link ShopContent#getDefaultKnifeEntries()}）。</li>
- *   <li>额外商品：<b>祖宗发射器</b>（350 金币）、<b>肘子</b>（25 金币），均置顶展示。</li>
+ *   <li>额外商品：<b>祖宗发射器</b>（325 金币）、<b>肘子</b>（25 金币），均置顶展示。</li>
  *   <li>魂灵机制：右键与玩家尸体交互汲取 1 层「魂灵」（每具尸体限一次），最多 7 层；
- *       购买祖宗发射器需消耗 5 层，且购买后有 150 秒冷却。
+ *       购买祖宗发射器需消耗 4 层，且购买后有 150 秒冷却。
  *       交互逻辑见 {@code QUSTHandlers.registerWisadelEvents()}。</li>
  * </ul>
  */

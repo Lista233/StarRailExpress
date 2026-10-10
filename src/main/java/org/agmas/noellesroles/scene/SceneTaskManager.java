@@ -99,6 +99,11 @@ public final class SceneTaskManager {
         ACTIVE.remove(player.getUUID());
     }
 
+    /** 清理所有玩家的场景任务状态（游戏结束时调用）。 */
+    public static void clearAll() {
+        ACTIVE.clear();
+    }
+
     public static void clear(Player player, Type type) {
         State s = ACTIVE.get(player.getUUID());
         if (s != null && s.type == type) {

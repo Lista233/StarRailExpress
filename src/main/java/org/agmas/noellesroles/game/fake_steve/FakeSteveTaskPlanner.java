@@ -437,7 +437,7 @@ public final class FakeSteveTaskPlanner {
             case PRAY -> new int[] { 20 };
             case PRUNE_BUSH -> new int[] { 21 };
             case HARVEST_CROP -> new int[] { 22 };
-            case HIT_FUMO -> new int[] { 23 };
+            case HIT_FUMO -> new int[] { 28 };
             default -> new int[0];
         };
     }

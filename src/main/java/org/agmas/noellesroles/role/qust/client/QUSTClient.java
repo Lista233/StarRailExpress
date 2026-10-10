@@ -42,6 +42,7 @@ public class QUSTClient {
         SuperDoctorHud.register();
         org.agmas.noellesroles.role.qust.roles.hacker.HackerHud.register();
         org.agmas.noellesroles.role.qust.roles.hacker.HackerClientHandlers.register();
+        org.agmas.noellesroles.role.qust.roles.hacker.BeenMarkedHud.register();
         org.agmas.noellesroles.role.qust.roles.bettor.BettorHud.register();
         org.agmas.noellesroles.role.qust.roles.bettor.BettorClientHandlers.register();
         org.agmas.noellesroles.role.qust.roles.wisadel.WisadelHud.register();

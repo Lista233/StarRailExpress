@@ -64,16 +64,8 @@ public class HackerClientHandlers {
 
         mc.gui.setTimes(10, 70, 20); // 淡入、停留、淡出时间
 
-        // 同时在聊天框显示详细信息
-        mc.player.displayClientMessage(Component.literal("§k||||||||||||||||||||||||||||||||"), false);
-        mc.player.displayClientMessage(Component.literal("§4§l 您已被标记 "), false);
-        mc.player.displayClientMessage(Component.literal("§k||||||||||||||||||||||||||||||||"), false);
-        mc.player.displayClientMessage(Component.literal(""), false);
-        mc.player.displayClientMessage(Component.literal("§c§l玩家昵称：§f" + playerName), false);
-        mc.player.displayClientMessage(Component.literal("§c§lUUID：§f" + uuid.toString()), false);
-        mc.player.displayClientMessage(Component.literal("§c§lIP 地址：§f" + maskedIP), false);
-        mc.player.displayClientMessage(Component.literal("§c§lIP 属地：§f" + location), false);
-        mc.player.displayClientMessage(Component.literal(""), false);
+        // 详细信息不再刷聊天栏，改为在大标题下方的信息框 HUD 中展示
+        BeenMarkedHud.show(playerName, uuid.toString(), maskedIP, location);
     }
 
     /**

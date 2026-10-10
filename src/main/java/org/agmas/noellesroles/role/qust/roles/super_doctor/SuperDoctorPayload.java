@@ -7,9 +7,9 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import org.agmas.noellesroles.role.qust.QUSTRoles;
 
 /**
- * 超级医生悔改之枪 C2S 数据包。
+ * 超级医生救赎之枪 C2S 数据包。
  * <p>
- * 客户端使用悔改之枪时发送，携带目标实体 ID（-1 表示未命中）。
+ * 客户端使用救赎之枪时发送，携带目标实体 ID（-1 表示未命中）。
  */
 public record SuperDoctorPayload(int targetId) implements CustomPacketPayload {
 

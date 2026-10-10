@@ -50,6 +50,10 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
     /** 同步到客户端的需要发送数（用于HUD显示） */
     public int syncedRequiredCount = 0;
 
+    /** 上次同步时的存活数/所需数（变化检测用，仅服务端运行时状态） */
+    private int lastSyncedAliveCount = -1;
+    private int lastSyncedRequiredCount = -1;
+
     public HackerRoleData(Player player) {
         this.player = player;
     }
@@ -67,6 +71,8 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
         pendingNotifications.clear();
         syncedAliveCount = 0;
         syncedRequiredCount = 0;
+        lastSyncedAliveCount = -1;
+        lastSyncedRequiredCount = -1;
     }
 
     @Override
@@ -77,6 +83,8 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
         pendingNotifications.clear();
         syncedAliveCount = 0;
         syncedRequiredCount = 0;
+        lastSyncedAliveCount = -1;
+        lastSyncedRequiredCount = -1;
     }
 
     @Override
@@ -237,6 +245,14 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
     public void serverTick() {
         // 更新HUD同步数据
         updateAliveCount();
+
+        // 存活人数或所需发送数变化时同步到客户端（含职业刚分配后的首次初始化），
+        // 保证一进游戏 HUD 的 x/y 就是正确值而非 0/0（此前只有标记/发送动作才触发 sync）
+        if (syncedAliveCount != lastSyncedAliveCount || syncedRequiredCount != lastSyncedRequiredCount) {
+            lastSyncedAliveCount = syncedAliveCount;
+            lastSyncedRequiredCount = syncedRequiredCount;
+            sync();
+        }
 
         if (!pendingNotifications.isEmpty()) {
             int currentTick = (int) player.level().getGameTime();

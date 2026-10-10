@@ -196,7 +196,7 @@ public class HackerHud implements HudRenderCallback {
         int actualSent = data.sentPlayers.size();
         int requiredCount = data.syncedRequiredCount;
         String progress = actualSent + "/" + requiredCount;
-        Component progressText = Component.literal("§e标记进度: §f" + progress);
+        Component progressText = Component.literal("§e已成功标记: §f" + progress);
 
         int x = screenWidth - 120;
         int y = screenHeight - 30;
@@ -205,8 +205,8 @@ public class HackerHud implements HudRenderCallback {
 
         // 显示已标记人数
         int markedCount = data.markedPlayers.size();
-        Component markedText = Component.literal("§7已标记: §f" + markedCount);
-        guiGraphics.drawString(Minecraft.getInstance().font, markedText, x, y + 10, 0xFFFFFFFF);
+//        Component markedText = Component.literal("§7已标记: §f" + markedCount);
+//        guiGraphics.drawString(Minecraft.getInstance().font, markedText, x, y + 10, 0xFFFFFFFF);
     }
 
     /**

@@ -100,8 +100,8 @@ public class QUSTConfig implements ConfigData {
     /** 初始冷却时间（秒） */
     public int pressureMonsterInitialCooldownSeconds = 60;
 
-    /** san值降低百分比（0.6 = 降低当前 60%） */
-    public double pressureMonsterSanReductionPercent = 0.6;
+    /** san值降低百分比（0.4 = 降低当前 40%） */
+    public double pressureMonsterSanReductionPercent = 0.4;
 
     /** 技能影响范围（方块） */
     public double pressureMonsterSkillRadius = 6.0;
@@ -110,7 +110,7 @@ public class QUSTConfig implements ConfigData {
     public int pressureMonsterKillCdReductionSeconds = 30;
 
     /** 小脑事件减少冷却时间（秒） */
-    public int pressureMonsterXiaonaoCdReductionSeconds = 90;
+    public int pressureMonsterXiaonaoCdReductionSeconds = 60;
 
     // ==================== 小游戏达人 (Minigame Master / 这个_骇客) ====================
 
@@ -121,7 +121,7 @@ public class QUSTConfig implements ConfigData {
     public int minigameMasterKnockbackSwordPrice = 200;
 
     /** 完成小游戏奖励金币数 */
-    public int minigameMasterCoinReward = 25;
+    public int minigameMasterCoinReward = 20;
 
     /** 完成华容道奖励金币数 */
     public int minigameMasterKlotskiCoinReward = 250;
@@ -129,10 +129,22 @@ public class QUSTConfig implements ConfigData {
     /** 华容道挑战价格（通关可直接赢得比赛） */
     public int minigameMasterKlotskiChallengePrice = 1200;
 
+    /** 达人自己完成小游戏时恢复少量 san 值的概率（0.5 = 50%） */
+    public double minigameMasterSelfCompleteSanChance = 0.5;
+
+    /** 达人自己完成小游戏时恢复的 san 值量（0.0-1.0，少量） */
+    public double minigameMasterSelfCompleteSanRestore = 0.1;
+
+    /** 达人自己完成多少个小游戏后发放一次里程碑金币（计数随局清零） */
+    public int minigameMasterTicketComboCount = 4;
+
+    /** 达人自己完成小游戏每满一次里程碑数量的额外金币奖励 */
+    public int minigameMasterTicketComboCoinReward = 40;
+
     // ==================== 超级记录员 (Super Recorder / 超级记录员_时星) ====================
 
     /** 真相之书商店价格 */
-    public int superRecorderTruthBookPrice = 150;
+    public int superRecorderTruthBookPrice = 225;
 
     /** 记录笔记商店价格 */
     public int superRecorderNotePrice = 50;
@@ -154,7 +166,7 @@ public class QUSTConfig implements ConfigData {
     /** G 键恢复 san 值量（0.0-1.0） */
     public double superDoctorHealAmount = 0.1;
 
-    /** 悔改之枪商店价格 */
+    /** 救赎之枪商店价格 */
     public int superDoctorRepentanceGunPrice = 350;
 
     // ==================== 黑客 (Hacker / 林然) ====================

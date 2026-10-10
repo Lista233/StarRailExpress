@@ -39,8 +39,8 @@ public class AimlabsCommand {
     private static final int DEF_HEIGHT_OFFSET = 1;
 
     // ── 游戏进行中的默认值（场景任务使用） ──
-    public static final int GAME_AREA_WIDTH = 4;
-    public static final int GAME_AREA_HEIGHT = 3;
+    public static final int GAME_AREA_WIDTH = 3;
+    public static final int GAME_AREA_HEIGHT = 2;
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {

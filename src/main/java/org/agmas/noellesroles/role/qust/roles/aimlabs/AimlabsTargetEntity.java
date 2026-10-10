@@ -13,9 +13,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -42,6 +44,28 @@ public class AimlabsTargetEntity extends Entity implements IsTargetObject {
         this.setInvisible(true);
         this.setNoGravity(true);
         this.noPhysics = true;
+    }
+
+    /**
+     * 覆写碰撞箱：以实体位置为中心（而非从脚底向上），使判定范围与渲染球体一致。
+     */
+    @Override
+    public net.minecraft.world.phys.AABB makeBoundingBox() {
+        float r = getSphereRadius();
+        double x = getX(), y = getY(), z = getZ();
+        return new AABB(x - r, y - r, z - r, x + r, y + r, z + r);
+    }
+
+    @Override
+    public void refreshDimensions() {
+        this.setBoundingBox(makeBoundingBox());
+    }
+
+    /** 设置位置后自动刷新碰撞箱。 */
+    @Override
+    public void moveTo(double x, double y, double z, float yRot, float xRot) {
+        super.moveTo(x, y, z, yRot, xRot);
+        this.setBoundingBox(makeBoundingBox());
     }
 
     @Override
