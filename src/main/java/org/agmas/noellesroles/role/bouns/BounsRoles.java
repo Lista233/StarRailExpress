@@ -468,7 +468,8 @@ public class BounsRoles {
             .setCanClimbWalls(true)
             .addFlag("peak")
             .setSpecialMapRolesCondition((t) -> t.contains(MapSpecialFeatures.PEAK))
-            .setDefaultMax(8000)
+            .setDefaultMax(1)
+            .setDefaultEnableChance(8000)
             .setCanBeRandomedByOtherRoles(false);
 
     /**
