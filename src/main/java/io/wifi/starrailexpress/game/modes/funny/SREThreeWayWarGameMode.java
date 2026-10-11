@@ -28,6 +28,7 @@ import io.wifi.starrailexpress.game.GameUtils.WinStatus;
 import io.wifi.starrailexpress.game.modes.SREMurderGameMode;
 import io.wifi.starrailexpress.progression.ProgressionDataManager;
 import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -240,12 +241,13 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
         return assignments;
     }
 
-    /** 提示每位玩家自己所属的分组 */
+    /** 广播提示每位玩家自己所属的分组（参考邪恶战争的开局广播） */
     private void notifySquad(List<ServerPlayer> players) {
         for (ServerPlayer player : players) {
             Squad squad = squadOfPlayer.get(player.getUUID());
             if (squad != null) {
-                player.displayClientMessage(Component.translatable(squad.langKey), false);
+                broadcastMessageTo(player,
+                        Component.translatable(squad.langKey).withStyle(ChatFormatting.GOLD));
             }
         }
     }
@@ -343,10 +345,10 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
 
     /** 会战参与方：三方为彼此对立的阵营，辅助组为支援方 */
     private enum Squad {
-        GODFATHER("hud.sre.tip.gamemode.three_way_war.squad.godfather"),
-        BEE("hud.sre.tip.gamemode.three_way_war.squad.bee"),
-        RABBIT("hud.sre.tip.gamemode.three_way_war.squad.rabbit"),
-        SUPPORT("hud.sre.tip.gamemode.three_way_war.squad.support");
+        GODFATHER("message.gamemode.three_way_war.tip.squad.godfather"),
+        BEE("message.gamemode.three_way_war.tip.squad.bee"),
+        RABBIT("message.gamemode.three_way_war.tip.squad.rabbit"),
+        SUPPORT("message.gamemode.three_way_war.tip.squad.support");
 
         private final String langKey;
 
