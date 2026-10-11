@@ -40,7 +40,7 @@ public class QUSTRoles {
 
     public static SRERole DRAGON_GIRL = TMMRoles.registerRole(
             new DragonGirlRole(DRAGON_GIRL_ID,
-                    new java.awt.Color(180, 130, 255).getRGB(),
+                    new java.awt.Color(149, 185, 240).getRGB(),
                     true, false, MoodType.REAL,
                     TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, false))
             .setDefaultEnableChance(5000)
