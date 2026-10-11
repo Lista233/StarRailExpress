@@ -2161,6 +2161,12 @@ public abstract class SRERole extends SREAbstractInfoClass {
         if (config.labRolesMaps != null && config.labRolesMaps.contains(id)) {
             result.add(MapSpecialFeatures.LAB);
         }
+        if (config.peakRolesMaps != null && config.peakRolesMaps.contains(id)) {
+            result.add(MapSpecialFeatures.PEAK);
+        }
+        if (config.siegeRolesMaps != null && config.siegeRolesMaps.contains(id)) {
+            result.add(MapSpecialFeatures.SIEGE);
+        }
         if (config.swastMaps != null && config.swastMaps.contains(id)) {
             result.add(MapSpecialFeatures.BIGMAP);
         }

@@ -393,6 +393,8 @@
     "text.autoconfig.noellesroles.option.labRolesMaps": "Maps where lab roles spawn (Laboratory)",
     "text.autoconfig.noellesroles.option.trapRolesMaps": "Maps where trap roles spawn (Adventurer)",
     "text.autoconfig.noellesroles.option.horseRolesMaps": "Maps where horseback roles spawn (Tamer, Hunter)",
+    "text.autoconfig.noellesroles.option.peakRolesMaps": "Maps where peak (climbing) roles spawn (e.g. Scout, Forest Mushroom Zombie, Scout Captain)",
+    "text.autoconfig.noellesroles.option.siegeRolesMaps": "Maps where siege roles spawn (Siege)",
     "text.autoconfig.noellesroles.option.airRolesMaps": "Maps where flying roles spawn (e.g. Pilot, Shadow Falcon)",
     "text.autoconfig.noellesroles.option.cuckooMaps": "Cuckoo exclusive maps (empty = no restriction; if set, spawns only on the listed maps)",
     "text.autoconfig.noellesroles.option.ghostMaps": "Ghost exclusive maps (empty = no restriction; if set, spawns only on the listed maps)",

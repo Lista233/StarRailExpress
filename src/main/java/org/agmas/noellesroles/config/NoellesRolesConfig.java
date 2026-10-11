@@ -71,6 +71,16 @@ public class NoellesRolesConfig implements ConfigData {
     public ArrayList<String> labRolesMaps = new ArrayList<>(List.of("areas_lab"));
 
     /**
+     * Areas that will spawn peak (climbing) roles (Scout, Forest Mushroom Zombie, Scout Captain)
+     */
+    public ArrayList<String> peakRolesMaps = new ArrayList<>(List.of("peak"));
+
+    /**
+     * Areas that will spawn siege roles (Siege)
+     */
+    public ArrayList<String> siegeRolesMaps = new ArrayList<>(List.of("areas6"));
+
+    /**
      * Areas that will spawn trap-map roles (Adventurer)
      */
     public ArrayList<String> trapRolesMaps = new ArrayList<>(List.of("areas_shamo"));

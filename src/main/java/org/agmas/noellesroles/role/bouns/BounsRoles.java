@@ -501,7 +501,7 @@ public class BounsRoles {
             .setTaskReward(2, 1, new ItemStack(TMMItems.REVOLVER))
             .setDefaultMax(1)
             .setSpecialPolice(true)
-            .setDefaultEnableChance(2000)
+            .setDefaultEnableChance(8000)
             .setCanBeRandomedByOtherRoles(false);
 
     /**
