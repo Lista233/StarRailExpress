@@ -1688,12 +1688,22 @@ public abstract class SRERole extends SREAbstractInfoClass {
         return this;
     };
 
+    /**
+     * 当超过这么多人不再刷新此职业。
+     * @param count
+     * @return
+     */
     public SRERole setDefaultEnableMaxPlayerCount(int count) {
         defaultEnableMaxPlayerCount = count;
         this.spawnInfo.maxEnabledPlayer = count;
         return this;
     };
 
+    /**
+     * 需要至少这么多人才启用这个职业
+     * @param count
+     * @return
+     */
     public SRERole setDefaultEnableNeededPlayerCount(int count) {
         defaultEnableNeedPlayerCount = count;
         this.spawnInfo.minEnabledPlayer = count;
@@ -1725,6 +1735,7 @@ public abstract class SRERole extends SREAbstractInfoClass {
     }
 
     /**
+     * 启用概率
      * 1 = 1/10000
      * 
      * @param chance
