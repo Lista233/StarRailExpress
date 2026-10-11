@@ -1437,6 +1437,28 @@ public class GameUtils {
         killPlayer(victim, spawnBody, killer, deathReason, true);
     }
 
+    /**
+     * 当前正在结算的击杀是否为强制死亡（forcekill）。
+     *
+     * <p>
+     * 整条死亡链（{@code GameMode#killPlayer} 及其 {@code AllowPlayerDeath*} 监听器）都在服务端
+     * 主线程执行，且 {@link #killPlayerOnServerThread} 是唯一入口，所以用静态值 + 进入/退出时
+     * 保存恢复（可重入）即可，不必用 ThreadLocal。
+     */
+    private static boolean forcedDeathInProgress = false;
+
+    /**
+     * 当前正在结算的死亡是否为强制死亡（{@link #forceKillPlayer}）。
+     *
+     * <p>
+     * 只在死亡链内部有意义：强制死亡在 {@code GameMode#killPlayer} 里<b>无论如何都会执行</b>
+     * （监听器返回 false 也挡不住）。因此「要消耗自身资源来抵挡」的监听器（保险、武士刀格挡等）
+     * 必须先查这个标记，否则会出现「提示/回放写着抵挡成功，玩家却照常死亡」的假象。
+     */
+    public static boolean isForcedDeathInProgress() {
+        return forcedDeathInProgress;
+    }
+
     public static void killPlayer(Player victim, boolean spawnBody, @Nullable Player _killer,
             ResourceLocation deathReason, boolean forceDeath) {
         if (victim == null)
@@ -1459,6 +1481,9 @@ public class GameUtils {
         var gameMode = SREGameWorldComponent.KEY.get(victim.level()).getGameMode();
         if (gameMode == null)
             return;
+        // 死亡链期间对外暴露「本次是否强制死亡」；嵌套击杀（死亡链里再触发击杀）时保存并恢复外层值。
+        boolean previousForced = forcedDeathInProgress;
+        forcedDeathInProgress = forceDeath;
         try {
             gameMode.killPlayer(victim, spawnBody, _killer, deathReason, forceDeath);
         } catch (Exception e) {
@@ -1495,6 +1520,8 @@ public class GameUtils {
                     deathReason,
                     forceDeath);
             throw e;
+        } finally {
+            forcedDeathInProgress = previousForced;
         }
     }
 
@@ -1683,6 +1710,31 @@ public class GameUtils {
                 || gameWorldComponent.isRole(player, ModRoles.ASATYA))
             return true;
         return false;
+    }
+
+    /**
+     * 永久死亡惩罚（旁观者视角限制）该用哪条提示文案的翻译键。
+     *
+     * <p>
+     * 阴谋家 与 无我 / 无妄 共用同一套惩罚（见 {@link #shouldGiveSpectatorsDeathPenalty}），
+     * 但提示必须分开：无我 / 无妄 存活时场上可能根本没有阴谋家，此时说「由于阴谋家存活」会让
+     * 玩家以为惩罚没生效、是 bug。
+     *
+     * @param penalized 被惩罚的玩家，用它取所在维度的玩家列表与阵营信息
+     * @return 翻译键；无我 / 无妄 存活时返回无我/无妄那一条，否则回退到阴谋家那一条
+     */
+    public static String spectatorsDeathPenaltyMessageKey(Player penalized) {
+        if (penalized == null || penalized.level() == null)
+            return "message.noellesroles.penalty.limit.god_job_couple";
+        var gameWorldComponent = SREGameWorldComponent.getInstance(penalized);
+        for (Player p : penalized.level().players()) {
+            if (!isPlayerAliveAndSurvival(p))
+                continue;
+            if (gameWorldComponent.isRole(p, ModRoles.ANATMAN) || gameWorldComponent.isRole(p, ModRoles.ASATYA)) {
+                return "message.noellesroles.penalty.limit.anatman_asatya";
+            }
+        }
+        return "message.noellesroles.penalty.limit.god_job_couple";
     }
 
     public static void revivePlayerToItsRoom(ServerPlayer player) {

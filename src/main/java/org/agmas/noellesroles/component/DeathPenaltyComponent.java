@@ -115,11 +115,13 @@ public class DeathPenaltyComponent implements RoleComponent, ServerTickingCompon
                             this.penaltyExpiry = -1;
                             this.limitCameraUUID = null;
                             this.limitPos = null;
+                            // 无我 / 无妄 存活时不能说「由于阴谋家存活」，否则玩家会以为惩罚没生效
+                            String limitMessageKey = GameUtils.spectatorsDeathPenaltyMessageKey(player);
                             player.sendSystemMessage(
-                                    Component.translatable("message.noellesroles.penalty.limit.god_job_couple")
+                                    Component.translatable(limitMessageKey)
                                             .withStyle(ChatFormatting.RED));
                             player.displayClientMessage(
-                                    Component.translatable("message.noellesroles.penalty.limit.god_job_couple")
+                                    Component.translatable(limitMessageKey)
                                             .withStyle(ChatFormatting.RED),
                                     true);
                             if (player.hasPermissions(2)) {

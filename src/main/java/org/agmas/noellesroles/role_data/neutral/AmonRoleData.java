@@ -99,9 +99,18 @@ public class AmonRoleData extends SimpleRoleData {
     public int usurpCount;
     public boolean hasUsurped;
     public int seedCap = 2;
-    /** 已控制玩家数（上限 3）；达到上限后不再走附身流程，成熟宿主直接寄生杀死。 */
+    /**
+     * 已夺舍（控制）过的宿主总数。
+     *
+     * <p>
+     * 与 {@link #seedCap} 比较得出「宿主名额是否已用完」：<b>名额 = 种子上限</b>（同屏能存在的
+     * 宿主数），例如上限 6 时阿蒙最多夺舍 6 名宿主；名额用完后<b>再成熟</b>的宿主不再进入夺舍
+     * 流程，直接被寄生杀死（死因 {@code AMON_USURP}，阿蒙不会寄生过去）。
+     *
+     * <p>
+     * 名前用完前就已经成熟的宿主仍然可以正常夺舍——它们早已在册，不受名额影响。
+     */
     public int controlCount;
-    public static final int MAX_CONTROL_COUNT = 3;
 
     // ===== 终幕状态 =====
     /** 是否处于「终幕·寻找阿蒙」阶段。 */
@@ -256,8 +265,8 @@ public class AmonRoleData extends SimpleRoleData {
             int ticks = entry.getValue() + 1;
             if (ticks >= INCUBATION_TICKS) {
                 seeds.remove(entry.getKey(), entry.getValue());
-                // 控制名额已满（≥3）：不再走附身流程，直接寄生杀死宿主
-                if (controlCount >= MAX_CONTROL_COUNT) {
+                // 宿主名额已用完（已夺舍数 >= 种子上限）：不再走附身流程，直接寄生杀死宿主
+                if (isOutOfHostSlots()) {
                     Player hostPlayer = amon.level().getPlayerByUUID(entry.getKey());
                     if (hostPlayer instanceof ServerPlayer sh && GameUtils.isPlayerAliveAndSurvival(sh)) {
                         directParasiteKill(sh);
@@ -286,6 +295,17 @@ public class AmonRoleData extends SimpleRoleData {
             sync();
     }
 
+    /**
+     * 宿主名额是否已用完（已夺舍数 >= 种子上限）。
+     *
+     * <p>
+     * 用完后新成熟的宿主直接被寄生杀死，不再进入夺舍流程；名额用完<b>前</b>就已成熟的宿主
+     * 仍在册，可以照常夺舍。
+     */
+    public boolean isOutOfHostSlots() {
+        return controlCount >= seedCap;
+    }
+
     /** 种下时之虫（静默）。target 为准星指向的玩家。 */
     public boolean plantSeed(ServerPlayer target) {
         if (!(player instanceof ServerPlayer amon))
@@ -295,8 +315,15 @@ public class AmonRoleData extends SimpleRoleData {
             return false;
         }
         if (seeds.size() + maturedHosts.size() >= seedCap) {
+            // 上限提示：动作条 + 顶部字幕双发。
+            // 阿蒙的角色 HUD 会覆盖动作条（seed_planted 就是因此改用顶部字幕），只靠动作条会「不提示」。
             amon.displayClientMessage(Component.translatable("message.noellesroles.amon.cap_reached", seedCap)
                     .withStyle(ChatFormatting.RED), true);
+            io.wifi.starrailexpress.util.SRENetworkMessageUtils.sendCODSubtitleToPlayerTop(amon,
+                    Component.translatable("message.noellesroles.amon.cap_reached", seedCap)
+                            .withStyle(ChatFormatting.RED),
+                    Component.empty(), 60);
+            // 只提示、不消耗冷却与充能（返回 false = 本次技能未释放成功），更不会因此杀死任何玩家
             return false;
         }
         if (target == null || target == amon || !GameUtils.isPlayerAliveAndSurvival(target)
@@ -329,10 +356,11 @@ public class AmonRoleData extends SimpleRoleData {
         }
         if (finalePhase || possessTarget != null)
             return false;
-        // 控制名额用完：不再允许附身，成熟宿主已在 serverTick 中自动直接寄生
-        if (controlCount >= MAX_CONTROL_COUNT) {
-            amon.displayClientMessage(Component.translatable("message.noellesroles.amon.control_limit_reached")
-                    .withStyle(ChatFormatting.RED), true);
+        // 宿主名额用完：不再允许附身，成熟宿主已在 serverTick 中自动直接寄生
+        if (isOutOfHostSlots()) {
+            amon.displayClientMessage(
+                    Component.translatable("message.noellesroles.amon.control_limit_reached", seedCap)
+                            .withStyle(ChatFormatting.RED), true);
             return false;
         }
         // 只能附身已成熟、仍存活的宿主。

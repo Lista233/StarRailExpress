@@ -382,12 +382,15 @@ public class NRDeathEvents {
             if (!GameUtils.isPlayerAliveAndSurvival(player)) {
                 continue;
             }
+            // 两个判定必须<b>并列</b>且只在命中最高优先级（阴谋家 / 无我 / 无妄）时才 break：
+            // 写成 else if + 「任一成立就 break」的话，只要先遍历到一名存活的医生就会提前退出，
+            // 无我 / 无妄根本没机会被求值——表现为「无我或无妄明明还活着，别人死亡却拿不到永久
+            // 死亡惩罚」，且是否复现完全取决于 level.players() 的迭代顺序。
             if (gameWorldComponent.isRole(player, ModRoles.DOCTOR) && !ignoreDoctor) {
                 doctorAlive = true;
-            } else if (GameUtils.shouldGiveSpectatorsDeathPenalty(player)) {
-                CONSPIRATOR_alive = true;
             }
-            if (doctorAlive || CONSPIRATOR_alive) {
+            if (GameUtils.shouldGiveSpectatorsDeathPenalty(player)) {
+                CONSPIRATOR_alive = true;
                 break;
             }
         }
@@ -437,11 +440,13 @@ public class NRDeathEvents {
                 }
             } else if (limitView) {
                 deathPenaltyComponent.setPenalty(-1, true);
+                // 无我 / 无妄 存活时不能说「由于阴谋家存活」，否则玩家会以为惩罚没生效
+                String limitMessageKey = GameUtils.spectatorsDeathPenaltyMessageKey(victim);
                 victim.sendSystemMessage(
-                        Component.translatable("message.noellesroles.penalty.limit.god_job_couple")
+                        Component.translatable(limitMessageKey)
                                 .withStyle(ChatFormatting.RED));
                 victim.displayClientMessage(
-                        Component.translatable("message.noellesroles.penalty.limit.god_job_couple")
+                        Component.translatable(limitMessageKey)
                                 .withStyle(ChatFormatting.RED),
                         true);
                 if (victim.hasPermissions(2)) {
@@ -819,6 +824,10 @@ public class NRDeathEvents {
             SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(victim.level());
             if (gameWorld != null && gameWorld.isRole(victim, ModRoles.ASATYA)) {
                 AnatmanRoleData.onAsatyaDeath(serverVictim);
+                // 无妄 / 无我是「永久死亡惩罚」的维持者：最后一人倒下后要立刻重判所有旁观者，
+                // 否则解除只能等每个人各自的 DeathPenaltyComponent 下一次 tick 复核
+                // （时间回溯 / 有复活进行中时那次复核还会被跳过）。
+                GameUtils.pendingReJudgeSpectatorsPenalty();
             }
         });
 
@@ -830,6 +839,8 @@ public class NRDeathEvents {
             SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(victim.level());
             if (gameWorld != null && gameWorld.isRole(victim, ModRoles.ANATMAN)) {
                 AsatyaRoleData.onAnatmanDeath(serverVictim);
+                // 同上：无我倒下后立刻重判旁观者的死亡惩罚（两人全死 → 解除永久惩罚）。
+                GameUtils.pendingReJudgeSpectatorsPenalty();
             }
         });
 
@@ -1581,17 +1592,19 @@ public class NRDeathEvents {
             if (killer != null && gameWorldComponent.isRole(victim, ModRoles.MERCENARY)) {
                 var mercenary = RoleData.getNullable(MercenaryRoleData.class, victim);
                 if (mercenary != null) {
-                    mercenary.setForcedTarget(killer);
-                    victim.displayClientMessage(
-                            Component.translatable("message.noellesroles.mercenary.new_forced_target",
-                                    killer.getName())
-                                    .withStyle(ChatFormatting.RED),
-                            true);
-                    // 回放记录：雇佣兵将玩家设定为目标
-                    SRE.REPLAY_MANAGER.recordCustomEvent(
-                            Component.translatable("replay.event.mercenary.set_target",
-                                    GameReplayUtils.getReplayPlayerDisplayText(victim, true),
-                                    GameReplayUtils.getReplayPlayerDisplayText(killer, true)));
+                    // 同一个玩家连续破掉多层护盾时目标没变，不再提示、不再写回放（否则回放会被刷屏）
+                    if (mercenary.setForcedTarget(killer)) {
+                        victim.displayClientMessage(
+                                Component.translatable("message.noellesroles.mercenary.new_forced_target",
+                                        killer.getName())
+                                        .withStyle(ChatFormatting.RED),
+                                true);
+                        // 回放记录：破盾者被通缉（与契约通缉 replay.event.contract.wanted 区分开）
+                        SRE.REPLAY_MANAGER.recordCustomEvent(
+                                Component.translatable("replay.event.mercenary.set_target_shield",
+                                        GameReplayUtils.getReplayPlayerDisplayText(killer, true),
+                                        GameReplayUtils.getReplayPlayerDisplayText(victim, true)));
+                    }
                 }
             }
             // 影隼临时护盾破碎

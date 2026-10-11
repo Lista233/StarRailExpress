@@ -3835,6 +3835,7 @@
     "replay.event.cuckoo.lay_egg": "§e🥚§r %s laid an egg",
     "replay.event.cuckoo.egg_crushed": "§e🥚§r Cuckoo egg was crushed by %s",
     "replay.event.mercenary.set_target": "§c🎯§r %s set %s as the target",
+    "replay.event.mercenary.set_target_shield": "§c🎯§r %s broke %s's shield and is now wanted",
     "replay.event.contract.wanted": "§6📜§r %s put a bounty on %s",
     "replay.event.corpse.call_meeting": "§e📢§r %s called a meeting",
     "replay.event.canadagoose.force_meeting": "§e📢§r %s force-called a meeting",

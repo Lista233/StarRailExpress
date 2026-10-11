@@ -3835,6 +3835,7 @@
   "replay.event.cuckoo.lay_egg": "§e🥚§r %s 下了一颗蛋",
   "replay.event.cuckoo.egg_crushed": "§e🥚§r 布谷鸟蛋 被 %s 踩碎了",
   "replay.event.mercenary.set_target": "§c🎯§r %s 将 %s 设定为目标",
+  "replay.event.mercenary.set_target_shield": "§c🎯§r %s 打破了 %s 的护盾而被通缉",
   "replay.event.contract.wanted": "§6📜§r %s 通缉了 %s",
   "replay.event.corpse.call_meeting": "§e📢§r %s 发起了会议",
   "replay.event.canadagoose.force_meeting": "§e📢§r %s 强制发起了会议",

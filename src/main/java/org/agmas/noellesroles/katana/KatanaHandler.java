@@ -2,6 +2,7 @@ package org.agmas.noellesroles.katana;
 
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.replay.GameReplayUtils;
+import io.wifi.starrailexpress.event.AllowPlayerDeath;
 import io.wifi.starrailexpress.event.AllowPlayerDeathWithKiller;
 import io.wifi.starrailexpress.game.GameUtils;
 import net.minecraft.network.chat.Component;
@@ -21,9 +22,18 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * 武士刀的右键格挡处理器。
  *
- * <p>死亡拦截与防暴盾牌走同一个 {@link AllowPlayerDeathWithKiller} 事件；
- * 「可格挡的死亡原因」<b>直接复用</b> {@link RiotShieldHandler#isBlockableDeathReason}
- * 的白名单——修改防暴盾牌的可格挡死亡原因时武士刀会一起变化。
+ * <p><b>可格挡范围不限死因</b>：与斗士「钢筋铁骨」同一口径——只要受害者正处在格挡有效窗口内，
+ * 任何死因的致命伤害都能被挡下（不再复用 {@link RiotShieldHandler#isBlockableDeathReason}
+ * 的白名单；防暴盾牌仍按自己的白名单走，两者互不影响）。
+ *
+ * <p>唯一挡不住的是<b>强制死亡</b>（{@code forcekill}，例如摔出列车、挂机、阿蒙夺舍）：它在死亡
+ * 管线里会忽略监听器的返回值照常处死玩家，因此这里必须先查
+ * {@link io.wifi.starrailexpress.game.GameUtils#isForcedDeathInProgress()} 直接放行，
+ * 否则会出现「播放了格挡音效、扣了耐久、回放写着格挡成功，玩家却照常死亡」。
+ *
+ * <p>逐次伤害的格挡（走虚拟血量的特殊原版武器）统一在
+ * {@code DreamHealthComponent#hurt} 里询问 {@link #tryBlockAttack}，因此不再局限于某几把
+ * 写死的武器——任何走虚拟血量的武器（Dream 铁斧 / 钻石剑 / 重锤、矛、武士刀……）都算。
  *
  * <p>格挡时序：
  * <ul>
@@ -43,41 +53,52 @@ public final class KatanaHandler {
 
     public static void register() {
         AllowPlayerDeathWithKiller.EVENT.register(KatanaHandler::allowDeath);
+        // 没有击杀者的死亡（毒发、环境判死等）同样能被格挡：与斗士「钢筋铁骨」一致的口径。
+        // 两个事件在死亡管线里先后触发，先命中者会直接取消死亡，因此不会重复消耗耐久。
+        AllowPlayerDeath.EVENT.register(KatanaHandler::allowDeathWithoutKiller);
     }
 
     /**
-     * 死亡拦截：受害者正处于格挡有效窗口内且死因可被格挡时，取消死亡。
-     *
-     * <p>可格挡范围与防暴盾牌完全一致（共用白名单），因此也包含走原版攻击路线的
-     * Dream 铁斧 / 钻石剑 / 重锤 / 武士刀——它们致死时死因即
-     * {@link RiotShieldHandler#isVanillaRouteDeathReason} 中的那几项。
-     *
-     * <p>格挡<b>只在右键格挡的有效窗口内生效</b>，窗口内不限制格挡次数、
-     * 不消耗耐久。
+     * 死亡拦截（有击杀者）：受害者正处于格挡有效窗口内时取消死亡，<b>不限死因</b>。
      *
      * @return true 允许死亡 / false 已被格挡（取消死亡）
      */
     public static boolean allowDeath(Player victim, Player attacker, ResourceLocation deathReason) {
-        if (attacker == null) {
+        if (attacker != null && attacker.isSpectator()) {
             return true;
         }
-        if (attacker.isSpectator() || !GameUtils.isPlayerAliveAndSurvivalIgnoreShitSplit(victim)) {
+        return allowDeathWithoutKiller(victim, deathReason);
+    }
+
+    /**
+     * 死亡拦截（无击杀者）：判定与 {@link #allowDeath} 完全一致。
+     *
+     * <p>格挡<b>只在右键格挡的有效窗口内生效</b>，窗口内不限制格挡次数，每次成功消耗 1 点耐久。
+     *
+     * @return true 允许死亡 / false 已被格挡（取消死亡）
+     */
+    public static boolean allowDeathWithoutKiller(Player victim, ResourceLocation deathReason) {
+        if (!GameUtils.isPlayerAliveAndSurvivalIgnoreShitSplit(victim)) {
             return true;
         }
-        // 可格挡的死亡原因同防暴盾牌（共用白名单）
-        if (!RiotShieldHandler.isBlockableDeathReason(deathReason)) {
+        // 强制死亡（forcekill）挡不住：死亡管线会忽略返回值照常处死，这里不能假装挡下
+        if (GameUtils.isForcedDeathInProgress()) {
             return true;
         }
+        // 不限死因：窗口内任何死因的致命伤害都能被挡下
         return !parry(victim);
     }
 
     /**
-     * 供<b>走原版攻击路线</b>的武器（Dream 铁斧 / 钻石剑 / 重锤 / 武士刀）
+     * 供<b>走虚拟血量</b>的武器（Dream 铁斧 / 钻石剑 / 重锤、矛、武士刀……）
      * 在扣除虚拟血量<b>之前</b>调用。
      *
      * <p>这些武器的伤害落在虚拟血量上、不会在每次攻击时进入死亡管线，
      * 只靠 {@link #allowDeath} 只能兜住「虚拟血量归零的致死一击」，
-     * 中间的伤害照扣。因此必须由武器自身在扣血前询问武士刀是否正在格挡。
+     * 中间的伤害照扣。因此必须在扣血前询问武士刀是否正在格挡。
+     *
+     * <p>统一在 {@code DreamHealthComponent#hurt} 的入口调用，所以<b>不再局限于某几把写死的
+     * 武器</b>：任何走虚拟血量的伤害（含后续新增的特殊原版武器）都会先过一遍格挡判定。
      *
      * @return true 已被格挡，调用方应放弃本次攻击的全部伤害
      */

@@ -245,6 +245,12 @@ public class DreamHealthComponent implements RoleComponent {
         if (!GameUtils.isPlayerAliveAndSurvival(sp)) {
             return false;
         }
+        // 武士刀格挡：所有走虚拟血量的「特殊原版武器」（Dream 铁斧 / 钻石剑 / 重锤、矛、武士刀……）
+        // 统一在这里先过一遍格挡判定，命中格挡窗口就放弃本次伤害（消耗武士刀 1 点耐久）。
+        // 放在这个总入口而不是逐个武器里写，后续新增同类武器会自动生效。
+        if (attacker != null && org.agmas.noellesroles.katana.KatanaHandler.tryBlockAttack(sp, attacker)) {
+            return false;
+        }
         // 虚拟护盾只抵挡虚拟血量伤害：先在这里吸收，掉多少血由吸收后的剩余伤害决定
         int remaining = ignoreVirtualShield ? damage
                 : VirtualShieldComponent.KEY.get(sp).absorbVirtualDamage(damage);
