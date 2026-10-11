@@ -98,6 +98,7 @@ public class OtherRolesHudRegister {
         VeteranHud.register();
         CakeMakerHud.register();
         ConductorHud.register();
+        MinigameMasterHud.register();
         LeonHud.register();
         HunterHud.register();
         THReimuHud.register();

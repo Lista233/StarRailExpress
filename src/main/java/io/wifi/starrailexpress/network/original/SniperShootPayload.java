@@ -159,7 +159,11 @@ public record SniperShootPayload(Action action, int targetOrShooterId, @Nullable
                         }
                         boolean backfire = false;
                         backfire = IsShootBackFire.EVENT.invoker().isShootBackFire(player, target);
-                        boolean shouldDropRevolver = game.isInnocent(target) && !player.isCreative()
+                        // 美国警察标记的被标记者：豁免掉枪 + 清 San 惩罚
+                        var _sniperPoliceComp = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.AMERICAN_POLICE
+                                .maybeGet(target).orElse(null);
+                        boolean _sniperIsMarked = _sniperPoliceComp != null && _sniperPoliceComp.isMarked();
+                        boolean shouldDropRevolver = game.isInnocent(target) && !_sniperIsMarked && !player.isCreative()
                                 && mainHandStack.is(TMMItems.SNIPER_RIFLE);
                         var dropresult = AllowShootRevolverDrop.EVENT.invoker().allowDrop(player, target);
                         if (dropresult.equals(TrueFalseResult.FALSE)) {
@@ -193,6 +197,10 @@ public record SniperShootPayload(Action action, int targetOrShooterId, @Nullable
                                     }
                                 }
                             }, 1);
+                        } else if (_sniperIsMarked && game.isInnocent(target)) {
+                            // 标记目标：不掉枪，但 San 值减半
+                            var _sniperMood = SREPlayerMoodComponent.KEY.get(player);
+                            _sniperMood.setMood(_sniperMood.getMood() * 0.5f);
                         }
                         GameUtils.killPlayer(target, true, player, GameConstants.DeathReasons.SNIPER_RIFLE);
                     } else {

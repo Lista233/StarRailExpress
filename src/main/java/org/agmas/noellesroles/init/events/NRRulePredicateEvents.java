@@ -215,7 +215,8 @@ public class NRRulePredicateEvents {
                 "noellesroles:tomato",
                 "noellesroles:klotski_challenge",
                 "minecraft:written_book",
-                "noellesroles:truth_book"));
+                "noellesroles:truth_book",
+                "noellesroles:devil_roulette"));
     }
 
     private static void populateCanThrowItems() {

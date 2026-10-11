@@ -1,5 +1,8 @@
 package org.agmas.noellesroles.role.qust.roles.wanderer;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -60,7 +63,7 @@ public class WandererClientHandlers {
         }
 
         AdvancedCameraDirector.setFixedOverride(camPos, player.getYRot(),
-                Mth.clamp(player.getXRot(), -89.0F, 89.0F), 0.0F);
+                Mth.clamp(player.getXRot(), -89.0F, 89.0F), 100.0F);
     }
 
     private static void moveCamera(Minecraft client, LocalPlayer player) {
@@ -70,12 +73,22 @@ public class WandererClientHandlers {
         Vec3 forward = player.getLookAngle().scale(speed);
         Vec3 right = player.getLookAngle().yRot((float) (-Math.PI / 2)).scale(speed);
 
-        // WASD 移动
-        if (client.options.keyUp.isDown()) camPos = camPos.add(forward);
-        if (client.options.keyDown.isDown()) camPos = camPos.subtract(forward);
-        if (client.options.keyLeft.isDown()) camPos = camPos.subtract(right);
-        if (client.options.keyRight.isDown()) camPos = camPos.add(right);
-        if (client.options.keyJump.isDown()) camPos = camPos.add(0, speed, 0);
-        if (client.options.keyShift.isDown()) camPos = camPos.add(0, -speed, 0);
+        // 使用原始按键状态（绕过 MOVE_BANED 的按键拦截）
+        if (isPhysicallyDown(client, client.options.keyUp)) camPos = camPos.add(forward);
+        if (isPhysicallyDown(client, client.options.keyDown)) camPos = camPos.subtract(forward);
+        if (isPhysicallyDown(client, client.options.keyLeft)) camPos = camPos.subtract(right);
+        if (isPhysicallyDown(client, client.options.keyRight)) camPos = camPos.add(right);
+        if (isPhysicallyDown(client, client.options.keyJump)) camPos = camPos.add(0, speed, 0);
+        if (isPhysicallyDown(client, client.options.keyShift)) camPos = camPos.add(0, -speed, 0);
+    }
+
+    /** 读取按键映射对应物理键的原始按下状态（绕过 MOVE_BANED 的游戏内按键拦截）。 */
+    private static boolean isPhysicallyDown(Minecraft client, KeyMapping mapping) {
+        InputConstants.Key key = KeyBindingHelper.getBoundKeyOf(mapping);
+        if (key == null || key.getType() != InputConstants.Type.KEYSYM
+                || key.getValue() == InputConstants.UNKNOWN.getValue()) {
+            return mapping.isDown();
+        }
+        return InputConstants.isKeyDown(client.getWindow().getWindow(), key.getValue());
     }
 }

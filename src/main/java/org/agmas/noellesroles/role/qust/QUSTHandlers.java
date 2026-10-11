@@ -390,16 +390,18 @@ public class QUSTHandlers {
                             return;
                         }
 
-                        // 普通小游戏：根据类型决定奖励金额
+                        // 普通小游戏：根据小游戏注册信息中的难度决定奖励金额
                         String minigameId = payload.minigameId();
                         QUSTConfig cfg = QUSTConfig.instance();
-                        int reward = "klotski".equals(minigameId)
-                                ? cfg.minigameMasterKlotskiCoinReward
+                        var minigame = io.wifi.starrailexpress.content.minigame.QuestMinigames.get(minigameId);
+                        int reward = minigame != null
+                                ? minigame.coinReward()
                                 : cfg.minigameMasterCoinReward;
                         io.wifi.starrailexpress.cca.SREPlayerShopComponent.KEY.get(player).addToBalance(reward);
 
                         // 里程碑：达人自己用券完成的小游戏每满 N 个额外奖励 M 金币（计数随局清零）
                         comp.ticketMinigameCompleted++;
+                        comp.sync(); // 同步到客户端用于 HUD 显示
                         int comboCount = cfg.minigameMasterTicketComboCount;
                         if (comboCount > 0 && comp.ticketMinigameCompleted % comboCount == 0) {
                             int comboReward = cfg.minigameMasterTicketComboCoinReward;
@@ -687,9 +689,7 @@ public class QUSTHandlers {
                                     }
 
                                     if (comp.startSoulOut()) {
-                                        // 出窍开始即进入 20s 冷却（注册冷却为 0，由 handler 手动管理）
-                                        context.setSkillCooldown(WandererPlayerComponent.SOUL_OUT_COOLDOWN);
-                                        // 通知客户端进入自由相机
+                                        // 通知客户端进入自由相机（冷却在出窍结束时设置，见 endSoulOut）
                                         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
                                                 (ServerPlayer) player,
                                                 new WandererPayload.SoulOutState(true));
@@ -704,10 +704,8 @@ public class QUSTHandlers {
                                 }
                         ).announceToSelf()
                         .showOnHud(false)
-                        .toggleable(true)
-                        // 注册冷却保持 0：同一技能 ID 兼具「出窍 / 显隐」两种语义，
-                        // 冷却由 handler 按分支手动设置（出窍开始 20s、显形 60s），
-                        // 否则 markSkillUsed 会用注册值覆盖 handler 设置的冷却。
+                        // 不使用 toggleable：灵魂出窍有持续时间和自定义开始/结束逻辑，不是真正的开关技能
+                        // 冷却由 handler 在 endSoulOut() 内手动设置（出窍结束后 15s）
                         .build()
         );
     }
@@ -854,6 +852,8 @@ public class QUSTHandlers {
                             if (!civilianRoles.isEmpty()) {
                                 var randomRole = civilianRoles.get(player.level().random.nextInt(civilianRoles.size()));
                                 org.agmas.noellesroles.utils.RoleUtils.changeRoleAndSendWelcome(target, randomRole);
+                                // 清除除了钥匙和介绍信以外的所有物品
+                                clearInventoryExceptKeyAndLetter(target);
                                 player.level().playSound(null, target.blockPosition(),
                                         net.minecraft.sounds.SoundEvents.PLAYER_LEVELUP,
                                         net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 1.5F);
@@ -869,15 +869,28 @@ public class QUSTHandlers {
                             return;
                         }
 
-                        // 中立 → 正常杀死
+                        // 中立 → 转化为平民阵营角色
                         if (victimRole.isNeutrals()) {
-                            io.wifi.starrailexpress.game.GameUtils.killPlayer(
-                                    target, true, player,
-                                    io.wifi.starrailexpress.game.GameConstants.DeathReasons.GUN_SHOT);
-                            player.displayClientMessage(
-                                    net.minecraft.network.chat.Component.translatable(
-                                            "message.super_doctor.repentance_hit_neutral")
-                                            .withStyle(net.minecraft.ChatFormatting.YELLOW), true);
+                            var civilianRoles = io.wifi.starrailexpress.api.TMMRoles.ROLES.values().stream()
+                                    .filter(r -> r.isInnocent() && !r.isVigilanteTeam())
+                                    .toList();
+                            if (!civilianRoles.isEmpty()) {
+                                var randomRole = civilianRoles.get(player.level().random.nextInt(civilianRoles.size()));
+                                org.agmas.noellesroles.utils.RoleUtils.changeRoleAndSendWelcome(target, randomRole);
+                                // 清除除了钥匙和介绍信以外的所有物品
+                                clearInventoryExceptKeyAndLetter(target);
+                                player.level().playSound(null, target.blockPosition(),
+                                        net.minecraft.sounds.SoundEvents.PLAYER_LEVELUP,
+                                        net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 1.5F);
+                                player.displayClientMessage(
+                                        net.minecraft.network.chat.Component.translatable(
+                                                "message.super_doctor.repentance_hit_neutral")
+                                                .withStyle(net.minecraft.ChatFormatting.YELLOW), true);
+                                target.displayClientMessage(
+                                        net.minecraft.network.chat.Component.translatable(
+                                                "message.super_doctor.repentance_transformed")
+                                                .withStyle(net.minecraft.ChatFormatting.GREEN), false);
+                            }
                             return;
                         }
 
@@ -898,20 +911,34 @@ public class QUSTHandlers {
     // ==================== 筹客网络处理（恶魔轮盘停止） ====================
 
     private static void registerBettorNetworkHandlers() {
-        // C2S: 客户端在 Screen 中点击请求停止轮盘
+        // C2S: 客户端在 Screen 中点击请求停止轮盘（效果和返现均作用于使用者）
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
                 org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.StopRoulette.TYPE,
                 (payload, context) -> {
                     ServerPlayer sp = context.player();
                     sp.getServer().execute(() -> {
-                        var game = io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(sp.level());
-                        if (game == null || !game.isRole(sp, QUSTRoles.BETTOR)) return;
+                        // 检查主手是否持有恶魔轮盘
+                        var held = sp.getItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND);
+                        if (!held.is(org.agmas.noellesroles.init.ModItems.DEVIL_ROULETTE)) return;
 
-                        var comp = QUSTComponentKeys.Keys.BETTOR.maybeGet(sp).orElse(null);
-                        if (comp == null || !comp.isRolling()) return;
+                        // 检查是否正在滚动
+                        if (!org.agmas.noellesroles.content.item.bettor.DevilRouletteItem.isRolling(held)) return;
 
-                        // 停止滚动，生成结果
-                        int result = comp.stopAndApplyResult(sp);
+                        // 停止滚动，生成结果（效果作用于使用者）
+                        int result = java.util.concurrent.ThreadLocalRandom.current().nextInt(1, 1001);
+                        org.agmas.noellesroles.content.item.bettor.DevilRouletteItem.setRolling(held, false);
+
+                        // 根据结果应用效果
+                        String desc = org.agmas.noellesroles.content.item.bettor.DevilRouletteItem.applyResultPublic(sp, result);
+
+                        // 随机返现 -30~+50 金币给使用者
+                        int refund = java.util.concurrent.ThreadLocalRandom.current().nextInt(-30, 51);
+                        if (refund != 0) {
+                            io.wifi.starrailexpress.cca.SREPlayerShopComponent.KEY.get(sp).addToBalance(refund);
+                            // 发送金币变动给 HUD 显示
+                            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
+                                    new org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.CoinChange(refund));
+                        }
 
                         // 播放音效
                         sp.level().playSound(null, sp.blockPosition(),
@@ -919,16 +946,11 @@ public class QUSTHandlers {
                                 net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 1.0F);
 
                         // 消耗物品
-                        var hand = net.minecraft.world.InteractionHand.MAIN_HAND;
-                        var held = sp.getItemInHand(hand);
-                        if (held.is(org.agmas.noellesroles.init.ModItems.DEVIL_ROULETTE)) {
-                            held.shrink(1);
-                        }
+                        held.shrink(1);
 
-                        // 发送结果给客户端
-                        String desc = comp.getResultDescription();
+                        // 发送结果给客户端（包含金币变动）
                         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
-                                new org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.RouletteResult(result, desc));
+                                new org.agmas.noellesroles.role.qust.roles.bettor.BettorPayload.RouletteResult(result, desc, refund));
                     });
                 });
     }
@@ -944,5 +966,24 @@ public class QUSTHandlers {
             org.agmas.noellesroles.utils.RoleUtils.insertStackInFreeSlot(
                     sp, org.agmas.noellesroles.init.ModItems.INTERFERENCE_CHIP.getDefaultInstance());
         });
+    }
+
+    // ==================== 辅助方法 ====================
+
+    /**
+     * 清除玩家背包中除了钥匙和介绍信以外的所有物品。
+     * 用于救赎之枪转化职业时清理原有职业物品。
+     */
+    private static void clearInventoryExceptKeyAndLetter(ServerPlayer player) {
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            var stack = inventory.getItem(i);
+            if (!stack.isEmpty() && !stack.is(io.wifi.starrailexpress.index.TMMItems.KEY)
+                    && !stack.is(io.wifi.starrailexpress.index.TMMItems.LETTER)) {
+                inventory.setItem(i, net.minecraft.world.item.ItemStack.EMPTY);
+            }
+        }
+        player.containerMenu.broadcastChanges();
+        player.inventoryMenu.slotsChanged(inventory);
     }
 }

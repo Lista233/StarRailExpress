@@ -34,14 +34,24 @@ public class BettorClientHandlers {
                     Minecraft client = context.client();
                     // 如果当前界面是恶魔轮盘，直接更新
                     if (client.screen instanceof DevilRouletteScreen rouletteScreen) {
-                        rouletteScreen.showResult(payload.number(), payload.description());
+                        rouletteScreen.showResult(payload.number(), payload.description(), payload.coinChange());
                     } else {
                         // 否则新开界面显示结果
                         DevilRouletteScreen screen = new DevilRouletteScreen();
-                        screen.showResult(payload.number(), payload.description());
+                        screen.showResult(payload.number(), payload.description(), payload.coinChange());
                         currentScreen = screen;
                         client.setScreen(screen);
                     }
+                });
+            }
+        );
+
+        // S2C: 金币变动 → 通知 HUD 显示
+        ClientPlayNetworking.registerGlobalReceiver(
+            BettorPayload.CoinChange.TYPE,
+            (payload, context) -> {
+                context.client().execute(() -> {
+                    BettorHud.showCoinChange(payload.amount());
                 });
             }
         );

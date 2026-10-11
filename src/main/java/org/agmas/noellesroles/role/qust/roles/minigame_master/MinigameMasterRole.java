@@ -40,7 +40,7 @@ public class MinigameMasterRole extends NormalRole {
         entries.add(createMinigameTicketEntry());
         // 击退剑（200金币，持有即可左键击退）
         entries.add(createKnockbackSwordEntry());
-        // 华容道挑战（1200金币，通关直接胜利）
+        // 华容道挑战（900金币，通关直接胜利）
         entries.add(createKlotskiChallengeEntry());
         return entries;
     }
@@ -75,7 +75,7 @@ public class MinigameMasterRole extends NormalRole {
     }
 
     /**
-     * 创建华容道挑战商店条目（1200金币，通关后平民与义警阵营胜利）
+     * 创建华容道挑战商店条目（900金币，通关后平民与义警阵营胜利）
      * <p>购买获得物品，右键随时开始，未通关不消耗。</p>
      */
     public static ShopEntry createKlotskiChallengeEntry() {

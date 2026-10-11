@@ -130,7 +130,11 @@ public record GunShootPayload(int target) implements CustomPacketPayload {
                     }
                 }
                 backfire = IsShootBackFire.EVENT.invoker().isShootBackFire(player, target);
-                boolean shouldDropRevolver = game.isInnocent(target) && !player.isCreative()
+                // 美国警察标记的被标记者：豁免掉枪 + 清 San 惩罚
+                var _targetPoliceComp = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.AMERICAN_POLICE
+                        .maybeGet(target).orElse(null);
+                boolean _isMarkedTarget = _targetPoliceComp != null && _targetPoliceComp.isMarked();
+                boolean shouldDropRevolver = game.isInnocent(target) && !_isMarkedTarget && !player.isCreative()
                         && mainHandStack.is(TMMItemTags.GUNS) && !isDerringerWeapon;
                 var dropresult = AllowShootRevolverDrop.EVENT.invoker().allowDrop(player, target);
                 if (dropresult.equals(TrueFalseResult.FALSE)) {
@@ -172,6 +176,10 @@ public record GunShootPayload(int target) implements CustomPacketPayload {
                             }
                         }, 1);
                     }
+                } else if (_isMarkedTarget && game.isInnocent(target)) {
+                    // 标记目标：不掉枪，但 San 值减半
+                    var _mood = SREPlayerMoodComponent.KEY.get(player);
+                    _mood.setMood(_mood.getMood() * 0.5f);
                 }
 
                 if (!backfire) {
@@ -204,7 +212,11 @@ public record GunShootPayload(int target) implements CustomPacketPayload {
                     }
                 }
                 backfire = IsShootBackFire.EVENT.invoker().isShootBackFire(player, target);
-                boolean shouldDropRevolver = game.isInnocent(target) && !player.isCreative()
+                // 美国警察标记的被标记者：豁免掉枪 + 清 San 惩罚
+                var _targetPoliceComp2 = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.AMERICAN_POLICE
+                        .maybeGet(target).orElse(null);
+                boolean _isMarkedTarget2 = _targetPoliceComp2 != null && _targetPoliceComp2.isMarked();
+                boolean shouldDropRevolver = game.isInnocent(target) && !_isMarkedTarget2 && !player.isCreative()
                         && mainHandStack.is(TMMItemTags.GUNS) && !isDerringerWeapon;
                 var dropresult = AllowShootRevolverDrop.EVENT.invoker().allowDrop(player, target);
                 if (dropresult.equals(TrueFalseResult.FALSE)) {
@@ -246,6 +258,10 @@ public record GunShootPayload(int target) implements CustomPacketPayload {
                             }
                         }, 1);
                     }
+                } else if (_isMarkedTarget2 && game.isInnocent(target)) {
+                    // 标记目标：不掉枪，但 San 值减半
+                    var _mood2 = SREPlayerMoodComponent.KEY.get(player);
+                    _mood2.setMood(_mood2.getMood() * 0.5f);
                 }
 
                 if (!backfire) {

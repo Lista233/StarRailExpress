@@ -20,10 +20,20 @@ import net.minecraft.network.chat.Component;
 /**
  * 小游戏任务点的小游戏接口（纯服务端安全）
  * 只存储小游戏的 ID 和显示名称，不引用任何客户端类
+ *
+ * @param coinReward 小游戏达人完成该小游戏后获得的金币数
  */
-public record QuestMinigame(String id, Component displayName) {
+public record QuestMinigame(String id, Component displayName, int coinReward) {
+
+    /** 默认金币奖励（普通难度小游戏） */
+    public static final int DEFAULT_COIN_REWARD = 20;
 
     public static QuestMinigame of(String id, String translationKey) {
-        return new QuestMinigame(id, Component.translatable(translationKey));
+        return new QuestMinigame(id, Component.translatable(translationKey), DEFAULT_COIN_REWARD);
+    }
+
+    /** 指定自定义金币奖励 */
+    public static QuestMinigame of(String id, String translationKey, int coinReward) {
+        return new QuestMinigame(id, Component.translatable(translationKey), coinReward);
     }
 }

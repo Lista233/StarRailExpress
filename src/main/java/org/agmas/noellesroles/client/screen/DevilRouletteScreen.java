@@ -27,6 +27,7 @@ public class DevilRouletteScreen extends Screen {
     private boolean rolling = false;
     private int resultNumber = 0;
     private String resultDescription = "";
+    private int coinChange = 0;
     private int resultDisplayTicks = 0;
     private static final int RESULT_DURATION = 200; // 10秒
 
@@ -57,10 +58,11 @@ public class DevilRouletteScreen extends Screen {
     /**
      * 显示结果（由网络处理器调用）
      */
-    public void showResult(int number, String description) {
+    public void showResult(int number, String description, int coinChange) {
         this.rolling = false;
         this.resultNumber = number;
         this.resultDescription = description;
+        this.coinChange = coinChange;
         this.resultDisplayTicks = RESULT_DURATION;
     }
 
@@ -166,10 +168,20 @@ public class DevilRouletteScreen extends Screen {
             g.drawCenteredString(font, descText, centerX, centerY + 40, descColor);
         }
 
+        // 金币变动
+        if (coinChange != 0) {
+            String coinStr = (coinChange > 0 ? "+" : "") + coinChange;
+            Component coinText = Component.translatable("screen.bettor.devil_roulette.coin_change", coinStr)
+                    .withStyle(coinChange > 0
+                            ? net.minecraft.ChatFormatting.GREEN
+                            : net.minecraft.ChatFormatting.RED);
+            g.drawCenteredString(font, coinText, centerX, centerY + 55, coinChange > 0 ? 0xFF44FF44 : 0xFFFF4444);
+        }
+
         // ESC 退出提示
         Component escHint = Component.translatable("screen.bettor.devil_roulette.esc_hint")
                 .withStyle(net.minecraft.ChatFormatting.GRAY);
-        g.drawCenteredString(font, escHint, centerX, centerY + 65, 0xFF888888);
+        g.drawCenteredString(font, escHint, centerX, centerY + 70, 0xFF888888);
     }
 
     /**

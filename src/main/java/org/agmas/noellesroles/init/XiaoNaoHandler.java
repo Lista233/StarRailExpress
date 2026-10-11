@@ -46,6 +46,14 @@ public class XiaoNaoHandler {
                 return;
 
             final SREGameWorldComponent gameWorldComponent = SREGameWorldComponent.KEY.get(victim.level());
+
+            // 美国警察标记的被标记者被任意玩家击杀 → 跳过小脑惩罚（提前判断，不受 isInnocent 分支影响）
+            var victimPoliceComp = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.AMERICAN_POLICE
+                    .maybeGet(victim).orElse(null);
+            if (victimPoliceComp != null && victimPoliceComp.isMarked()) {
+                return;
+            }
+
             if (GameUtils.isPlayerAliveAndSurvival(killer)) {
                 if (isInnocent) {
                     if (gameWorldComponent.isRole(victim, TMMRoles.DISCOVERY_CIVILIAN)) {
@@ -76,12 +84,6 @@ public class XiaoNaoHandler {
                     }
 
                     if (gameWorldComponent.isRole(victim, ModRoles.VOODOO)) {
-                        return;
-                    }
-                    // 美国警察标记的被标记者被任意玩家击杀 → 跳过小脑惩罚
-                    var victimPoliceComp = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.AMERICAN_POLICE
-                            .maybeGet(victim).orElse(null);
-                    if (victimPoliceComp != null && victimPoliceComp.isMarked()) {
                         return;
                     }
                     var victimRole = gameWorldComponent.getRole(victim);

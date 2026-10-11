@@ -29,9 +29,9 @@ public class BettorPayload {
     }
 
     /**
-     * S2C: 轮盘结果（最终数字 + 效果描述）
+     * S2C: 轮盘结果（最终数字 + 效果描述 + 金币变动）
      */
-    public record RouletteResult(int number, String description) implements CustomPacketPayload {
+    public record RouletteResult(int number, String description, int coinChange) implements CustomPacketPayload {
 
         public static final Type<RouletteResult> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath("qust", "bettor_roulette_result"));
@@ -42,6 +42,8 @@ public class BettorPayload {
                 RouletteResult::number,
                 net.minecraft.network.codec.ByteBufCodecs.STRING_UTF8,
                 RouletteResult::description,
+                net.minecraft.network.codec.ByteBufCodecs.VAR_INT,
+                RouletteResult::coinChange,
                 RouletteResult::new
             );
 
@@ -61,6 +63,27 @@ public class BettorPayload {
 
         public static final StreamCodec<FriendlyByteBuf, StopRoulette> CODEC =
             StreamCodec.unit(new StopRoulette());
+
+        @Override
+        public @NotNull Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    /**
+     * S2C: 金币变动通知（用于 HUD 显示）
+     */
+    public record CoinChange(int amount) implements CustomPacketPayload {
+
+        public static final Type<CoinChange> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath("qust", "bettor_coin_change"));
+
+        public static final StreamCodec<FriendlyByteBuf, CoinChange> CODEC =
+            StreamCodec.composite(
+                net.minecraft.network.codec.ByteBufCodecs.VAR_INT,
+                CoinChange::amount,
+                CoinChange::new
+            );
 
         @Override
         public @NotNull Type<? extends CustomPacketPayload> type() {

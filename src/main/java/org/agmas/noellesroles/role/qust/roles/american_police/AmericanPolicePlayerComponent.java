@@ -131,8 +131,9 @@ public class AmericanPolicePlayerComponent implements RoleComponent, ServerTicki
         var victimRole = gameComponent.getRole(serverVictim);
         if (victimRole == null) return;
 
-        // 如果受害者是杀手或中立角色，奖励一次技能使用次数
-        if (!victimRole.isInnocent()) {
+        // 只有击杀被自己标记的杀手或中立角色，才奖励一次技能使用次数
+        var victimPoliceComp = QUSTComponentKeys.Keys.AMERICAN_POLICE.maybeGet(serverVictim).orElse(null);
+        if (victimPoliceComp != null && victimPoliceComp.isMarked() && !victimRole.isInnocent()) {
             addBonusCharge(serverPlayer);
             serverPlayer.displayClientMessage(
                     net.minecraft.network.chat.Component.translatable(

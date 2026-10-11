@@ -59,7 +59,7 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
 
     // ── 常量 ──
     public static final int SOUL_OUT_DURATION = 7 * 20; // 7s
-    public static final int SOUL_OUT_COOLDOWN = 20 * 20; // 20s
+    public static final int SOUL_OUT_END_COOLDOWN = 15 * 20; // 15s（出窍结束后计算）
     public static final int GHOST_VISIBLE_COOLDOWN = 60 * 20; // 60s
     public static final int GHOST_AUTO_HIDE_TICKS = 10; // 0.5s
     /** 幽灵商店撬棍的耐久点数（逐栈 MAX_DAMAGE 组件标记，耗尽后撬棍损坏消失） */
@@ -99,15 +99,15 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         // 灵魂出窍倒计时
         if (soulOutActive) {
             soulOutRemainingTicks--;
-            // 灵魂出窍时冻结本体位置：禁止移动 + 减速效果
+            // 灵魂出窍时冻结本体位置：禁止移动 + 跳跃
             if (player instanceof ServerPlayer sp) {
                 player.noPhysics = true;
                 player.setNoGravity(true);
                 player.setDeltaMovement(0, 0, 0);
-                // 施加 255 级减速效果（每 tick 重新施加），使本体完全无法移动
+                // 施加 MOVE_BANED 效果（每 tick 重新施加），完全禁止本体移动与跳跃
                 player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                        net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN,
-                        3, 255, false, false, false));
+                        org.agmas.noellesroles.init.ModEffects.MOVE_BANED,
+                        3, 0, false, false, false));
             }
             if (soulOutRemainingTicks <= 0) {
                 endSoulOut();
@@ -189,14 +189,18 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         if (!isGhost && player instanceof ServerPlayer) {
             player.noPhysics = false;
             player.setNoGravity(false);
-            // 清除灵魂出窍期间施加的减速效果
-            player.removeEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN);
+            // 清除灵魂出窍期间施加的 MOVE_BANED 效果
+            player.removeEffect(org.agmas.noellesroles.init.ModEffects.MOVE_BANED);
         }
         sync();
         // 通知客户端退出自由相机（含死亡/游戏结束等异常结束场景）
         if (player instanceof ServerPlayer sp) {
             net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
                     sp, new WandererPayload.SoulOutState(false));
+            // 灵魂出窍结束后进入 15s 冷却（从结束时计算）
+            io.wifi.starrailexpress.cca.SREAbilityPlayerComponent.KEY.get(sp)
+                    .setSkillCooldown(org.agmas.noellesroles.role.qust.QUSTRoles.WANDERER_SKILL_ID,
+                            SOUL_OUT_END_COOLDOWN);
         }
     }
 

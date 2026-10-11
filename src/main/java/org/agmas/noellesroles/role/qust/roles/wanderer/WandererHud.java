@@ -1,5 +1,6 @@
 package org.agmas.noellesroles.role.qust.roles.wanderer;
 
+import io.wifi.starrailexpress.cca.SREAbilityPlayerComponent;
 import io.wifi.utils.client.betterrender.FakeGuiGraphics;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -43,7 +44,7 @@ public class WandererHud {
             int dy = screenHeight - 10 - font.lineHeight;
 
             if (!comp.isGhost()) {
-                // 存活状态：显示“灵魂出窍”或倒计时
+                // 存活状态：显示"灵魂出窍"或倒计时
                 if (comp.isSoulOutActive()) {
                     float seconds = comp.getSoulOutRemainingTicks() / 20.0f;
                     Component text = Component.translatable("hud.wanderer_qust.soul_out_timer",
@@ -52,14 +53,23 @@ public class WandererHud {
                     guiGraphics.drawString(font, text, xOffset - font.width(text), dy, 0xFFFFFF);
                     dy -= font.lineHeight + 2;
                 } else {
-                    // 存活但未出窍：显示技能名“灵魂出窍”
+                    // 存活但未出窍：显示技能名"灵魂出窍"
                     Component text = Component.translatable("hud.wanderer_qust.skill_alive")
                             .withStyle(ChatFormatting.DARK_AQUA);
                     guiGraphics.drawString(font, text, xOffset - font.width(text), dy, 0xFFFFFF);
                     dy -= font.lineHeight + 2;
+                    // 灵魂出窍冷却
+                    int cd = getSkillCooldown(client);
+                    if (cd > 0) {
+                        Component cdText = Component.translatable("hud.wanderer_qust.cooldown",
+                                (cd + 19) / 20)
+                                .withStyle(ChatFormatting.RED);
+                        guiGraphics.drawString(font, cdText, xOffset - font.width(cdText), dy, 0xFFFFFF);
+                        dy -= font.lineHeight + 2;
+                    }
                 }
             } else if (!comp.isFinalDeath()) {
-                // 幽灵状态（死亡后）：显示“显形”或“隐身”
+                // 幽灵状态（死亡后）：显示"显形"或"隐身"
                 Component ghostText;
                 if (comp.isGhostVisible()) {
                     ghostText = Component.translatable("hud.wanderer_qust.skill_dead")
@@ -69,6 +79,15 @@ public class WandererHud {
                             .withStyle(ChatFormatting.GRAY);
                 }
                 guiGraphics.drawString(font, ghostText, xOffset - font.width(ghostText), dy, 0xFFFFFF);
+                dy -= font.lineHeight + 2;
+                // 显形冷却
+                int cd = getSkillCooldown(client);
+                if (cd > 0) {
+                    Component cdText = Component.translatable("hud.wanderer_qust.cooldown",
+                            (cd + 19) / 20)
+                            .withStyle(ChatFormatting.RED);
+                    guiGraphics.drawString(font, cdText, xOffset - font.width(cdText), dy, 0xFFFFFF);
+                }
             }
 
             // ── 死亡通知覆盖层（8秒，淡入淡出，置顶不闪烁） ──
@@ -129,5 +148,16 @@ public class WandererHud {
         int subY = screenHeight / 2 + 15;
         int subColor = (alphaInt << 24) | 0xAAAAAA;
         guiGraphics.drawString(font, subText, subX, subY, subColor, false);
+    }
+
+    /**
+     * 获取游荡者技能在客户端侧的当前冷却 tick 数。
+     * 灵魂出窍和显形共用同一个技能 ID（WANDERER_SKILL_ID）。
+     */
+    private static int getSkillCooldown(Minecraft client) {
+        if (client.player == null) return 0;
+        var abilityComp = SREAbilityPlayerComponent.KEY.get(client.player);
+        if (abilityComp == null) return 0;
+        return abilityComp.getSkillState(QUSTRoles.WANDERER_SKILL_ID).cooldown;
     }
 }

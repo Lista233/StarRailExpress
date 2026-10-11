@@ -37,6 +37,11 @@ public class BettorHud implements HudRenderCallback {
     private static int rollingTickCounter = 0;
     private static final int ROLLING_CHANGE_INTERVAL = 2; // 每2tick换一个数字
 
+    // 金币变动显示状态
+    private static int coinChangeAmount = 0;
+    private static int coinChangeDisplayTicks = 0;
+    private static final int COIN_CHANGE_DURATION = 100; // 5秒
+
     /**
      * 开始滚动动画（从网络包调用）
      */
@@ -57,6 +62,14 @@ public class BettorHud implements HudRenderCallback {
         resultNumber = number;
         resultDescription = description;
         resultDisplayTicks = RESULT_DURATION;
+    }
+
+    /**
+     * 显示金币变动（从网络包调用）
+     */
+    public static void showCoinChange(int amount) {
+        coinChangeAmount = amount;
+        coinChangeDisplayTicks = COIN_CHANGE_DURATION;
     }
 
     @Override
@@ -84,6 +97,12 @@ public class BettorHud implements HudRenderCallback {
             // 渲染结果
             renderResult(guiGraphics, centerX, centerY);
             resultDisplayTicks--;
+        }
+
+        // 渲染金币变动（始终显示，如果有的话）
+        if (coinChangeDisplayTicks > 0) {
+            renderCoinChange(guiGraphics, centerX, centerY);
+            coinChangeDisplayTicks--;
         }
     }
 
@@ -158,5 +177,25 @@ public class BettorHud implements HudRenderCallback {
             Component descText = Component.translatable(resultDescription);
             guiGraphics.drawCenteredString(Minecraft.getInstance().font, descText, centerX, centerY + 10, 0xFFFFFFFF);
         }
+    }
+
+    /**
+     * 渲染金币变动显示
+     */
+    private void renderCoinChange(GuiGraphics guiGraphics, int centerX, int centerY) {
+        // 根据结果界面位置调整金币变动显示位置
+        int boxWidth = 160;
+        int boxHeight = 30;
+        int boxX = centerX - boxWidth / 2;
+        int boxY = centerY + 70; // 在结果界面下方
+
+        // 背景半透明黑色
+        guiGraphics.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xCC000000);
+
+        // 根据正负决定颜色
+        int color = coinChangeAmount >= 0 ? 0xFF00FF00 : 0xFFFF0000; // 绿色/红色
+        String prefix = coinChangeAmount >= 0 ? "+" : "";
+        Component coinText = Component.literal("§6金币: §f" + prefix + coinChangeAmount);
+        guiGraphics.drawCenteredString(Minecraft.getInstance().font, coinText, centerX, boxY + 10, color);
     }
 }

@@ -127,7 +127,7 @@ public class QUSTConfig implements ConfigData {
     public int minigameMasterKlotskiCoinReward = 250;
 
     /** 华容道挑战价格（通关可直接赢得比赛） */
-    public int minigameMasterKlotskiChallengePrice = 1200;
+    public int minigameMasterKlotskiChallengePrice = 900;
 
     /** 达人自己完成小游戏时恢复少量 san 值的概率（0.5 = 50%） */
     public double minigameMasterSelfCompleteSanChance = 0.5;
