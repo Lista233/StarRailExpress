@@ -351,7 +351,7 @@ public class BounsRoles {
                     TMMRoles.CIVILIAN_MAX_SPRINT_TICKS,
                     false))
             .setBeSeenInstinctType(InstinctType.DEFAULT, InstinctType.TARGET_ROLE_COLOR)
-            .setDefaultEnableChance(10)
+            .setDefaultEnableChance(1000)
             .setNeutralForInnocent(true);
 
     public static SRERole WITCH_MAIDEN = TMMRoles.registerRole(new WitchMaidenRole(
@@ -362,7 +362,7 @@ public class BounsRoles {
             Integer.MAX_VALUE, true))
             .setCanUseInstinctAndNightVision(true)
             .setDefaultEnableChance(1000)
-            .setDefaultEnableMaxPlayerCount(18)
+            .setDefaultEnableNeededPlayerCount(18)
             .setAddedVersion("4.4"); // versiontag 4.4
 
     public static SRERole RABBIT_WANSUI = TMMRoles.registerRole(new RabbitWansuiRole(
@@ -377,7 +377,7 @@ public class BounsRoles {
             .setCanUseInstinctAndNightVision(true)
             .setInstinctType(InstinctType.DEFAULT, InstinctType.OBSERVER_ROLE_COLOR)
             .setKillExtraCoinAwards(50)
-            .setDefaultEnableMaxPlayerCount(18)
+            .setDefaultEnableNeededPlayerCount(18)
             .setAddedVersion("4.4"); // versiontag 4.4
 
     public static SRERole LICENSED_VILLAIN = TMMRoles.registerRole(new EggRole(
@@ -393,7 +393,7 @@ public class BounsRoles {
             .setNeutralForKiller(false)
             .setCanBeRandomedByOtherRoles(false)
             .setDefaultEnableChance(1000) // 刷新率 10%
-            .setDefaultEnableMaxPlayerCount(12) // 人数刷新上限 12 人
+            .setDefaultEnableNeededPlayerCount(12) // 人数刷新上限 12 人
             .setAddedVersion("4.4") // versiontag 4.4
             .setTaskReward(2, 1, new ItemStack(TMMItems.STANDARD_REVOLVER)) // 完成 2 个任务获制式左轮
             .setCanUseInstinctAndNightVision(true);
@@ -468,7 +468,8 @@ public class BounsRoles {
             .setCanClimbWalls(true)
             .addFlag("peak")
             .setSpecialMapRolesCondition((t) -> t.contains(MapSpecialFeatures.PEAK))
-            .setDefaultMax(8000)
+            .setDefaultMax(1)
+            .setDefaultEnableChance(8000)
             .setCanBeRandomedByOtherRoles(false);
 
     /**

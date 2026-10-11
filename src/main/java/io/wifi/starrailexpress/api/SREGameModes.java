@@ -75,6 +75,9 @@ public class SREGameModes {
     // Volunteer Open Select Mode (haiman)
     public static final ResourceLocation VOLUNTEER_OPEN_SELECT_MODE_ID = SRE.haimanId("volunteer_open_select");
 
+    // Three Way War Mode (haiman)
+    public static final ResourceLocation THREE_WAY_WAR_MODE_ID = SRE.haimanId("three_way_war");
+
     // Tradition Mode (sre)
     public static final ResourceLocation TRADITION_MODE_ID = SRE.shortId("tradition");
 
@@ -132,6 +135,10 @@ public class SREGameModes {
     // Volunteer Open Select Mode (haiman)
     public static final GameMode VOLUNTEER_OPEN_SELECT_MODE = registerGameMode(
             new SREVolunteerOpenSelectGameMode(VOLUNTEER_OPEN_SELECT_MODE_ID));
+
+    // Three Way War Mode (haiman)
+    public static final GameMode THREE_WAY_WAR_MODE = registerGameMode(
+            new SREThreeWayWarGameMode(THREE_WAY_WAR_MODE_ID));
 
     // Tradition Mode (sre)
     public static final GameMode TRADITION_MODE = registerGameMode(new SRETraditionGameMode(TRADITION_MODE_ID));

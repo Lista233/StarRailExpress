@@ -5,6 +5,7 @@ import io.wifi.starrailexpress.game.GameUtils;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
@@ -66,13 +67,17 @@ public final class SpearCombat {
         SpearComponents.PiercingWeapon piercing = SpearConfig.piercing();
         float damage = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);
         boolean hit = false;
+        boolean hitPlayer = false;
         for (EntityHitResult result : collectPiercingCollisions(attacker,
                 SpearConfig.ATTACK_RANGE.minReach(),
                 SpearConfig.ATTACK_RANGE.maxReach(),
                 piercing.hitboxMargin(),
                 target -> SpearComponents.PiercingWeapon.canHit(attacker, target))) {
-            hit |= pierce(attacker, slot, result.getEntity(), damage, true, piercing.dealsKnockback(),
+            boolean pierced = pierce(attacker, slot, result.getEntity(), damage, true, piercing.dealsKnockback(),
                     piercing.dismounts());
+            hit |= pierced;
+            // 只有命中玩家才计入耐久消耗（一次直刺最多消耗 1 点）
+            hitPlayer |= pierced && result.getEntity() instanceof Player;
         }
         // Backported-Spears triggers the post-piercing enchantment effect after
         // every completed stab, even when the collision scan found no target.
@@ -80,9 +85,9 @@ public final class SpearCombat {
         applyLunge(attacker, stack);
         if (hit) {
             piercing.playHitSound(attacker);
-            if (stack.getMaxDamage() > 0) {
-                stack.hurtAndBreak(1, attacker, slot);
-            }
+        }
+        if (hitPlayer) {
+            consumeDurability(attacker, stack);
         }
         piercing.playSound(attacker);
         attacker.swing(InteractionHand.MAIN_HAND, false);
@@ -106,6 +111,7 @@ public final class SpearCombat {
         float reachMultiplier = user instanceof Player ? 1.0F : 0.5F;
         double attackDamage = user.getAttributeValue(Attributes.ATTACK_DAMAGE);
         boolean hit = false;
+        boolean hitPlayer = false;
         for (EntityHitResult result : collectPiercingCollisions(user,
                 reachMultiplier * SpearConfig.ATTACK_RANGE.minReach(),
                 reachMultiplier * SpearConfig.ATTACK_RANGE.maxReach(),
@@ -127,7 +133,10 @@ public final class SpearCombat {
                     .map(c -> c.isSatisfied(chargeTicks, forwardSpeed, relativeSpeed, speedMultiplier)).orElse(false);
             if (dismount || knockback || damage) {
                 float hitDamage = (float) attackDamage + Mth.floor(relativeSpeed * kinetic.damageMultiplier());
-                hit |= spearUser.pierce(slot, entity, hitDamage, damage, knockback, dismount);
+                boolean pierced = spearUser.pierce(slot, entity, hitDamage, damage, knockback, dismount);
+                hit |= pierced;
+                // 冲刺命中玩家才计入耐久消耗（同一目标受接触冷却保护，不会每 tick 扣）
+                hitPlayer |= pierced && entity instanceof Player;
             }
         }
         if (hit) {
@@ -135,6 +144,37 @@ public final class SpearCombat {
             // 广播一次受击动作，供客户端计算冲锋收招动画
             user.level().broadcastEntityEvent(user, (byte) 2);
         }
+        if (hitPlayer && consumeDurability(user, stack)) {
+            // 耐久归零、矛已消失：结束蓄力使用状态
+            user.stopUsingItem();
+        }
+    }
+
+    // ───────────────────────── 耐久消耗 ─────────────────────────
+
+    /**
+     * 消耗矛 1 点耐久（左键直刺 / 右键冲锋命中玩家时调用）。
+     * <p>
+     * 直接改写 {@code Damage} 分量而不走原版 {@code hurtAndBreak}，避免受其「创造模式 /
+     * 未被该实体持有 / 破损回调」等分支影响导致扣不上或扣了不消失。
+     * 耐久归零时把数量清零，物品立即消失并播放破损音效。
+     *
+     * @return 物品是否已因耐久归零而消失
+     */
+    private static boolean consumeDurability(LivingEntity user, ItemStack stack) {
+        if (stack.isEmpty() || stack.getMaxDamage() <= 0) {
+            return false;
+        }
+        int next = stack.getDamageValue() + 1;
+        if (next >= stack.getMaxDamage()) {
+            // 耐久归零：物品直接消失（不依赖原版 hurtAndBreak，避免其分支差异导致扣不上/不消失）
+            stack.setCount(0);
+            user.level().playSound(null, user.getX(), user.getY(), user.getZ(), SoundEvents.ITEM_BREAK,
+                    SoundSource.PLAYERS, 0.8F, 0.8F + user.level().getRandom().nextFloat() * 0.4F);
+            return true;
+        }
+        stack.setDamageValue(next);
+        return false;
     }
 
     // ───────────────────────── 单次命中结算 ─────────────────────────

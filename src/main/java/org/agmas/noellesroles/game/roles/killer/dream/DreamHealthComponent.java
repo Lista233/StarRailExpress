@@ -16,6 +16,8 @@
 package org.agmas.noellesroles.game.roles.killer.dream;
 
 import io.wifi.starrailexpress.api.RoleComponent;
+import io.wifi.starrailexpress.cca.SREArmorPlayerComponent;
+import io.wifi.starrailexpress.cca.SREWeakArmorPlayerComponent;
 import io.wifi.starrailexpress.game.GameUtils;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -200,26 +202,68 @@ public class DreamHealthComponent implements RoleComponent {
     }
 
     /**
-     * 被 Dream 的铁斧命中：扣虚拟血量，归零则判死并归属攻击者。
+     * 被 Dream 的铁斧命中：<b>先扣虚拟护盾</b>，剩余伤害才扣虚拟血量；归零则判死并归属攻击者。
      *
-     * @return 是否实际造成了伤害
+     * @return 是否实际造成了伤害（护盾全部吸收时也算造成了伤害，只是不掉血）
      */
     public boolean hurt(@Nullable ServerPlayer attacker, int damage, ResourceLocation deathReason) {
+        return hurt(attacker, damage, deathReason, false, false);
+    }
+
+    /**
+     * 被 Dream 的铁斧命中：<b>先扣虚拟护盾</b>，剩余伤害才扣虚拟血量；归零则判死并归属攻击者。
+     *
+     * <p>
+     * {@code ignoreAllShields} 为 true 时本次伤害<b>无视全部护盾</b>（用于 Dream 重锤）：
+     * 虚拟护盾不参与吸收、点数保持不变；若这一击足以致死，普通护盾（含限时护盾）
+     * 与弱效护盾也会在判死前被清空，不会替玩家挡下这次死亡
+     * （参考狙击枪 50 格外的穿透处理）。
+     *
+     * @param ignoreAllShields true 时本次伤害无视<b>全部</b>护盾
+     * @return 是否实际造成了伤害（护盾全部吸收时也算造成了伤害，只是不掉血）
+     */
+    public boolean hurt(@Nullable ServerPlayer attacker, int damage, ResourceLocation deathReason,
+            boolean ignoreAllShields) {
+        return hurt(attacker, damage, deathReason, ignoreAllShields, ignoreAllShields);
+    }
+
+    /**
+     * 被 Dream 的铁斧命中：<b>先扣虚拟护盾</b>，剩余伤害才扣虚拟血量；归零则判死并归属攻击者。
+     *
+     * @param ignoreVirtualShield true 时虚拟护盾<b>不参与吸收</b>，伤害直接扣在虚拟血量上
+     *        （虚拟护盾点数保持不变）
+     * @param pierceOtherShields  true 时若这一击足以致死，会在判死前清空普通护盾（含限时护盾）
+     *        与弱效护盾，即连普通护盾一并穿透；false 则只无视虚拟护盾，
+     *        普通护盾仍按原有死亡管线结算
+     * @return 是否实际造成了伤害（护盾全部吸收时也算造成了伤害，只是不掉血）
+     */
+    public boolean hurt(@Nullable ServerPlayer attacker, int damage, ResourceLocation deathReason,
+            boolean ignoreVirtualShield, boolean pierceOtherShields) {
         if (!(player instanceof ServerPlayer sp) || damage <= 0) {
             return false;
         }
         if (!GameUtils.isPlayerAliveAndSurvival(sp)) {
             return false;
         }
+        // 虚拟护盾只抵挡虚拟血量伤害：先在这里吸收，掉多少血由吸收后的剩余伤害决定
+        int remaining = ignoreVirtualShield ? damage
+                : VirtualShieldComponent.KEY.get(sp).absorbVirtualDamage(damage);
+        if (remaining <= 0) {
+            // 护盾把这次伤害全吃掉了：不掉血、不致死，但伤害确实生效（护盾可能被打空）
+            return true;
+        }
         long gameTime = sp.level().getGameTime();
         int current = getEffectiveHealth(gameTime);
-        baseHealth = current - damage;
+        baseHealth = current - remaining;
         lastHurtGameTime = gameTime;
         if (baseHealth <= 0) {
             baseHealth = 0;
             sync();
             // 打标：本条命是「虚拟血量归零」判死的（护士尸体透视据此判定，不依赖具体死因）
             VIRTUAL_HEALTH_DEATH_MARKS.put(sp.getUUID(), gameTime);
+            if (pierceOtherShields) {
+                clearAllShields(sp);
+            }
             GameUtils.killPlayer(sp, true, attacker, deathReason);
             return true;
         }
@@ -228,8 +272,27 @@ public class DreamHealthComponent implements RoleComponent {
     }
 
     /**
+     * 清空玩家身上的普通护盾（含限时护盾）与弱效护盾。
+     *
+     * <p>仅供「无视护盾」的伤害在判死前调用：护盾既不会替玩家挡下这次死亡，
+     * 也不会在死亡结算里被白白消耗一层（与狙击枪 50 格外穿透的处理一致）。
+     */
+    private static void clearAllShields(ServerPlayer player) {
+        SREArmorPlayerComponent armor = SREArmorPlayerComponent.KEY.get(player);
+        if (armor.getArmor() > 0) {
+            // clearTimedArmor=true：常驻护盾与限时护盾一并清空
+            armor.setArmor(0, true);
+        }
+        SREWeakArmorPlayerComponent weakArmor = SREWeakArmorPlayerComponent.KEY.get(player);
+        if (weakArmor.getWeakArmor() > 0) {
+            weakArmor.clear();
+        }
+    }
+
+    /**
      * 扣除虚拟血量但始终保留 1 点，不通过 death reason 使玩家死亡。
      * 用于烟花弩的范围溅射伤害；精确命中目标的击杀由烟花弩自身单独处理。
+     * 与 {@link #hurt} 一样<b>先扣虚拟护盾</b>。
      */
     public boolean hurtWithoutKilling(@Nullable ServerPlayer attacker, int damage) {
         if (!(player instanceof ServerPlayer sp) || damage <= 0) {
@@ -238,9 +301,13 @@ public class DreamHealthComponent implements RoleComponent {
         if (!GameUtils.isPlayerAliveAndSurvival(sp)) {
             return false;
         }
+        int remaining = VirtualShieldComponent.KEY.get(sp).absorbVirtualDamage(damage);
+        if (remaining <= 0) {
+            return true;
+        }
         long gameTime = sp.level().getGameTime();
         int current = getEffectiveHealth(gameTime);
-        int appliedDamage = Math.min(damage, Math.max(0, current - 1));
+        int appliedDamage = Math.min(remaining, Math.max(0, current - 1));
         if (appliedDamage <= 0) {
             return false;
         }
