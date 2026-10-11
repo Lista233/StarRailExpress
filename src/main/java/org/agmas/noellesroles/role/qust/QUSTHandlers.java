@@ -466,16 +466,13 @@ public class QUSTHandlers {
     // ==================== 超级记录员事件注册 ====================
 
     private static void registerSuperRecorderEvents() {
-        // 角色分配时给予记录员笔记 + 假枪
+        // 角色分配时给予记录员笔记（假枪改为商店购买）
         ModdedRoleAssigned.EVENT.register((player, role) -> {
             if (!role.identifier().equals(QUSTRoles.SUPER_RECORDER_ID)) return;
             if (!(player instanceof ServerPlayer sp)) return;
             // 给予记录员笔记
             org.agmas.noellesroles.utils.RoleUtils.insertStackInFreeSlot(
                     sp, org.agmas.noellesroles.init.ModItems.WRITTEN_NOTE.getDefaultInstance());
-            // 给予假枪
-            org.agmas.noellesroles.utils.RoleUtils.insertStackInFreeSlot(
-                    sp, org.agmas.noellesroles.init.ModItems.FAKE_REVOLVER.getDefaultInstance());
         });
 
         // 死亡感知：15 格半径内玩家死亡时记录位置

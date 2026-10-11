@@ -46,8 +46,12 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
     private boolean shopUnlocked = false;
     /** 是否已购买撬棍（死亡后只能买一次） */
     private boolean boughtCrowbar = false;
+    /** 撬棍已购买次数（不限购，每次价格翻倍） */
+    private int crowbarPurchaseCount = 0;
     /** 便签已购买次数（不限购，每次价格翻倍） */
     private int notePurchaseCount = 0;
+    /** 撬棍基础价格 */
+    public static final int CROWBAR_BASE_PRICE = 100;
     /** 便签基础价格 */
     public static final int NOTE_BASE_PRICE = 75;
     /** 便签每次购买数量 */
@@ -75,6 +79,7 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         finalDeath = false;
         shopUnlocked = false;
         boughtCrowbar = false;
+        crowbarPurchaseCount = 0;
         notePurchaseCount = 0;
         // 状态复位后同步清除隐身标记，避免残留到下一局
         applyInvisibility();
@@ -291,6 +296,10 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
     public boolean isShopUnlocked() { return shopUnlocked; }
     public boolean hasBoughtCrowbar() { return boughtCrowbar; }
     public void setBoughtCrowbar(boolean b) { boughtCrowbar = b; sync(); }
+    /** 当前撬棍价格 = 基础价格 × 2^已购次数 */
+    public int getCrowbarPrice() { return CROWBAR_BASE_PRICE * (1 << crowbarPurchaseCount); }
+    public int getCrowbarPurchaseCount() { return crowbarPurchaseCount; }
+    public void incrementCrowbarPurchase() { crowbarPurchaseCount++; sync(); }
     /** 当前便签价格 = 基础价格 × 2^已购次数 */
     public int getNotePrice() { return NOTE_BASE_PRICE * (1 << notePurchaseCount); }
     public int getNotePurchaseCount() { return notePurchaseCount; }
@@ -341,6 +350,7 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         tag.putBoolean("finalDeath", finalDeath);
         tag.putBoolean("shopUnlocked", shopUnlocked);
         tag.putBoolean("boughtCrowbar", boughtCrowbar);
+        tag.putInt("crowbarPurchaseCount", crowbarPurchaseCount);
         tag.putInt("notePurchaseCount", notePurchaseCount);
     }
 
@@ -353,6 +363,12 @@ public class WandererPlayerComponent implements RoleComponent, ServerTickingComp
         finalDeath = tag.getBoolean("finalDeath");
         shopUnlocked = tag.getBoolean("shopUnlocked");
         boughtCrowbar = tag.getBoolean("boughtCrowbar");
+        // 兼容旧存档：旧字段 boughtCrowbar → 新字段 crowbarPurchaseCount
+        if (tag.contains("crowbarPurchaseCount")) {
+            crowbarPurchaseCount = tag.getInt("crowbarPurchaseCount");
+        } else if (boughtCrowbar) {
+            crowbarPurchaseCount = 1;
+        }
         // 兼容旧存档：旧字段 boughtNote → 新字段 notePurchaseCount
         if (tag.contains("notePurchaseCount")) {
             notePurchaseCount = tag.getInt("notePurchaseCount");

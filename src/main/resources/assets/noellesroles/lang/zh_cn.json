@@ -5662,7 +5662,7 @@
   "announcement.star.role.super_recorder": "超级记录员_时星",
   "announcement.star.goals.super_recorder": "记录员不是区",
   "message.noellesroles.super_recorder.entry": "记录员不是区",
-  "info.screen.roleid.super_recorder": "中立阵营 | 12人以上生成\n拥有记录员笔记 + 开局假枪\n可做任务获得金币\n商店购买真相之书（150金币）\n15格内感知死亡，右键尸体可查看物品栏\n开启本能透视：绿色平民阵营，红色杀手阵营\n标记3/4玩家后直接胜利",
+  "info.screen.roleid.super_recorder": "中立阵营 | 12人以上生成\n拥有记录员笔记\n可做任务获得金币\n商店购买真相之书（225金币）、假枪（240金币）\n15格内感知死亡，右键尸体可查看物品栏\n开启本能透视：绿色平民阵营，红色杀手阵营\n标记3/4玩家后直接胜利",
   "info.screen.roleid.super_recorder.simple": "中立阵营\n记录员笔记标记身份\n标记3/4玩家直接胜利\n拥有本能,可以购买查看尸体的物品栏,可以购买真相之书打开直接标记一名玩家",
   "item.super_recorder.truth_book": "真相之书",
   "item.noellesroles.truth_book": "真相之书",
@@ -5709,6 +5709,8 @@
   "message.wanderer_qust.ghost_entered": "你已成为幽灵，回到了房间。按G显形，被击杀则彻底死亡。",
   "message.wanderer_qust.soul_out_ended": "灵魂出窍已主动结束",
   "message.wanderer_qust.coins_quartered": "死亡惩罚：金币缩减至 %s",
+  "message.wanderer_qust.ghost_entered_broadcast": "游荡者进入了幽灵状态，在暗处支援乘客",
+  "message.wanderer_qust.final_death_broadcast": "游荡者已彻底死亡",
   "hud.wanderer_qust.death_notify_title": "我还不想死",
   "hud.wanderer_qust.death_notify_subtitle": "您已进入游荡者状态，详见职业说明",
 

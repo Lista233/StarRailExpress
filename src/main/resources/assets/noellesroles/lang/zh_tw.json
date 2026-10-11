@@ -5541,5 +5541,7 @@
   "message.minigame_master.san_restored": "小遊戲完成！san 值恢復了些許",
   "message.minigame_master.combo_bonus": "小遊戲完成 %s 個！額外獲得 %s 金幣",
   "item.noellesroles.hacker.blackout": "黑入電力系統",
-  "item.noellesroles.hacker.lockpick": "社會工程學鑰匙(開鎖器)"
+  "item.noellesroles.hacker.lockpick": "社會工程學鑰匙(開鎖器)",
+  "message.wanderer_qust.ghost_entered_broadcast": "遊蕩者進入了幽靈狀態，在暗處支援乘客",
+  "message.wanderer_qust.final_death_broadcast": "遊蕩者已徹底死亡"
 }

@@ -149,6 +149,9 @@ public class QUSTConfig implements ConfigData {
     /** 记录笔记商店价格 */
     public int superRecorderNotePrice = 50;
 
+    /** 假枪商店价格 */
+    public int superRecorderFakeGunPrice = 240;
+
     /** 死亡感知范围（方块） */
     public double superRecorderDeathSenseRange = 15.0;
 

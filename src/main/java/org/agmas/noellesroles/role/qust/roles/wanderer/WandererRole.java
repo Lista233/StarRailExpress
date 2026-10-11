@@ -16,6 +16,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
+import org.agmas.noellesroles.commands.BroadcastCommand;
 import org.agmas.noellesroles.role.qust.QUSTComponentKeys;
 import org.agmas.noellesroles.role.qust.QUSTRoles;
 import org.jetbrains.annotations.NotNull;
@@ -72,6 +73,11 @@ public class WandererRole extends NormalRole {
                         .withStyle(ChatFormatting.GOLD),
                 true);
 
+        // 全服播报：游荡者进入幽灵状态
+        BroadcastCommand.BroadcastMessage(sp,
+                Component.translatable("message.wanderer_qust.ghost_entered_broadcast")
+                        .withStyle(ChatFormatting.AQUA));
+
         // 死亡链的最后会把玩家切到旁观者模式，这里延后一 tick 再传送回自己的房间并
         // 恢复冒险模式。WandererPlayerComponent.serverTick 还会做兜底：只要处于隐身平民
         // 状态却被切成旁观，就强制拉回冒险模式。死亡后若玩家已离线则不进行后续逻辑，
@@ -102,6 +108,10 @@ public class WandererRole extends NormalRole {
         sp.setGameMode(GameType.SPECTATOR);
         // 与正常死亡一致：清理职业飞行技能残留，否则旁观者飞不起来
         GameUtils.normalizeSpectatorFlightAbilities(sp);
+        // 全服播报：游荡者彻底死亡
+        BroadcastCommand.BroadcastMessage(sp,
+                Component.translatable("message.wanderer_qust.final_death_broadcast")
+                        .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
         sp.displayClientMessage(
                 Component.translatable("message.wanderer_qust.final_death")
                         .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD),
@@ -120,25 +130,24 @@ public class WandererRole extends NormalRole {
             return null;
         }
         ArrayList<ShopEntry> shop = new ArrayList<>();
-        // 撬棍：100 金币，限购一次；带 4 点耐久（逐栈 MAX_DAMAGE 组件，仅标记游荡者购买的这一把，
+        // 撬棍：不限购，每次价格翻倍（基础 100）；带 4 点耐久（逐栈 MAX_DAMAGE 组件，
         // 耐久在 CrowbarItem 撬门成功时消耗，耗尽后物品损坏消失；其他来源的撬棍不受影响）
-        if (!comp.hasBoughtCrowbar()) {
-            ItemStack crowbar = TMMItems.CROWBAR.getDefaultInstance();
-            crowbar.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE,
-                    WandererPlayerComponent.CROWBAR_DURABILITY);
-            crowbar.set(net.minecraft.core.component.DataComponents.DAMAGE, 0);
-            shop.add(new ShopEntry(crowbar,
-                    100, ShopEntry.Type.TOOL) {
-                @Override
-                public boolean onBuy(@NotNull Player p) {
-                    var c = QUSTComponentKeys.Keys.WANDERER.maybeGet(p).orElse(null);
-                    if (c == null || c.hasBoughtCrowbar()) return false;
-                    if (!super.onBuy(p)) return false;
-                    c.setBoughtCrowbar(true);
-                    return true;
-                }
-            });
-        }
+        int crowbarPrice = comp.getCrowbarPrice();
+        ItemStack crowbar = TMMItems.CROWBAR.getDefaultInstance();
+        crowbar.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE,
+                WandererPlayerComponent.CROWBAR_DURABILITY);
+        crowbar.set(net.minecraft.core.component.DataComponents.DAMAGE, 0);
+        shop.add(new ShopEntry(crowbar,
+                crowbarPrice, ShopEntry.Type.TOOL) {
+            @Override
+            public boolean onBuy(@NotNull Player p) {
+                var c = QUSTComponentKeys.Keys.WANDERER.maybeGet(p).orElse(null);
+                if (c == null) return false;
+                if (!super.onBuy(p)) return false;
+                c.incrementCrowbarPurchase();
+                return true;
+            }
+        });
         // 便签：不限购，每次给 2 个，价格每次翻倍（基础 150）
         int notePrice = comp.getNotePrice();
         shop.add(new ShopEntry(new ItemStack(TMMItems.NOTE, WandererPlayerComponent.NOTE_PER_PURCHASE),

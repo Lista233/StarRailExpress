@@ -22,8 +22,8 @@ import java.util.List;
  * 超级记录员（Super Recorder / 超级记录员_时星）角色定义
  * <ul>
  *   <li>中立阵营，12 人以上生成</li>
- *   <li>拥有记录员笔记 + 开局假枪</li>
- *   <li>可做任务获得金币，商店可购买真相之书（150 金币）</li>
+ *   <li>拥有记录员笔记，商店可购买假枪（240 金币）</li>
+ *   <li>可做任务获得金币，商店可购买真相之书（225 金币）</li>
  *   <li>感知 15 格内死亡，右键尸体查看物品栏</li>
  *   <li>杀手本能：透视时绿色 = 平民阵营，红色 = 杀手阵营（见 QUSTRoles 注册处的 setInstinctType）</li>
  *   <li>标记 3/4 玩家后直接胜利</li>
@@ -45,7 +45,22 @@ public class SuperRecorderRole extends NormalRole {
         entries.add(createTruthBookEntry());
         // 记录笔记（标记所有玩家）
         entries.add(createNoteEntry());
+        // 假枪（240 金币）
+        entries.add(createFakeGunEntry());
         return entries;
+    }
+
+    /**
+     * 创建假枪商店条目
+     */
+    public static ShopEntry createFakeGunEntry() {
+        ItemStack gun = ModItems.FAKE_REVOLVER.getDefaultInstance();
+        return new ShopEntry(gun, QUSTConfig.instance().superRecorderFakeGunPrice, ShopEntry.Type.TOOL) {
+            @Override
+            public boolean onBuy(Player player) {
+                return SREItemUtils.insertStackInFreeSlot(player, gun.copy());
+            }
+        };
     }
 
     /**
