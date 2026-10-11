@@ -1185,7 +1185,7 @@ public class ModRoles {
             .setNeutrals(true).setNeutralForKiller(false)
             .setCanBeRandomedByOtherRoles(false)
             .setCanUseInstinctAndNightVision(true)
-            .setDefaultEnableChance(2000).setDefaultEnableMaxPlayerCount(12)
+            .setDefaultEnableChance(2000).setDefaultEnableNeededPlayerCount(12)
             .setAddedVersion("4.4")
             .setDefaultMax(1);
 
