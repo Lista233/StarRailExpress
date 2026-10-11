@@ -113,6 +113,14 @@ public class WizardStaffItem extends Item implements ChargeableItem, SREItemProp
 
     @Override
     public boolean onServerAttack(ServerPlayer attacker, ServerPlayer target, ItemStack mainhandItem) {
+        // 1 点原版伤害作为「记录攻击来源」的载体：
+        // LivingEntityDamageMixin 会在 hurt 时把攻击者写入 SREPlayerDamageTrackerComponent，
+        // 目标随后被击落下列车 / 因伤死亡时才能追溯到巫师。此前只做击退、不造成伤害，
+        // 攻击来源从未被记录，击落列车的凶手无法归属。
+        // 与 Dream 斧头 / 武士刀同样做法：先补 1 点原版 hurt 再做击退。
+        target.invulnerableTime = 0;
+        target.hurt(target.damageSources().playerAttack(attacker), 1.0F);
+
         double strength = NoellesRolesConfig.HANDLER.instance().wizardStaffKnockback;
         double dx = attacker.getX() - target.getX();
         double dz = attacker.getZ() - target.getZ();
