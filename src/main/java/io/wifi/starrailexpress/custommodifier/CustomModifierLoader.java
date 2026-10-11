@@ -56,54 +56,67 @@ public final class CustomModifierLoader {
 
     // ==================== 重载 ====================
 
-    /** 服务端重载（从世界存档读取，权威）。 */
+    /**
+     * 服务端重载（从世界存档读取，权威）。
+     *
+     * <p>
+     * 整个「清空 + 重新注册」整体持有 {@link HMLModifiers#LOCK}：客户端线程也会往<b>同一份</b>静态
+     * 注册表里注册（同步内容下发后的应用，见 {@code ContentSyncClient}），若只锁单次注册，两次重载
+     * 会交错执行，把本来就唯一的 id 判成重复。
+     */
     public static void reload(MinecraftServer server) {
-        removeAll();
-        CustomModifierConfig config;
-        if (server != null) {
-            Path worldPath = server.getWorldPath(LevelResource.ROOT);
-            config = CustomModifierConfig.loadFromFile(worldPath);
-        } else {
-            config = CustomModifierConfig.getInstance();
+        synchronized (HMLModifiers.LOCK) {
+            removeAll();
+            CustomModifierConfig config;
+            if (server != null) {
+                Path worldPath = server.getWorldPath(LevelResource.ROOT);
+                config = CustomModifierConfig.loadFromFile(worldPath);
+            } else {
+                config = CustomModifierConfig.getInstance();
+            }
+            if (config == null || config.modifiers == null) {
+                config = new CustomModifierConfig();
+            }
+            registerAll(config, server);
+            SRE.LOGGER.info("[CustomModifier] Loaded {} custom modifiers", config.modifiers.size());
         }
-        if (config == null || config.modifiers == null) {
-            config = new CustomModifierConfig();
-        }
-        registerAll(config, server);
-        SRE.LOGGER.info("[CustomModifier] Loaded {} custom modifiers", config.modifiers.size());
     }
 
-    /** 客户端重载（从 config 目录读取同步副本）。 */
+    /** 客户端重载（从 config 目录读取同步副本）。同样整体持锁，理由见 {@link #reload(MinecraftServer)}。 */
     public static void reloadClient() {
-        removeAll();
-        CustomModifierConfig config = CustomModifierConfig.loadFromDefaultPath();
-        registerAll(config, null);
-        SRE.LOGGER.info("[CustomModifier-Client] Reloaded {} custom modifiers from local config",
-                config.modifiers == null ? 0 : config.modifiers.size());
+        synchronized (HMLModifiers.LOCK) {
+            removeAll();
+            CustomModifierConfig config = CustomModifierConfig.loadFromDefaultPath();
+            registerAll(config, null);
+            SRE.LOGGER.info("[CustomModifier-Client] Reloaded {} custom modifiers from local config",
+                    config.modifiers == null ? 0 : config.modifiers.size());
+        }
     }
 
     /** 清理所有已注册的自定义修饰符（离开服务器 / 重载前）。 */
     public static void removeAll() {
-        for (SREModifier modifier : new ArrayList<>(HMLModifiers.MODIFIERS)) {
-            if (!CustomModifierEntry.isCustomModifier(modifier))
-                continue;
-            // 先清掉其它职业/修饰符里对它的关联引用，避免重载后残留旧实例
-            for (SRERole role : TMMRoles.ROLES.values()) {
-                role.relatedModifiers.remove(modifier);
+        synchronized (HMLModifiers.LOCK) {
+            for (SREModifier modifier : new ArrayList<>(HMLModifiers.MODIFIERS)) {
+                if (!CustomModifierEntry.isCustomModifier(modifier))
+                    continue;
+                // 先清掉其它职业/修饰符里对它的关联引用，避免重载后残留旧实例
+                for (SRERole role : TMMRoles.ROLES.values()) {
+                    role.relatedModifiers.remove(modifier);
+                }
+                for (SREModifier other : HMLModifiers.MODIFIERS) {
+                    other.relatedModifiers.remove(modifier);
+                    // 互斥列表同样要清，否则重载后旧实例残留在 opposingModifiers 里，
+                    // 既会造成互斥判定失效（按实例比较），也会让介绍页出现重复条目
+                    other.opposingModifiers.remove(modifier);
+                }
+                // 走注册表接口，保证 MODIFIERS_BY_ID / MODIFIERS_BY_PATH 索引与列表同步，
+                // 否则重载后同名自定义修饰符会被判成重复而注册失败
+                HMLModifiers.unregisterModifier(modifier);
             }
-            for (SREModifier other : HMLModifiers.MODIFIERS) {
-                other.relatedModifiers.remove(modifier);
-                // 互斥列表同样要清，否则重载后旧实例残留在 opposingModifiers 里，
-                // 既会造成互斥判定失效（按实例比较），也会让介绍页出现重复条目
-                other.opposingModifiers.remove(modifier);
-            }
-            // 走注册表接口，保证 MODIFIERS_BY_PATH 索引与列表同步，
-            // 否则重载后同名自定义修饰符会被判成重复而注册失败
-            HMLModifiers.unregisterModifier(modifier);
+            loadedModifiers.clear();
+            registeredModifiers.clear();
+            HMLModifiers.refreshVersionTags();
         }
-        loadedModifiers.clear();
-        registeredModifiers.clear();
-        HMLModifiers.refreshVersionTags();
     }
 
     /** 与 {@code CustomRoleLoader.removeClientCache()} 对应。 */
@@ -308,7 +321,7 @@ public final class CustomModifierLoader {
      * 修饰符实例的 {@code identifier} 会把 id 转成小写，而注册表的键用的是配置里原始的大小写。
      * 工具里若只改了 id 的大小写，玩家身上已有的旧实例按原名就会查不到，
      * 会被误判成「已删除」而停用；这里补一次忽略大小写的匹配。
-     * 不会歧义：{@link HMLModifiers#registerModifier(SREModifier)} 按小写后的 path 全局去重，
+     * 不会歧义：{@link HMLModifiers#registerModifier(SREModifier)} 按小写后的完整 id 去重，
      * 仅大小写不同的两个 id 只有一个能注册成功。
      */
     public static CustomModifierData getCustomModifierDataIgnoreCase(String englishId) {
@@ -346,8 +359,8 @@ public final class CustomModifierLoader {
      * 查找已注册的同名自定义修饰符（限于 {@link CustomModifierData#NAMESPACE}，忽略大小写）。
      *
      * <p>
-     * 仅作查询用：实际注册时的去重由 {@link HMLModifiers#registerCustomModifier} 按 path 全局判定，
-     * 比这里更严格（自定义修饰符也会与内置修饰符的 path 冲突）。
+     * 与 {@link HMLModifiers#registerCustomModifier} 的判定口径一致（完整 id，命名空间敏感）：
+     * 自定义修饰符只会与同一命名空间的同名 id 冲突，与内置修饰符共用 path 不算冲突。
      */
     public static SREModifier findExistingById(String englishId) {
         for (SREModifier modifier : HMLModifiers.MODIFIERS) {
@@ -424,7 +437,14 @@ public final class CustomModifierLoader {
         return a.trim().equalsIgnoreCase(b.trim());
     }
 
-    /** 按「完整 id 或路径」查找修饰符。 */
+    /**
+     * 按「完整 id 或路径」查找修饰符。
+     *
+     * <p>
+     * 完整 id（含命名空间）优先精确匹配；写成路径简写时才回退到忽略命名空间的 path 索引，此时若多个
+     * 命名空间共用同一 path（例如内置 {@code xxx:tiny} 与自定义 {@code custommodifier:tiny}），
+     * 得到的是最先注册的那个。要指定自定义修饰符请写全 {@code custommodifier:<englishId>}。
+     */
     public static SREModifier findModifier(String configuredId) {
         if (configuredId == null || configuredId.isBlank())
             return null;
