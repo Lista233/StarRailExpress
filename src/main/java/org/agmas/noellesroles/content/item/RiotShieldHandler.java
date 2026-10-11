@@ -66,7 +66,6 @@ public class RiotShieldHandler {
                 || deathReason.equals(GameConstants.DeathReasons.KNIFE)
                 || deathReason.equals(GameConstants.DeathReasons.BAT)
                 || deathReason.equals(SRE.TMMId("bat"))
-                || deathReason.equals(GameConstants.DeathReasons.GRENADE)
                 // 短管霰弹枪
                 || deathReason.equals(GameConstants.DeathReasons.SHORT_SHOTGUN)
                 // 飞斧（实体用物品自身注册 id 作为死因）
