@@ -3042,6 +3042,7 @@
   "message.noellesroles.fool.cloak_cooldown": "灵性斗篷冷却中（%s秒）",
   "message.noellesroles.fool.cloak_activated": "灵性斗篷已激活——5秒灵体状态",
   "message.noellesroles.fool.protection_triggered": "庇护效果已触发，你免疫了来自异端的一次伤害！",
+  "message.noellesroles.fool.protection_immune": "庇护效果已触发，你免疫了来自 %s 的一次伤害！",
   "hud.noellesroles.fool.gun": "处刑者手枪: %s",
   "hud.noellesroles.fool.gun_ready": "已持有",
   "hud.noellesroles.fool.gun_missing": "未持有",

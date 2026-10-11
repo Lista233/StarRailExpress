@@ -3042,6 +3042,7 @@
     "message.noellesroles.fool.cloak_cooldown": "Spirit Cloak on cooldown (%s s)",
     "message.noellesroles.fool.cloak_activated": "Spirit Cloak activated — 5 seconds of spirit form",
     "message.noellesroles.fool.protection_triggered": "Protection triggered; you blocked a hit from the heretic!",
+    "message.noellesroles.fool.protection_immune": "Protection triggered; you blocked a hit from %s!",
     "hud.noellesroles.fool.gun": "Executioner Pistol: %s",
     "hud.noellesroles.fool.gun_ready": "Held",
     "hud.noellesroles.fool.gun_missing": "Not held",
