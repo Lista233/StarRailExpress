@@ -342,6 +342,9 @@ public class GameConstants {
         public static ResourceLocation TIMEOUT = Noellesroles.id("timeout");
         public static ResourceLocation BEE_USED_OUT_SKILL = Noellesroles.id("bee_used_out_skill");
 
+        /** 恶魔轮盘赌博致死 */
+        public static ResourceLocation GAMBLING_DEATH = Noellesroles.id("gambling_death");
+
         private static ResourceLocation itemId(Item item) {
             return BuiltInRegistries.ITEM.getKey(item);
         }

@@ -5782,5 +5782,11 @@
   "screen.bettor.devil_roulette.result_title": "轮盘结果",
   "screen.bettor.devil_roulette.esc_hint": "按 ESC 退出",
   "screen.bettor.devil_roulette.coin_change": "金币变动: %s",
-  "message.bettor.coin_refund": "§e金币变动: %s"
+  "message.bettor.coin_refund": "§e金币变动: %s",
+  "message.bettor.broadcast_death": "珍爱生命,远离赌博",
+  "message.bettor.broadcast_obtain": "恭喜<%s>通过恶魔轮盘获得<%s>",
+  "message.bettor.item_derringer": "德林加手枪",
+  "message.bettor.item_shield": "护盾",
+  "message.bettor.item_revolver": "左轮手枪",
+  "death_reason.noellesroles.gambling_death": "赌博致死"
 }

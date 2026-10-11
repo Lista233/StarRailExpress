@@ -137,21 +137,36 @@ public class DevilRouletteItem extends Item {
             // 获得德林加手枪
             io.wifi.starrailexpress.util.SREItemUtils.insertStackInFreeSlot(
                     sp, io.wifi.starrailexpress.index.TMMItems.DERRINGER.getDefaultInstance());
+            // 全服播报
+            broadcastToAll(sp, Component.translatable("message.bettor.broadcast_obtain",
+                    Component.literal(sp.getName().getString()),
+                    Component.translatable("message.bettor.item_derringer")));
             return "message.bettor.result.derringer";
         } else if (result >= 40 && result <= 89) {
-            // 直接死亡
+            // 直接死亡（赌博致死）
             io.wifi.starrailexpress.game.GameUtils.killPlayer(
                     sp, true, null,
-                    io.wifi.starrailexpress.game.GameConstants.DeathReasons.GUN_SHOT);
+                    io.wifi.starrailexpress.game.GameConstants.DeathReasons.GAMBLING_DEATH);
+            // 全服播报
+            broadcastToAll(sp, Component.translatable("message.bettor.broadcast_death")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_RED));
             return "message.bettor.result.death";
         } else if (result >= 90 && result <= 189) {
             // 获得一层护盾
             io.wifi.starrailexpress.cca.SREArmorPlayerComponent.KEY.get(sp).giveArmor();
+            // 全服播报
+            broadcastToAll(sp, Component.translatable("message.bettor.broadcast_obtain",
+                    Component.literal(sp.getName().getString()),
+                    Component.translatable("message.bettor.item_shield")));
             return "message.bettor.result.shield";
         } else if (result >= 190 && result <= 239) {
             // 永久一把手枪（左轮）
             io.wifi.starrailexpress.util.SREItemUtils.insertStackInFreeSlot(
                     sp, io.wifi.starrailexpress.index.TMMItems.REVOLVER.getDefaultInstance());
+            // 全服播报
+            broadcastToAll(sp, Component.translatable("message.bettor.broadcast_obtain",
+                    Component.literal(sp.getName().getString()),
+                    Component.translatable("message.bettor.item_revolver")));
             return "message.bettor.result.revolver";
         } else if (result >= 240 && result <= 399) {
             // 无敌效果10秒
@@ -174,6 +189,15 @@ public class DevilRouletteItem extends Item {
                         sp, flowDust.getDefaultInstance());
             }
             return "message.bettor.result.cookie";
+        }
+    }
+
+    /**
+     * 向全服所有玩家发送播报消息
+     */
+    private static void broadcastToAll(ServerPlayer sp, Component message) {
+        for (ServerPlayer player : sp.getServer().getPlayerList().getPlayers()) {
+            org.agmas.noellesroles.commands.BroadcastCommand.BroadcastMessage(player, message);
         }
     }
 }
