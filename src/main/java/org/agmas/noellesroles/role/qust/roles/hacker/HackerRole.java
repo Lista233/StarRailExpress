@@ -13,8 +13,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import org.agmas.noellesroles.init.FunnyItems;
-import org.agmas.noellesroles.role.bouns.roles.ProgrammerRole;
 import org.agmas.noellesroles.utils.RoleUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,8 +28,7 @@ import java.util.List;
  *   <li>胜利条件：标记并发送场上3/4的人（上限15人）</li>
  *   <li>物品：干扰芯片 - 手持右键对视线内玩家进行标记，获取其IP/UUID等信息</li>
  *   <li>标记后8秒自动通知被标记者（延迟泄漏）</li>
- *   <li>商店：黑入电力系统（购买即关灯，与杀手关灯同价同冷却）、社会工程学钥匙(开锁器)、
- *       终端（与程序员同价同冷却，黑客也能用 /help 查看指令，见 TerminalScreen）</li>
+ *   <li>商店：黑入电力系统（购买即关灯，与杀手关灯同价同冷却）、社会工程学钥匙(开锁器)</li>
  * </ul>
  */
 public class HackerRole extends CustomWinnerRole {
@@ -42,9 +39,8 @@ public class HackerRole extends CustomWinnerRole {
     }
 
     /**
-     * 专属商店：黑入电力系统（购买即生效，不占背包）+ 开锁器 + 终端。
-     * 关灯与开锁器沿用原版杀手商店物品的材质与定价，仅显示名不同；
-     * 终端与程序员共用同一物品，价格/冷却完全一致（CD 挂在 FunnyItems.TERMINAL 上自然共享）。
+     * 专属商店：黑入电力系统（购买即生效，不占背包）+ 开锁器。
+     * 关灯与开锁器沿用原版杀手商店物品的材质与定价，仅显示名不同。
      */
     @Override
     public List<ShopEntry> getShopEntries() {
@@ -66,10 +62,6 @@ public class HackerRole extends CustomWinnerRole {
         lockpickDisplay.set(DataComponents.ITEM_NAME,
                 Component.translatable("item.noellesroles.hacker.lockpick"));
         shop.add(new ShopEntry(lockpickDisplay, SREConfig.instance().lockpickPrice, ShopEntry.Type.TOOL));
-
-        // 终端：与程序员同价（TERMINAL_PRICE），canUseTerminal 不限职业，黑客可正常使用
-        shop.add(new ShopEntry(FunnyItems.TERMINAL.getDefaultInstance(),
-                ProgrammerRole.TERMINAL_PRICE, ShopEntry.Type.TOOL));
 
         return shop;
     }

@@ -23,13 +23,13 @@ public class BeenMarkedHud implements HudRenderCallback {
         }
     }
 
-    // 信息显示状态
+    // 信息显示状态（使用时间戳而非 tick 计数，避免移动/转视角时渲染回调不稳定导致提前消失）
     private static String displayName = null;
     private static String displayUuid = null;
     private static String displayIp = null;
     private static String displayLocation = null;
-    private static int displayTicks = 0;
-    private static final int DISPLAY_DURATION = 120; // 6秒（略长于 Title 的5秒，留出读 UUID 的时间）
+    private static long displayEndTime = 0;
+    private static final long DISPLAY_DURATION_MS = 6000; // 6秒（略长于 Title 的5秒，留出读 UUID 的时间）
 
     /**
      * 显示被标记信息（传入已掩码的 IP 与属地查询结果）
@@ -39,13 +39,19 @@ public class BeenMarkedHud implements HudRenderCallback {
         displayUuid = uuid;
         displayIp = maskedIp;
         displayLocation = location;
-        displayTicks = DISPLAY_DURATION;
+        displayEndTime = System.currentTimeMillis() + DISPLAY_DURATION_MS;
     }
 
     @Override
     public void onHudRender(GuiGraphics guiGraphics, DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || displayTicks <= 0 || displayName == null) {
+        if (mc.player == null || displayName == null || System.currentTimeMillis() >= displayEndTime) {
+            if (displayName != null && System.currentTimeMillis() >= displayEndTime) {
+                displayName = null;
+                displayUuid = null;
+                displayIp = null;
+                displayLocation = null;
+            }
             return;
         }
 
@@ -85,12 +91,6 @@ public class BeenMarkedHud implements HudRenderCallback {
         // 底部装饰（混淆字符）
         guiGraphics.drawCenteredString(mc.font, Component.literal(obfuscated), centerX, textY, 0xFFFFFFFF);
 
-        displayTicks--;
-        if (displayTicks <= 0) {
-            displayName = null;
-            displayUuid = null;
-            displayIp = null;
-            displayLocation = null;
-        }
+        // 使用时间戳判断结束，不再依赖每帧递减
     }
 }

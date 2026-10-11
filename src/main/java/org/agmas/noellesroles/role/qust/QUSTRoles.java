@@ -113,8 +113,9 @@ public class QUSTRoles {
                     TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, true))
             .setCanSeeCoin(true)
             .setCanSeeBodyItems(true)
-            // 杀手本能：开启本能透视时，绿色=平民阵营，红色=杀手阵营（杀手侧中立为橙色）
-            .setInstinctType(InstinctType.DEFAULT, InstinctType.KILLER_INSTINCT)
+            .setCanSeeBodyName(true)
+            // 本能：按Alt切换，开启后夜视+透视周围20格所有玩家（不区分阵营），被标记玩家显示黄色
+            .setCanUseInstinctAndNightVision(true)
             .setComponentKey(QUSTComponentKeys.Keys.SUPER_RECORDER)
             .setDefaultMax(1)
             .setDefaultEnableChance(5000)

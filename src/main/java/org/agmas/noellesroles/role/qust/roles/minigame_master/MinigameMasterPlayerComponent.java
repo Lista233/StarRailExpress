@@ -53,7 +53,7 @@ public class MinigameMasterPlayerComponent implements RoleComponent {
 
     @Override
     public void readFromSyncNbt(CompoundTag tag, HolderLookup.Provider registryLookup) {
-        this.ticketMinigameCompleted = tag.getInt("Ticket Completed");
+        this.ticketMinigameCompleted = tag.getInt("TicketCompleted");
     }
 
     @Override

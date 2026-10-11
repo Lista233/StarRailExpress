@@ -27,18 +27,18 @@ public class HackerHud implements HudRenderCallback {
         }
     }
 
-    // 标记信息显示状态
+    // 标记信息显示状态（使用时间戳而非 tick 计数，避免移动/转视角时渲染回调不稳定导致提前消失）
     private static String displayPlayerName = null;
     private static String displayUUID = null;
     private static String displayIP = null;
     private static String displayLocation = null;
-    private static int displayTicks = 0;
-    private static final int DISPLAY_DURATION = 120; // 6秒 (120 ticks)
+    private static long displayEndTime = 0;
+    private static final long DISPLAY_DURATION_MS = 6000; // 6秒
 
-    // 发送确认信息
+    // 发送确认信息（同样使用时间戳）
     private static String sendConfirmMessage = null;
-    private static int sendConfirmTicks = 0;
-    private static final int SEND_CONFIRM_DURATION = 60; // 3秒
+    private static long sendConfirmEndTime = 0;
+    private static final long SEND_CONFIRM_DURATION_MS = 3000; // 3秒
 
     /**
      * 显示标记玩家信息（从服务端调用客户端）
@@ -51,7 +51,7 @@ public class HackerHud implements HudRenderCallback {
         // 查询IP属地（使用IPLocator）
         displayLocation = IPLocator.locate(ip);
 
-        displayTicks = DISPLAY_DURATION;
+        displayEndTime = System.currentTimeMillis() + DISPLAY_DURATION_MS;
     }
 
     /**
@@ -59,7 +59,7 @@ public class HackerHud implements HudRenderCallback {
      */
     public static void showSendConfirm(int count) {
         sendConfirmMessage = "已向 " + count + " 名玩家发送标记信息";
-        sendConfirmTicks = SEND_CONFIRM_DURATION;
+        sendConfirmEndTime = System.currentTimeMillis() + SEND_CONFIRM_DURATION_MS;
     }
 
     /**
@@ -96,19 +96,18 @@ public class HackerHud implements HudRenderCallback {
         int screenWidth = mc.getWindow().getGuiScaledWidth();
         int screenHeight = mc.getWindow().getGuiScaledHeight();
 
-        // 绘制标记信息（屏幕中央）
-        if (displayTicks > 0) {
+        // 绘制标记信息（屏幕中央，使用时间戳判断结束）
+        if (displayPlayerName != null && System.currentTimeMillis() < displayEndTime) {
             renderMarkedInfo(guiGraphics, screenWidth, screenHeight);
-            displayTicks--;
-            if (displayTicks == 0) {
-                clearDisplayInfo();
-            }
+        } else if (displayPlayerName != null) {
+            clearDisplayInfo();
         }
 
         // 绘制发送确认消息
-        if (sendConfirmTicks > 0) {
+        if (sendConfirmMessage != null && System.currentTimeMillis() < sendConfirmEndTime) {
             renderSendConfirm(guiGraphics, screenWidth, screenHeight);
-            sendConfirmTicks--;
+        } else if (sendConfirmMessage != null) {
+            sendConfirmMessage = null;
         }
 
         // 绘制右下角进度信息
@@ -186,27 +185,29 @@ public class HackerHud implements HudRenderCallback {
     }
 
     /**
-     * 渲染右下角进度信息
+     * 渲染右下角进度信息（显示两个胜利条件）
      */
     private void renderProgress(GuiGraphics guiGraphics, int screenWidth, int screenHeight, Player player) {
         var data = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.HACKER.maybeGet(player).orElse(null);
         if (data == null) return;
 
-        // 使用服务端同步的数值，避免客户端无法获取职业信息导致计算错误
-        int actualSent = data.sentPlayers.size();
-        int requiredCount = data.syncedRequiredCount;
-        String progress = actualSent + "/" + requiredCount;
-        Component progressText = Component.literal("§e已成功标记: §f" + progress);
-
-        int x = screenWidth - 120;
-        int y = screenHeight - 30;
-
-        guiGraphics.drawString(Minecraft.getInstance().font, progressText, x, y, 0xFFFFFFFF);
-
-        // 显示已标记人数
         int markedCount = data.markedPlayers.size();
-//        Component markedText = Component.literal("§7已标记: §f" + markedCount);
-//        guiGraphics.drawString(Minecraft.getInstance().font, markedText, x, y + 10, 0xFFFFFFFF);
+        int aliveCount = data.syncedAliveCount;
+        int startCount = data.syncedStartPlayerCount;
+        int threeFourthsCount = Math.max(2, (int) Math.ceil(startCount * 3.0 / 4.0));
+
+        int x = screenWidth - 10;
+        int y = screenHeight - 10 - Minecraft.getInstance().font.lineHeight * 3;
+
+        // 胜利条件一：标记所有存活玩家
+        Component cond1 = Component.literal("§e条件一(全存活): §f" + markedCount + "/" + aliveCount);
+        guiGraphics.drawString(Minecraft.getInstance().font, cond1,
+                x - Minecraft.getInstance().font.width(cond1), y, 0xFFFFFFFF);
+
+        // 胜利条件二：标记开始时3/4的人数
+        Component cond2 = Component.literal("§e条件二(3/4开局): §f" + markedCount + "/" + threeFourthsCount);
+        guiGraphics.drawString(Minecraft.getInstance().font, cond2,
+                x - Minecraft.getInstance().font.width(cond2), y + Minecraft.getInstance().font.lineHeight, 0xFFFFFFFF);
     }
 
     /**

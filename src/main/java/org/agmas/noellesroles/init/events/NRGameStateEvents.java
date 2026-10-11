@@ -304,10 +304,10 @@ public class NRGameStateEvents {
                 }
             }
             SREGameWorldComponent gameWorldComponent = SREGameWorldComponent.KEY.get(serverLevel);
-            boolean hasDio = false, hasRecorder = false, hasCandlebearer = false, hasRaven = false, hasBee = false;
+            boolean hasDio = false, hasCandlebearer = false, hasRaven = false, hasBee = false;
             boolean hasNianShou = false, hasArsonist = false, hasCuckoo = false, hasPelican = false,
                     hasGodfather = false, hasLeader = false, hasLicensedVillain = false, hasNatureSpirit = false;
-            boolean hasDictator = false, hasHacker = false, hasSuperRecorder = false;
+            boolean hasDictator = false, hasHacker = false, hasSuperRecorder = false, hasMascot = false;
             final var all_players = serverLevel.players();
 
             for (var p : all_players) {
@@ -326,8 +326,6 @@ public class NRGameStateEvents {
                     SRE.SendRoomInfoToPlayer(p);
                 } else if (gameWorldComponent.isRole(p, ModRoles.DIO)) {
                     hasDio = true;
-                } else if (gameWorldComponent.isRole(p, ModRoles.RECORDER)) {
-                    hasRecorder = true;
                 } else if (gameWorldComponent.isRole(p, ModRoles.CANDLE_BEARER)) {
                     hasCandlebearer = true;
                 } else if (gameWorldComponent.isRole(p, ModRoles.RAVEN)) {
@@ -356,6 +354,8 @@ public class NRGameStateEvents {
                     hasHacker = true;
                 } else if (gameWorldComponent.isRole(p, org.agmas.noellesroles.role.qust.QUSTRoles.SUPER_RECORDER)) {
                     hasSuperRecorder = true;
+                } else if (gameWorldComponent.isRole(p, org.agmas.noellesroles.role.qust.QUSTRoles.MASCOT)) {
+                    hasMascot = true;
                 }
             }
 
@@ -366,14 +366,6 @@ public class NRGameStateEvents {
                             p.playNotifySound(NRSounds.DIO_SPAWN, SoundSource.PLAYERS, 0.5F, 1.0F);
                     });
                 }));
-            }
-            if (hasRecorder) {
-                all_players.forEach((p) -> {
-                    if (p != null) {
-                        BroadcastCommand.BroadcastMessage(p, Component
-                                .translatable("message.noellesroles.recorder.entry").withStyle(ChatFormatting.YELLOW));
-                    }
-                });
             }
 
             if (hasBee) {
@@ -469,6 +461,15 @@ public class NRGameStateEvents {
                     if (p != null) {
                         BroadcastCommand.BroadcastMessage(p, Component
                                 .translatable("message.noellesroles.super_recorder.entry").withStyle(ChatFormatting.YELLOW));
+                    }
+                });
+            }
+            // 吉祥物：全场播报（黄色）
+            if (hasMascot) {
+                all_players.forEach((p) -> {
+                    if (p != null) {
+                        BroadcastCommand.BroadcastMessage(p, Component
+                                .translatable("message.noellesroles.mascot.entry").withStyle(ChatFormatting.YELLOW));
                     }
                 });
             }

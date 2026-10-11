@@ -41,6 +41,9 @@ import org.agmas.noellesroles.role_data.neutral.LicensedVillainRoleData;
 import org.agmas.noellesroles.role_data.neutral.MercenaryRoleData;
 import org.agmas.noellesroles.role_data.neutral.GodfatherRoleData;
 import org.agmas.noellesroles.role_data.neutral.RavenRoleData;
+import org.agmas.noellesroles.role.qust.QUSTRoles;
+import org.agmas.noellesroles.role.qust.QUSTComponentKeys;
+import org.agmas.noellesroles.role.qust.roles.super_recorder.SuperRecorderPlayerComponent;
 import org.agmas.noellesroles.role_data.neutral.RecorderRoleData;
 import org.agmas.noellesroles.game.roles.killer.dream.DreamHealthComponent;
 import org.agmas.noellesroles.game.roles.neutral.cuckoo.CuckooEggData;
@@ -623,6 +626,24 @@ public class RoleInstinctRegister {
                         if (recorder != null && recorder.getGuesses().containsKey(targetPlayer.getUUID()))
                             return TrueFalseAndCustomResult.custom(0xFFFF55);
                         return TrueFalseAndCustomResult.custom(0x0000AA);
+                    }
+                    return TrueFalseAndCustomResult.pass();
+                });
+
+        // 超级记录员（与记录员一致：透视周围20格所有玩家，不区分阵营，被标记玩家显示黄色，未标记灰色）
+        RoleInstinctEvents.OBSERVER_HIGHLIGHT_EVENT.register(QUSTRoles.SUPER_RECORDER_ID,
+                (client, viewer, target, isInstinctEnabled) -> {
+                    if (!isInstinctEnabled)
+                        return TrueFalseAndCustomResult.pass();
+                    if (target instanceof Player targetPlayer) {
+                        if (targetPlayer.distanceToSqr(viewer) > 20 * 20 || targetPlayer == viewer)
+                            return TrueFalseAndCustomResult.disallow();
+                        if (isTargetInvisibleToInstinct(targetPlayer))
+                            return TrueFalseAndCustomResult.disallow();
+                        var comp = QUSTComponentKeys.Keys.SUPER_RECORDER.maybeGet(viewer).orElse(null);
+                        if (comp != null && comp.isMarked(targetPlayer.getUUID()))
+                            return TrueFalseAndCustomResult.custom(0xFFFF55);
+                        return TrueFalseAndCustomResult.custom(0xFF999999);
                     }
                     return TrueFalseAndCustomResult.pass();
                 });

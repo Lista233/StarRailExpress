@@ -105,17 +105,7 @@ public class InterferenceChipItem extends Item {
         // 获取目标职业名称
         String roleName = getTargetRoleName(target, gameWorld);
 
-        // 生成红石粉粒子效果（干扰芯片材质）
-        if (level instanceof net.minecraft.server.level.ServerLevel sl) {
-            for (int i = 0; i < 30; i++) {
-                sl.sendParticles(net.minecraft.core.particles.DustParticleOptions.REDSTONE,
-                        target.getX(), target.getY() + 1.0, target.getZ(),
-                        1, 0.5, 0.5, 0.5, 0);
-            }
-        }
-
-        // 标记不播放音效：音效会在黑客位置向周围广播，提前暴露标记行为，
-        // 破坏「8秒后延迟通知被标记者」的隐匿设计
+        // 标记不播放音效、不生成粒子：避免在黑客位置向周围广播，提前暴露标记行为
 
         // 发送标记信息给黑客（立即显示）
         ServerPlayNetworking.send(

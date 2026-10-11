@@ -23,7 +23,8 @@ public class MascotHud {
             Minecraft client = Minecraft.getInstance();
             if (client.player == null || SREClient.isPlayerSpectator()) return;
 
-            var mascot = QUSTComponentKeys.Keys.MASCOT.get(client.player);
+            var mascot = QUSTComponentKeys.Keys.MASCOT.maybeGet(client.player).orElse(null);
+            if (mascot == null) return;
             Font font = client.font;
             int sw = context.guiWidth();
             int sy = context.guiHeight();
