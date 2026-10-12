@@ -610,6 +610,5 @@
   "info.screen.roleid.repair_archivist": "中立独立胜利职业\n参与完成 8 次修机校准即可独立获胜。",
   "info.screen.roleid.repair_archivist.simple": "",
   "info.screen.roleid.repair_saboteur": "中立独立胜利职业\n通过修机校准累计 10 点破坏记录即可独立获胜。",
-  "info.screen.roleid.repair_saboteur.simple": "",
-  "info.screen.roleid.repair_collector": "中立独立胜利职业\n使用 4 次修机道具或补给即可独立获胜。"
+  "info.screen.roleid.repair_saboteur.simple": ""
 }

@@ -257,7 +257,7 @@ public final class CommandBlockDirector {
         tellAbnormals(level, Component.translatable("message.noellesroles.command_block.event_soon",
                 Component.translatable(session.pendingEvent.key())));
         spawnMarker(level);
-        CommandBlockCracks.spawn(level, session.quota);
+        session.nextCrackAt = level.getGameTime() + CommandBlockCracks.rollDelay(level);
         syncProgress(level);
         session.introAt = level.getGameTime() + 10;
         announce(level);
@@ -285,6 +285,10 @@ public final class CommandBlockDirector {
         tickEvents(level, now);
         tickPendingKills(level, now);
         CommandBlockCombat.tick(level);
+        if (now >= session.nextCrackAt) {
+            CommandBlockCracks.spawnOne(level);
+            session.nextCrackAt = now + CommandBlockCracks.rollDelay(level);
+        }
         if (now % 40L == 0L) {
             syncProgress(level);
         }
@@ -839,6 +843,7 @@ public final class CommandBlockDirector {
         private long nextConvertAt;
         private long nextWarnAt;
         private long nextEventAt;
+        private long nextCrackAt;
         private UUID nextConvert;
         private SRERole nextRole;
         private boolean previewed;

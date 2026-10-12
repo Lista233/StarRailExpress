@@ -682,6 +682,16 @@ public class ModEntities {
                     .trackedUpdateRate(1)
                     .build());
 
+    /** 命令方块裂缝。客户端用独立渲染器画裂口。 */
+    public static final EntityType<CommandBlockCrackEntity> COMMAND_BLOCK_CRACK = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            Noellesroles.id("command_block_crack"),
+            EntityType.Builder.of(CommandBlockCrackEntity::new, MobCategory.MISC)
+                    .sized(1.2F, 1.8F)
+                    .clientTrackingRange(128)
+                    .updateInterval(10)
+                    .build("command_block_crack"));
+
     /**
      * 初始化实体
      * 注册实体属性（LivingEntity 需要）

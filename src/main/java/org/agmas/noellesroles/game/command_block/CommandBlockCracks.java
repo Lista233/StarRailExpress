@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-
-import com.mojang.math.Transformation;
+import org.agmas.noellesroles.content.entity.CommandBlockCrackEntity;
+import org.agmas.noellesroles.init.ModEntities;
 
 import io.wifi.starrailexpress.api.hit.HitPriority;
 import io.wifi.starrailexpress.api.hit.HitType;
@@ -20,28 +20,29 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.Interaction;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 
 /**
- * 任务点旁边的裂缝。方块展示负责外形，交互实体负责被手枪打中。
+ * 任务点旁边的裂缝。每 60 到 90 秒只刷一道，并挑一块能站的空位。
  * 击碎限定好人阵营的手枪，含平民和警长。
  */
 public final class CommandBlockCracks {
     public static final String TAG = "sre.command_block_crack";
+    public static final int MIN_DELAY = 60 * 20;
+    public static final int MAX_DELAY = 90 * 20;
 
     private CommandBlockCracks() {
+    }
+
+    public static int rollDelay(ServerLevel level) {
+        return MIN_DELAY + level.random.nextInt(MAX_DELAY - MIN_DELAY + 1);
     }
 
     public static void registerAim() {
@@ -57,7 +58,7 @@ public final class CommandBlockCracks {
         if (entity == null || entity.isRemoved()) {
             return false;
         }
-        if (entity.getTags().contains(TAG)) {
+        if (entity instanceof CommandBlockCrackEntity || entity.getTags().contains(TAG)) {
             return true;
         }
         Component name = entity.getCustomName();
@@ -65,47 +66,24 @@ public final class CommandBlockCracks {
     }
 
     public static boolean isVisibleCrack(Entity entity) {
-        return entity instanceof Display.BlockDisplay && isCrack(entity);
+        return entity instanceof CommandBlockCrackEntity && isCrack(entity);
     }
 
-    public static void spawn(ServerLevel level, int quota) {
-        if (GameUtils.taskBlocks == null || GameUtils.taskBlocks.isEmpty() || quota <= 0) {
-            return;
+    /** 只刷一道。没有合适空位就返回 false，由调用方过一会儿再试。 */
+    public static boolean spawnOne(ServerLevel level) {
+        Vec3 spot = chooseSpot(level);
+        if (spot == null) {
+            return false;
         }
-        List<BlockPos> points = new ArrayList<>(GameUtils.taskBlocks.keySet());
-        Collections.shuffle(points, new java.util.Random(level.getGameTime()));
-        int wanted = Math.min(points.size(), Math.max(2, quota));
-        int spawned = 0;
-        for (BlockPos point : points) {
-            if (spawned >= wanted) {
-                break;
-            }
-            Vec3 spot = beside(level, point);
-            if (spot == null) {
-                continue;
-            }
-            Display.BlockDisplay crack = new Display.BlockDisplay(EntityType.BLOCK_DISPLAY, level);
-            crack.setPos(spot.x, spot.y, spot.z);
-            mark(crack);
-            crack.setBlockState(Blocks.CRACKED_DEEPSLATE_BRICKS.defaultBlockState());
-            crack.setWidth(1.2F);
-            crack.setHeight(1.8F);
-            float yaw = level.random.nextFloat() * 360.0F;
-            crack.setTransformation(new Transformation(
-                    new Vector3f(-0.6F, 0.0F, -0.15F),
-                    new Quaternionf().rotateY((float) Math.toRadians(yaw)),
-                    new Vector3f(1.2F, 1.6F, 0.3F),
-                    new Quaternionf()));
-            level.addFreshEntity(crack);
-
-            Interaction hitbox = new Interaction(EntityType.INTERACTION, level);
-            hitbox.setPos(spot.x, spot.y + 0.9D, spot.z);
-            hitbox.setBoundingBox(new AABB(spot.x - 0.6D, spot.y, spot.z - 0.6D, spot.x + 0.6D, spot.y + 1.8D,
-                    spot.z + 0.6D));
-            mark(hitbox);
-            level.addFreshEntity(hitbox);
-            spawned++;
-        }
+        CommandBlockCrackEntity crack = new CommandBlockCrackEntity(ModEntities.COMMAND_BLOCK_CRACK, level);
+        crack.setPos(spot.x, spot.y, spot.z);
+        crack.setYRot(level.random.nextFloat() * 360.0F);
+        crack.addTag(TAG);
+        crack.setCustomName(Component.literal(TAG));
+        crack.setCustomNameVisible(false);
+        level.addFreshEntity(crack);
+        level.playSound(null, spot.x, spot.y, spot.z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.45F, 0.55F);
+        return true;
     }
 
     /** 好人阵营（平民和警长）的手枪才能击碎。返回 true 表示这一枪打在裂缝上并已结算。 */
@@ -172,12 +150,6 @@ public final class CommandBlockCracks {
         }
     }
 
-    private static void mark(Entity entity) {
-        entity.addTag(TAG);
-        entity.setCustomName(Component.literal(TAG));
-        entity.setCustomNameVisible(false);
-    }
-
     private static void discardNear(ServerLevel level, Vec3 at) {
         List<Entity> found = new ArrayList<>();
         for (Entity entity : level.getEntities((Entity) null, new AABB(at, at).inflate(1.2D), CommandBlockCracks::isCrack)) {
@@ -188,13 +160,69 @@ public final class CommandBlockCracks {
         }
     }
 
-    private static Vec3 beside(ServerLevel level, BlockPos point) {
-        int[][] offsets = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 } };
+    private static Vec3 chooseSpot(ServerLevel level) {
+        if (GameUtils.taskBlocks == null || GameUtils.taskBlocks.isEmpty()) {
+            return null;
+        }
+        List<Vec3> occupied = new ArrayList<>();
+        for (Entity entity : level.getAllEntities()) {
+            if (isVisibleCrack(entity)) {
+                occupied.add(entity.position());
+            }
+        }
+        List<BlockPos> points = new ArrayList<>(GameUtils.taskBlocks.keySet());
+        Collections.shuffle(points, new java.util.Random(level.random.nextLong()));
+        List<Vec3> found = new ArrayList<>();
+        for (BlockPos point : points) {
+            collectSpots(level, point, occupied, found);
+            if (found.size() >= 6) {
+                break;
+            }
+        }
+        if (found.isEmpty()) {
+            return null;
+        }
+        return found.get(level.random.nextInt(found.size()));
+    }
+
+    private static void collectSpots(ServerLevel level, BlockPos point, List<Vec3> occupied, List<Vec3> found) {
+        int[] radii = { 2, 3 };
+        int[][] dirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } };
+        List<int[]> offsets = new ArrayList<>();
+        for (int radius : radii) {
+            for (int[] dir : dirs) {
+                offsets.add(new int[] { dir[0] * radius, dir[1] * radius });
+            }
+        }
+        Collections.shuffle(offsets, new java.util.Random(point.asLong() ^ level.getGameTime()));
         for (int[] offset : offsets) {
-            Vec3 at = Vec3.atBottomCenterOf(point.offset(offset[0], 0, offset[1]));
-            Vec3 spot = StandSpots.find(level, at, new Vec3(0.0D, 0.0D, 1.0D), 1.0D);
-            if (spot != null) {
-                return spot;
+            Vec3 spot = standAt(level, point.offset(offset[0], 0, offset[1]));
+            if (spot == null || tooClose(spot, occupied)) {
+                continue;
+            }
+            found.add(spot);
+            if (found.size() >= 6) {
+                return;
+            }
+        }
+    }
+
+    private static boolean tooClose(Vec3 spot, List<Vec3> others) {
+        for (Vec3 other : others) {
+            if (spot.distanceToSqr(other) < 16.0D) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Vec3 standAt(ServerLevel level, BlockPos origin) {
+        for (int dy = 1; dy >= -2; dy--) {
+            BlockPos feet = origin.offset(0, dy, 0);
+            BlockState ground = level.getBlockState(feet.below());
+            if (level.getBlockState(feet).isAir() && level.getBlockState(feet.above()).isAir()
+                    && !ground.isAir()) {
+                return Vec3.atBottomCenterOf(feet);
             }
         }
         return null;
