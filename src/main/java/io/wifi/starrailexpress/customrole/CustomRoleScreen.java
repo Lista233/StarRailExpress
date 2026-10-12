@@ -15,6 +15,7 @@
 
 package io.wifi.starrailexpress.customrole;
 
+import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.AreasSettingUtils.MapSpecialFeatures;
 import io.wifi.starrailexpress.cca.SREPlayerTaskComponent;
 import io.wifi.starrailexpress.client.gui.SREPanelStyle;
@@ -1034,7 +1035,10 @@ public class CustomRoleScreen extends CustomEditorScreen {
     // ══════════════════════════════════════════════════════════════════
     // 页 4：商店
     // ══════════════════════════════════════════════════════════════════
-    private static final String[] SHOP_TYPES = { "item", "psycho", "blackout", "monitor_fail", "custom" };
+    private static final String[] SHOP_TYPES = { "item", "psycho", "blackout", "monitor_fail", "lightup",
+            "monitor_recovery", "custom", "killer_shop", "knife" };
+    /** 折扣模式轮回顺序：无折扣 → 每次购买涨价 → 每次购买降价。 */
+    private static final String[] DISCOUNT_MODES = { "none", "raise", "lower" };
 
     private void buildShopTab() {
         int r = 0;
@@ -1043,31 +1047,38 @@ public class CustomRoleScreen extends CustomEditorScreen {
             ShopEntryData entry = data.shopEntries.get(i);
             boolean isItem = "item".equals(entry.type);
             boolean isCustom = "custom".equals(entry.type);
+            boolean isKnife = "knife".equals(entry.type);
+            boolean isKillerShop = "killer_shop".equals(entry.type);
+            // 通用杀手商店自带全部内容，不需要价格/货币/冷却/折扣
+            boolean editable = !isKillerShop;
+            // 这些类型购买后会挂原版物品冷却，因此可配「购买 cd」
+            boolean hasPurchaseCooldown = isItem || isCustom || "psycho".equals(entry.type)
+                    || "blackout".equals(entry.type) || "monitor_fail".equals(entry.type)
+                    || "lightup".equals(entry.type) || "monitor_recovery".equals(entry.type);
 
             List<Cell> cells = new ArrayList<>();
             // 类型按钮：切换后显示的字段会变，所以重建
-            cells.add(stateButtonCell(() -> Component.literal("[" + entry.type + "]"), () -> {
-                int next = java.util.Arrays.asList(SHOP_TYPES).indexOf(entry.type) + 1;
-                if (next < 0) {
-                    next = 0;
-                }
-                entry.type = SHOP_TYPES[next % SHOP_TYPES.length];
+            cells.add(stateButtonCell(() -> Component.translatable(shopTypeKey(entry.type)), () -> {
+                entry.type = nextShopType(entry.type);
+                applyShopTypeDefaults(entry);
             }, true));
             // 价格
-            cells.add(fixedBox(String.valueOf(entry.price), LIMIT_NUMBER, 55, hint(PREFIX + ".hint.price"),
-                    value -> {
-                        try {
-                            entry.price = Math.max(0, Integer.parseInt(value));
-                        } catch (Exception ignored) {
-                        }
-                    }));
-            // 货币类型按钮：金币（默认）/ 游戏币（参考网警商店）
-            cells.add(stateButtonCell(
-                    () -> Component.translatable(PREFIX + ".shop.currency." + currentCurrencyKey(entry.currency)),
-                    () -> entry.currency = "money".equals(entry.currency) ? "minigame_token" : "money", false));
-            // 冷却(仅 item 和 custom)
-            if (isItem || isCustom) {
-                cells.add(fixedBox(String.valueOf(entry.cooldownSeconds), LIMIT_NUMBER, 50,
+            if (editable) {
+                cells.add(fixedBox(String.valueOf(displayPrice(entry)), LIMIT_NUMBER, 55,
+                        hint(PREFIX + ".hint.price"), value -> {
+                            try {
+                                entry.price = Math.max(0, Integer.parseInt(value));
+                            } catch (Exception ignored) {
+                            }
+                        }));
+                // 货币类型按钮：金币（默认）/ 游戏币（参考网警商店）
+                cells.add(stateButtonCell(
+                        () -> Component.translatable(PREFIX + ".shop.currency." + currentCurrencyKey(entry.currency)),
+                        () -> entry.currency = "money".equals(entry.currency) ? "minigame_token" : "money", false));
+            }
+            // 购买 cd（默认值 = 当前配置值）
+            if (hasPurchaseCooldown) {
+                cells.add(fixedBox(String.valueOf(displayCooldownSeconds(entry)), LIMIT_NUMBER, 50,
                         hint(PREFIX + ".hint.cd_seconds"), value -> {
                             try {
                                 entry.cooldownSeconds = Math.max(0, Integer.parseInt(value));
@@ -1075,13 +1086,33 @@ public class CustomRoleScreen extends CustomEditorScreen {
                             }
                         }));
             }
-            // 禁止重复(item)
-            if (isItem) {
+            // 禁止重复(item / knife)
+            if (isItem || isKnife) {
                 cells.add(stateButtonCell(
                         () -> Component.translatable(entry.allowDuplicate
                                 ? PREFIX + ".shop.dup_allowed"
                                 : PREFIX + ".shop.dup_forbidden"),
                         () -> entry.allowDuplicate = !entry.allowDuplicate, false));
+            }
+            // 折扣：无折扣 / 每次购买涨价 / 每次购买降价
+            if (editable) {
+                cells.add(stateButtonCell(() -> Component.translatable(discountModeKey(entry.discountMode)), () -> {
+                    entry.discountMode = nextDiscountMode(entry.discountMode);
+                }, true));
+                if (!"none".equals(normalizeDiscountMode(entry.discountMode))) {
+                    cells.add(fixedBox(String.valueOf(clampDiscountAmount(entry, entry.discountAmount)),
+                            LIMIT_NUMBER, 55, hint(PREFIX + ".hint.discount_amount"), value -> {
+                                try {
+                                    entry.discountAmount = clampDiscountAmount(entry, Integer.parseInt(value));
+                                } catch (Exception ignored) {
+                                }
+                            }));
+                    // 价格变动次数：购买多少次后不再涨/降，* = 不受限制
+                    cells.add(fixedBox(displayPriceChangeCount(entry), LIMIT_NUMBER, 40,
+                            hint(PREFIX + ".hint.price_change_count"), value -> {
+                                entry.priceChangeCount = sanitizePriceChangeCount(value);
+                            }));
+                }
             }
             cells.add(fixedButton(Component.literal("X"), 22, () -> {
                 data.shopEntries.remove(index);
@@ -1104,11 +1135,111 @@ public class CustomRoleScreen extends CustomEditorScreen {
                 r = stringList(r, entry.commands, PREFIX + ".label.shop_custom_cmd", 200,
                         PREFIX + ".hint.command");
             }
+            if (isKillerShop) {
+                r = note(r, PREFIX + ".shop.type.killer_shop.desc", SREPanelStyle.MUTED);
+            }
+            if (isKnife) {
+                r = note(r, PREFIX + ".shop.type.knife.desc", SREPanelStyle.MUTED);
+            }
         }
         r = addRow(r, Component.translatable(PREFIX + ".add_shop_entry"), () -> {
             data.shopEntries.add(new ShopEntryData());
             requestRebuild();
         });
+    }
+
+    /** 商品类别显示名（翻译键）。custom_item 是旧配置写法，按 item 显示。 */
+    private static String shopTypeKey(String type) {
+        String t = type == null ? "" : type.trim();
+        if (t.isEmpty() || "custom_item".equalsIgnoreCase(t)) {
+            t = "item";
+        }
+        return PREFIX + ".shop.type." + t;
+    }
+
+    /** 切到下一个商品类别（未知/旧写法回落到 item）。 */
+    private static String nextShopType(String current) {
+        int index = java.util.Arrays.asList(SHOP_TYPES).indexOf(current == null ? "" : current.trim());
+        return SHOP_TYPES[(index + 1) % SHOP_TYPES.length];
+    }
+
+    /** 切换商品类型时，把类型相关字段复位到该类型的默认值。 */
+    private static void applyShopTypeDefaults(ShopEntryData entry) {
+        // 购买 cd：效果类商品默认跟随当前配置值（-1），其它类型默认无冷却
+        entry.cooldownSeconds = CustomRoleLoader.defaultCooldownSeconds(entry.type) > 0 ? -1 : 0;
+        // 耐久刀默认跟随配置里的刀价
+        if ("knife".equals(entry.type)) {
+            entry.price = -1;
+        } else if (entry.price < 0) {
+            entry.price = 0;
+        }
+    }
+
+    /** 界面显示用的价格：耐久刀配 -1 时显示配置里的刀价。 */
+    private static int displayPrice(ShopEntryData entry) {
+        if ("knife".equals(entry.type) && entry.price < 0) {
+            return Math.max(0, SREConfig.instance().knifePrice);
+        }
+        return Math.max(0, entry.price);
+    }
+
+    /** 界面显示用的购买 cd：配 -1（跟随默认）时显示当前配置值。 */
+    private static int displayCooldownSeconds(ShopEntryData entry) {
+        return entry.cooldownSeconds >= 0 ? entry.cooldownSeconds
+                : CustomRoleLoader.defaultCooldownSeconds(entry.type);
+    }
+
+    /** 归一化折扣模式：只认 none / raise / lower，其余按 none。 */
+    private static String normalizeDiscountMode(String mode) {
+        String m = mode == null ? "" : mode.trim().toLowerCase(java.util.Locale.ROOT);
+        return ("raise".equals(m) || "lower".equals(m)) ? m : "none";
+    }
+
+    private static String discountModeKey(String mode) {
+        return PREFIX + ".shop.discount." + normalizeDiscountMode(mode);
+    }
+
+    private static String nextDiscountMode(String current) {
+        int index = java.util.Arrays.asList(DISCOUNT_MODES).indexOf(normalizeDiscountMode(current));
+        return DISCOUNT_MODES[(index + 1) % DISCOUNT_MODES.length];
+    }
+
+    /**
+     * 折扣金额自动纠错：涨价的单次增量保证「价格 + 增量」不超出 int 上限；
+     * 降价的单次增量不超过商品本身价格（商品最低降到 0）。
+     */
+    private static int clampDiscountAmount(ShopEntryData entry, int amount) {
+        final int base = displayPrice(entry);
+        final int value = Math.max(0, amount);
+        if ("raise".equals(normalizeDiscountMode(entry.discountMode))) {
+            return (int) Math.min(Integer.MAX_VALUE - (long) base, value);
+        }
+        return Math.min(base, value);
+    }
+
+    /** 界面显示用的价格变动次数：不受限制时显示 {@code *}。 */
+    private static String displayPriceChangeCount(ShopEntryData entry) {
+        final int count = CustomRoleLoader.parsePriceChangeCount(entry.priceChangeCount);
+        return count > 0 ? String.valueOf(count) : "*";
+    }
+
+    /**
+     * 价格变动次数的写入归一化：{@code *} / 空 = 不受限制；否则至少为 1 次。
+     * （输入框是自由文本，非法/非正数一律归一成 {@code *}。）
+     */
+    private static String sanitizePriceChangeCount(String value) {
+        if (value == null) {
+            return "*";
+        }
+        final String s = value.trim();
+        if (s.isEmpty() || "*".equals(s)) {
+            return "*";
+        }
+        try {
+            return Integer.parseInt(s) > 0 ? s : "*";
+        } catch (Exception e) {
+            return "*";
+        }
     }
 
     /** 商店货币的显示键：仅识别 minigame_token（游戏币），其余一律视为 money（金币，默认）。 */

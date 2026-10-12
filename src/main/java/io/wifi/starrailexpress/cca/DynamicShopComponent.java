@@ -140,6 +140,57 @@ public class DynamicShopComponent implements RoleComponent {
         this.sync();
     }
 
+    /**
+     * 设置「每次购买后按绝对金额变动」的下一档价格（涨价 / 降价共用这一条实现）。
+     *
+     * <p>
+     * 涨价用乘数表达（{@code 目标价 / 基础价}），降价用固定减价表达，两者都能被
+     * {@link #effectivePrice} 精确还原；目标价夹在 {@code [0, Integer.MAX_VALUE]}，
+     * 因此商品最低降到 0、涨价也不会溢出 int。
+     *
+     * <p>
+     * 自定义职业商店的「每次购买涨价 / 降价」走这个方法（{@code maxChanges} 即那里的
+     * 「价格变动次数」）。
+     *
+     * @param item            物品 id / item id
+     * @param basePrice       基础价 / base price
+     * @param amountPerBuy    每次购买后变动多少 / price change per purchase
+     * @param raise           true = 涨价；false = 降价 / true: surge, false: discount
+     * @param purchasedCount  已购买次数（含本次） / purchases so far, including this one
+     */
+    public void setSteppedPrice(ResourceLocation item, int basePrice, int amountPerBuy, boolean raise,
+            int purchasedCount) {
+        setSteppedPrice(item, basePrice, amountPerBuy, raise, purchasedCount, 0);
+    }
+
+    /**
+     * 同 {@link #setSteppedPrice(ResourceLocation, int, int, boolean, int)}，但可限制价格变动次数。
+     *
+     * @param maxChanges 最多变动多少次；{@code <= 0} 表示不受限制。达到上限后价格不再变动
+     *                  （涨价停在上限值、降价停在下限值）。
+     */
+    public void setSteppedPrice(ResourceLocation item, int basePrice, int amountPerBuy, boolean raise,
+            int purchasedCount, int maxChanges) {
+        if (item == null || basePrice <= 0 || amountPerBuy <= 0) {
+            return;
+        }
+        int purchases = Math.max(0, purchasedCount);
+        if (maxChanges > 0) {
+            // 达到变动次数上限后冻结价格
+            purchases = Math.min(purchases, maxChanges);
+        }
+        long target = raise
+                ? (long) basePrice + (long) amountPerBuy * purchases
+                : (long) basePrice - (long) amountPerBuy * purchases;
+        // 夹到 [0, int 上限]：商品最低降到 0，涨价不溢出
+        target = Math.max(0, Math.min(Integer.MAX_VALUE, target));
+        if (raise) {
+            setModifier(item, (double) target / (double) basePrice, 0);
+        } else {
+            setModifier(item, 1.0, (int) Math.min(Integer.MAX_VALUE, (long) basePrice - target));
+        }
+    }
+
     /** 移除某件商品的价格修正。 / Remove the modifier for a single item. */
     public void clearModifier(ResourceLocation item) {
         if (this.modifiers.remove(item) != null) {

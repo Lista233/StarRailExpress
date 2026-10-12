@@ -23,16 +23,23 @@ import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.api.AreasSettingUtils.MapSpecialFeatures;
 import io.wifi.starrailexpress.api.AreasSettings;
+import io.wifi.starrailexpress.cca.DynamicShopComponent;
 import io.wifi.starrailexpress.cca.SREAbilityPlayerComponent;
 import io.wifi.starrailexpress.cca.SREGameRoundEndComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import io.wifi.starrailexpress.cca.SREMonitorWorldComponent;
+import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
 import io.wifi.starrailexpress.cca.SREPlayerTaskComponent;
+import io.wifi.starrailexpress.cca.SREWorldBlackoutComponent;
 import io.wifi.starrailexpress.customrole.CustomRoleData.EffectEntry;
 import io.wifi.starrailexpress.customrole.CustomRoleData.InstinctModeData;
 import io.wifi.starrailexpress.event.OnGameEnd;
+import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.game.GameUtils.WinStatus;
+import io.wifi.starrailexpress.game.KillerKnifeShopEntry;
 import io.wifi.starrailexpress.game.ServerTaskInfoClasses;
+import io.wifi.starrailexpress.game.ShopContent;
 import io.wifi.starrailexpress.util.ShopEntry;
 import io.wifi.starrailexpress.util.TrueFalseAndCustomResult;
 import net.fabricmc.api.EnvType;
@@ -44,20 +51,27 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.agmas.harpymodloader.Harpymodloader;
 import org.agmas.harpymodloader.modifiers.HMLModifiers;
 import org.agmas.harpymodloader.modifiers.SREModifier;
 import org.agmas.noellesroles.client.RoleInstinctRegister;
+import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.utils.FlagUtils;
 import org.agmas.noellesroles.utils.RoleUtils;
+import org.jetbrains.annotations.NotNull;
 import pro.fazeclan.river.stupid_express.modifier.lovers.LoversWinCheckEvent;
 
 import java.util.*;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 
 /**
  * 自定义职业加载器
@@ -1337,15 +1351,49 @@ public class CustomRoleLoader {
     }
 
     /**
-     * 创建商店条目（带冷却和禁止重复购买支持）
+     * 创建商店条目（带购买冷却、禁止重复购买、每次购买涨价/降价支持）
      */
     public static List<ShopEntry> createShopEntries(CustomRoleData data) {
         List<ShopEntry> entries = new ArrayList<>();
         for (CustomRoleData.ShopEntryData entry : data.shopEntries) {
-            final int cooldownTicks = entry.cooldownSeconds * 20;
             // 商品货币类型：默认金币（money），可选游戏币（minigame_token），参考网警商店
             final ShopEntry.Currency currency = ShopEntry.Currency.fromSerializedName(entry.currency);
+            // 购买冷却：-1 = 该商品类型的默认冷却（当前配置值）
+            final int cooldownTicks = Math.max(0, resolveCooldownSeconds(entry)) * 20;
             switch (entry.type) {
+                case "killer_shop":
+                    // 通用杀手商店：原样展开（价格 / 耐久 / 首购折扣都由通用商店自己负责）
+                    entries.addAll(ShopContent.getDefaultKnifeEntries());
+                    break;
+                case "knife": {
+                    // 耐久刀：与通用杀手商店的刀一致（murder 下 3 点耐久、可替换耗尽的刀、首购 -50%）
+                    final int knifePrice = entry.price >= 0 ? entry.price : SREConfig.instance().knifePrice;
+                    entries.add(new KillerKnifeShopEntry(knifePrice) {
+                        @Override
+                        public ShopEntry.Currency currency() {
+                            return currency;
+                        }
+
+                        @Override
+                        public boolean onBuy(Player player) {
+                            // 禁止重复购买：背包里已有刀则拒绝
+                            if (!entry.allowDuplicate) {
+                                for (ItemStack stack : player.getInventory().items) {
+                                    if (stack.is(io.wifi.starrailexpress.index.TMMItems.KNIFE)) {
+                                        return false;
+                                    }
+                                }
+                            }
+                            boolean result = super.onBuy(player);
+                            if (result) {
+                                // 父类内部已经记录过购买次数
+                                applyPurchaseStep(player, this.stack(), knifePrice, entry, true);
+                            }
+                            return result;
+                        }
+                    });
+                    break;
+                }
                 case "item":
                 case "custom_item": {
                     // 统一的「物品」条目：id 先按自定义列车物品解析，找不到再当原版物品
@@ -1354,13 +1402,14 @@ public class CustomRoleLoader {
                     if (!base.isEmpty()) {
                         final ItemStack shopStack = base.copy();
                         final Item theItem = shopStack.getItem();
-                        if (entry.allowDuplicate && cooldownTicks <= 0) {
+                        final ShopEntry built;
+                        if (!needsItemBehavior(entry, cooldownTicks)) {
                             // 避免Mamizou不能购买所有的自定义职业的物品。
-                            entries.add(new ShopEntry(shopStack.copy(), entry.price, ShopEntry.Type.TOOL, currency));
+                            built = new ShopEntry(shopStack.copy(), entry.price, ShopEntry.Type.TOOL, currency);
                         } else {
-                            entries.add(new ShopEntry(shopStack.copy(), entry.price, ShopEntry.Type.TOOL, currency) {
+                            built = new ShopEntry(shopStack.copy(), entry.price, ShopEntry.Type.TOOL, currency) {
                                 @Override
-                                public boolean onBuy(net.minecraft.world.entity.player.Player player) {
+                                public boolean onBuy(Player player) {
                                     // 禁止重复购买：检查快捷栏是否已有该物品（自定义物品连组件一起比对）
                                     if (!entry.allowDuplicate) {
                                         for (var stack : player.getInventory().items) {
@@ -1371,46 +1420,89 @@ public class CustomRoleLoader {
                                     boolean result = super.onBuy(player);
                                     // 冷却
                                     if (result && cooldownTicks > 0
-                                            && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                                            && player instanceof ServerPlayer sp) {
                                         sp.getCooldowns().addCooldown(theItem, cooldownTicks);
+                                    }
+                                    if (result) {
+                                        applyPurchaseStep(player, shopStack, entry.price, entry, false);
                                     }
                                     return result;
                                 }
-                            });
+                            };
                         }
+                        entries.add(built);
                     }
                     break;
                 }
                 case "psycho":
-                    entries.add(new ShopEntry(
+                    entries.add(effectEntry(entry,
                             io.wifi.starrailexpress.index.TMMItems.PSYCHO_MODE.getDefaultInstance(),
-                            entry.price, ShopEntry.Type.WEAPON, currency) {
-                        @Override
-                        public boolean onBuy(net.minecraft.world.entity.player.Player player) {
-                            return io.wifi.starrailexpress.cca.SREPlayerShopComponent.usePsychoMode(player);
-                        }
-                    });
+                            entry.price, currency, cooldownTicks, ShopEntry.Type.WEAPON,
+                            p -> SREPlayerShopComponent.usePsychoMode(p)));
                     break;
                 case "blackout":
-                    entries.add(new ShopEntry(
+                    entries.add(effectEntry(entry,
                             io.wifi.starrailexpress.index.TMMItems.BLACKOUT.getDefaultInstance(),
-                            entry.price, ShopEntry.Type.TOOL, currency) {
-                        @Override
-                        public boolean onBuy(net.minecraft.world.entity.player.Player player) {
-                            return io.wifi.starrailexpress.cca.SREPlayerShopComponent.useBlackout(player);
-                        }
-                    });
+                            entry.price, currency, cooldownTicks, ShopEntry.Type.TOOL,
+                            p -> SREPlayerShopComponent.useBlackout(p)));
                     break;
                 case "monitor_fail":
-                    entries.add(new ShopEntry(
+                    entries.add(effectEntry(entry,
                             io.wifi.starrailexpress.index.TMMItems.MONITOR_BROKEN.getDefaultInstance(),
-                            entry.price, ShopEntry.Type.TOOL, currency) {
-                        @Override
-                        public boolean onBuy(net.minecraft.world.entity.player.Player player) {
-                            return io.wifi.starrailexpress.cca.SREPlayerShopComponent.useMonitorBroken(player,
-                                    io.wifi.starrailexpress.SREConfig.instance().monitorBrokenDuration * 20);
-                        }
-                    });
+                            entry.price, currency, cooldownTicks, ShopEntry.Type.TOOL,
+                            p -> SREPlayerShopComponent.useMonitorBroken(p,
+                                    SREConfig.instance().monitorBrokenDuration * 20)));
+                    break;
+                case "lightup":
+                    // 开灯：行为与钳工商店一致（结束关灯 + 清除全场黑暗/失明），冷却默认与关灯一致
+                    entries.add(effectEntry(entry,
+                            ModItems.LIGHTUP.getDefaultInstance(),
+                            entry.price, currency, cooldownTicks, ShopEntry.Type.TOOL,
+                            p -> {
+                                SREWorldBlackoutComponent blackCCA = SREWorldBlackoutComponent.KEY.get(p.level());
+                                if (blackCCA.blackOutRemainingTicks <= 0)
+                                    return false;
+                                blackCCA.reset();
+                                // 清除全场黑暗与失明药水效果
+                                for (Player other : p.level().players()) {
+                                    other.removeEffect(MobEffects.BLINDNESS);
+                                    other.removeEffect(MobEffects.DARKNESS);
+                                }
+                                p.level().playSound(null, p.getX(), p.getY(), p.getZ(),
+                                        SoundEvents.SMITHING_TABLE_USE, SoundSource.MASTER, 1.0F, 1.0F);
+                                // 冷却与关灯一致
+                                p.level().players().forEach(
+                                        other -> other.getCooldowns().addCooldown(ModItems.LIGHTUP,
+                                                GameConstants.getBlackoutCooldownGlobal()));
+                                p.getCooldowns().addCooldown(ModItems.LIGHTUP,
+                                        GameConstants.ITEM_COOLDOWNS
+                                                .getOrDefault(io.wifi.starrailexpress.index.TMMItems.BLACKOUT, 0));
+                                SRE.REPLAY_MANAGER.recordSkillUsed(p.getUUID(),
+                                        BuiltInRegistries.ITEM.getKey(ModItems.LIGHTUP));
+                                return true;
+                            }));
+                    break;
+                case "monitor_recovery":
+                    // 监控恢复：行为与钳工商店一致（结束监控失灵），冷却默认与监控失灵一致
+                    entries.add(effectEntry(entry,
+                            ModItems.MONITOR_RECOVERY.getDefaultInstance(),
+                            entry.price, currency, cooldownTicks, ShopEntry.Type.TOOL,
+                            p -> {
+                                SREMonitorWorldComponent monitorCCA = SREMonitorWorldComponent.KEY.get(p.level());
+                                if (monitorCCA.brokenTime <= 0)
+                                    return false;
+                                monitorCCA.reset();
+                                p.level().playSound(null, p.getX(), p.getY(), p.getZ(),
+                                        SoundEvents.UI_LOOM_TAKE_RESULT, SoundSource.MASTER, 1.0F, 1.0F);
+                                // 冷却与监控失灵一致
+                                p.level().players().forEach(
+                                        other -> other.getCooldowns().addCooldown(ModItems.MONITOR_RECOVERY,
+                                                GameConstants.getMonitorBrokenCooldownGlobal()));
+                                p.getCooldowns().addCooldown(ModItems.MONITOR_RECOVERY,
+                                        GameConstants.ITEM_COOLDOWNS.getOrDefault(
+                                                io.wifi.starrailexpress.index.TMMItems.MONITOR_BROKEN, 0));
+                                return true;
+                            }));
                     break;
                 case "custom": {
                     if (!entry.itemId.isEmpty() && !entry.commands.isEmpty()) {
@@ -1424,17 +1516,19 @@ public class CustomRoleLoader {
                                 display.set(net.minecraft.core.component.DataComponents.ITEM_NAME,
                                         net.minecraft.network.chat.Component.literal(entry.displayName));
                             }
-                            entries.add(new ShopEntry(display, entry.price, ShopEntry.Type.TOOL, currency) {
+                            entries.add(new ShopEntry(display, entry.price, ShopEntry.Type.TOOL,
+                                    currency) {
                                 @Override
-                                public boolean onBuy(net.minecraft.world.entity.player.Player player) {
+                                public boolean onBuy(Player player) {
                                     for (String cmd : cmds) {
                                         executeConfiguredCommand(cmd, player);
                                     }
                                     // 冷却
                                     if (cooldownTicks > 0 && !display.isEmpty()
-                                            && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                                            && player instanceof ServerPlayer sp) {
                                         sp.getCooldowns().addCooldown(display.getItem(), cooldownTicks);
                                     }
+                                    applyPurchaseStep(player, display, entry.price, entry, false);
                                     return true;
                                 }
                             });
@@ -1446,6 +1540,118 @@ public class CustomRoleLoader {
             }
         }
         return entries;
+    }
+
+    /**
+     * 效果类商品（疯狂模式 / 停电 / 监控失灵 / 开灯 / 监控恢复）的公共外壳：
+     * 购买即触发效果，成功后按配置给商品挂原版物品冷却（会覆盖效果自带的默认冷却），
+     * 并应用「每次购买涨价 / 降价」。
+     */
+    private static ShopEntry effectEntry(CustomRoleData.ShopEntryData entry, ItemStack icon, int price,
+            ShopEntry.Currency currency, int cooldownTicks, ShopEntry.Type type,
+            Function<Player, Boolean> effect) {
+        final Item effectItem = icon.getItem();
+        return new ShopEntry(icon, price, type, currency) {
+            @Override
+            public boolean onBuy(@NotNull Player player) {
+                boolean triggered = effect.apply(player);
+                if (triggered && cooldownTicks > 0 && player instanceof ServerPlayer sp) {
+                    sp.getCooldowns().addCooldown(effectItem, cooldownTicks);
+                }
+                if (triggered) {
+                    applyPurchaseStep(player, icon, price, entry, false);
+                }
+                return triggered;
+            }
+        };
+    }
+
+    /**
+     * 购买成功后的「每次购买涨价 / 降价」：把下一档价格写进玩家的动态商店组件。
+     *
+     * <p>
+     * 复用 {@link DynamicShopComponent#setSteppedPrice}（更夫的锣 / 梆、独裁者的裁决之剑走的是同一条实现），
+     * 因此商店 UI 显示价与服务端扣费一致。金额在编辑器里已纠错，这里再兜一次底：
+     * 涨价的单次增量保证「价格 + 增量」不溢出 int，降价的单次增量不超过商品本身价格（最低降到 0）。
+     *
+     * @param countAlreadyRecorded 购买次数是否已经被记录过（耐久刀父类内部会记）
+     */
+    private static void applyPurchaseStep(Player player, ItemStack stack, int basePrice,
+            CustomRoleData.ShopEntryData entry, boolean countAlreadyRecorded) {
+        if (!hasSteppedPrice(entry) || stack == null || stack.isEmpty() || basePrice <= 0) {
+            return;
+        }
+        final String mode = discountMode(entry);
+        final DynamicShopComponent dynamicShop = DynamicShopComponent.KEY.get(player);
+        final ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        final int purchased = countAlreadyRecorded ? dynamicShop.getPurchaseCount(itemId)
+                : dynamicShop.recordPurchase(itemId);
+        final int amount = "raise".equals(mode)
+                ? (int) Math.min(Integer.MAX_VALUE - (long) basePrice, Math.max(0, entry.discountAmount))
+                : Math.min(basePrice, Math.max(0, entry.discountAmount));
+        if (amount <= 0) {
+            return;
+        }
+        dynamicShop.setSteppedPrice(itemId, basePrice, amount, "raise".equals(mode), purchased,
+                parsePriceChangeCount(entry.priceChangeCount));
+    }
+
+    /**
+     * 解析「价格变动次数」：{@code "*"} / 空 / 非正数 / 非法输入都视为不受限制（返回 0）。
+     *
+     * @return 最多变动多少次；{@code 0} = 不受限制
+     */
+    public static int parsePriceChangeCount(String raw) {
+        if (raw == null) {
+            return 0;
+        }
+        final String s = raw.trim();
+        if (s.isEmpty() || "*".equals(s)) {
+            return 0;
+        }
+        try {
+            final int value = Integer.parseInt(s);
+            return value > 0 ? value : 0;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /** 归一化折扣模式：只认 none / raise / lower，其余按 none。 */
+    private static String discountMode(CustomRoleData.ShopEntryData entry) {
+        final String mode = entry.discountMode == null ? "none"
+                : entry.discountMode.trim().toLowerCase(java.util.Locale.ROOT);
+        return ("raise".equals(mode) || "lower".equals(mode)) ? mode : "none";
+    }
+
+    /** 是否配置了「每次购买涨价 / 降价」（金额必须 > 0）。 */
+    private static boolean hasSteppedPrice(CustomRoleData.ShopEntryData entry) {
+        return !"none".equals(discountMode(entry)) && Math.max(0, entry.discountAmount) > 0;
+    }
+
+    /** 物品条目是否需要带行为的条目（冷却 / 禁止重复 / 每次涨价降价）；否则用最朴素的条目。 */
+    private static boolean needsItemBehavior(CustomRoleData.ShopEntryData entry, int cooldownTicks) {
+        return cooldownTicks > 0 || !entry.allowDuplicate || hasSteppedPrice(entry);
+    }
+
+    /**
+     * 商品类型的默认购买冷却（秒，取自当前配置）。编辑器的输入框也用它做默认值显示。
+     */
+    public static int defaultCooldownSeconds(String type) {
+        if (type == null) {
+            return 0;
+        }
+        return switch (type) {
+            case "psycho" -> Math.max(0, SREConfig.instance().psychoModeCooldown);
+            case "blackout", "lightup" -> Math.max(0, SREConfig.instance().blackoutCooldown);
+            case "monitor_fail", "monitor_recovery" -> Math.max(0, SREConfig.instance().monitorBrokenCooldown);
+            default -> 0;
+        };
+    }
+
+    /** 解析购买冷却：配置为 -1 时取该商品类型的默认值（当前配置值）。 */
+    private static int resolveCooldownSeconds(CustomRoleData.ShopEntryData entry) {
+        return entry.cooldownSeconds >= 0 ? entry.cooldownSeconds : defaultCooldownSeconds(entry.type);
     }
 
     private static void executeConfiguredCommand(String cmd, net.minecraft.world.entity.player.Player player) {
