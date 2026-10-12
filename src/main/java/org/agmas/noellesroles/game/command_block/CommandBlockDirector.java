@@ -27,10 +27,6 @@ import org.agmas.noellesroles.api.time.TimeRewindOptions;
 import org.agmas.noellesroles.api.time.TimeRewindSnapshot;
 import org.agmas.noellesroles.init.ModEffects;
 import net.minecraft.world.phys.AABB;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
-
-import com.mojang.math.Transformation;
 
 import io.wifi.starrailexpress.api.GameMode;
 import io.wifi.starrailexpress.api.SRERole;
@@ -43,6 +39,11 @@ import io.wifi.starrailexpress.event.AllowPlayerDeath;
 import io.wifi.starrailexpress.event.AllowPlayerDeathWithKiller;
 import io.wifi.starrailexpress.event.OnGameEnd;
 import io.wifi.starrailexpress.event.OnGameTrueStarted;
+import io.wifi.starrailexpress.event.OnGameStarted;
+import io.wifi.starrailexpress.game.modes.funny.SRERoleRotationGameMode;
+import io.wifi.starrailexpress.game.modes.funny.SRERoleRotationSingleSelectGameMode;
+import io.wifi.starrailexpress.game.modes.funny.SREVolunteerOpenSelectGameMode;
+import io.wifi.starrailexpress.util.Scheduler;
 import io.wifi.starrailexpress.event.OnKillPlayerTriggered;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
@@ -66,11 +67,14 @@ import net.minecraft.world.BossEvent;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.Display;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
+import net.exmo.sre.camera.AdvancedCameraCommand;
+import net.exmo.sre.planecrash.PlaneCrashManager;
+import org.agmas.noellesroles.content.entity.CommandBlockMarkerEntity;
+import org.agmas.noellesroles.init.ModEntities;
 
 /**
  * 命令方块不是玩家职业。它占满杀手名额，把平民标成异常，再按分钟改写成池内杀手。
@@ -107,6 +111,7 @@ public final class CommandBlockDirector {
         CommandBlockCracks.registerAim();
         GameInitializeEvent.EVENT.register(CommandBlockDirector::prepare);
         OnGameTrueStarted.EVENT.register(CommandBlockDirector::onTrueStart);
+        OnGameStarted.EVENT.register(CommandBlockDirector::onGameStarted);
         OnGameEnd.EVENT.register((level, game) -> clear(level));
         ServerTickEvents.END_WORLD_TICK.register(CommandBlockDirector::tick);
         AllowPlayerDeath.EVENT.register((player, reason) -> CommandBlockCombat.allowScriptDeath(player, null, reason,
@@ -213,6 +218,7 @@ public final class CommandBlockDirector {
     }
 
     private static void prepare(ServerLevel level, SREGameWorldComponent game, List<ServerPlayer> players) {
+        discardMarkers(level);
         occupySlots = false;
         suppressOfficialRoll = false;
         session = null;
@@ -238,6 +244,59 @@ public final class CommandBlockDirector {
         Harpymodloader.FORCED_MODDED_ROLE.entrySet().removeIf(entry -> CommandBlockRules.isExcluded(entry.getValue()));
     }
 
+    public static boolean replacesOpeningIntro(ServerLevel level) {
+        return session != null && !session.ended && session.levelKey.equals(level.dimension().location());
+    }
+
+    private static void onGameStarted(ServerLevel level) {
+        if (!replacesOpeningIntro(level) || defersIntro(level)) {
+            return;
+        }
+        beginIntro(level);
+    }
+
+    private static boolean defersIntro(ServerLevel level) {
+        GameMode mode = SREGameWorldComponent.KEY.get(level).getGameMode();
+        return mode instanceof SRERoleRotationGameMode
+                || mode instanceof SRERoleRotationSingleSelectGameMode
+                || mode instanceof SREVolunteerOpenSelectGameMode;
+    }
+
+    private static void beginIntro(ServerLevel level) {
+        if (session == null || session.introPlayed || session.ended) {
+            return;
+        }
+        spawnMarker(level);
+        session.introPlayed = true;
+        Scheduler.schedule(() -> sendIntro(level), 6);
+    }
+
+    private static void sendIntro(ServerLevel level) {
+        if (session == null || session.ended || !session.levelKey.equals(level.dimension().location())) {
+            return;
+        }
+        announce(level);
+        var entity = session.markerId < 0 ? null : level.getEntity(session.markerId);
+        if (!(entity instanceof CommandBlockMarkerEntity marker) || !marker.isAlive()) {
+            for (ServerPlayer player : level.players()) {
+                if (player.gameMode.getGameModeForPlayer() == GameType.ADVENTURE) {
+                    AdvancedCameraCommand.sendIntro(player, AdvancedCameraCommand.DEFAULT_INTRO_DURATION,
+                            AdvancedCameraCommand.DEFAULT_INTRO_DISTANCE, AdvancedCameraCommand.DEFAULT_INTRO_HEIGHT);
+                }
+            }
+            return;
+        }
+        PlaneCrashIntroPayload payload = new PlaneCrashIntroPayload(marker.getId(),
+                PlaneCrashManager.INTRO_DURATION_TICKS);
+        for (ServerPlayer player : level.players()) {
+            if (player.gameMode.getGameModeForPlayer() != GameType.ADVENTURE) {
+                continue;
+            }
+            ServerPlayNetworking.send(player, payload);
+            player.playNotifySound(SoundEvents.END_PORTAL_SPAWN, SoundSource.MASTER, 0.55F, 0.75F);
+        }
+    }
+
     private static void start(ServerLevel level) {
         if (session != null && session.active && session.levelKey.equals(level.dimension().location())) {
             return;
@@ -259,8 +318,10 @@ public final class CommandBlockDirector {
         spawnMarker(level);
         session.nextCrackAt = level.getGameTime() + CommandBlockCracks.rollDelay(level);
         syncProgress(level);
-        session.introAt = level.getGameTime() + 10;
-        announce(level);
+        if (!session.introPlayed) {
+            beginIntro(level);
+        }
+
     }
 
     private static void tick(ServerLevel level) {
@@ -271,10 +332,6 @@ public final class CommandBlockDirector {
             return;
         }
         long now = level.getGameTime();
-        if (!session.introPlayed && now >= session.introAt) {
-            session.introPlayed = true;
-            focus(level);
-        }
         spinMarker(level);
         if (session.bossBar != null) {
             for (ServerPlayer player : level.players()) {
@@ -664,28 +721,31 @@ public final class CommandBlockDirector {
     }
 
     private static void spawnMarker(ServerLevel level) {
-        Vec3 pos = markerPos(level);
-        Display.BlockDisplay display = new Display.BlockDisplay(EntityType.BLOCK_DISPLAY, level);
-        display.setPos(pos.x, pos.y, pos.z);
-        display.setBlockState(Blocks.COMMAND_BLOCK.defaultBlockState());
-        level.addFreshEntity(display);
-        session.markerId = display.getId();
-        session.bossBar = new ServerBossEvent(
-                Component.translatable("message.noellesroles.command_block.bossbar", 0, session.quota),
-                BossEvent.BossBarColor.PURPLE, BossEvent.BossBarOverlay.NOTCHED_10);
-        session.bossBar.setProgress(0);
-        for (ServerPlayer player : level.players()) {
-            session.bossBar.addPlayer(player);
-        }
-    }
-
-    private static void focus(ServerLevel level) {
-        if (session.markerId < 0) {
+        if (session.markerId >= 0 && level.getEntity(session.markerId) instanceof CommandBlockMarkerEntity existing
+                && existing.isAlive()) {
+            createBossBar(level);
             return;
         }
-        PlaneCrashIntroPayload payload = new PlaneCrashIntroPayload(session.markerId, 90);
+        Vec3 center = markerPos(level);
+        level.getChunk(BlockPos.containing(center));
+        CommandBlockMarkerEntity marker = new CommandBlockMarkerEntity(ModEntities.COMMAND_BLOCK_MARKER, level);
+        marker.setPos(center.x, center.y - 4.0D, center.z);
+        marker.setStage(CommandBlockRules.destructionStage(session.killerDeaths, session.quota));
+        level.addFreshEntity(marker);
+        session.markerId = marker.getId();
+        createBossBar(level);
+    }
+
+    private static void createBossBar(ServerLevel level) {
+        if (session.bossBar != null || session.quota <= 0) {
+            return;
+        }
+        session.bossBar = new ServerBossEvent(
+                Component.translatable("message.noellesroles.command_block.bossbar", session.killerDeaths, session.quota),
+                BossEvent.BossBarColor.PURPLE, BossEvent.BossBarOverlay.NOTCHED_10);
+        session.bossBar.setProgress(Math.min(1.0F, session.quota <= 0 ? 0.0F : session.killerDeaths / (float) session.quota));
         for (ServerPlayer player : level.players()) {
-            ServerPlayNetworking.send(player, payload);
+            session.bossBar.addPlayer(player);
         }
     }
 
@@ -693,30 +753,14 @@ public final class CommandBlockDirector {
         if (session.markerId < 0) {
             return;
         }
-        if (!(level.getEntity(session.markerId) instanceof Display.BlockDisplay display)) {
+        if (!(level.getEntity(session.markerId) instanceof CommandBlockMarkerEntity marker)) {
             return;
         }
-        session.angle += 0.03F;
         int stage = CommandBlockRules.destructionStage(session.killerDeaths, session.quota);
-        display.setBlockState(stageBlock(stage));
-        float size = 8.0F - stage;
-        display.setTransformationInterpolationDuration(2);
-        display.setTransformationInterpolationDelay(0);
-        display.setTransformation(new Transformation(
-                new Vector3f(-size / 2.0F, -size / 2.0F, -size / 2.0F),
-                new Quaternionf().rotateY(session.angle),
-                new Vector3f(size, size, size),
-                new Quaternionf()));
+        if (marker.getStage() != stage) {
+            marker.setStage(stage);
+        }
         updateBossBar();
-    }
-
-    private static BlockState stageBlock(int stage) {
-        return switch (stage) {
-            case 1 -> Blocks.CHAIN_COMMAND_BLOCK.defaultBlockState();
-            case 2 -> Blocks.REPEATING_COMMAND_BLOCK.defaultBlockState();
-            case 3 -> Blocks.CRACKED_DEEPSLATE_BRICKS.defaultBlockState();
-            default -> Blocks.COMMAND_BLOCK.defaultBlockState();
-        };
     }
 
     private static void updateBossBar() {
@@ -730,15 +774,56 @@ public final class CommandBlockDirector {
 
     private static Vec3 markerPos(ServerLevel level) {
         AreasWorldComponent areas = AreasWorldComponent.KEY.get(level);
+        Vec3 anchor = null;
         if (areas.getSpawnPos() != null && areas.getSpawnPos().pos != null) {
-            return areas.getSpawnPos().pos.add(0.0D, 28.0D, 0.0D);
+            anchor = areas.getSpawnPos().pos;
         }
-        ServerPlayer any = level.players().isEmpty() ? null : level.players().get(0);
-        if (any == null) {
-            return new Vec3(0, 80, 0);
+        if (anchor == null && !level.players().isEmpty()) {
+            anchor = level.players().get(0).position();
         }
-        return any.position().add(0, 28, 0);
+        if (anchor == null) {
+            AABB play = areas.getPlayArea();
+            anchor = play == null ? new Vec3(0.0D, 80.0D, 0.0D) : play.getCenter();
+        }
+        return openSky(level, anchor.x, anchor.z, Mth.floor(anchor.y));
     }
+
+    /** 沿出生点那一列爬过屋顶，把方块中心放在最高实心方块上方。 */
+    private static Vec3 openSky(ServerLevel level, double x, double z, int startY) {
+        int bx = Mth.floor(x);
+        int bz = Mth.floor(z);
+        int minY = Math.max(level.getMinBuildHeight(), startY);
+        int maxY = level.getMaxBuildHeight() - 8;
+        int lastSolid = minY - 1;
+        int limit = Math.min(maxY, minY + 128);
+        for (int y = minY; y <= limit; y++) {
+            var state = level.getBlockState(new BlockPos(bx, y, bz));
+            if (!state.isAir() && !state.canBeReplaced()) {
+                lastSolid = y;
+            }
+        }
+        int place = lastSolid >= minY ? lastSolid + 18 : minY + 28;
+        place = Mth.clamp(place, minY + 12, Math.max(minY + 12, maxY));
+        return new Vec3(bx + 0.5D, place, bz + 0.5D);
+    }
+
+    private static void discardMarkers(ServerLevel level) {
+        if (level == null) {
+            return;
+        }
+        List<CommandBlockMarkerEntity> found = new ArrayList<>();
+        for (var entity : level.getAllEntities()) {
+            if (entity instanceof CommandBlockMarkerEntity marker) {
+                found.add(marker);
+            }
+        }
+        for (CommandBlockMarkerEntity marker : found) {
+            if (!marker.isRemoved()) {
+                marker.discard();
+            }
+        }
+    }
+
 
     private static void tickPendingKills(ServerLevel level, long now) {
         Iterator<PendingKill> it = session.pendingKills.iterator();
@@ -773,12 +858,7 @@ public final class CommandBlockDirector {
         if (session != null && session.bossBar != null) {
             session.bossBar.removeAllPlayers();
         }
-        if (session != null && level != null && session.markerId >= 0) {
-            var entity = level.getEntity(session.markerId);
-            if (entity != null) {
-                entity.discard();
-            }
-        }
+        discardMarkers(level);
         session = null;
         CommandBlockCombat.clear();
         Error404Role.clear();
@@ -838,8 +918,6 @@ public final class CommandBlockDirector {
         private int quota;
         private int killerDeaths;
         private int markerId = -1;
-        private float angle;
-        private long introAt;
         private long nextConvertAt;
         private long nextWarnAt;
         private long nextEventAt;

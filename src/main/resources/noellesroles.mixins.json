@@ -16,6 +16,7 @@
     "CommandBlockGameEndMixin",
     "CommandBlockKillTimeMixin",
     "CommandBlockKillerCountMixin",
+    "CommandBlockIntroMixin",
     "CommandBlockRolePoolMixin",
     "CommandBlockCrackGunMixin",
     "MagicianPlayerEntityMixin",

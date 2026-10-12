@@ -5745,7 +5745,7 @@
   "letter.noellesroles.command_block.click_hint": "带下划线的职业名可以点开介绍。",
   "letter.noellesroles.command_block.intro": "命令方块不是可玩职业。它占满本局杀手名额，把一部分平民标成%s，再按分钟改写成下方杀手池里的传奇杀手。玩家不能选择它，它也不会自然刷新。\n强制下一局：/sre:command_block next。配置项 commandBlockEnableChance 是万分比，默认 80。不支持躲猫猫、邪战、TNT、赌徒、发现、鹅鸭杀。",
   "letter.noellesroles.command_block.open": "开局",
-  "letter.noellesroles.command_block.open.body": "杀手名额被占满。承太郎这类绑定杀手的职业一并排除。\n出生点上方出现巨大的旋转命令方块。破坏越多，方块外观越碎。\n原杀手数量的 1.5 倍（向上取整，至少 1）平民被标成%s，并挂上隐藏的异常修饰符。警长不会被标。\n成为杀手前 1 分钟，本人先变成没有能力的中立%s，并只对自己显示即将变成的职业。%s不会自然刷新，死亡也不计入破坏配额。\n转化时补到开局金币，全场字幕「某某已出现」，并播放挑战完成音。\n时间下方有破坏进度条。Boss 条同时保留。",
+  "letter.noellesroles.command_block.open.body": "杀手名额被占满。承太郎这类绑定杀手的职业一并排除。\n出生点屋顶之上出现巨大的旋转命令方块，开场镜头会看向它。破坏越多，方块外观越碎。\n原杀手数量的 1.5 倍（向上取整，至少 1）平民被标成%s，并挂上隐藏的异常修饰符。警长不会被标。\n成为杀手前 1 分钟，本人先变成没有能力的中立%s，并只对自己显示即将变成的职业。%s不会自然刷新，死亡也不计入破坏配额。\n转化时补到开局金币，全场字幕「某某已出现」，并播放挑战完成音。\n时间下方有破坏进度条。Boss 条同时保留。",
   "letter.noellesroles.command_block.crack": "裂缝",
   "letter.noellesroles.command_block.crack.body": "开局不铺裂缝。之后每 60 到 90 秒只刷新一道。\n位置从任务点旁的空位里随机选：离任务点 2 到 3 格，脚下能站，不压在任务方块上，也不和已有裂缝叠在 4 格以内。没有合适位置就跳过这一次，下一轮再试。\n外形由 CommandBlockCrackRenderer 画成竖着的紫黑色裂口，不是方块展示。\n只有杀手能看到裂缝发光。好人阵营（平民和警长）用手枪击碎一道，破坏进度 +1。杀手和中立打不碎。\n破坏进度达到配额时，乘客获胜。配额不因时间回溯而减少。",
   "letter.noellesroles.command_block.end": "结束",

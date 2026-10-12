@@ -692,6 +692,16 @@ public class ModEntities {
                     .updateInterval(10)
                     .build("command_block_crack"));
 
+    /** 天上的命令方块。碰撞箱盖住模型，跟踪距离够整张地图。 */
+    public static final EntityType<CommandBlockMarkerEntity> COMMAND_BLOCK_MARKER = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            Noellesroles.id("command_block_marker"),
+            EntityType.Builder.of(CommandBlockMarkerEntity::new, MobCategory.MISC)
+                    .sized(8.0F, 8.0F)
+                    .clientTrackingRange(128)
+                    .updateInterval(2)
+                    .build("command_block_marker"));
+
     /**
      * 初始化实体
      * 注册实体属性（LivingEntity 需要）

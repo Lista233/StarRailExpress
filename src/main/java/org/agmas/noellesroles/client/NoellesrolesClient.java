@@ -451,6 +451,8 @@ public class NoellesrolesClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.WHEELCHAIR, WheelchairEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.COMMAND_BLOCK_CRACK,
                 org.agmas.noellesroles.client.renderer.CommandBlockCrackRenderer::new);
+        EntityRendererRegistry.register(ModEntities.COMMAND_BLOCK_MARKER,
+                org.agmas.noellesroles.client.renderer.CommandBlockMarkerRenderer::new);
         EntityRendererRegistry.register(ModEntities.MUSHROOM_ESSENCE,
                 net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
         // 康复试剂投掷物（护士体系）：与蘑菇素同样使用投掷物品渲染器

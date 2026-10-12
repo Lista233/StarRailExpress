@@ -53,7 +53,7 @@ public final class CommandBlockProgressClient {
         }
         int width = 84;
         int x = graphics.guiWidth() / 2 - width / 2;
-        int y = 16;
+        int y = 30;
         float fill = Math.min(1.0F, progress / (float) goal);
         graphics.fill(x - 1, y - 1, x + width + 1, y + 5, 0xAA120018);
         graphics.fill(x, y, x + (int) (width * fill), y + 4, 0xFFB44DFF);
