@@ -266,6 +266,34 @@ public final class KatanaCombat {
                 ModEffects.NO_COLLIDE, KatanaState.THRUST_DASH_MAX_TICKS, 0, true, false, false));
     }
 
+    public static boolean attackDummy(ServerPlayer attacker, io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy) {
+        if (dummy == null || !dummy.canReceiveHits() || !canUseKatana(attacker, attacker.getMainHandItem())) {
+            return false;
+        }
+        KatanaState.PlayerState state = KatanaState.get(attacker);
+        int move = state.nextMove;
+        announceMove(attacker, move);
+        attacker.resetAttackStrengthTicker();
+        if (move == KatanaState.MOVE_THRUST && !state.thrustDashing) {
+            startThrustDash(attacker, state);
+            return true;
+        }
+        int virtualDamage = move == KatanaState.MOVE_SWEEP ? 6 : 7;
+        boolean hurt = io.wifi.starrailexpress.traindummy.TrainDummyCombat.applyVirtualDamage(dummy, attacker,
+                KatanaState.scaleVirtualDamage(attacker, virtualDamage), KatanaItem.DEATH_REASON, false, false);
+        boolean died = hurt && dummy.virtualHp() <= 0;
+        int next = died || (hurt && move == KatanaState.MOVE_SLASH) ? KatanaState.MOVE_SWEEP
+                : hurt ? move + 1 : move;
+        state.nextMove = next;
+        broadcastNextMove(attacker, next);
+        if (hurt) {
+            state.linkedUntil = attacker.level().getGameTime() + KatanaState.LINKED_WINDOW_TICKS;
+            state.blockCooldownUntil = 0;
+            KatanaState.broadcast(attacker, KatanaState.EVENT_BLOCK_COOLDOWN_CLEAR);
+        }
+        return true;
+    }
+
     /** 每 tick 遍历本世界内正在突刺的玩家，结算位移与碰撞伤害。 */
     private static void tickThrusts(ServerLevel world) {
         for (ServerPlayer player : world.players()) {

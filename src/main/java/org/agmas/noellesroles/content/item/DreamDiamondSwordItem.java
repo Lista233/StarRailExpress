@@ -187,6 +187,8 @@ public class DreamDiamondSwordItem extends SwordItem implements SREItemPropertie
                                 -Math.cos(attacker.getYRot() * (Math.PI / 180.0D)));
                     }
                 }
+                io.wifi.starrailexpress.traindummy.TrainDummyWeapons.sweep(attacker,
+                        target.getBoundingBox().inflate(1.0D, 0.25D, 1.0D), 1, DEATH_REASON);
                 attacker.sweepAttack();
                 serverLevel.playSound(null, attacker.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP,
                         SoundSource.PLAYERS, 1.0F, 1.0F);
