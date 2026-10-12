@@ -37,6 +37,7 @@ import net.minecraft.world.item.component.CustomModelData;
 import net.minecraft.world.level.Level;
 import org.agmas.noellesroles.ModDataComponentTypes;
 import org.agmas.noellesroles.Noellesroles;
+import org.agmas.noellesroles.scene.SceneTaskManager;
 
 import java.util.List;
 import java.util.Map;
@@ -182,14 +183,31 @@ public class ChefFoodItem extends Item {
                     ));
                     break;
                 case 5:
+                    // 跳过当前任务：只刷新任务本身，绝不走「任务完成」奖励流程
+                    // （不发任务奖励金币、不加理智——跳过不算完成任务）。
                     var mm2 = SREPlayerTaskComponent.KEY.maybeGet(livingEntity).orElse(null);
                     if (mm2 != null) {
                         mm2.tasks.clear();
+                        // 与其它「清空任务」实现保持一致：重置并列任务相关状态，
+                        // 否则残留的 parallelTaskGenerated 会让下一个真正完成的任务
+                        // 额外吃一份并列任务理智加成。
+                        mm2.parallelTaskTypes.clear();
+                        mm2.parallelTaskGenerated = false;
+                        mm2.currentTaskAge = 0;
+                        // 同步清理场景任务状态：SceneTaskManager 的表不随任务组件清空，
+                        // 残留条目后续仍会判定「完成」并直接发放任务奖励（金币+理智）。
+                        if (livingEntity instanceof Player skipPlayer) {
+                            SceneTaskManager.clear(skipPlayer);
+                        }
                         TrainTask task = mm2.generateTask();
                         if (task != null) {
                             mm2.tasks.put(task.getType(), task);
                             mm2.timesGotten.putIfAbsent(task.getType(), 1);
                             mm2.timesGotten.put(task.getType(), (Integer) mm2.timesGotten.get(task.getType()) + 1);
+                            var refreshedMood = SREPlayerMoodComponent.KEY.maybeGet(livingEntity).orElse(null);
+                            if (refreshedMood != null) {
+                                mm2.moodWhenTaskAssigned = refreshedMood.getMood();
+                            }
                         }
                         mm2.sync();
                     }
