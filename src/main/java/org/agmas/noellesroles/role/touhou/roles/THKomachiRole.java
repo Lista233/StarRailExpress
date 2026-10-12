@@ -40,7 +40,7 @@ public class THKomachiRole extends TouhouRole {
         ArrayList<ShopEntry> SHOP = new ArrayList<>();
         SHOP.add(new KillerKnifeShopEntry(SREConfig.instance().knifePrice));
         SHOP.add(new ShopEntry(TMMItems.PSYCHO_MODE.getDefaultInstance(),
-                600, ShopEntry.Type.WEAPON) {
+                (int) Math.round(SREConfig.instance().psychoModePrice * 1.5f), ShopEntry.Type.WEAPON) {
             @Override
             public boolean canBuy(@NotNull Player player) {
                 if (player.getCooldowns().isOnCooldown(TMMItems.PSYCHO_MODE)) {
@@ -59,13 +59,13 @@ public class THKomachiRole extends TouhouRole {
             }
         });
         SHOP.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(),
-                SREConfig.instance().lockpickPrice + 150, ShopEntry.Type.TOOL));
+                (int) Math.round(SREConfig.instance().lockpickPrice * 2.875f), ShopEntry.Type.TOOL));
         SHOP.add(new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(),
                 SREConfig.instance().crowbarPrice, ShopEntry.Type.TOOL));
         SHOP.add(new ShopEntry(TMMItems.BODY_BAG.getDefaultInstance(),
-                SREConfig.instance().bodyBagPrice + 150, ShopEntry.Type.TOOL));
+                (int) Math.round(SREConfig.instance().bodyBagPrice * 2.5f), ShopEntry.Type.TOOL));
         SHOP.add(new ShopEntry(TMMItems.BLACKOUT.getDefaultInstance(),
-                400, ShopEntry.Type.TOOL) {
+                SREConfig.instance().blackoutPrice + 280, ShopEntry.Type.TOOL) {
             @Override
             public boolean onBuy(@NotNull Player player) {
                 return SREPlayerShopComponent.useBlackout(player);

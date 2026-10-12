@@ -15,6 +15,7 @@
 
 package org.agmas.noellesroles.game.roles.killer.undead_lord;
 
+import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.EggRole;
 import io.wifi.starrailexpress.api.data.RoleData;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
@@ -77,11 +78,13 @@ public class UndeadLordRole extends EggRole {
         }));
 
         // 通用工具：撬棍（对任意门使用可将其永久打开）
-        entries.add(new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(), 35,
+        entries.add(new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(),
+                SREConfig.instance().crowbarPrice,
                 dev.doctor4t.wathe.util.ShopEntry.Type.TOOL));
 
         // 通用工具：开锁器（对任何锁住的门可打开，潜行卡门）
-        entries.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(), 100,
+        entries.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(),
+                SREConfig.instance().lockpickPrice,
                 dev.doctor4t.wathe.util.ShopEntry.Type.TOOL));
 
         return entries;

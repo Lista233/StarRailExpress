@@ -15,7 +15,9 @@
 
 package org.agmas.noellesroles.game.roles.killer.creeper;
 
+import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.NormalRole;
+import io.wifi.starrailexpress.game.KillerKnifeShopEntry;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.util.ShopEntry;
 import net.minecraft.resources.ResourceLocation;
@@ -48,7 +50,8 @@ public class RainbowCreeperRole extends NormalRole {
     @Override
     public List<ShopEntry> getShopEntries() {
         return List.of(
-                new ShopEntry(TMMItems.KNIFE.getDefaultInstance(), 130, ShopEntry.Type.WEAPON),
-                new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(), 130, ShopEntry.Type.TOOL));
+                new KillerKnifeShopEntry(SREConfig.instance().knifePrice),
+                new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(),
+                        (int) Math.round(SREConfig.instance().lockpickPrice * 1.625f), ShopEntry.Type.TOOL));
     }
 }

@@ -22,11 +22,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.agmas.noellesroles.init.ModEffects;
+import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.utils.RoleUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.NormalRole;
 import io.wifi.starrailexpress.api.RoleSkill.RoleSkillContext;
 import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
@@ -117,15 +117,14 @@ public class TartagliaRole extends NormalRole {
                 return RoleUtils.insertStackInFreeSlot(player, item);
             }
         });
-        SHOP.add(new ShopEntry(TMMItems.FIRECRACKER.getDefaultInstance(),
-                SREConfig.instance().firecrackerPrice, ShopEntry.Type.TOOL));
-        SHOP.add(new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(),
-                SREConfig.instance().crowbarPrice, ShopEntry.Type.TOOL));
-        SHOP.add(new ShopEntry(TMMItems.BODY_BAG.getDefaultInstance(),
-                SREConfig.instance().bodyBagPrice, ShopEntry.Type.TOOL));
-        SHOP.add(ShopContent.getBlackoutShopEntry());
-        SHOP.add(new ShopEntry(new ItemStack(TMMItems.NOTE, 4), SREConfig.instance().notePrice,
-                ShopEntry.Type.TOOL));
+
+        // 原版杀手商店，去掉刀、左轮手枪、手榴弹、短管霰弹枪与疯狂模式
+        SHOP.addAll(ShopContent.getDefaultKnifeEntries());
+        SHOP.removeIf(entry -> entry.stack().is(TMMItems.KNIFE)
+                || entry.stack().is(TMMItems.REVOLVER)
+                || entry.stack().is(TMMItems.GRENADE)
+                || entry.stack().is(ModItems.SHORT_SHOTGUN)
+                || entry.stack().is(TMMItems.PSYCHO_MODE));
 
         return SHOP;
     }
