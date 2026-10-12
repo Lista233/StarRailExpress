@@ -47,6 +47,7 @@
     "effect.noellesroles.jump_decrease.desc": "Reduces jump strength. Higher level means shorter jumps.",
     "effect.noellesroles.inventory_baned.desc": "Cannot open the inventory or manipulate items.",
     "effect.noellesroles.eat_meat_food.desc": "Restricts eating logic, used together with meat-related roles and mechanics.",
+    "effect.noellesroles.enter_dream.desc": "The player with this effect regains 50% Sanity after sleeping, and gains the Swiftness effect at the corresponding level; it is cleared after triggering once.",
     "effect.noellesroles.next_skill_baned.desc": "Your next skill is sealed. Spellbreaker potions apply this effect to the target.",
     "effect.noellesroles.tarot_assembly.desc": "Tarot Assembly mark. Can alter death judgment within specific coordinate zones.",
     "effect.noellesroles.black_monitor.desc": "Black screen: the client view is obscured, often appearing alongside control or immobilization effects.",
