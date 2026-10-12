@@ -14,6 +14,7 @@
     "LivingEntityAccessor",
     "MagicianKillerCountMixin",
     "CommandBlockGameEndMixin",
+    "CommandBlockKillTimeMixin",
     "CommandBlockKillerCountMixin",
     "CommandBlockRolePoolMixin",
     "CommandBlockCrackGunMixin",

@@ -37,6 +37,10 @@ public final class CommandBlockProgressClient {
         CommonHudRenderCallback.EVENT.register((graphics, delta) -> render(graphics));
     }
 
+    public static boolean isShowing() {
+        return goal > 0;
+    }
+
     private static void clear() {
         progress = 0;
         goal = 0;
