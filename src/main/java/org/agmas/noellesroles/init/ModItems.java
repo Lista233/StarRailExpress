@@ -1038,8 +1038,14 @@ public class ModItems {
     public static final Item ROPE = register(
             new RopeItem(new Item.Properties().stacksTo(1).durability(2)),
             "rope", TOOLS_GROUP);
+    /**
+     * 钳子（滞时鬼初始物品）
+     * - 无耐久，可无限次使用
+     * - 右键摄像头：使其失灵 90 秒
+     * - 每成功破坏一个摄像头，进入 30 秒原版物品冷却
+     */
     public static final Item CAMERA_SHEARS = register(
-            new CameraShearsItem(new Item.Properties().stacksTo(1).durability(3)),
+            new CameraShearsItem(new Item.Properties().stacksTo(1)),
             "camera_shears", TOOLS_GROUP);
     /**
      * 灭火器

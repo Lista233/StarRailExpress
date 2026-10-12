@@ -425,6 +425,11 @@ public class RoleInitialItems {
         List<Supplier<ItemStack>> greatDetectiveItems = new ArrayList<>();
         greatDetectiveItems.add(() -> ModItems.DEDUCTION_BOOK.getDefaultInstance());
         INITIAL_ITEMS_MAP.put(ModRoles.GREAT_DETECTIVE, greatDetectiveItems);
+
+        // 滞时鬼初始物品 - 钳子（无耐久、可无限次破坏摄像头，每次成功后 30 秒原版物品冷却）
+        List<Supplier<ItemStack>> delayerItems = new ArrayList<>();
+        delayerItems.add(() -> ModItems.CAMERA_SHEARS.getDefaultInstance());
+        INITIAL_ITEMS_MAP.put(ModRoles.DELAYER, delayerItems);
     }
 
 }

@@ -2244,7 +2244,7 @@ public class RoleShopHandler {
             ShopContent.customEntries.put(THRedHouseRoles.FURANDORU.getIdentifier(), SHOP);
         }
 
-        // 滞时鬼（Delayer）商店：普通原版杀手商店 + 钳子（拆摄像头），禁手榴弹，监控失灵三折
+        // 滞时鬼（Delayer）商店：普通原版杀手商店，禁手榴弹，监控失灵三折（钳子改为初始物品，不再售卖）
         {
             var SHOP = new ArrayList<ShopEntry>(ShopContent.getDefaultKnifeEntries());
             // 去掉手榴弹
@@ -2260,7 +2260,6 @@ public class RoleShopHandler {
                             SREConfig.instance().monitorBrokenDuration * 20);
                 }
             });
-            SHOP.add(new ShopEntry(ModItems.CAMERA_SHEARS.getDefaultInstance(), 25, ShopEntry.Type.TOOL));
 
             ShopContent.customEntries.put(ModRoles.DELAYER.getIdentifier(), SHOP);
         }

@@ -21,9 +21,7 @@ import io.wifi.starrailexpress.util.AdventureUsable;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -35,15 +33,15 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import java.util.List;
 
 /**
- * 绳索
+ * 钳子（滞时鬼初始物品）
  * <p>
- * - 2点耐久
- * - 右键：将前方直线距离12格内你瞄准的玩家拉到自己身前
- * - 每次右键后进入3秒冷却，成功拉取且非创造模式时进入5秒冷却并消耗1点耐久
+ * - 无耐久，可无限次使用
+ * - 右键摄像头：使其失灵 90 秒
+ * - 每成功破坏一个摄像头，进入 30 秒原版物品冷却
  * </p>
  */
 public class CameraShearsItem extends Item implements AdventureUsable {
-    private static final int USE_COOLDOWN = 30 * 20; // 成功且非创造模式5秒
+    private static final int USE_COOLDOWN = 30 * 20; // 每次成功破坏摄像头后的原版物品冷却
     private static final int BROKEN_TIME = 90 * 20;
 
     public CameraShearsItem(Properties settings) {
@@ -75,14 +73,8 @@ public class CameraShearsItem extends Item implements AdventureUsable {
                     true);
             return InteractionResult.FAIL;
         }
-        ItemStack stack = context.getItemInHand();
-        stack.hurtAndBreak(1, player,
-                context.getHand().equals(InteractionHand.MAIN_HAND) ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
-        if (stack.getDamageValue() < stack.getMaxDamage()) {
-            if (!player.isCreative()) {
-                player.getCooldowns().addCooldown(this, USE_COOLDOWN);
-            }
-        }
+        // 无耐久消耗；每成功破坏一个摄像头即进入 30 秒原版物品冷却
+        player.getCooldowns().addCooldown(this, USE_COOLDOWN);
         cbe.setBroken(BROKEN_TIME);
         CameraBlock.sendTip(player, level, clickedPos);
         return InteractionResult.SUCCESS;

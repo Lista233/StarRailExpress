@@ -9,7 +9,7 @@
     "item.noellesroles.bucket_of_h2so4.desc": "The Cleaner's item.\nRight-click a corpse to dissolve it.",
     "item.noellesroles.c4.desc": "Right-click to throw. If thrown at a player, it sticks to that player; otherwise it sticks to the block where it lands. When the C4 is armed it beeps; if not disarmed in time, it explodes after a few seconds, killing all players within 7 blocks. The blast can pierce 1-block-thick walls but not 2-block-thick walls. When a player bound with C4 dies, the C4 drops to the ground and continues its countdown. When C4 is disarmed with bolt cutters by anyone other than a Fitter, there is a 20%% chance it detonates immediately.",
     "item.noellesroles.c4_detonator.desc": "Right-click to arm the thrown C4s in the area one by one. Can detonate multiple C4s at once.",
-    "item.noellesroles.camera_shears.desc": "Has 3 durability, 30-second cooldown. Right-click a camera to disable it for 90 seconds.",
+    "item.noellesroles.camera_shears.desc": "No durability, unlimited uses. Right-click a camera to disable it for 90 seconds; each successful disable puts the shears on a 30-second cooldown.",
     "item.noellesroles.cooked_food.desc": "Cooked by the Chef. Carries various effects after cooking.",
     "item.noellesroles.letter.desc": "When task-point see-through is active, holding the envelope lets you see vending machines.",
     "item.noellesroles.master_key.desc": "A key that can open any door. Is blocked by an Engineer's lock, but failing to pick it does not consume the master key. Drops on death.",
