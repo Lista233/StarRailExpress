@@ -309,6 +309,8 @@ public class NoellesrolesClient implements ClientModInitializer {
         });
         // 注册HUD渲染
         org.agmas.noellesroles.client.RefugeeDesperadoClientFx.register();
+        org.agmas.noellesroles.client.LegendRingClientFx.register();
+        org.agmas.noellesroles.client.CommandBlockProgressClient.register();
         LimitedInventoryScreen.NotAllowItemTakePredicates.add(stack -> stack.is(ModItems.BOMB));
 
         BlockEntityRenderers.register(
