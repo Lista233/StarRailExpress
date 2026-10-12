@@ -2202,9 +2202,22 @@ public class RoleShopHandler {
             ShopContent.customEntries.put(THRedHouseRoles.FURANDORU.getIdentifier(), SHOP);
         }
 
-        // 滞时鬼（Delayer）商店：普通原版杀手商店 + 钳子（拆摄像头）
+        // 滞时鬼（Delayer）商店：普通原版杀手商店 + 钳子（拆摄像头），禁手榴弹，监控失灵三折
         {
             var SHOP = new ArrayList<ShopEntry>(ShopContent.getDefaultKnifeEntries());
+            // 去掉手榴弹
+            SHOP.removeIf(entry -> entry.stack().is(TMMItems.GRENADE));
+            // 去掉原版商店中的监控失灵（若有），改用下面的三折价，避免重复条目
+            SHOP.removeIf(entry -> entry.stack().is(TMMItems.MONITOR_BROKEN));
+            // 监控失灵：当前价格的 30%
+            SHOP.add(new ShopEntry(TMMItems.MONITOR_BROKEN.getDefaultInstance(),
+                    (int) Math.round(SREConfig.instance().monitorBrokenPrice * 0.3f), ShopEntry.Type.TOOL) {
+                @Override
+                public boolean onBuy(@NotNull Player player) {
+                    return SREPlayerShopComponent.useMonitorBroken(player,
+                            SREConfig.instance().monitorBrokenDuration * 20);
+                }
+            });
             SHOP.add(new ShopEntry(ModItems.CAMERA_SHEARS.getDefaultInstance(), 25, ShopEntry.Type.TOOL));
 
             ShopContent.customEntries.put(ModRoles.DELAYER.getIdentifier(), SHOP);
