@@ -31,6 +31,7 @@ import io.wifi.starrailexpress.index.TMMDescEffects;
 import io.wifi.starrailexpress.index.TMMDescItems;
 import io.wifi.starrailexpress.util.ShopEntry;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -342,6 +343,24 @@ public class RoleIntroduceScreen extends Screen {
         this.currentMode = IntroductionGameMode.CURRENT;
 
     }
+    /** 从信件等入口打开，并停在这个职业上。用全部模式，避免本局过滤把隐藏池职业丢掉。 */
+    public static void openOn(SRERole role) {
+        RoleIntroduceScreen screen = new RoleIntroduceScreen();
+        screen.selectedRole = role;
+        screen.currentMode = IntroductionGameMode.ALL;
+        screen.selectedCategoryIndex = categoryFor(role);
+        Minecraft.getInstance().setScreen(screen);
+    }
+
+    private static int categoryFor(SRERole role) {
+        for (int i = 1; i < CATEGORIES.size(); i++) {
+            if (CATEGORIES.get(i).filter.test(role)) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
 
     @Override
     protected void init() {
@@ -360,10 +379,39 @@ public class RoleIntroduceScreen extends Screen {
         refreshFilter();
         if (selectedRole == null && !filteredItems.isEmpty())
             selectedRole = filteredItems.get(0);
+        ensurePinnedVisible();
         clearPrevStatus();
         onSelectionChanged();
         setFocusArea(FocusArea.SEARCH);
     }
+    private void ensurePinnedVisible() {
+        if (!(selectedRole instanceof SRERole role)) {
+            return;
+        }
+        if (indexOfSelected(role) < 0) {
+            selectedCategoryIndex = 0;
+            inNeutralSubMenu = false;
+            refreshFilter();
+        }
+        int idx = indexOfSelected(role);
+        if (idx < 0) {
+            return;
+        }
+        if (filteredItems.get(idx) != selectedRole) {
+            selectedRole = filteredItems.get(idx);
+        }
+        listScrollOffset = Mth.clamp(idx * (CARD_H + CARD_SPACING), 0, maxListScroll);
+    }
+
+    private int indexOfSelected(SRERole role) {
+        for (int i = 0; i < filteredItems.size(); i++) {
+            if (filteredItems.get(i) instanceof SRERole other && other.identifier().equals(role.identifier())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
 
     private void removeAPrevStatus() {
         if (!prevRole.isEmpty())
