@@ -3214,7 +3214,6 @@
     "skill.noellesroles.watchman.ring_bell": "Ring Bell",
     "effect.noellesroles.enter_dream": "Enter Dream",
     "mob_effect.noellesroles.enter_dream": "Enter Dream",
-    "effect.noellesroles.chat_ban.desc": "Players with this effect restore 50%% Sanity and gain Swiftness of the matching level when they sleep; clears after one trigger.",
     "effect.noellesroles.time_reveal": "Time See-Through",
     "mob_effect.noellesroles.time_reveal": "Time See-Through",
     "item.noellesroles.gong": "Gong",
