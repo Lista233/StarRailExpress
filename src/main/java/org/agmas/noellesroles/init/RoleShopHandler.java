@@ -138,7 +138,8 @@ public class RoleShopHandler {
         entries.add(new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(), 35, ShopEntry.Type.TOOL));
         entries.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(), 100, ShopEntry.Type.TOOL));
         entries.add(ShopContent.getBlackoutShopEntry());
-        entries.add(new ShopEntry(TMMItems.MONITOR_BROKEN.getDefaultInstance(), 100, ShopEntry.Type.TOOL) {
+        entries.add(new ShopEntry(TMMItems.MONITOR_BROKEN.getDefaultInstance(),
+                SREConfig.instance().monitorBrokenPrice, ShopEntry.Type.TOOL) {
             public boolean onBuy(@NotNull Player player) {
                 return SREPlayerShopComponent.useMonitorBroken(player, SREConfig.instance().monitorBrokenDuration * 20);
             }
@@ -2207,9 +2208,9 @@ public class RoleShopHandler {
             var SHOP = new ArrayList<ShopEntry>(ShopContent.getDefaultKnifeEntries());
             // 去掉手榴弹
             SHOP.removeIf(entry -> entry.stack().is(TMMItems.GRENADE));
-            // 去掉原版商店中的监控失灵（若有），改用下面的三折价，避免重复条目
+            // 去掉通用杀手商店中的监控失灵（通用商店现已包含该条目），改用下面的三折价
             SHOP.removeIf(entry -> entry.stack().is(TMMItems.MONITOR_BROKEN));
-            // 监控失灵：当前价格的 30%
+            // 监控失灵：通用杀手商店监控失灵配置价（monitorBrokenPrice）的 30%
             SHOP.add(new ShopEntry(TMMItems.MONITOR_BROKEN.getDefaultInstance(),
                     (int) Math.round(SREConfig.instance().monitorBrokenPrice * 0.3f), ShopEntry.Type.TOOL) {
                 @Override

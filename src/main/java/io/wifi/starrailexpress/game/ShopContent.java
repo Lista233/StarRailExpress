@@ -69,6 +69,14 @@ public class ShopContent {
             defaultKnifeEntries.add(new ShopEntry(TMMItems.BODY_BAG.getDefaultInstance(),
                     SREConfig.instance().bodyBagPrice, ShopEntry.Type.TOOL));
             defaultKnifeEntries.add(getBlackoutShopEntry());
+            defaultKnifeEntries.add(new ShopEntry(TMMItems.MONITOR_BROKEN.getDefaultInstance(),
+                    SREConfig.instance().monitorBrokenPrice, ShopEntry.Type.TOOL) {
+                @Override
+                public boolean onBuy(@NotNull Player player) {
+                    return SREPlayerShopComponent.useMonitorBroken(player,
+                            SREConfig.instance().monitorBrokenDuration * 20);
+                }
+            });
             defaultKnifeEntries.add(new ShopEntry(new ItemStack(TMMItems.NOTE, 4), SREConfig.instance().notePrice,
                     ShopEntry.Type.TOOL));
         }
