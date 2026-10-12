@@ -2202,33 +2202,10 @@ public class RoleShopHandler {
             ShopContent.customEntries.put(THRedHouseRoles.FURANDORU.getIdentifier(), SHOP);
         }
 
-        // 滞时鬼（Delayer）商店
+        // 滞时鬼（Delayer）商店：普通原版杀手商店 + 钳子（拆摄像头）
         {
-            var SHOP = new ArrayList<ShopEntry>();
-            SHOP.add(new KillerKnifeShopEntry(130));
-            SHOP.add(new ShopEntry(io.wifi.starrailexpress.index.TMMItems.REVOLVER.getDefaultInstance(), 285,
-                    ShopEntry.Type.TOOL));
-            SHOP.add(new ShopEntry(org.agmas.noellesroles.init.ModItems.SHORT_SHOTGUN.getDefaultInstance(), 300,
-                    ShopEntry.Type.TOOL));
-            SHOP.add(new ShopEntry(TMMItems.PSYCHO_MODE.getDefaultInstance(), 400, ShopEntry.Type.WEAPON) {
-                @Override
-                public boolean onBuy(@NotNull Player player) {
-                    return SREPlayerShopComponent.usePsychoMode(player);
-                }
-            });
-            SHOP.add(new ShopEntry(TMMItems.MONITOR_BROKEN.getDefaultInstance(), 40, ShopEntry.Type.TOOL) {
-                @Override
-                public boolean onBuy(@NotNull Player player) {
-                    return SREPlayerShopComponent.useMonitorBroken(player,
-                            SREConfig.instance().monitorBrokenDuration * 20);
-                }
-            });
-            // 关灯 - 使用配置价格
-            SHOP.add(ShopContent.getBlackoutShopEntry());
+            var SHOP = new ArrayList<ShopEntry>(ShopContent.getDefaultKnifeEntries());
             SHOP.add(new ShopEntry(ModItems.CAMERA_SHEARS.getDefaultInstance(), 25, ShopEntry.Type.TOOL));
-            SHOP.add(new ShopEntry(TMMItems.FIRECRACKER.getDefaultInstance(), 15, ShopEntry.Type.TOOL));
-            SHOP.add(new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(), 35, ShopEntry.Type.TOOL));
-            SHOP.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(), 80, ShopEntry.Type.TOOL));
 
             ShopContent.customEntries.put(ModRoles.DELAYER.getIdentifier(), SHOP);
         }
