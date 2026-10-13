@@ -1583,16 +1583,18 @@ public class CustomRoleLoader {
         }
         final String mode = discountMode(entry);
         final DynamicShopComponent dynamicShop = DynamicShopComponent.KEY.get(player);
-        final ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        final int purchased = countAlreadyRecorded ? dynamicShop.getPurchaseCount(itemId)
-                : dynamicShop.recordPurchase(itemId);
+        // 价格键按物品栈区分：自定义列车物品共用同一个物品本体，只靠注册 id 会让涨价/降价
+        // 误伤到商店里其它自定义物品商品；用 keyOf 把 CUSTOM_ITEM_ID 组件也算进去。
+        final String itemKey = DynamicShopComponent.keyOf(stack);
+        final int purchased = countAlreadyRecorded ? dynamicShop.getPurchaseCount(itemKey)
+                : dynamicShop.recordPurchase(itemKey);
         final int amount = "raise".equals(mode)
                 ? (int) Math.min(Integer.MAX_VALUE - (long) basePrice, Math.max(0, entry.discountAmount))
                 : Math.min(basePrice, Math.max(0, entry.discountAmount));
         if (amount <= 0) {
             return;
         }
-        dynamicShop.setSteppedPrice(itemId, basePrice, amount, "raise".equals(mode), purchased,
+        dynamicShop.setSteppedPrice(itemKey, basePrice, amount, "raise".equals(mode), purchased,
                 parsePriceChangeCount(entry.priceChangeCount));
     }
 
