@@ -43,6 +43,8 @@ public class LampOilItem extends Item {
             return InteractionResultHolder.fail(stack);
         }
         self.getCooldowns().addCooldown(ModItems.LAMP_OIL, COOLDOWN);
+        org.agmas.noellesroles.game.command_block.CommandBlockFeedback.play(level, self,
+                net.minecraft.sounds.SoundEvents.BUCKET_EMPTY, 0.6F, 1.1F);
         return InteractionResultHolder.consume(stack);
     }
 }

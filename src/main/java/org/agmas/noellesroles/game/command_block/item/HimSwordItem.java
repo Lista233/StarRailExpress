@@ -64,22 +64,7 @@ public class HimSwordItem extends SwordItem {
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-        ItemStack stack = player.getItemInHand(hand);
-        if (level.isClientSide || !(player instanceof ServerPlayer serverPlayer)) {
-            return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
-        }
-        if (player.isSpectator() || player.getCooldowns().isOnCooldown(this)) {
-            return InteractionResultHolder.fail(stack);
-        }
-        List<ServerPlayer> hit = GazeRays.playersAlong(serverPlayer, 7.0D, 0.45D);
-        if (hit.isEmpty()) {
-            return InteractionResultHolder.fail(stack);
-        }
-        if (CommandBlockCombat.dealHimSword(serverPlayer, hit.get(0))) {
-            stack.hurtAndBreak(1, serverPlayer, LivingEntity.getSlotForHand(hand));
-        }
-        player.getCooldowns().addCooldown(this, QI_COOLDOWN);
-        return InteractionResultHolder.consume(stack);
+        return InteractionResultHolder.pass(player.getItemInHand(hand));
     }
 
     @Override

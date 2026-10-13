@@ -52,7 +52,7 @@ public class StringerRole extends NormalRole {
                 SRE.id("stringer_mark"),
                 "skill.noellesroles.stringer.mark",
                 StringerRole::mark)
-                .cooldownSeconds(18).announceToSelf().build());
+                .cooldownSeconds(18).announceToSelf().showOnHud(true).build());
     }
 
     private static boolean mark(RoleSkill.RoleSkillContext context) {

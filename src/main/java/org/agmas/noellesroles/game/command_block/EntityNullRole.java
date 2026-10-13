@@ -39,7 +39,7 @@ public class EntityNullRole extends NormalRole {
                 SRE.id("entity_null_erase"),
                 "skill.noellesroles.entity_null.erase",
                 EntityNullRole::erase)
-                .cooldownSeconds(45).announceToSelf().build());
+                .cooldownSeconds(45).announceToSelf().showOnHud(true).build());
     }
 
     private static boolean erase(RoleSkill.RoleSkillContext context) {

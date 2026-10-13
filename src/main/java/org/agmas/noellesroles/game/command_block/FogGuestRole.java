@@ -36,7 +36,7 @@ public class FogGuestRole extends NormalRole {
                 SRE.id("fog_guest_hide"),
                 "skill.noellesroles.fog_guest.hide",
                 context -> hide(context.player()))
-                .cooldownSeconds(22).announceToSelf().build());
+                .cooldownSeconds(22).announceToSelf().showOnHud(true).build());
     }
 
     public static boolean hide(ServerPlayer player) {

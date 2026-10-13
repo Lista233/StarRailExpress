@@ -39,7 +39,7 @@ public class PendulumRole extends NormalRole {
                 SRE.id("pendulum_mark"),
                 "skill.noellesroles.pendulum.mark",
                 context -> mark(context.player()))
-                .cooldownSeconds(20).announceToSelf().build());
+                .cooldownSeconds(20).announceToSelf().showOnHud(true).build());
     }
 
     public static boolean mark(ServerPlayer player) {

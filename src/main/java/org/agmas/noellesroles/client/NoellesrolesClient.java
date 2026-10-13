@@ -311,7 +311,6 @@ public class NoellesrolesClient implements ClientModInitializer {
         org.agmas.noellesroles.client.RefugeeDesperadoClientFx.register();
         org.agmas.noellesroles.client.LegendRingClientFx.register();
         org.agmas.noellesroles.client.CommandBlockProgressClient.register();
-        org.agmas.noellesroles.client.CommandBlockIntroClient.register();
         org.agmas.noellesroles.content.item.LetterItem.clientReplacementOpener =
                 org.agmas.noellesroles.client.CommandBlockLetter::tryOpen;
         LimitedInventoryScreen.NotAllowItemTakePredicates.add(stack -> stack.is(ModItems.BOMB));
@@ -454,6 +453,8 @@ public class NoellesrolesClient implements ClientModInitializer {
                 org.agmas.noellesroles.client.renderer.CommandBlockCrackRenderer::new);
         EntityRendererRegistry.register(ModEntities.COMMAND_BLOCK_MARKER,
                 org.agmas.noellesroles.client.renderer.CommandBlockMarkerRenderer::new);
+        EntityRendererRegistry.register(org.agmas.noellesroles.init.ModEntities.COMMAND_BLOCK_THROWN,
+                net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
         EntityRendererRegistry.register(ModEntities.MUSHROOM_ESSENCE,
                 net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
         // 康复试剂投掷物（护士体系）：与蘑菇素同样使用投掷物品渲染器

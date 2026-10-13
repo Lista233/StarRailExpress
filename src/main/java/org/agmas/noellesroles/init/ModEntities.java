@@ -27,6 +27,7 @@ import net.minecraft.world.entity.MobCategory;
 
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.content.block_entity.DevilRouletteTableEntity;
+import org.agmas.noellesroles.game.command_block.CommandBlockThrownEntity;
 import org.agmas.noellesroles.content.entity.*;
 
 public class ModEntities {
@@ -624,6 +625,17 @@ public class ModEntities {
                     .dimensions(EntityDimensions.fixed(2.0F, 2.0F))
                     .trackRangeBlocks(128)
                     .trackedUpdateRate(2)
+                    .build());
+
+    /** 命令方块投掷物：石头、火球沿抛物线飞，石枪沿视线伸出再收回。 */
+    @SuppressWarnings("deprecation")
+    public static final EntityType<CommandBlockThrownEntity> COMMAND_BLOCK_THROWN = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            Noellesroles.id("command_block_thrown"),
+            FabricEntityTypeBuilder.<CommandBlockThrownEntity>create(MobCategory.MISC, CommandBlockThrownEntity::new)
+                    .dimensions(EntityDimensions.fixed(0.25F, 0.25F))
+                    .trackRangeBlocks(64)
+                    .trackedUpdateRate(1)
                     .build());
 
     /** 滚木实体 - 沿方向滚动碾死玩家 */

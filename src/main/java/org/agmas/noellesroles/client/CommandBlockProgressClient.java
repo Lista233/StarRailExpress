@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.agmas.noellesroles.client.event.CommonHudRenderCallback;
+import org.agmas.noellesroles.content.entity.CommandBlockMarkerEntity;
 import org.agmas.noellesroles.game.command_block.CommandBlockCracks;
 import org.agmas.noellesroles.game.command_block.CommandBlockRules;
 import org.agmas.noellesroles.packet.CommandBlockProgressS2CPacket;
@@ -65,6 +66,12 @@ public final class CommandBlockProgressClient {
         if (client.level == null || client.player == null) {
             GLOWING.clear();
             return;
+        }
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (entity instanceof CommandBlockMarkerEntity) {
+                CommandBlockSkyLight.seeMarker();
+                break;
+            }
         }
         boolean killer = isKiller(client);
         if (!killer) {

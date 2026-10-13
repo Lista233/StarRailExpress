@@ -64,7 +64,7 @@ public class Error404Role extends NormalRole {
         RoleSkill.register(ModRoles.ERROR_404, RoleSkill.skill(
                 SRE.id("error404_dimension"),
                 "skill.noellesroles.error404.dimension",
-                context -> beginDimension(context.player())).cooldownSeconds(SKILL_COOLDOWN).announceToSelf().build());
+                context -> beginDimension(context.player())).cooldownSeconds(SKILL_COOLDOWN).announceToSelf().showOnHud(true).build());
     }
 
     public static void clear() {

@@ -36,6 +36,8 @@ public class ThreadSpoolItem extends Item {
             return InteractionResultHolder.fail(stack);
         }
         self.getCooldowns().addCooldown(this, COOLDOWN);
+        org.agmas.noellesroles.game.command_block.CommandBlockFeedback.play(level, self,
+                net.minecraft.sounds.SoundEvents.FISHING_BOBBER_RETRIEVE, 0.7F, 1.3F);
         return InteractionResultHolder.consume(stack);
     }
 }

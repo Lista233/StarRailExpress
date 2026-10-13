@@ -53,6 +53,8 @@ public class FogBladeItem extends Item {
         boolean killed = CommandBlockCombat.tryKill(self, target, FogGuestRole.DEATH_BLADE, false, null);
         if (killed) {
             self.getCooldowns().addCooldown(this, COOLDOWN);
+            org.agmas.noellesroles.game.command_block.CommandBlockFeedback.play(level, self,
+                    net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_SWEEP, 0.6F, 0.7F);
         }
         return killed ? InteractionResultHolder.consume(stack) : InteractionResultHolder.fail(stack);
     }

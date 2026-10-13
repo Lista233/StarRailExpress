@@ -36,6 +36,8 @@ public class SummonRollingStoneItem extends Item {
         RollingStoneEntity.spawn(serverLevel, pos, dir);
         player.getCooldowns().addCooldown(this, 20);
         stack.shrink(1);
+        org.agmas.noellesroles.game.command_block.CommandBlockFeedback.play(level, serverPlayer,
+                net.minecraft.sounds.SoundEvents.STONE_PLACE, 0.8F, 0.6F);
         return InteractionResultHolder.consume(stack);
     }
 }

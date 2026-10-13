@@ -10,7 +10,7 @@ import io.wifi.starrailexpress.register.SREEventRegister;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
-/** 命令方块局用聚焦天上命令方块的镜头替换默认开场，和飞机事件同一时机。 */
+/** 命令方块局自己发开场轨道，跳过默认的俯视玩家镜头。 */
 @Mixin(SREEventRegister.class)
 public class CommandBlockIntroMixin {
     @Inject(method = "sendDefaultIntroIfParticipant", at = @At("HEAD"), cancellable = true)

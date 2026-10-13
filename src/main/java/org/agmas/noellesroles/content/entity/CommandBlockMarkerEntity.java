@@ -7,6 +7,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 
 /** 天上的命令方块。客户端画方块模型，避免方块展示的零碰撞箱和视距把模型裁掉。 */
 public class CommandBlockMarkerEntity extends Entity {
@@ -37,6 +38,21 @@ public class CommandBlockMarkerEntity extends Entity {
     public void tick() {
         super.tick();
         this.setDeltaMovement(0.0D, 0.0D, 0.0D);
+    }
+
+    @Override
+    public boolean isCurrentlyGlowing() {
+        return this.level().isClientSide() || super.isCurrentlyGlowing();
+    }
+
+    @Override
+    public int getTeamColor() {
+        return 0xB44DFF;
+    }
+
+    @Override
+    public AABB getBoundingBoxForCulling() {
+        return this.getBoundingBox().inflate(28.0D);
     }
 
     @Override

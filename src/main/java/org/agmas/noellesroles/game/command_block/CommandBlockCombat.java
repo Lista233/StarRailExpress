@@ -105,6 +105,19 @@ public final class CommandBlockCombat {
         return GazeRays.lookingAt(victim, attacker, 0.82D);
     }
 
+    /** him 只能打正看着自己、且自己没有隐身的人。其他职业不受限。 */
+    public static boolean allowsHimStrike(ServerPlayer attacker, ServerPlayer victim) {
+        if (attacker == null || victim == null
+                || !SREGameWorldComponent.KEY.get(attacker.level()).isRole(attacker, ModRoles.HIM)) {
+            return true;
+        }
+        if (canHimKill(attacker, victim)) {
+            return true;
+        }
+        attacker.displayClientMessage(Component.translatable("message.noellesroles.command_block.kill_rejected"), true);
+        return false;
+    }
+
     public static boolean allowDamage(LivingEntity entity, DamageSource source, float amount) {
         if (!(entity instanceof ServerPlayer player) || !CommandBlockDirector.isActive(player.serverLevel())) {
             return true;

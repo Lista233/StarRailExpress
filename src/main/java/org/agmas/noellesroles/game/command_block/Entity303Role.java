@@ -45,7 +45,7 @@ public class Entity303Role extends NormalRole {
                 SRE.id("entity_303_steal"),
                 "skill.noellesroles.entity_303.steal",
                 Entity303Role::stealFace)
-                .cooldownSeconds(40).announceToSelf().build());
+                .cooldownSeconds(40).announceToSelf().showOnHud(true).build());
     }
 
     public static boolean rejectsHarm(ServerPlayer attacker, ServerPlayer victim) {

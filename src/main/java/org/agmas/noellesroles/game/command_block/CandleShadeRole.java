@@ -39,7 +39,7 @@ public class CandleShadeRole extends NormalRole {
                 SRE.id("candle_shade_light"),
                 "skill.noellesroles.candle_shade.light",
                 context -> light(context.player()))
-                .cooldownSeconds(18).announceToSelf().build());
+                .cooldownSeconds(18).announceToSelf().showOnHud(true).build());
     }
 
     public static boolean light(ServerPlayer player) {

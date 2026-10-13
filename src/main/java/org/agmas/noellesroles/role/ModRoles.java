@@ -2061,6 +2061,7 @@ public class ModRoles {
             new HimRole(HIM_ID, new Color(40, 0, 0).getRGB(),
                     false, true, SRERole.MoodType.FAKE, Integer.MAX_VALUE, true))
             .setCanSeeCoin(true)
+            .setCanUseSpVanillaWeapon(true)
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)

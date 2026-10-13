@@ -66,6 +66,8 @@ public class PeelBladeItem extends Item {
         if (killed) {
             data.onKill(self, self.serverLevel().getGameTime());
         }
+        org.agmas.noellesroles.game.command_block.CommandBlockFeedback.play(level, self,
+                net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_SWEEP, 0.7F, 0.9F);
         return InteractionResultHolder.consume(stack);
     }
 }

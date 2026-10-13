@@ -44,7 +44,7 @@ public class WhiteEyesRole extends NormalRole {
                 SRE.id("white_eyes_flash"),
                 "skill.noellesroles.white_eyes.flash",
                 WhiteEyesRole::flash)
-                .cooldownSeconds(30).announceToSelf().build());
+                .cooldownSeconds(30).announceToSelf().showOnHud(true).build());
     }
 
     private static boolean flash(RoleSkill.RoleSkillContext context) {

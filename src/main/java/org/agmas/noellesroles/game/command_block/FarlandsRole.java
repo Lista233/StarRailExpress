@@ -47,7 +47,7 @@ public class FarlandsRole extends NormalRole {
                 SRE.id("farlands_swap"),
                 "skill.noellesroles.farlands.swap",
                 FarlandsRole::swap)
-                .cooldownSeconds(28).announceToSelf().build());
+                .cooldownSeconds(28).announceToSelf().showOnHud(true).build());
     }
 
     public static boolean blocksMelee(ServerPlayer attacker) {

@@ -41,7 +41,7 @@ public class PaperDollRole extends NormalRole {
                 SRE.id("paper_doll_arm"),
                 "skill.noellesroles.paper_doll.arm",
                 PaperDollRole::arm)
-                .cooldownSeconds(32).announceToSelf().build());
+                .cooldownSeconds(32).announceToSelf().showOnHud(true).build());
     }
 
     public static boolean tryDodge(ServerPlayer self, ServerPlayer attacker, boolean tellAttacker) {

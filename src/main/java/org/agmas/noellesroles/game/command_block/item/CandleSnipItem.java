@@ -56,6 +56,8 @@ public class CandleSnipItem extends Item {
         boolean killed = CommandBlockCombat.tryKill(self, target, CandleShadeRole.DEATH_SNIP, false, null);
         if (killed) {
             self.getCooldowns().addCooldown(this, COOLDOWN);
+            org.agmas.noellesroles.game.command_block.CommandBlockFeedback.play(level, self,
+                    net.minecraft.sounds.SoundEvents.SHEEP_SHEAR, 0.7F, 1.4F);
         }
         return killed ? InteractionResultHolder.consume(stack) : InteractionResultHolder.fail(stack);
     }

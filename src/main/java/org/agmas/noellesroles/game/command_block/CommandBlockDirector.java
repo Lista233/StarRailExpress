@@ -50,7 +50,10 @@ import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.util.SRENetworkMessageUtils;
 import io.wifi.starrailexpress.util.TrueFalseResult;
 import io.wifi.utils.RandomSelector;
-import net.exmo.sre.planecrash.PlaneCrashIntroPayload;
+import io.wifi.starrailexpress.network.PacketTracker;
+import net.exmo.sre.camera.AdvancedCameraNode;
+import net.exmo.sre.camera.AdvancedCameraPayload;
+import net.exmo.sre.camera.AdvancedCameraSequence;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
@@ -70,7 +73,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.exmo.sre.camera.AdvancedCameraCommand;
-import net.exmo.sre.planecrash.PlaneCrashManager;
 import org.agmas.noellesroles.content.entity.CommandBlockMarkerEntity;
 import org.agmas.noellesroles.init.ModEntities;
 
@@ -266,6 +268,7 @@ public final class CommandBlockDirector {
         }
         spawnMarker(level);
         session.introPlayed = true;
+        // 比飞机的 +4 聚焦包晚两拍。这条开场轨道后到，会直接换掉它。
         Scheduler.schedule(() -> sendIntro(level), 6);
     }
 
@@ -284,15 +287,35 @@ public final class CommandBlockDirector {
             }
             return;
         }
-        PlaneCrashIntroPayload payload = new PlaneCrashIntroPayload(marker.getId(),
-                PlaneCrashManager.INTRO_DURATION_TICKS);
+        Vec3 focus = marker.position().add(0.0D, 4.0D, 0.0D);
         for (ServerPlayer player : level.players()) {
             if (player.gameMode.getGameModeForPlayer() != GameType.ADVENTURE) {
                 continue;
             }
-            ServerPlayNetworking.send(player, payload);
+            PacketTracker.sendToClient(player, AdvancedCameraPayload.play(markerIntro(player, focus).toJson()));
             player.playNotifySound(SoundEvents.END_PORTAL_SPAWN, SoundSource.MASTER, 0.55F, 0.75F);
         }
+    }
+
+    /** 替代默认开场：先看天上的命令方块，再回到玩家眼睛。 */
+    private static AdvancedCameraSequence markerIntro(ServerPlayer player, Vec3 focus) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 flat = new Vec3(eye.x - focus.x, 0.0D, eye.z - focus.z);
+        if (flat.lengthSqr() < 1.0D) {
+            flat = new Vec3(0.0D, 0.0D, 1.0D);
+        }
+        flat = flat.normalize();
+        Vec3 side = new Vec3(-flat.z, 0.0D, flat.x);
+        Vec3 far = focus.add(flat.scale(-28.0D)).add(0.0D, 16.0D, 0.0D);
+        Vec3 near = focus.add(side.scale(18.0D)).add(flat.scale(-10.0D)).add(0.0D, 6.0D, 0.0D);
+        double yawRad = Math.toRadians(player.getYRot());
+        Vec3 overlook = eye.add(Math.sin(yawRad) * 36.0D, 22.0D, -Math.cos(yawRad) * 36.0D);
+        List<AdvancedCameraNode> nodes = new ArrayList<>();
+        nodes.add(new AdvancedCameraNode(0, 16, far, focus, null, null, 52.0F));
+        nodes.add(new AdvancedCameraNode(44, 12, near, focus, null, null, 60.0F));
+        nodes.add(new AdvancedCameraNode(28, 0, overlook, focus, null, null, 70.0F));
+        nodes.add(new AdvancedCameraNode(20, 0, eye, null, player.getYRot(), player.getXRot(), 0.0F));
+        return new AdvancedCameraSequence(nodes, true, true, false);
     }
 
     private static void start(ServerLevel level) {

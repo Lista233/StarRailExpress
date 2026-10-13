@@ -48,6 +48,8 @@ public class PaperCutItem extends Item {
                 Component.translatable("message.noellesroles.paper_doll.blocked"));
         if (killed) {
             self.getCooldowns().addCooldown(this, COOLDOWN);
+            org.agmas.noellesroles.game.command_block.CommandBlockFeedback.play(level, self,
+                    net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_SWEEP, 0.55F, 1.6F);
         }
         return killed ? InteractionResultHolder.consume(stack) : InteractionResultHolder.fail(stack);
     }

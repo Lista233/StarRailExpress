@@ -51,6 +51,8 @@ public class SecondNeedleItem extends Item {
         boolean killed = CommandBlockCombat.tryKill(self, target, PendulumRole.DEATH_NEEDLE, false, null);
         if (killed) {
             self.getCooldowns().addCooldown(this, COOLDOWN);
+            org.agmas.noellesroles.game.command_block.CommandBlockFeedback.play(level, self,
+                    net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_CRIT, 0.55F, 1.7F);
         }
         return killed ? InteractionResultHolder.consume(stack) : InteractionResultHolder.fail(stack);
     }
