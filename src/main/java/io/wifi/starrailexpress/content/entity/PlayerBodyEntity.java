@@ -18,9 +18,12 @@ package io.wifi.starrailexpress.content.entity;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.cca.PlayerBodyEntityComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import io.wifi.starrailexpress.client.util.ClientSkinCache;
 import io.wifi.starrailexpress.content.gui.PlayerBodyChestMenu;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.index.TMMItems;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -116,10 +119,18 @@ public class PlayerBodyEntity extends LivingEntity {
         if (name != null)
             return name;
         if (playerUuid != null) {
-            var player = this.getServer().getPlayerList().getPlayer(playerUuid);
-            if (player != null) {
-                return Component.translatable("entity.starrailexpress.player_body.custom_name",
-                        player.getName());
+            if (this.getServer() != null) {
+                var player = this.getServer().getPlayerList().getPlayer(playerUuid);
+                if (player != null) {
+                    return Component.translatable("entity.starrailexpress.player_body.custom_name",
+                            player.getName());
+                }
+            } else if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
+                var cached = ClientSkinCache.getCachedPlayerInfo(playerUuid);
+                if (cached != null && cached.getProfile() != null) {
+                    return Component.translatable("entity.starrailexpress.player_body.custom_name",
+                            cached.getProfile().getName());
+                }
             }
         }
         return null;
