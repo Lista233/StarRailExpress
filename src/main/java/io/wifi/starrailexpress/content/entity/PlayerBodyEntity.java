@@ -112,6 +112,11 @@ public class PlayerBodyEntity extends LivingEntity {
         return super.getDisplayName();
     }
 
+    /**
+     * Get a player's custom name from player list(server-side) /
+     * cache (client-side)
+     * @return null|Component The body's custom name.
+     */
     @Override
     public Component getCustomName() {
         var playerUuid = getPlayerUuid();
