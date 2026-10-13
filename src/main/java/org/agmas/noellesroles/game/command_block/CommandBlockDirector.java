@@ -58,12 +58,10 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.BossEvent;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -333,11 +331,6 @@ public final class CommandBlockDirector {
         }
         long now = level.getGameTime();
         spinMarker(level);
-        if (session.bossBar != null) {
-            for (ServerPlayer player : level.players()) {
-                session.bossBar.addPlayer(player);
-            }
-        }
         tickConversions(level, now);
         tickEvents(level, now);
         tickPendingKills(level, now);
@@ -670,7 +663,6 @@ public final class CommandBlockDirector {
             return;
         }
         session.killerDeaths++;
-        updateBossBar();
         syncProgress(level);
         if (session.killerDeaths >= session.quota) {
             endByDestruction(level);
@@ -723,7 +715,7 @@ public final class CommandBlockDirector {
     private static void spawnMarker(ServerLevel level) {
         if (session.markerId >= 0 && level.getEntity(session.markerId) instanceof CommandBlockMarkerEntity existing
                 && existing.isAlive()) {
-            createBossBar(level);
+
             return;
         }
         Vec3 center = markerPos(level);
@@ -733,21 +725,8 @@ public final class CommandBlockDirector {
         marker.setStage(CommandBlockRules.destructionStage(session.killerDeaths, session.quota));
         level.addFreshEntity(marker);
         session.markerId = marker.getId();
-        createBossBar(level);
     }
 
-    private static void createBossBar(ServerLevel level) {
-        if (session.bossBar != null || session.quota <= 0) {
-            return;
-        }
-        session.bossBar = new ServerBossEvent(
-                Component.translatable("message.noellesroles.command_block.bossbar", session.killerDeaths, session.quota),
-                BossEvent.BossBarColor.PURPLE, BossEvent.BossBarOverlay.NOTCHED_10);
-        session.bossBar.setProgress(Math.min(1.0F, session.quota <= 0 ? 0.0F : session.killerDeaths / (float) session.quota));
-        for (ServerPlayer player : level.players()) {
-            session.bossBar.addPlayer(player);
-        }
-    }
 
     private static void spinMarker(ServerLevel level) {
         if (session.markerId < 0) {
@@ -760,17 +739,8 @@ public final class CommandBlockDirector {
         if (marker.getStage() != stage) {
             marker.setStage(stage);
         }
-        updateBossBar();
     }
 
-    private static void updateBossBar() {
-        if (session == null || session.bossBar == null || session.quota <= 0) {
-            return;
-        }
-        session.bossBar.setName(Component.translatable("message.noellesroles.command_block.bossbar",
-                session.killerDeaths, session.quota));
-        session.bossBar.setProgress(Math.min(1.0F, session.killerDeaths / (float) session.quota));
-    }
 
     private static Vec3 markerPos(ServerLevel level) {
         AreasWorldComponent areas = AreasWorldComponent.KEY.get(level);
@@ -855,9 +825,6 @@ public final class CommandBlockDirector {
                 ServerPlayNetworking.send(player, hide);
             }
         }
-        if (session != null && session.bossBar != null) {
-            session.bossBar.removeAllPlayers();
-        }
         discardMarkers(level);
         session = null;
         CommandBlockCombat.clear();
@@ -934,7 +901,6 @@ public final class CommandBlockDirector {
         private final Map<UUID, Vec3> anchorSpots = new HashMap<>();
         private long anchorSaveAt;
         private boolean anchorSaved;
-        private ServerBossEvent bossBar;
 
         private Session(ResourceLocation levelKey, int originalKillers) {
             this.levelKey = levelKey;
