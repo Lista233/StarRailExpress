@@ -40,6 +40,7 @@ import io.wifi.starrailexpress.event.OnPlayerDeathWithKiller;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.game.GameUtils.WinStatus;
+import io.wifi.starrailexpress.game.modes.funny.SREThreeWayWarGameMode;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.minecraft.ChatFormatting;
@@ -339,6 +340,12 @@ public class BeeFamilyManager {
             RoleUtils.changeRole(revived, selectedRole);
             GameUtils.revivePlayer(revived, body.getX(), body.getY(), body.getZ());
             body.discard(); // like it never existed
+
+            // 三方会战专属：蜂后复活出的工蜂资金减少 70%
+            if (selectedRole == BounsRoles.BEE_WORKER && SREThreeWayWarGameMode.isActive(level)) {
+                SREPlayerShopComponent shop = SREPlayerShopComponent.KEY.get(revived);
+                shop.setBalance((int) (shop.balance * SREThreeWayWarGameMode.BEE_WORKER_REVIVE_MONEY_KEEP));
+            }
 
             RoleUtils.sendWelcomeAnnouncement(revived);
             if (!(beforeRole instanceof BeeFamilyRole))
