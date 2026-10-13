@@ -19,8 +19,6 @@ import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.cca.DynamicShopComponent;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.util.ShopEntry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.agmas.noellesroles.utils.RoleUtils;
@@ -140,7 +138,8 @@ public class DiscountShopEntry extends ShopEntry {
      */
     public void applyPurchaseDiscount(@NotNull Player player) {
         DynamicShopComponent dynamicShop = DynamicShopComponent.KEY.get(player);
-        ResourceLocation stackId = BuiltInRegistries.ITEM.getKey(this.stack().getItem());
+        // 价格键按物品栈区分（自定义列车物品用其自定义 id），折扣只影响这一件商品
+        final String stackId = DynamicShopComponent.keyOf(this.stack());
         int buyCount = dynamicShop.getPurchaseCount(stackId);
         if (buyCount < maxDiscountCount) {
             try {
@@ -171,7 +170,7 @@ public class DiscountShopEntry extends ShopEntry {
             } catch (ArithmeticException e) {
                 SRE.LOGGER.error(
                         "Error while calc discount! Infomation: Stack {}, Original Price {}, Buy Count {}, Max Discount Count {}, Discount Percent Per {}, Min Price {}, Max Price {}",
-                        stackId.toString(), price(), buyCount, maxDiscountCount, discount, minPrice, maxPrice, e);
+                        stackId, price(), buyCount, maxDiscountCount, discount, minPrice, maxPrice, e);
                 maxDiscountCount = buyCount;
                 // 已经报错了，不能再打折买了。
             }

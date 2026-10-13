@@ -2,8 +2,6 @@ package org.agmas.noellesroles.content.item;
 
 import io.wifi.starrailexpress.cca.DynamicShopComponent;
 import io.wifi.starrailexpress.util.ShopEntry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import org.jetbrains.annotations.NotNull;
@@ -38,12 +36,13 @@ public class WatchmanShopEntry extends ShopEntry {
             return false;
         }
         DynamicShopComponent dynamicShop = DynamicShopComponent.KEY.get(player);
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(this.stack().getItem());
+        // 价格键按物品栈区分（自定义列车物品用其自定义 id），涨价只影响这一件商品
+        String itemKey = DynamicShopComponent.keyOf(this.stack());
         // 已购买次数（含本次）
-        int count = dynamicShop.recordPurchase(itemId);
+        int count = dynamicShop.recordPurchase(itemKey);
         // 下一次购买的价格：basePrice + step * 已购买次数
         int nextPrice = basePrice + step * count;
-        dynamicShop.setMultiplier(itemId, nextPrice / (double) basePrice);
+        dynamicShop.setMultiplier(itemKey, nextPrice / (double) basePrice);
         return true;
     }
 }

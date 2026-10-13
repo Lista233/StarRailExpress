@@ -598,6 +598,10 @@ public abstract class GameMode {
             }
         }
 
+        // 疯狂模式（疯魔护盾）耗尽后，本次伤害本应结束疯狂模式；但后面的护盾（如窃皮者偷来的
+        // 皮肤盾）仍可能挡下这次伤害 —— 若真被挡下就不该结束疯狂模式。因此这里只登记「待结束」，
+        // 等确定玩家确实会死亡（没有任何护盾挡下）时再结束，护盾的触发优先级保持不变。
+        boolean endPsychoWhenDying = false;
         if (psychocca.getPsychoTicks() > 0) {
             if (!forceDeath && psychocca.getArmour() > 0) {
                 psychocca.setArmour(psychocca.getArmour() - 1);
@@ -624,9 +628,13 @@ public abstract class GameMode {
                     GameUtils.recordPlayerKill(killer, victim, deathReason, false);
                     return;
                 }
-            } else {
+            } else if (forceDeath) {
+                // 强制死亡：立即结束疯狂模式（与旧行为一致）
                 psychocca.stopPsycho();
                 psychocca.sync();
+            } else {
+                // 疯魔护盾已耗尽：推迟到确定死亡时再结束（见方法开头 endPsychoWhenDying）
+                endPsychoWhenDying = true;
             }
         }
         if (!role.afterShieldAllowDeath(victim, killer, deathReason, spawnBody)) {
@@ -728,6 +736,11 @@ public abstract class GameMode {
         canDeath = canDeath || forceDeath;
         // --- 结束新增统计数据更新逻辑 (受害者) ---
         if (canDeath) {
+            if (endPsychoWhenDying && psychocca.getPsychoTicks() > 0) {
+                // 走到这里说明没有任何护盾挡下本次伤害，玩家确实会死亡 —— 此时才结束疯狂模式
+                psychocca.stopPsycho();
+                psychocca.sync();
+            }
             // --- 新增统计数据更新逻辑 (受害者) ---
             if (victim instanceof ServerPlayer serverVictim) {
                 SRERole victimRole = gameWorldComponent.getRole(serverVictim);

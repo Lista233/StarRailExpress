@@ -18,8 +18,6 @@ package org.agmas.noellesroles.content.item;
 import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.cca.DynamicShopComponent;
 import io.wifi.starrailexpress.util.ShopEntry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import org.agmas.noellesroles.init.ModItems;
 import org.jetbrains.annotations.NotNull;
@@ -61,10 +59,10 @@ public class ThrowingAxeShopEntry extends ShopEntry {
      */
     private void applyRepurchaseDiscount(@NotNull Player player) {
         DynamicShopComponent dynamicShop = DynamicShopComponent.KEY.get(player);
-        ResourceLocation axeId = BuiltInRegistries.ITEM.getKey(this.stack().getItem());
-        if (dynamicShop.getPurchaseCount(axeId) == 0) {
-            dynamicShop.setPercentDiscount(axeId, DISCOUNT_PERCENT);
+        String axeKey = DynamicShopComponent.keyOf(this.stack());
+        if (dynamicShop.getPurchaseCount(axeKey) == 0) {
+            dynamicShop.setPercentDiscount(axeKey, DISCOUNT_PERCENT);
         }
-        dynamicShop.recordPurchase(axeId);
+        dynamicShop.recordPurchase(axeKey);
     }
 }

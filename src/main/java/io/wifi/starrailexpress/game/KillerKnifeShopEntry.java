@@ -18,8 +18,6 @@ package io.wifi.starrailexpress.game;
 import io.wifi.starrailexpress.cca.DynamicShopComponent;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.util.ShopEntry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.agmas.noellesroles.utils.RoleUtils;
@@ -103,10 +101,11 @@ public class KillerKnifeShopEntry extends ShopEntry {
             return;
         }
         DynamicShopComponent dynamicShop = DynamicShopComponent.KEY.get(player);
-        ResourceLocation knifeId = BuiltInRegistries.ITEM.getKey(this.stack().getItem());
-        if (dynamicShop.getPurchaseCount(knifeId) == 0) {
-            dynamicShop.setPercentDiscount(knifeId, discount);
+        // 价格键按物品栈区分（自定义列车物品用其自定义 id），折扣只影响这一件商品
+        String knifeKey = DynamicShopComponent.keyOf(this.stack());
+        if (dynamicShop.getPurchaseCount(knifeKey) == 0) {
+            dynamicShop.setPercentDiscount(knifeKey, discount);
         }
-        dynamicShop.recordPurchase(knifeId);
+        dynamicShop.recordPurchase(knifeKey);
     }
 }
