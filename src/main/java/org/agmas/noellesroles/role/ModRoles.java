@@ -2042,7 +2042,7 @@ public class ModRoles {
                     CommandBlockDirector::onEventRoundEnd,
                     CommandBlockDirector::chance)
             .setEventNeutral(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
     /** 方块石头人。只由命令方块事件改写产生。 */
     public static final SRERole STONE_MAN = TMMRoles.registerRole(
@@ -2054,7 +2054,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
     /** him。只由命令方块事件改写产生。 */
     public static final SRERole HIM = TMMRoles.registerRole(
@@ -2066,7 +2066,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
     /** Error404。只由命令方块事件改写产生。 */
     public static final SRERole ERROR_404 = TMMRoles.registerRole(
@@ -2078,12 +2078,12 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
-    /** 实体303。只由命令方块事件改写产生。冲刺上限 3 秒。 */
+    /** 实体303。只由命令方块事件改写产生。无限体力。 */
     public static final SRERole ENTITY_303 = TMMRoles.registerRole(
             new Entity303Role(ENTITY_303_ID, new Color(120, 12, 12).getRGB(),
-                    false, true, SRERole.MoodType.FAKE, 60, true)
+                    false, true, SRERole.MoodType.FAKE, Integer.MAX_VALUE, true)
                     .setRoleData(Entity303RoleData::new))
             .setCanSeeCoin(true)
             .setCanBeRandomedByOtherRoles(false)
@@ -2091,12 +2091,12 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
-    /** Null。只由命令方块事件改写产生。冲刺上限 1 秒。 */
+    /** Null。只由命令方块事件改写产生。无限体力。 */
     public static final SRERole ENTITY_NULL = TMMRoles.registerRole(
             new EntityNullRole(ENTITY_NULL_ID, new Color(70, 70, 88).getRGB(),
-                    false, true, SRERole.MoodType.FAKE, 20, true)
+                    false, true, SRERole.MoodType.FAKE, Integer.MAX_VALUE, true)
                     .setRoleData(EntityNullRoleData::new))
             .setCanSeeCoin(true)
             .setCanBeRandomedByOtherRoles(false)
@@ -2104,12 +2104,12 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
-    /** 远境。只由命令方块事件改写产生。冲刺上限 4 秒。 */
+    /** 远境。只由命令方块事件改写产生。无限体力。 */
     public static final SRERole FARLANDS = TMMRoles.registerRole(
             new FarlandsRole(FARLANDS_ID, new Color(120, 70, 200).getRGB(),
-                    false, true, SRERole.MoodType.FAKE, 80, true)
+                    false, true, SRERole.MoodType.FAKE, Integer.MAX_VALUE, true)
                     .setRoleData(FarlandsRoleData::new))
             .setCanSeeCoin(true)
             .setCanBeRandomedByOtherRoles(false)
@@ -2117,12 +2117,12 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
-    /** 白瞳。只由命令方块事件改写产生。冲刺上限 5 秒。 */
+    /** 白瞳。只由命令方块事件改写产生。无限体力。 */
     public static final SRERole WHITE_EYES = TMMRoles.registerRole(
             new WhiteEyesRole(WHITE_EYES_ID, new Color(230, 230, 245).getRGB(),
-                    false, true, SRERole.MoodType.FAKE, 100, true)
+                    false, true, SRERole.MoodType.FAKE, Integer.MAX_VALUE, true)
                     .setRoleData(WhiteEyesRoleData::new))
             .setCanSeeCoin(true)
             .setCanBeRandomedByOtherRoles(false)
@@ -2130,7 +2130,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
     /** 丝线人。只由命令方块事件改写产生。冲刺不缩短。 */
     public static final SRERole STRINGER = TMMRoles.registerRole(
@@ -2143,7 +2143,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
     /** 纸人。只由命令方块事件改写产生。冲刺不缩短。 */
     public static final SRERole PAPER_DOLL = TMMRoles.registerRole(
@@ -2156,7 +2156,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
     /** 雾客。只由命令方块事件改写产生。藏雾时不能出手。 */
     public static final SRERole FOG_GUEST = TMMRoles.registerRole(
@@ -2169,7 +2169,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
     /** 钟摆。只由命令方块事件改写产生。先记下位置，再摆回去。 */
     public static final SRERole PENDULUM = TMMRoles.registerRole(
@@ -2182,7 +2182,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
     /** 烛影。只由命令方块事件改写产生。看着烛火会把它吹灭。 */
     public static final SRERole CANDLE_SHADE = TMMRoles.registerRole(
@@ -2195,7 +2195,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
 
     /** 异常。命令方块转化前一分钟的空壳中立，不会自然刷新。 */
     public static final SRERole ABNORMAL = TMMRoles.registerRole(
@@ -2212,7 +2212,7 @@ public class ModRoles {
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .setSpecialNeutral(true)
-            .setAddedVersion("4.4");
+            .setAddedVersion("4.5");
     public static SRERole VULTURE = TMMRoles
             .registerRole(new NormalRole(VULTURE_ID, new Color(210, 105, 30).getRGB(), false,
                     false, SRERole.MoodType.FAKE, Integer.MAX_VALUE, true)

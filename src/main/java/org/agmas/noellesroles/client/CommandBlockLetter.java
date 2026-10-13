@@ -10,7 +10,6 @@ import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.client.gui.screen.NewspaperScreen;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.locale.Language;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -86,13 +85,7 @@ public final class CommandBlockLetter {
     }
 
     private static void appendRole(MutableComponent body, SRERole role) {
-        String key = "letter.noellesroles.command_block.role." + role.identifier().getPath();
-        Component name = link(role);
-        if (Language.getInstance().has(key)) {
-            body.append(Component.translatable(key, name));
-        } else {
-            body.append(name);
-        }
+        body.append(link(role));
         body.append("\n");
     }
 
