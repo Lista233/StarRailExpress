@@ -1,3 +1,6 @@
 {
-  "parent": "minecraft:item/shears"
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "noellesroles:item/paper_cut"
+  }
 }

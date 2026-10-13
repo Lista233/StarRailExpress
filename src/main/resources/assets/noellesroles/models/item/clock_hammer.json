@@ -1,3 +1,6 @@
 {
-  "parent": "minecraft:item/iron_pickaxe"
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "noellesroles:item/clock_hammer"
+  }
 }

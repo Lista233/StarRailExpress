@@ -1,3 +1,6 @@
 {
-  "parent": "minecraft:item/spectral_arrow"
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "noellesroles:item/eye_needle"
+  }
 }
