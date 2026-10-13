@@ -813,9 +813,9 @@ public class LimitedInventoryScreen extends LimitedHandledScreen<InventoryMenu> 
             int effectivePrice = basePrice;
             final var clientPlayer = Minecraft.getInstance().player;
             if (clientPlayer != null) {
-                effectivePrice = DynamicShopComponent.KEY.get(clientPlayer).effectivePrice(
-                        net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(liveEntry.stack().getItem()),
-                        basePrice);
+                // 价格键按物品栈区分（自定义列车物品用其自定义 id），与服务端结算、本地条目一致
+                effectivePrice = DynamicShopComponent.KEY.get(clientPlayer)
+                        .effectivePrice(liveEntry.stack(), basePrice);
             }
             // 价格按条目货币类型显示：默认金币（\uE781 图标）；游戏代币用对应翻译键（带代币图标字形）
             ShopEntry.Currency currency = liveEntry.currency() == null

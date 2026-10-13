@@ -17,8 +17,6 @@ package org.agmas.noellesroles.content.item;
 
 import io.wifi.starrailexpress.cca.DynamicShopComponent;
 import io.wifi.starrailexpress.util.ShopEntry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import org.agmas.noellesroles.init.ModItems;
 import org.jetbrains.annotations.NotNull;
@@ -59,10 +57,10 @@ public class ToxinShopEntry extends ShopEntry {
     /** 首次购买后为后续购买挂上 -50% 折扣。 / After the first purchase, attach a -50% discount. */
     private void applyFirstPurchaseDiscount(@NotNull Player player) {
         DynamicShopComponent dynamicShop = DynamicShopComponent.KEY.get(player);
-        ResourceLocation toxinId = BuiltInRegistries.ITEM.getKey(this.stack().getItem());
-        if (dynamicShop.getPurchaseCount(toxinId) == 0) {
-            dynamicShop.setPercentDiscount(toxinId, 50);
+        String toxinKey = DynamicShopComponent.keyOf(this.stack());
+        if (dynamicShop.getPurchaseCount(toxinKey) == 0) {
+            dynamicShop.setPercentDiscount(toxinKey, 50);
         }
-        dynamicShop.recordPurchase(toxinId);
+        dynamicShop.recordPurchase(toxinKey);
     }
 }

@@ -98,7 +98,7 @@ public final class DynamicShopCommand {
         ResourceLocation itemId = getItemId(context);
         int percent = IntegerArgumentType.getInteger(context, "percent");
         for (ServerPlayer player : players) {
-            DynamicShopComponent.KEY.get(player).setPercentDiscount(itemId, percent);
+            DynamicShopComponent.KEY.get(player).setPercentDiscount(itemId.toString(), percent);
         }
         context.getSource().sendSuccess(() -> Component.literal(
                 "已为 " + players.size() + " 名玩家设置 " + itemId + " 折扣 -" + percent + "%")
@@ -112,7 +112,7 @@ public final class DynamicShopCommand {
         ResourceLocation itemId = getItemId(context);
         int amount = IntegerArgumentType.getInteger(context, "amount");
         for (ServerPlayer player : players) {
-            DynamicShopComponent.KEY.get(player).setFlatReduction(itemId, amount);
+            DynamicShopComponent.KEY.get(player).setFlatReduction(itemId.toString(), amount);
         }
         context.getSource().sendSuccess(() -> Component.literal(
                 "已为 " + players.size() + " 名玩家设置 " + itemId + " 固定减价 -" + amount)
@@ -126,7 +126,7 @@ public final class DynamicShopCommand {
         ResourceLocation itemId = getItemId(context);
         double multiplier = DoubleArgumentType.getDouble(context, "multiplier");
         for (ServerPlayer player : players) {
-            DynamicShopComponent.KEY.get(player).setMultiplier(itemId, multiplier);
+            DynamicShopComponent.KEY.get(player).setMultiplier(itemId.toString(), multiplier);
         }
         context.getSource().sendSuccess(() -> Component.literal(
                 "已为 " + players.size() + " 名玩家设置 " + itemId + " 价格乘数 x" + multiplier)
@@ -139,7 +139,7 @@ public final class DynamicShopCommand {
         Collection<ServerPlayer> players = EntityArgument.getPlayers(context, "players");
         ResourceLocation itemId = getItemId(context);
         for (ServerPlayer player : players) {
-            DynamicShopComponent.KEY.get(player).clearModifier(itemId);
+            DynamicShopComponent.KEY.get(player).clearModifier(itemId.toString());
         }
         context.getSource().sendSuccess(() -> Component.literal(
                 "已清除 " + players.size() + " 名玩家的 " + itemId + " 价格修正")
@@ -165,9 +165,9 @@ public final class DynamicShopCommand {
         ResourceLocation itemId = getItemId(context);
         for (ServerPlayer player : players) {
             DynamicShopComponent component = DynamicShopComponent.KEY.get(player);
-            boolean hasModifier = component.hasModifier(itemId);
-            int sample = component.effectivePrice(itemId, 100);
-            int purchases = component.getPurchaseCount(itemId);
+            boolean hasModifier = component.hasModifier(itemId.toString());
+            int sample = component.effectivePrice(itemId.toString(), 100);
+            int purchases = component.getPurchaseCount(itemId.toString());
             context.getSource().sendSuccess(() -> Component.literal(
                     player.getName().getString() + " · " + itemId
                             + " | 修正: " + (hasModifier ? "有" : "无")
