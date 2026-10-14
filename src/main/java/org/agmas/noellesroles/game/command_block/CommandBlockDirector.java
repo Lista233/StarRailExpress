@@ -43,7 +43,6 @@ import io.wifi.starrailexpress.event.OnGameStarted;
 import io.wifi.starrailexpress.game.modes.funny.SRERoleRotationGameMode;
 import io.wifi.starrailexpress.game.modes.funny.SRERoleRotationSingleSelectGameMode;
 import io.wifi.starrailexpress.game.modes.funny.SREVolunteerOpenSelectGameMode;
-import io.wifi.starrailexpress.util.Scheduler;
 import io.wifi.starrailexpress.event.OnKillPlayerTriggered;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
@@ -269,8 +268,7 @@ public final class CommandBlockDirector {
         spawnMarker(level);
         session.introPlayed = true;
         syncProgress(level);
-        // 比飞机的 +4 聚焦包晚两拍。这条开场轨道后到，会直接换掉它。
-        Scheduler.schedule(() -> sendIntro(level), 6);
+        sendIntro(level);
     }
 
     private static void sendIntro(ServerLevel level) {

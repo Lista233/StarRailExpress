@@ -32,6 +32,9 @@ public final class CommandBlockProgressClient {
                 (packet, context) -> context.client().execute(() -> {
                     progress = Math.max(0, packet.progress());
                     goal = Math.max(0, packet.goal());
+                    if (goal > 0) {
+                        io.wifi.starrailexpress.client.gui.MapRuleIntroHud.clear();
+                    }
                 }));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clear());
         ClientTickEvents.END_CLIENT_TICK.register(CommandBlockProgressClient::tickGlow);
