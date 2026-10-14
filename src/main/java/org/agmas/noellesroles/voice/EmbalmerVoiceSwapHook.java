@@ -24,7 +24,7 @@ import net.minecraft.server.level.ServerPlayer;
 import org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerVoiceSwapManager;
 
 /**
- * 嬉命人·语音互换的语音路由（对标 Gexpress Loki 的 {@code GreysVoicechatPlugin} 尾部逻辑）。
+ * 嬉命人·语音互换的语音路由
  *
  * <p>核心：不交换音频数据，只把「声源实体」换成对方。{@code channelId} 仍是说话者本人，
  * 所以语音 HUD 上显示的说话人不变；{@code entityUuid} 换成交换对象，

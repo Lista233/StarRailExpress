@@ -2924,6 +2924,8 @@
     "effect.noellesroles.ghost_curse": "Ghost Bind",
     "effect.noellesroles.suika_small": "Suika: Small",
     "effect.noellesroles.mouse_upside_down": "Inverted Mouse",
+    "effect.noellesroles.gravity_flip": "Gravity Flip",
+    "effect.noellesroles.gravity_flip.description": "Gravity is reversed: you fall towards the sky, only landing when you hit a block above your head, and jumping kicks you downwards",
     "mob_effect.noellesroles.otherworld_aura": "Inner World Erosion",
     "effect.noellesroles.otherworld_aura": "Inner World Erosion",
     "==================== 布袋鬼商店 ====================": "",

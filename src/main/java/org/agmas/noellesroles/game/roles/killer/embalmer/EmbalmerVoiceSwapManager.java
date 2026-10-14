@@ -30,7 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 嬉命人·语音互换（对标 Gexpress Loki 的 {@code VOICES}）。
+ * 嬉命人·语音互换。
  *
  * <p>原理：不交换音频数据，只交换「声音发出的实体」。A 说话时，声音从 B 所在的位置发出
  * （语音 HUD 上显示的说话人仍是 A）。配对是双向的，因此 A、B 两人的语音发声位置互换。

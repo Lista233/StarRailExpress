@@ -2924,6 +2924,8 @@
   "effect.noellesroles.ghost_curse": "鬼縛",
   "effect.noellesroles.suika_small": "萃香：小",
   "effect.noellesroles.mouse_upside_down": "滑鼠反轉",
+  "effect.noellesroles.gravity_flip": "重力顛倒",
+  "effect.noellesroles.gravity_flip.description": "重力方向反轉：你會向天空墜落，撞到頭頂的方塊才算落地，跳躍改為向下蹬",
   "mob_effect.noellesroles.otherworld_aura": "裏世界侵蝕",
   "effect.noellesroles.otherworld_aura": "裏世界侵蝕",
   "==================== 布袋鬼商店 ====================": "",

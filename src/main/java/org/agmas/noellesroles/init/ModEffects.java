@@ -37,6 +37,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.flag.FeatureFlagSet;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.component.GhostStateComponent;
+import org.agmas.noellesroles.content.effects.GravityFlipEffect;
 import org.agmas.noellesroles.content.effects.LimpEffect;
 import org.agmas.noellesroles.content.effects.MapStatusBarEffect;
 import org.agmas.noellesroles.content.effects.NegativeEffectResistanceEffect;
@@ -142,6 +143,10 @@ public class ModEffects {
     // 看其他生物都是倒立的
     public static final Holder<MobEffect> UPSIDE_DOWN = register("upside_down",
             new SimpleMobEffect(MobEffectCategory.HARMFUL, 0xFFFFFF));
+    /**
+     * 重力颠倒：垂直方向的重力反向（向天空坠落、撞天花板才算落地、跳跃改为向下蹬）。
+     */
+    public static final Holder<MobEffect> GRAVITY_FLIP = register("gravity_flip", new GravityFlipEffect());
     /**
      * 傀儡游走（操控者·失控之躯）
      * - 有害效果
@@ -1087,6 +1092,8 @@ public class ModEffects {
         // 而原版只把玩家自己的 MobEffect 下发给自己，所以必须广播出去（隐藏图标与粒子）。
         EffectBroadcastSync.register(PEER_XRAY);
         EffectBroadcastSync.register(INSTINCT_CONCEAL);
+        // 重力颠倒要让玩家在「别人眼中」也倒立渲染，所以同样需要广播（隐藏图标与粒子）。
+        EffectBroadcastSync.register(GRAVITY_FLIP);
         EffectBroadcastSync.init();
         WraithDimensionEffectSync.init();
         AllowPlayerDeathWithKiller.EVENT.register((player, killer, deathReason) -> {

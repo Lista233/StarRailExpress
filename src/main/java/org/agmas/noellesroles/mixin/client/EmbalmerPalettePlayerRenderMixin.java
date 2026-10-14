@@ -34,7 +34,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 嬉命人·调色盘：给活着的玩家实体覆一层随机 RGB。
  *
  * <p>把 {@code EntityModel#renderToBuffer} 的颜色参数替换为「原色向调色盘颜色混合」的结果，
- * 参考 Gexpress {@code SilentShadowRendererMixin} / {@code PainterBodyRendererMixin} 的做法。
  * 尸体不走这里，见 {@code io.wifi.starrailexpress.client.render.entity.PlayerBodyEntityRenderer}。
  */
 @Mixin(LivingEntityRenderer.class)

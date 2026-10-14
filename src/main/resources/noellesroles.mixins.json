@@ -10,6 +10,8 @@
     "EntityMixinForInvisible",
     "FireworkRocketMixin",
     "FootstepVanishMixin",
+    "GravityFlipPhysicsMixin",
+    "GravityFlipJumpMixin",
     "GunFireTracerMixin",
     "LivingEntityAccessor",
     "MagicianKillerCountMixin",
