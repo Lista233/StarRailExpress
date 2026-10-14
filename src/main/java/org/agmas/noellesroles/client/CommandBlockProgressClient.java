@@ -32,6 +32,9 @@ public final class CommandBlockProgressClient {
                 (packet, context) -> context.client().execute(() -> {
                     progress = Math.max(0, packet.progress());
                     goal = Math.max(0, packet.goal());
+                    if (goal > 0) {
+                        io.wifi.starrailexpress.client.gui.MapRuleIntroHud.clear();
+                    }
                 }));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clear());
         ClientTickEvents.END_CLIENT_TICK.register(CommandBlockProgressClient::tickGlow);
@@ -67,11 +70,15 @@ public final class CommandBlockProgressClient {
             GLOWING.clear();
             return;
         }
+        boolean show = isShowing();
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity instanceof CommandBlockMarkerEntity) {
-                CommandBlockSkyLight.seeMarker();
-                break;
+                entity.setGlowingTag(show);
             }
+        }
+        if (!show) {
+            clearGlow(client);
+            return;
         }
         boolean killer = isKiller(client);
         if (!killer) {

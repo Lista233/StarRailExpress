@@ -43,7 +43,6 @@ import io.wifi.starrailexpress.event.OnGameStarted;
 import io.wifi.starrailexpress.game.modes.funny.SRERoleRotationGameMode;
 import io.wifi.starrailexpress.game.modes.funny.SRERoleRotationSingleSelectGameMode;
 import io.wifi.starrailexpress.game.modes.funny.SREVolunteerOpenSelectGameMode;
-import io.wifi.starrailexpress.util.Scheduler;
 import io.wifi.starrailexpress.event.OnKillPlayerTriggered;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
@@ -268,8 +267,8 @@ public final class CommandBlockDirector {
         }
         spawnMarker(level);
         session.introPlayed = true;
-        // 比飞机的 +4 聚焦包晚两拍。这条开场轨道后到，会直接换掉它。
-        Scheduler.schedule(() -> sendIntro(level), 6);
+        syncProgress(level);
+        sendIntro(level);
     }
 
     private static void sendIntro(ServerLevel level) {
@@ -287,7 +286,7 @@ public final class CommandBlockDirector {
             }
             return;
         }
-        Vec3 focus = marker.position().add(0.0D, 4.0D, 0.0D);
+        Vec3 focus = marker.position();
         for (ServerPlayer player : level.players()) {
             if (player.gameMode.getGameModeForPlayer() != GameType.ADVENTURE) {
                 continue;
@@ -346,10 +345,14 @@ public final class CommandBlockDirector {
     }
 
     private static void tick(ServerLevel level) {
-        if (!SREGameWorldComponent.KEY.get(level).isRunning()) {
+        boolean held = SREGameWorldComponent.KEY.get(level).isRunning() && holdsTheRound(level);
+        if (!held) {
+            if (level.getGameTime() % 40L == 0L) {
+                discardMarkers(level);
+            }
             return;
         }
-        if (session == null || !session.active || !session.levelKey.equals(level.dimension().location())) {
+        if (!session.active) {
             return;
         }
         long now = level.getGameTime();
@@ -696,8 +699,11 @@ public final class CommandBlockDirector {
         if (level == null) {
             return;
         }
+        boolean show = session != null && !session.ended
+                && session.levelKey.equals(level.dimension().location())
+                && (session.active || session.introPlayed);
         int progress = session == null ? 0 : session.killerDeaths;
-        int goal = session == null || !session.active || session.ended ? 0 : session.quota;
+        int goal = show ? Math.max(1, session.quota) : 0;
         CommandBlockProgressS2CPacket packet = new CommandBlockProgressS2CPacket(progress, goal);
         for (ServerPlayer player : level.players()) {
             ServerPlayNetworking.send(player, packet);
@@ -744,7 +750,7 @@ public final class CommandBlockDirector {
         Vec3 center = markerPos(level);
         level.getChunk(BlockPos.containing(center));
         CommandBlockMarkerEntity marker = new CommandBlockMarkerEntity(ModEntities.COMMAND_BLOCK_MARKER, level);
-        marker.setPos(center.x, center.y - 4.0D, center.z);
+        marker.setPos(center.x, center.y, center.z);
         marker.setStage(CommandBlockRules.destructionStage(session.killerDeaths, session.quota));
         level.addFreshEntity(marker);
         session.markerId = marker.getId();

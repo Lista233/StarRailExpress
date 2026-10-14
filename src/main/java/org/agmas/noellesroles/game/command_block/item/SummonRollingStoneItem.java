@@ -33,7 +33,7 @@ public class SummonRollingStoneItem extends Item {
             dir = Direction.NORTH;
         }
         Vec3 pos = player.position().add(dir.getStepX() * 1.4D, 0.2D, dir.getStepZ() * 1.4D);
-        RollingStoneEntity.spawn(serverLevel, pos, dir);
+        RollingStoneEntity.spawn(serverLevel, pos, dir, serverPlayer);
         player.getCooldowns().addCooldown(this, 20);
         stack.shrink(1);
         org.agmas.noellesroles.game.command_block.CommandBlockFeedback.play(level, serverPlayer,
