@@ -1676,7 +1676,7 @@
     "sre.custom_item.label.animated_frame_ticks": "Ticks per frame",
     "sre.custom_item.label.model_path": "Model path",
     "sre.custom_item.hint.model_path": "Path to the model json in the resource pack, e.g. mypack:item/my_gun or mypack:models/item/my_gun.json; reload resources (F3+T) after changing for it to be baked",
-    "sre.custom_item.hint.model_shell": "Under texture source, if a model path is filled, that model is used as the shell and the texture above is applied; left blank it uses the default model (flat quad, 1 pixel thick)",
+    "sre.custom_item.hint.model_shell": "Under texture source, if a model path is filled, that model is used as the shell and the texture above is applied; flat sheets in the model json (zero-thickness elements / two disconnected faces) get 1-pixel-thick side walls added automatically; left blank it uses the default model (flat quad, 1 pixel thick)",
     "sre.custom_item.hint.model_texture": "If filled, reskins the model: geometry uses the model above, texture uses this one (same path format as texture path); left blank it uses the model's built-in texture",
     "sre.custom_item.label.allow_left_click_attack": "Allow left-click attack on players",
     "sre.custom_item.hint.allow_left_click_attack": "Off by default: left-clicking a player while holding it deals no damage or knockback; turn on for melee items (special vanilla items are unaffected)",

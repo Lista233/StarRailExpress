@@ -92,6 +92,7 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
     public static void clearCache() {
         PACK_TEXTURE_CACHE.clear();
         INHERITED_SPRITE_CACHE.clear();
+        io.wifi.starrailexpress.client.model.AutoSideWallModel.clearCache();
     }
 
     /** 兜底外观：没有配置资源包贴图、也没写材质继承时显示这个物品的贴图（石头）。 */
@@ -495,12 +496,17 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
     }
 
     /**
-     * 「模型地址」→ 烘焙模型。
+     * 「模型地址」→ 烘焙模型（已自动补好侧壁）。
      *
      * <p>
      * 模型来自资源包 {@code assets/<ns>/models/<path>.json}，由
      * {@link io.wifi.starrailexpress.client.model.CustomItemModelPlugin} 登记成 Fabric extra model
      * 后在资源加载阶段烘焙；这里按 {@code standalone} 取（取不到再试 {@code inventory}）。
+     *
+     * <p>
+     * 取到的模型会交给 {@link io.wifi.starrailexpress.client.model.AutoSideWallModel} 包一层：
+     * 模型 json 写成平面（0 厚度 element / 两张互不相连的面）时自动补 1 像素厚的四面侧壁，
+     * 外观与不填模型地址时的默认模型一致，不需要作者在资源包里手写 6 个面。
      *
      * @return 解析不出来 / 还没烘焙（例如刚改了地址还没重载资源）返回 null，交给调用方兜底
      */
@@ -519,7 +525,10 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
         for (String variant : new String[] { "fabric_resource", "inventory" }) {
             BakedModel model = minecraft.getModelManager().getModel(new ModelResourceLocation(id, variant));
             if (model != null && model != missing) {
-                return model;
+                // 资源包模型 json 常把物品写成「一张平面」（0 厚度的 element / 两张互不相连的面），
+                // 从侧面看像纸片、和默认模型（1 像素厚 + 四面侧壁）不一致；这里用包装类
+                // 自动补一圈 1 像素厚的侧壁，规则见 AutoSideWallModel
+                return io.wifi.starrailexpress.client.model.AutoSideWallModel.wrap(id, model);
             }
         }
         return null;
