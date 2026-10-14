@@ -1,5 +1,6 @@
 package org.agmas.noellesroles.client.renderer;
 
+import org.agmas.noellesroles.client.CommandBlockProgressClient;
 import org.agmas.noellesroles.content.entity.CommandBlockMarkerEntity;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -41,11 +42,13 @@ public class CommandBlockMarkerRenderer extends EntityRenderer<CommandBlockMarke
     @Override
     public void render(CommandBlockMarkerEntity entity, float yaw, float partialTick, PoseStack matrices,
             MultiBufferSource buffers, int light) {
+        if (!CommandBlockProgressClient.isShowing()) {
+            return;
+        }
         int stage = entity.getStage();
         float size = 8.0F - stage;
         float spin = (entity.tickCount + partialTick) * 1.72F;
         matrices.pushPose();
-        matrices.translate(0.0F, 4.0F, 0.0F);
         if (!(buffers instanceof OutlineBufferSource)) {
             matrices.pushPose();
             matrices.mulPose(Axis.YP.rotationDegrees(spin * 0.35F));

@@ -67,11 +67,15 @@ public final class CommandBlockProgressClient {
             GLOWING.clear();
             return;
         }
+        boolean show = isShowing();
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity instanceof CommandBlockMarkerEntity) {
-                CommandBlockSkyLight.seeMarker();
-                break;
+                entity.setGlowingTag(show);
             }
+        }
+        if (!show) {
+            clearGlow(client);
+            return;
         }
         boolean killer = isKiller(client);
         if (!killer) {

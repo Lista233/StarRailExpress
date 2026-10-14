@@ -41,11 +41,6 @@ public class CommandBlockMarkerEntity extends Entity {
     }
 
     @Override
-    public boolean isCurrentlyGlowing() {
-        return this.level().isClientSide() || super.isCurrentlyGlowing();
-    }
-
-    @Override
     public int getTeamColor() {
         return 0xB44DFF;
     }

@@ -1,6 +1,5 @@
 package org.agmas.noellesroles.client;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.DimensionSpecialEffects;
 import net.minecraft.util.Mth;
@@ -23,25 +22,13 @@ public final class CommandBlockSkyLight {
     private static final float MOON_GREEN = 0.36F;
     private static final float MOON_BLUE = 0.94F;
 
-    private static int markerTick = Integer.MIN_VALUE;
 
     private CommandBlockSkyLight() {
     }
 
-    /** 开场镜头早于进度包时，天上的方块本身也算事件已开始。 */
-    public static void seeMarker() {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player != null) {
-            markerTick = minecraft.player.tickCount;
-        }
-    }
-
+    /** 只跟进度包走。看见残留方块不算事件已开，避免没开局就染天。 */
     public static boolean active() {
-        if (CommandBlockProgressClient.isShowing()) {
-            return true;
-        }
-        Minecraft minecraft = Minecraft.getInstance();
-        return minecraft.player != null && minecraft.player.tickCount - markerTick < 3;
+        return CommandBlockProgressClient.isShowing();
     }
 
     public static boolean overworldSky(ClientLevel level) {
