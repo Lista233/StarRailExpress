@@ -1,1 +1,1 @@
-{"parent":"noellesroles:item/angler_abyss_bait","textures":{"layer0":"noellesroles:item/angler_abyss_bait"}}
+{"parent": "minecraft:item/generated","textures":{"layer0":"noellesroles:item/angler_abyss_bait"}}

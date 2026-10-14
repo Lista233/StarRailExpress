@@ -1,5 +1,5 @@
 {
-  "parent": "noellesroles:item/flashlight",
+  "parent": "minecraft:item/generated",
   "textures": {
     "layer0": "noellesroles:item/flashlight"
   }

@@ -1,1 +1,1 @@
-{"parent":"noellesroles:item/angler_inverted_fish","textures":{"layer0":"noellesroles:item/angler_inverted_fish"}}
+{"parent": "minecraft:item/generated","textures":{"layer0":"noellesroles:item/angler_inverted_fish"}}

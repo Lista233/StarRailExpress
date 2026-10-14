@@ -1,5 +1,5 @@
 {
-  "parent": "noellesroles:item/sealed_last_match",
+  "parent": "minecraft:item/generated",
   "textures": {
     "layer0": "noellesroles:item/sealed_last_match"
   }

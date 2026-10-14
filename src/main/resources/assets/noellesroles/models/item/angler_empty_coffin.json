@@ -1,1 +1,1 @@
-{"parent":"noellesroles:item/angler_empty_coffin","textures":{"layer0":"noellesroles:item/angler_empty_coffin"}}
+{"parent": "minecraft:item/generated","textures":{"layer0":"noellesroles:item/angler_empty_coffin"}}

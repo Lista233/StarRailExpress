@@ -1,1 +1,1 @@
-{"parent":"noellesroles:item/angler_ink","textures":{"layer0":"noellesroles:item/angler_ink"}}
+{"parent": "minecraft:item/generated","textures":{"layer0":"noellesroles:item/angler_ink"}}

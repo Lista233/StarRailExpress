@@ -1,1 +1,1 @@
-{"parent":"noellesroles:item/angler_hair_reel","textures":{"layer0":"noellesroles:item/angler_hair_reel"}}
+{"parent": "minecraft:item/generated","textures":{"layer0":"noellesroles:item/angler_hair_reel"}}

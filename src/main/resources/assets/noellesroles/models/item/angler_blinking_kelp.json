@@ -1,1 +1,1 @@
-{"parent":"noellesroles:item/angler_blinking_kelp","textures":{"layer0":"noellesroles:item/angler_blinking_kelp"}}
+{"parent": "minecraft:item/generated","textures":{"layer0":"noellesroles:item/angler_blinking_kelp"}}

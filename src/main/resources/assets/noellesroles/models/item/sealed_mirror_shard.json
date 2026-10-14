@@ -1,5 +1,5 @@
 {
-  "parent": "noellesroles:item/sealed_mirror_shard",
+  "parent": "minecraft:item/generated",
   "textures": {
     "layer0": "noellesroles:item/sealed_mirror_shard"
   }

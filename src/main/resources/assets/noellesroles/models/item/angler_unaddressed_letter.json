@@ -1,1 +1,1 @@
-{"parent":"noellesroles:item/angler_unaddressed_letter","textures":{"layer0":"noellesroles:item/angler_unaddressed_letter"}}
+{"parent": "minecraft:item/generated","textures":{"layer0":"noellesroles:item/angler_unaddressed_letter"}}

@@ -1,1 +1,1 @@
-{"parent":"noellesroles:item/smoke_pellet","textures":{"layer0":"noellesroles:item/smoke_pellet"}}
+{"parent": "minecraft:item/generated","textures":{"layer0":"noellesroles:item/smoke_pellet"}}

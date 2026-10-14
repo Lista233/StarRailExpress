@@ -1,5 +1,5 @@
 {
-  "parent": "noellesroles:item/silence_totem",
+  "parent": "minecraft:item/generated",
   "textures": {
     "layer0": "noellesroles:item/silence_totem"
   }
