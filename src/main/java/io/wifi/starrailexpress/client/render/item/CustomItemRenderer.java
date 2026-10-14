@@ -17,6 +17,7 @@ package io.wifi.starrailexpress.client.render.item;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.customitem.CustomItemData;
 import io.wifi.starrailexpress.customitem.CustomItemLoader;
 import net.fabricmc.api.EnvType;
@@ -39,10 +40,12 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.locale.Language;
 import org.joml.Matrix4f;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -88,10 +91,14 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
     /** 解析成功的继承贴图缓存（key = 物品 id）。 */
     private static final Map<String, TextureAtlasSprite> INHERITED_SPRITE_CACHE = new ConcurrentHashMap<>();
 
+    /** 已经提醒过「模型地址没烘焙上」的原始字符串（避免每帧刷屏日志）。 */
+    private static final Set<String> MODEL_WARNED = ConcurrentHashMap.newKeySet();
+
     /** 配置变化后清空缓存（客户端同步 / 资源重载时调用）。 */
     public static void clearCache() {
         PACK_TEXTURE_CACHE.clear();
         INHERITED_SPRITE_CACHE.clear();
+        MODEL_WARNED.clear();
         io.wifi.starrailexpress.client.model.AutoSideWallModel.clearCache();
     }
 
@@ -530,6 +537,13 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
                 // 自动补一圈 1 像素厚的侧壁，规则见 AutoSideWallModel
                 return io.wifi.starrailexpress.client.model.AutoSideWallModel.wrap(id, model);
             }
+        }
+        // 取不到 = 路径写错 / 模型没被烘焙（模型烘焙只在资源加载阶段发生）。提醒一次，
+        // 否则用户只会看到「物品变成默认模型（一像素厚的方块贴了张贴图）」而完全不知道为什么。
+        if (MODEL_WARNED.add(modelPath)) {
+            String pattern = Language.getInstance().getOrDefault("sre.custom_item.warn.model_not_resolved",
+                    "Model address \"%s\" cannot be resolved (wrong path / not baked yet); item fell back to default model");
+            SRE.LOGGER.warn("[CustomItem] " + String.format(pattern, modelPath));
         }
         return null;
     }
