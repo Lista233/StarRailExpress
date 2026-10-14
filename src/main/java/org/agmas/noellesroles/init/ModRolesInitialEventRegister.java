@@ -419,6 +419,35 @@ public class ModRolesInitialEventRegister {
         // 技能 1「命运的启示」(G)：近距离查看准星目标最近 3 次杀人方式
         // 技能 2「重启」(潜行+技能键)：随机死因死亡脱离，回房间 + 短暂无敌
         // 网警技能：将主手物品收进副手；副手原有物品必须放入快捷栏才能完成交换。
+        // 嬉命人：两个技能（G 键发动当前技能，V 键在技能间切换）
+        // 技能一「变身派对」：全场玩家互相交换皮肤并随机改变音调（冷却由 EmbalmerRoleData 自行管理）
+        // 技能二「调色盘」：8 格球形范围内所有玩家与玩家尸体各染一层随机 RGB，持续 3 分钟
+        RoleSkill.register(ModRoles.EMBALMER,
+                RoleSkill.skill(SRE.id("embalmer_masquerade"),
+                        "skill.noellesroles.embalmer.masquerade",
+                        context -> {
+                            ServerPlayer player = context.player();
+                            if (player.isSpectator() || !GameUtils.isPlayerAliveAndSurvival(player)) {
+                                return false;
+                            }
+                            return org.agmas.noellesroles.role_data.killer.EmbalmerRoleData
+                                    .triggerMasquerade(player);
+                        }).cooldownTicks(0).showOnHud(true).announceToSelf(false).build(),
+                RoleSkill.skill(SRE.id("embalmer_palette"),
+                        "skill.noellesroles.embalmer.palette",
+                        context -> {
+                            ServerPlayer player = context.player();
+                            if (player.isSpectator() || !GameUtils.isPlayerAliveAndSurvival(player)) {
+                                return false;
+                            }
+                            return org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerPaletteManager
+                                    .activate(player);
+                        }).cooldownSeconds(60).showOnHud(true).announceToSelf(false).build());
+
+        // 嬉命人两个功能的服务端管理器（语音互换 / 调色盘）
+        org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerVoiceSwapManager.register();
+        org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerPaletteManager.register();
+
         RoleSkill.register(ModRoles.NET_COP,
                 RoleSkill.skill(SRE.id("net_cop_swap_hands"),
                         "skill.noellesroles.net_cop.swap_hands",

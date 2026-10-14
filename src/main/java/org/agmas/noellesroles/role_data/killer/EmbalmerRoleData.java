@@ -20,9 +20,13 @@ import io.wifi.starrailexpress.api.data.RoleDataContext;
 import io.wifi.starrailexpress.api.impl.SimpleRoleData;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.role.ModRoles;
@@ -43,6 +47,8 @@ public class EmbalmerRoleData extends SimpleRoleData {
     public int masqueradeCooldown;
     public boolean masqueradeActive;
     public int masqueradeTicksLeft;
+    /** 语音互换（背包 Screen）的独立冷却，避免与统一技能系统的冷却字段冲突。 */
+    public int voiceSwapCooldown;
     // Sync: swap map + pitch map as UUID-string pairs
     public Map<UUID, UUID> skinSwaps = new HashMap<>();
     public Map<UUID, Float> voicePitches = new HashMap<>();
@@ -60,6 +66,7 @@ public class EmbalmerRoleData extends SimpleRoleData {
         masqueradeCooldown = MASQUERADE_INITIAL_COOLDOWN; // 开局进入2分半冷却
         masqueradeActive = false;
         masqueradeTicksLeft = 0;
+        voiceSwapCooldown = 0;
         skinSwaps.clear();
         voicePitches.clear();
         prevMasqueradeActive = false;
@@ -87,6 +94,11 @@ public class EmbalmerRoleData extends SimpleRoleData {
             masqueradeCooldown--;
             if (masqueradeCooldown == 0)
                 changed = true; // 冷却归零边界
+        }
+        if (voiceSwapCooldown > 0) {
+            voiceSwapCooldown--;
+            if (voiceSwapCooldown == 0)
+                changed = true;
         }
         if (masqueradeActive && masqueradeTicksLeft > 0) {
             masqueradeTicksLeft--;
@@ -117,6 +129,7 @@ public class EmbalmerRoleData extends SimpleRoleData {
         tag.putInt("masqueradeCooldown", masqueradeCooldown);
         tag.putBoolean("masqueradeActive", masqueradeActive);
         tag.putInt("masqueradeTicksLeft", masqueradeTicksLeft);
+        tag.putInt("voiceSwapCooldown", voiceSwapCooldown);
     }
 
     @Override
@@ -124,6 +137,7 @@ public class EmbalmerRoleData extends SimpleRoleData {
         masqueradeCooldown = tag.getInt("masqueradeCooldown");
         masqueradeActive = tag.getBoolean("masqueradeActive");
         masqueradeTicksLeft = tag.getInt("masqueradeTicksLeft");
+        voiceSwapCooldown = tag.getInt("voiceSwapCooldown");
     }
 
     /**
@@ -146,8 +160,80 @@ public class EmbalmerRoleData extends SimpleRoleData {
         if (masqueradeCooldown > 0) {
             masqueradeCooldown--;
         }
+        if (voiceSwapCooldown > 0) {
+            voiceSwapCooldown--;
+        }
         if (masqueradeActive && masqueradeTicksLeft > 0) {
             masqueradeTicksLeft--;
         }
+    }
+
+    /**
+     * 技能一「变身派对」：全场玩家互相交换皮肤并随机改变音调。
+     *
+     * <p>原实现位于 {@code ModPacketsReciever} 的 {@code EmbalmerC2SPacket} 接收器，
+     * 为了同时支持「统一技能系统（G 键 / V 键切换）」抽出为静态方法复用。
+     *
+     * @return 是否成功发动（冷却中或人数不足时返回 false）
+     */
+    public static boolean triggerMasquerade(ServerPlayer player) {
+        var comp = RoleData.getNullable(EmbalmerRoleData.class, player);
+        if (comp == null) {
+            return false;
+        }
+        if (comp.masqueradeCooldown > 0) {
+            player.displayClientMessage(
+                    Component.translatable("message.noellesroles.embalmer.cooldown",
+                            (comp.masqueradeCooldown + 19) / 20).withStyle(ChatFormatting.RED),
+                    true);
+            return false;
+        }
+
+        java.util.List<ServerPlayer> players = player.serverLevel().getPlayers(
+                p2 -> !p2.isSpectator()
+                        && !org.agmas.harpymodloader.component.WorldModifierComponent.KEY.get(p2.level())
+                                .isModifier(p2, pro.fazeclan.river.stupid_express.constants.SEModifiers.JEB_));
+        if (players.size() < 2) {
+            player.displayClientMessage(Component.literal("Need at least 2 players."), true);
+            return false;
+        }
+
+        java.util.Map<UUID, UUID> swaps = new java.util.LinkedHashMap<>();
+        java.util.Map<UUID, Float> pitches = new java.util.HashMap<>();
+        java.util.List<UUID> uuids = new java.util.ArrayList<>();
+        for (ServerPlayer p : players) {
+            uuids.add(p.getUUID());
+        }
+        java.util.Collections.shuffle(uuids, new java.util.Random());
+        for (int i = 0; i < uuids.size(); i++) {
+            UUID from = players.get(i).getUUID();
+            UUID to = uuids.get(i);
+            if (from.equals(to)) {
+                to = uuids.get((i + 1) % uuids.size());
+            }
+            swaps.put(from, to);
+            pitches.put(from, 0.7F + (new java.util.Random().nextFloat() * 0.6F));
+        }
+        comp.skinSwaps = swaps;
+        comp.voicePitches = pitches;
+        comp.masqueradeActive = true;
+        comp.masqueradeTicksLeft = MASQUERADE_DURATION;
+        comp.masqueradeCooldown = MASQUERADE_COOLDOWN;
+        comp.sync();
+
+        // 全场播放音效（遍历所有玩家，绕过距离衰减）
+        for (ServerPlayer p : player.serverLevel().getPlayers(p2 -> true)) {
+            p.playNotifySound(SoundEvents.ILLUSIONER_PREPARE_MIRROR, SoundSource.MASTER, 1.0F, 1.0F);
+        }
+        // 广播皮肤交换数据给所有玩家
+        org.agmas.noellesroles.packet.EmbalmerSkinSwapS2CPacket swapPacket =
+                new org.agmas.noellesroles.packet.EmbalmerSkinSwapS2CPacket(swaps, pitches, MASQUERADE_DURATION);
+        for (ServerPlayer p : player.serverLevel().getPlayers(p2 -> true)) {
+            ServerPlayNetworking.send(p, swapPacket);
+        }
+        player.displayClientMessage(
+                Component.translatable("message.noellesroles.embalmer.activated").withStyle(ChatFormatting.DARK_PURPLE),
+                true);
+        return true;
     }
 }

@@ -524,6 +524,7 @@ public class NoellesrolesClient implements ClientModInitializer {
             return true;
         });
         ClientEmbalmerState.register();
+        ClientEmbalmerPaletteState.register();
         ClientSkincrawlerState.register();
         SaltedFishClientHandle.register();
         NatureSpiritClientHandle.register();

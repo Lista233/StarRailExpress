@@ -112,6 +112,7 @@
   "client": [
     "client.AbstractClientPlayerSkinMixin",
     "client.C4ItemEntityRendererMixin",
+    "client.EmbalmerPalettePlayerRenderMixin",
     "client.HandCuffsKeyBindingMixin",
     "client.HandCuffsPoseMixin",
     "client.InstinctMixin",

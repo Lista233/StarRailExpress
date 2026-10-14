@@ -338,6 +338,10 @@ public class ModPackets {
         // 注册嬉命人网络包
         PayloadTypeRegistry.playC2S().register(EmbalmerC2SPacket.ID, EmbalmerC2SPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(EmbalmerSkinSwapS2CPacket.ID, EmbalmerSkinSwapS2CPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(org.agmas.noellesroles.packet.EmbalmerVoiceSwapC2SPacket.ID,
+                org.agmas.noellesroles.packet.EmbalmerVoiceSwapC2SPacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(org.agmas.noellesroles.packet.EmbalmerPaletteS2CPacket.ID,
+                org.agmas.noellesroles.packet.EmbalmerPaletteS2CPacket.CODEC);
 
         // 注册窃皮者网络包
         PayloadTypeRegistry.playC2S().register(SkincrawlerC2SPacket.ID, SkincrawlerC2SPacket.CODEC);
