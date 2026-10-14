@@ -1,3 +1,1 @@
-{
-  "parent": "minecraft:item/clock"
-}
+{\n  "parent": "minecraft:item/generated",\n  "textures": {\n    "layer0": "noellesroles:item/second_needle"\n  }\n}

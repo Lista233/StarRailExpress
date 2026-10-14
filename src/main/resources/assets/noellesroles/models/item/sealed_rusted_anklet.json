@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:item/generated",
+  "parent": "noellesroles:item/sealed_rusted_anklet",
   "textures": {
-    "layer0": "minecraft:item/chain"
+    "layer0": "noellesroles:item/sealed_rusted_anklet"
   }
 }

@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:item/generated",
+  "parent": "noellesroles:item/spellbreaker_potion",
   "textures": {
-    "layer0": "minecraft:item/potion"
+    "layer0": "noellesroles:item/spellbreaker_potion"
   }
 }
