@@ -186,7 +186,9 @@ public class ChefFoodItem extends Item {
                     // 跳过当前任务：只刷新任务本身，绝不走「任务完成」奖励流程
                     // （不发任务奖励金币、不加理智——跳过不算完成任务）。
                     var mm2 = SREPlayerTaskComponent.KEY.maybeGet(livingEntity).orElse(null);
-                    if (mm2 != null) {
+                    // 只有当前实际拥有任务时才跳过；没有任务就什么都不做，
+                    // 不额外刷新出一个新任务（否则等于白送一个任务）。
+                    if (mm2 != null && !mm2.tasks.isEmpty()) {
                         mm2.tasks.clear();
                         // 与其它「清空任务」实现保持一致：重置并列任务相关状态，
                         // 否则残留的 parallelTaskGenerated 会让下一个真正完成的任务
