@@ -43,7 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 「谁正处于反重力」：
  * <ul>
  *     <li>服务端权威：每 tick 扫描玩家是否接触 {@code ANTI_GRAVITY_BLOCK}，
- *     边沿触发 + 5 秒冷却，每次触发翻转该玩家的重力方向；</li>
+ *     边沿触发 + 2.5 秒冷却，每次触发翻转该玩家的重力方向；</li>
  *     <li>保护机制：因反重力向天上坠落超过 30 格自动解除；</li>
  *     <li>清理：玩家死亡、游戏模式不是冒险/创造、游戏结束/开始时自动解除；</li>
  *     <li>客户端通过 {@link GravityFlipS2CPacket} 同步，供本地物理预测、
@@ -55,8 +55,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class GravityFlipManager {
 
-    /** 同一玩家两次触发反重力方块的最小间隔（tick）：5 秒。 */
-    public static final int TOUCH_COOLDOWN_TICKS = 5 * 20;
+    /** 同一玩家两次触发反重力方块的最小间隔（tick）：2.5 秒。 */
+    public static final int TOUCH_COOLDOWN_TICKS = 50;
     /** 向上坠落保护阈值（格）：因反重力上升超过该距离自动解除。 */
     public static final double MAX_UPWARD_FALL = 30.0;
 
@@ -65,7 +65,7 @@ public final class GravityFlipManager {
         boolean flipped;
         /** 本次反重力开始时的 Y，用于 30 格上抛保护。 */
         double startY;
-        /** 上次成功触发（翻转）的游戏时间，用于 5 秒冷却。 */
+        /** 上次成功触发（翻转）的游戏时间，用于 2.5 秒冷却。 */
         long lastTriggerTime = Long.MIN_VALUE;
         /** 上一 tick 是否接触方块（边沿触发用）。 */
         boolean touching;

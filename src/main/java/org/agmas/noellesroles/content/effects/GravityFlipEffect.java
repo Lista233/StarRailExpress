@@ -25,11 +25,14 @@ import org.agmas.noellesroles.init.ModEffects;
  *
  * <p>只做<b>垂直方向</b>的重力反向：你会向天空「坠落」，撞到头顶的方块才算落地，跳跃改为向下蹬。
  *
- * <p>效果本身没有 tick 逻辑，纯标记；物理由以下 mixin 消费：
+ * <p>效果本身没有 tick 逻辑，纯标记；各层由以下 mixin 消费：
  * <ul>
  *     <li>{@code GravityFlipPhysicsMixin}：重力取反 + 撞天花板视为落地</li>
  *     <li>{@code GravityFlipJumpMixin}：跳跃方向反转</li>
- *     <li>{@code GravityFlipCameraMixin}：投影矩阵旋转 180°，视野整体倒转</li>
+ *     <li>{@code GravityFlipCameraMixin}：世界投影矩阵旋转 180°，视野整体倒转（手部不受影响）</li>
+ *     <li>{@code GravityFlipEyeMixin}：眼位改从碰撞箱顶部量，相机下沉到倒立模型的头部</li>
+ *     <li>{@code GravityFlipInputMixin} / {@code GravityFlipMouseMixin}：
+ *     取反左右移动与鼠标两轴，抵消滚转，使操作相对画面恢复正常（世界依旧上下颠倒）</li>
  * </ul>
  * 模型倒立在 {@code LivingEntityRendererMixin#sre$isEntityUpsideDown} 里统一处理。
  *
