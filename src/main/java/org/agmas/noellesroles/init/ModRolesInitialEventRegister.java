@@ -69,6 +69,7 @@ import org.agmas.noellesroles.role_data.innocence.SaltedFishRoleData;
 import org.agmas.noellesroles.role_data.killer.BloodFeudistRoleData;
 import org.agmas.noellesroles.role_data.killer.DIORoleData;
 import org.agmas.noellesroles.role_data.killer.DelayerRoleData;
+import org.agmas.noellesroles.role_data.killer.EmbalmerRoleData;
 import org.agmas.noellesroles.role_data.killer.MaChenXuRoleData;
 import org.agmas.noellesroles.game.roles.killer.manipulator.InControlCCA;
 import org.agmas.noellesroles.role_data.innocence.BuilderRoleData;
@@ -420,7 +421,7 @@ public class ModRolesInitialEventRegister {
         // 技能 2「重启」(潜行+技能键)：随机死因死亡脱离，回房间 + 短暂无敌
         // 网警技能：将主手物品收进副手；副手原有物品必须放入快捷栏才能完成交换。
         // 嬉命人：两个技能（G 键发动当前技能，V 键在技能间切换）
-        // 技能一「变身派对」：全场玩家互相交换皮肤并随机改变音调（冷却由 EmbalmerRoleData 自行管理）
+        // 技能一「变身派对」：全场玩家互相交换皮肤并随机改变音调（冷却由统一技能系统管理，HUD 统一展示）
         // 技能二「调色盘」：8 格球形范围内所有玩家与玩家尸体各染一层随机 RGB，持续 3 分钟
         RoleSkill.register(ModRoles.EMBALMER,
                 RoleSkill.skill(SRE.id("embalmer_masquerade"),
@@ -430,9 +431,8 @@ public class ModRolesInitialEventRegister {
                             if (player.isSpectator() || !GameUtils.isPlayerAliveAndSurvival(player)) {
                                 return false;
                             }
-                            return org.agmas.noellesroles.role_data.killer.EmbalmerRoleData
-                                    .triggerMasquerade(player);
-                        }).cooldownTicks(0).showOnHud(true).announceToSelf(false).build(),
+                            return EmbalmerRoleData.triggerMasquerade(player);
+                        }).cooldownTicks(EmbalmerRoleData.MASQUERADE_COOLDOWN).showOnHud(true).announceToSelf(false).build(),
                 RoleSkill.skill(SRE.id("embalmer_palette"),
                         "skill.noellesroles.embalmer.palette",
                         context -> {

@@ -15,20 +15,22 @@
 
 package org.agmas.noellesroles.role_data.killer;
 
+import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.data.RoleData;
 import io.wifi.starrailexpress.api.data.RoleDataContext;
 import io.wifi.starrailexpress.api.impl.SimpleRoleData;
+import io.wifi.starrailexpress.cca.SREAbilityPlayerComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
-import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.role.ModRoles;
 import org.jetbrains.annotations.NotNull;
 import java.util.HashMap;
@@ -44,7 +46,9 @@ public class EmbalmerRoleData extends SimpleRoleData {
     public static final int PITCH_MIN = 70;
     public static final int PITCH_MAX = 130;
 
-    public int masqueradeCooldown;
+    /** 变身派对的技能 ID（与 ModRolesInitialEventRegister 注册处保持一致）。 */
+    public static final ResourceLocation MASQUERADE_SKILL_ID = SRE.id("embalmer_masquerade");
+
     public boolean masqueradeActive;
     public int masqueradeTicksLeft;
     /** 语音互换（背包 Screen）的独立冷却，避免与统一技能系统的冷却字段冲突。 */
@@ -63,13 +67,20 @@ public class EmbalmerRoleData extends SimpleRoleData {
 
     @Override
     public void init() {
-        masqueradeCooldown = MASQUERADE_INITIAL_COOLDOWN; // 开局进入2分半冷却
         masqueradeActive = false;
         masqueradeTicksLeft = 0;
         voiceSwapCooldown = 0;
         skinSwaps.clear();
         voicePitches.clear();
         prevMasqueradeActive = false;
+        // 变身派对冷却改由统一技能系统管理：开局自带150秒冷却，
+        // 由技能自带 HUD 展示（此时 SREAbilityPlayerComponent 已初始化过，顺序见 SRERole#onInit）。
+        if (!player.level().isClientSide()) {
+            SREAbilityPlayerComponent ability = SREAbilityPlayerComponent.KEY.get(player);
+            if (ability != null) {
+                ability.setSkillCooldown(MASQUERADE_SKILL_ID, MASQUERADE_INITIAL_COOLDOWN);
+            }
+        }
         sync();
     }
 
@@ -90,11 +101,6 @@ public class EmbalmerRoleData extends SimpleRoleData {
         if (!isActive())
             return;
         boolean changed = false;
-        if (masqueradeCooldown > 0) {
-            masqueradeCooldown--;
-            if (masqueradeCooldown == 0)
-                changed = true; // 冷却归零边界
-        }
         if (voiceSwapCooldown > 0) {
             voiceSwapCooldown--;
             if (voiceSwapCooldown == 0)
@@ -115,8 +121,7 @@ public class EmbalmerRoleData extends SimpleRoleData {
                 changed = true; // 激活结束边界
             }
         }
-        // 仅在状态边界同步（替代原先每秒同步）：冷却归零、激活开始/结束。
-        // 客户端 HUD 自行平滑秒数显示，因此无需每秒发包。
+        // 仅在状态边界同步（激活开始/结束）；变身派对冷却由统一技能系统自行同步。
         if (masqueradeActive != prevMasqueradeActive)
             changed = true;
         if (changed)
@@ -126,7 +131,6 @@ public class EmbalmerRoleData extends SimpleRoleData {
 
     @Override
     public void writeToSyncNbt(@NotNull CompoundTag tag, HolderLookup.Provider lookup) {
-        tag.putInt("masqueradeCooldown", masqueradeCooldown);
         tag.putBoolean("masqueradeActive", masqueradeActive);
         tag.putInt("masqueradeTicksLeft", masqueradeTicksLeft);
         tag.putInt("voiceSwapCooldown", voiceSwapCooldown);
@@ -134,7 +138,6 @@ public class EmbalmerRoleData extends SimpleRoleData {
 
     @Override
     public void readFromSyncNbt(@NotNull CompoundTag tag, HolderLookup.Provider lookup) {
-        masqueradeCooldown = tag.getInt("masqueradeCooldown");
         masqueradeActive = tag.getBoolean("masqueradeActive");
         masqueradeTicksLeft = tag.getInt("masqueradeTicksLeft");
         voiceSwapCooldown = tag.getInt("voiceSwapCooldown");
@@ -157,9 +160,6 @@ public class EmbalmerRoleData extends SimpleRoleData {
 
     @Override
     public void clientTick() {
-        if (masqueradeCooldown > 0) {
-            masqueradeCooldown--;
-        }
         if (voiceSwapCooldown > 0) {
             voiceSwapCooldown--;
         }
@@ -174,6 +174,9 @@ public class EmbalmerRoleData extends SimpleRoleData {
      * <p>原实现位于 {@code ModPacketsReciever} 的 {@code EmbalmerC2SPacket} 接收器，
      * 为了同时支持「统一技能系统（G 键 / V 键切换）」抽出为静态方法复用。
      *
+     * <p>冷却由统一技能系统管理：G 键入口会在调用本方法前检查就绪状态，
+     * 成功发动后由 {@code markSkillUsed} 置上 150 秒冷却并同步给技能 HUD。
+     *
      * @return 是否成功发动（冷却中或人数不足时返回 false）
      */
     public static boolean triggerMasquerade(ServerPlayer player) {
@@ -181,11 +184,13 @@ public class EmbalmerRoleData extends SimpleRoleData {
         if (comp == null) {
             return false;
         }
-        if (comp.masqueradeCooldown > 0) {
-            player.displayClientMessage(
-                    Component.translatable("message.noellesroles.embalmer.cooldown",
-                            (comp.masqueradeCooldown + 19) / 20).withStyle(ChatFormatting.RED),
-                    true);
+        // 防御其他调用路径（如遗留的 EmbalmerC2SPacket 接收器）：冷却中就拦下并提示
+        SREAbilityPlayerComponent ability = SREAbilityPlayerComponent.KEY.get(player);
+        if (ability == null) {
+            return false;
+        }
+        if (!ability.canUseSkill(MASQUERADE_SKILL_ID)) {
+            ability.showUnavailableMessage(MASQUERADE_SKILL_ID);
             return false;
         }
 
@@ -218,7 +223,6 @@ public class EmbalmerRoleData extends SimpleRoleData {
         comp.voicePitches = pitches;
         comp.masqueradeActive = true;
         comp.masqueradeTicksLeft = MASQUERADE_DURATION;
-        comp.masqueradeCooldown = MASQUERADE_COOLDOWN;
         comp.sync();
 
         // 全场播放音效（遍历所有玩家，绕过距离衰减）
