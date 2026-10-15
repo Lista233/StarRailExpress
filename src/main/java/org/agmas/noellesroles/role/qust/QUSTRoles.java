@@ -114,7 +114,7 @@ public class QUSTRoles {
             .setCanSeeCoin(true)
             .setCanSeeBodyItems(true)
             .setCanSeeBodyName(true)
-            // 本能：按Alt切换，开启后夜视+透视周围20格所有玩家（不区分阵营），被标记玩家显示黄色
+            // 本能：默认常开（无需按 Alt），夜视+透视周围20格所有玩家（不区分阵营），被标记玩家显示黄色
             .setCanUseInstinctAndNightVision(true)
             .setComponentKey(QUSTComponentKeys.Keys.SUPER_RECORDER)
             .setDefaultMax(1)
@@ -174,7 +174,10 @@ public class QUSTRoles {
                     TMMRoles.CIVILIAN_MAX_SPRINT_TICKS, false))
             .setNeutrals(true)
             .setComponentKey(QUSTComponentKeys.Keys.HACKER)
-            // 本能：已标记玩家显示红色，未标记玩家显示灰色
+            // 本能：按Alt切换，开启后夜视+透视；不受关灯影响（断电时不失明、不黑暗）
+            .setCanUseInstinctAndNightVision(true)
+            .setCanIgnoreBlackout(true)
+            // 本能配色：已标记玩家显示红色，未标记玩家显示灰色
             .setInstinctType(
                     io.wifi.starrailexpress.api.InstinctType.customWithFunction((self, target, selfRole, targetRole) -> {
                         if (target == null) return io.wifi.starrailexpress.api.InstinctType.NONE;

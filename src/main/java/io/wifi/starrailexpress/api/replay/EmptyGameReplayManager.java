@@ -160,6 +160,14 @@ public class EmptyGameReplayManager extends GameReplayManager {
     }
 
     @Override
+    public void recordTaskComplete(UUID playerUuid, ResourceLocation taskId) {
+    }
+
+    @Override
+    public void recordTaskComplete(UUID playerUuid, ResourceLocation taskId, boolean hidden) {
+    }
+
+    @Override
     public void recordItemUse(UUID playerUuid, ResourceLocation itemUsed) {
     }
 

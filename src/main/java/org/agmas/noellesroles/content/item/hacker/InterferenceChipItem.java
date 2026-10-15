@@ -118,7 +118,7 @@ public class InterferenceChipItem extends Item {
                 )
         );
 
-        // 安排8秒后通知被标记者
+        // 安排5秒后通知被标记者
         data.addPendingNotification(target.getUUID(), target.getName().getString(), ip, currentTick);
 
         hacker.displayClientMessage(

@@ -89,6 +89,8 @@ public final class TwinChildrenTaskShare {
             component.playerMoodComponent.addMood(moodGain);
         }
         ServerPlayNetworking.send(partner, new TaskCompletePayload());
+        // 录像落库：共享完成同样计入任务完成记录（默认隐藏，仅用于数据库查询）
+        SREPlayerTaskComponent.recordTaskCompletionToReplay(partner, toComplete);
 
         component.tasks.remove(toComplete.getType());
         component.parallelTaskTypes.remove(toComplete.getType());

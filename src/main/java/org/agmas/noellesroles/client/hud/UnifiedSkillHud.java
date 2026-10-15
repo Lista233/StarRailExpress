@@ -83,6 +83,11 @@ public final class UnifiedSkillHud {
             if (role != null && role.identifier().equals(org.agmas.noellesroles.role.ModRoles.LEADER_ID)) {
                 return;
             }
+            // 龙娘有自绘的 HUD（魅惑/咆哮冷却与引导进度条），隐藏注册技能的通用 HUD，
+            // 保留原始 HUD，避免右下角两套显示重合
+            if (role != null && role.identifier().equals(org.agmas.noellesroles.role.qust.QUSTRoles.DRAGON_GIRL_ID)) {
+                return;
+            }
             List<RoleSkill.Definition> skills = RoleSkill.getDefinitions(role);
             List<RolePassive.Definition> passives = RolePassive.getDefinitions(role);
             if (skills.isEmpty() && passives.isEmpty()) {

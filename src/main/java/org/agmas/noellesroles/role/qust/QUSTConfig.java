@@ -190,7 +190,7 @@ public class QUSTConfig implements ConfigData {
     /** 魂灵存储上限 */
     public int wisadelMaxSouls = 7;
 
-    /** 购买一次祖宗发射器所需的魂灵层数（暂时调低为 2，便于测试；正式版建议 5） */
+    /** 购买一次祖宗发射器所需的魂灵层数 */
     public int wisadelShotgunSoulCost = 4;
 
     /** 祖宗发射器购买冷却（秒） */

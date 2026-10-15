@@ -97,6 +97,7 @@ public class SRECommandRegister {
             ProgressionCommand.register(dispatcher);
             BackpackCommand.register(dispatcher);
             RoleRosterCommand.register(dispatcher);
+            RoleFactionExportCommand.register(dispatcher); // sre:export_roles：把职业注册表导出为 职业id→阵营 的 JSON
             ScheduleCommand.register(dispatcher);
             PlushCommand.register(dispatcher);
             BreakingAndFakeBlockCommand.register(dispatcher, registryAccess, environment);

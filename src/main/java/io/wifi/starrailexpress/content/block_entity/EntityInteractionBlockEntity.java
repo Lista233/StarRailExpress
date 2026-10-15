@@ -1367,6 +1367,8 @@ public class EntityInteractionBlockEntity extends BlockEntity {
                 SREPlayerTaskComponent taskComponent = SREPlayerTaskComponent.KEY.get(player);
                 if (!taskComponent.tasks.isEmpty()) {
                     var firstTask = taskComponent.tasks.values().iterator().next();
+                    // 录像落库：记录任务完成（默认隐藏，仅用于数据库查询）
+                    SREPlayerTaskComponent.recordTaskCompletionToReplay(player, firstTask);
                     taskComponent.tasks.remove(firstTask.getType());
                     taskComponent.parallelTaskTypes.remove(firstTask.getType());
                     taskComponent.taskStreak++;
@@ -1443,6 +1445,8 @@ public class EntityInteractionBlockEntity extends BlockEntity {
                     var entry = iterator.next();
                     var task = entry.getValue();
                     if (taskId.equals(task.getCustomTaskId())) {
+                        // 录像落库：记录任务完成（默认隐藏，仅用于数据库查询）
+                        SREPlayerTaskComponent.recordTaskCompletionToReplay(player, task);
                         iterator.remove();
                         taskComponent.parallelTaskTypes.remove(task.getType());
                         taskComponent.taskStreak++;

@@ -91,6 +91,7 @@ public class SREHelpCommand {
                 new Entry("/sre:area_manager", "sre.area_manager"),
                 new Entry("/sre:pass", "sre.pass"),
                 new Entry("/sre:roster", "sre.roster"),
+                new Entry("/sre:export_roles", "sre.export_roles"),
                 new Entry("/sre:scene", "sre.scene"),
                 new Entry("/sre:camera", "sre.camera"),
                 new Entry("/sre:subtitle", "sre.subtitle"),

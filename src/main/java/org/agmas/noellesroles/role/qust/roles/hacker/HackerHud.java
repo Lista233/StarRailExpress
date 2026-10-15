@@ -33,7 +33,7 @@ public class HackerHud implements HudRenderCallback {
     private static String displayIP = null;
     private static String displayLocation = null;
     private static long displayEndTime = 0;
-    private static final long DISPLAY_DURATION_MS = 6000; // 6秒
+    private static final long DISPLAY_DURATION_MS = 1500; // 1.5秒
 
     // 发送确认信息（同样使用时间戳）
     private static String sendConfirmMessage = null;
@@ -192,6 +192,7 @@ public class HackerHud implements HudRenderCallback {
         if (data == null) return;
 
         int markedCount = data.markedPlayers.size();
+        int markedAliveCount = data.syncedMarkedAliveCount;
         int aliveCount = data.syncedAliveCount;
         int startCount = data.syncedStartPlayerCount;
         int threeFourthsCount = Math.max(2, (int) Math.ceil(startCount * 3.0 / 4.0));
@@ -199,15 +200,20 @@ public class HackerHud implements HudRenderCallback {
         int x = screenWidth - 10;
         int y = screenHeight - 10 - Minecraft.getInstance().font.lineHeight * 3;
 
-        // 胜利条件一：标记所有存活玩家
-        Component cond1 = Component.literal("§e条件一(全存活): §f" + markedCount + "/" + aliveCount);
-        guiGraphics.drawString(Minecraft.getInstance().font, cond1,
-                x - Minecraft.getInstance().font.width(cond1), y, 0xFFFFFFFF);
+        // 标题行：以下两个条件均为「标记人数」进度，任意达成其一即可获胜
+        Component header = Component.literal("§e标记人数达成条件即可获胜:");
+        guiGraphics.drawString(Minecraft.getInstance().font, header,
+                x - Minecraft.getInstance().font.width(header), y, 0xFFFFFFFF);
 
-        // 胜利条件二：标记开始时3/4的人数
-        Component cond2 = Component.literal("§e条件二(3/4开局): §f" + markedCount + "/" + threeFourthsCount);
+        // 胜利条件一：标记所有存活玩家（分子仅计入仍存活的已标记玩家）
+        Component cond1 = Component.literal("§e条件一(标记所有存活玩家): §f" + markedAliveCount + "/" + aliveCount);
+        guiGraphics.drawString(Minecraft.getInstance().font, cond1,
+                x - Minecraft.getInstance().font.width(cond1), y + Minecraft.getInstance().font.lineHeight, 0xFFFFFFFF);
+
+        // 胜利条件二：标记开始时3/4的人数（累计标记数，不受死亡影响）
+        Component cond2 = Component.literal("§e条件二(总人数3/4): §f" + markedCount + "/" + threeFourthsCount);
         guiGraphics.drawString(Minecraft.getInstance().font, cond2,
-                x - Minecraft.getInstance().font.width(cond2), y + Minecraft.getInstance().font.lineHeight, 0xFFFFFFFF);
+                x - Minecraft.getInstance().font.width(cond2), y + Minecraft.getInstance().font.lineHeight * 2, 0xFFFFFFFF);
     }
 
     /**

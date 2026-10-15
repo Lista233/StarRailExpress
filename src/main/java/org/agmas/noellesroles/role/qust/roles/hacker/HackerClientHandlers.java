@@ -62,7 +62,7 @@ public class HackerClientHandlers {
         Component subtitle = Component.literal("§c您的信息已被黑客获取");
         mc.gui.setSubtitle(subtitle);
 
-        mc.gui.setTimes(10, 70, 20); // 淡入、停留、淡出时间
+        mc.gui.setTimes(5, 20, 5); // 淡入、停留、淡出时间（共1.5秒）
 
         // 详细信息不再刷聊天栏，改为在大标题下方的信息框 HUD 中展示
         BeenMarkedHud.show(playerName, uuid.toString(), maskedIP, location);

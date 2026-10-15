@@ -110,6 +110,8 @@
   "sre_commands.sre.pass.desc": "啟動陣營卡 / 進度通行證。",
   "sre_commands.sre.roster.name": "職業名冊",
   "sre_commands.sre.roster.desc": "打開職業輪換名冊; 管理員可編輯、啟用、禁用、隨機抽取並查看狀態。",
+  "sre_commands.sre.export_roles.name": "導出職業陣營",
+  "sre_commands.sre.export_roles.desc": "把當前註冊的全部職業(含自定義職業)歸類為 義警/平民/殺手/中立, 導出為 職業id→陣營 的 JSON 到伺服器運行目錄 (role_factions.json)。",
   "sre_commands.sre.scene.name": "場景管理",
   "sre_commands.sre.scene.desc": "管理場景資源與場景配置。",
   "sre_commands.sre.camera.name": "高級攝像機",

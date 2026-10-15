@@ -33,6 +33,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -309,6 +310,8 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
             }
             // 触发附近任务完成联动（狂躁症、渡鸦等）
             if (this.player instanceof ServerPlayer sp) {
+                // 录像落库：记录任务完成（默认隐藏，仅用于数据库查询）
+                recordTaskCompletionToReplay(sp, task);
                 // 网警：完成普通任务获得游戏代币
                 org.agmas.noellesroles.role_data.vigilante.NetCopRoleData.grantTokenOnNormalTask(sp);
                 notifyNearbyTaskComplete(sp);
@@ -347,6 +350,8 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
             this.playerMoodComponent.addMood(GameConstants.MOOD_GAIN);
         }
         ServerPlayNetworking.send(sp, new TaskCompletePayload());
+        // 录像落库：记录任务完成（默认隐藏，仅用于数据库查询）
+        recordTaskCompletionToReplay(sp, quest);
         io.wifi.starrailexpress.api.RoleMethodDispatcher.callOnFinishQuest(sp, quest, this.taskStreak, false);
         this.taskStreak++;
         notifyNearbyTaskComplete(sp);
@@ -368,6 +373,8 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
             this.playerMoodComponent.addMood(moodGain);
         }
         ServerPlayNetworking.send(sp, new TaskCompletePayload());
+        // 录像落库：记录任务完成（默认隐藏，仅用于数据库查询）
+        recordTaskCompletionToReplay(sp, task);
         this.tasks.remove(Task.MANIC);
         this.parallelTaskTypes.remove(Task.MANIC);
         io.wifi.starrailexpress.api.RoleMethodDispatcher.callOnFinishQuest(this.player, task.getName(),
@@ -411,6 +418,45 @@ public class SREPlayerTaskComponent implements RoleComponent, ServerTickingCompo
                 }
             }
         }
+    }
+
+    /**
+     * 录像落库：把「任务完成」写入回放时间线（默认隐藏，仅用于数据库查询，不参与任何展示）。
+     * 任务系统各完成路径（常规、并列、小游戏顶替、狂躁症、双子共享等）统一调用。
+     */
+    public static void recordTaskCompletionToReplay(ServerPlayer player, TrainTask task) {
+        if (player == null || task == null) {
+            return;
+        }
+        String customId = task.getCustomTaskId();
+        String rawId = (customId != null && !customId.isBlank())
+                ? "custom/" + customId
+                : task.getType().name().toLowerCase(Locale.ROOT);
+        recordTaskCompletionToReplay(player, rawId);
+    }
+
+    /** 录像落库：以字符串标识记录任务完成（如小游戏任务 ID）。 */
+    private static void recordTaskCompletionToReplay(ServerPlayer player, String rawTaskId) {
+        if (player == null) {
+            return;
+        }
+        ResourceLocation taskId = toReplayTaskId(rawTaskId);
+        if (taskId != null) {
+            SRE.REPLAY_MANAGER.recordTaskComplete(player.getUUID(), taskId);
+        }
+    }
+
+    /**
+     * 将任务标识规范化为合法的 ResourceLocation：小写化并把非法字符（中文、空格等）替换为下划线；
+     * 无法规范化时返回 null 放弃记录。
+     */
+    private static ResourceLocation toReplayTaskId(String rawTaskId) {
+        if (rawTaskId == null || rawTaskId.isBlank()) {
+            return null;
+        }
+        String normalized = rawTaskId.trim().toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9/._-]", "_");
+        return ResourceLocation.tryParse(SRE.MOD_ID + ":" + normalized);
     }
 
     /**

@@ -477,10 +477,13 @@ public class QUSTHandlers {
                     sp, org.agmas.noellesroles.init.ModItems.WRITTEN_NOTE.getDefaultInstance());
         });
 
-        // 死亡感知：15 格半径内玩家死亡时记录位置
+        // 死亡感知：15 格半径内玩家死亡时记录位置（仅存活的超级记录员本人可感知）
         io.wifi.starrailexpress.event.OnPlayerDeathWithBody.EVENT.register(
                 (victim, killer, deathReason, body) -> {
                     for (ServerPlayer sp : victim.level().getServer().getPlayerList().getPlayers()) {
+                        // 该 CCA 组件对所有玩家都存在，必须按职业过滤，否则消息会发给所有人
+                        if (!org.agmas.noellesroles.utils.RoleUtils.isPlayerTheJob(sp, QUSTRoles.SUPER_RECORDER)) continue;
+                        if (!io.wifi.starrailexpress.game.GameUtils.isPlayerAliveAndSurvival(sp)) continue;
                         var comp = QUSTComponentKeys.Keys.SUPER_RECORDER.maybeGet(sp).orElse(null);
                         if (comp == null) continue;
                         double range = QUSTConfig.instance().superRecorderDeathSenseRange;

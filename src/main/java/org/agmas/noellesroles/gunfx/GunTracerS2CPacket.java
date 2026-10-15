@@ -33,6 +33,8 @@ public record GunTracerS2CPacket(int shooterId,
     public static final int STYLE_DEFAULT = 0;
     /** 狙击枪样式：轨迹线之外，客户端再沿弹道生成烟雾。 */
     public static final int STYLE_SNIPER = 1;
+    /** 深红样式：祖宗发射器专属——客户端把轨迹线渲染为深红色（不附加烟雾）。 */
+    public static final int STYLE_RED = 2;
 
     public static final Type<GunTracerS2CPacket> ID = new Type<>(Noellesroles.id("gun_tracer"));
     public static final StreamCodec<RegistryFriendlyByteBuf, GunTracerS2CPacket> CODEC =

@@ -65,6 +65,8 @@ public final class MatchRecord {
         /** 阵营：1 好人 / 2 中立 / 3 中立偏杀手 / 4 杀手 / 5 治安官，其余为未知(-1)。 */
         public int faction = -1;
         public boolean alive = true;
+        /** 本局胜负：1 胜利 / 0 失败（历史旧记录无此字段时按 0 处理）。 */
+        public int win = 0;
     }
 
     /** 单条时间线事件。 */
@@ -79,6 +81,11 @@ public final class MatchRecord {
         public String textJson;
         /** 是否在普通展示中隐藏。 */
         public boolean hidden;
+        /**
+         * 击杀性质（仅 PLAYER_KILL 事件有效）：0 未分类 / 1 误杀 / 2 正义击杀 / 3 邪恶击杀。
+         * 按事件发生时击杀者与受害者的阵营判定；无击杀者（环境死亡等）或无法归类时为 0。
+         */
+        public int killType = 0;
     }
 
     /**

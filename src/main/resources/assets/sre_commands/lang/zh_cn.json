@@ -110,6 +110,8 @@
   "sre_commands.sre.pass.desc": "激活阵营卡 / 进度通行证。",
   "sre_commands.sre.roster.name": "职业名册",
   "sre_commands.sre.roster.desc": "打开职业轮换名册; 管理员可编辑、启用、禁用、随机抽取并查看状态。",
+  "sre_commands.sre.export_roles.name": "导出职业阵营",
+  "sre_commands.sre.export_roles.desc": "把当前注册的全部职业(含自定义职业)归类为 义警/平民/杀手/中立, 导出为 职业id→阵营 的 JSON 到服务端运行目录 (role_factions.json)。",
   "sre_commands.sre.scene.name": "场景管理",
   "sre_commands.sre.scene.desc": "管理场景资源与场景配置。",
   "sre_commands.sre.camera.name": "高级摄像机",

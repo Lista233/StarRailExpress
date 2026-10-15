@@ -21,7 +21,9 @@ import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.api.replay.GameReplayData;
 import io.wifi.starrailexpress.api.replay.GameReplayManager;
+import io.wifi.starrailexpress.api.replay.ReplayEventTypes;
 import io.wifi.starrailexpress.api.replay.ReplayTimelineEvent;
+import io.wifi.starrailexpress.cca.SREGameRoundEndComponent;
 import net.exmo.sre.record.network.RecordListS2CPayload;
 import net.exmo.sre.record.network.RecordReplayS2CPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -54,6 +56,9 @@ public final class MatchRecordService {
     /**
      * 对局结束时调用：把当前回放管理器中的完整时间线构造成 {@link MatchRecord} 并异步保存到远端数据库。
      * 若远端数据库不可用（未开启 MySQL 同步）则静默跳过。
+     *
+     * <p>必须在 {@code GameMode#recordWinStats} 之后调用：落库时要读取 {@link SREGameRoundEndComponent}
+     * 中刚写入的每玩家胜负标记来填充 {@link MatchRecord.MatchPlayer#win}。
      */
     public static void recordFinishedMatch(ServerLevel level) {
         if (level == null || !MatchRecordStore.isAvailable() || !SREConfig.instance().isStatsSyncEnabled) {
@@ -64,7 +69,8 @@ public final class MatchRecordService {
             return;
         }
         try {
-            MatchRecord record = build(manager, manager.currentReplayData, level.registryAccess());
+            MatchRecord record = build(manager, manager.currentReplayData, level.registryAccess(),
+                    SREGameRoundEndComponent.KEY.get(level));
             MatchRecordStore.saveAsync(record).whenComplete((ok, err) -> {
                 if (err != null) {
                     logger.warn("异步保存全局战绩失败。", err);
@@ -77,7 +83,8 @@ public final class MatchRecordService {
         }
     }
 
-    private static MatchRecord build(GameReplayManager manager, GameReplayData data, RegistryAccess registryAccess) {
+    private static MatchRecord build(GameReplayManager manager, GameReplayData data, RegistryAccess registryAccess,
+            SREGameRoundEndComponent roundEnd) {
         MatchRecord record = new MatchRecord();
         record.matchId = UUID.randomUUID().toString();
         record.createdAt = System.currentTimeMillis();
@@ -124,6 +131,7 @@ public final class MatchRecordService {
                 player.roleId = currentRole;
                 player.oldRoleId = oldRole;
                 player.faction = factionOf(currentRole);
+                player.win = roundEnd != null && roundEnd.didWin(uuid) ? 1 : 0;
                 record.players.add(player);
             }
         }
@@ -137,6 +145,7 @@ public final class MatchRecordService {
                     ? null
                     : Component.Serializer.toJson(event.text(), registryAccess);
             matchEvent.hidden = event.hidden();
+            matchEvent.killType = killTypeOf(event);
             record.events.add(matchEvent);
         }
         return record;
@@ -152,6 +161,51 @@ public final class MatchRecordService {
         }
         SRERole role = TMMRoles.ROLES.get(id);
         return role == null ? -1 : PlayerRoleWeightManager.getRoleType(role);
+    }
+
+    /**
+     * 计算 PLAYER_KILL 事件的击杀性质（按事件发生时双方的阵营判定，职业取自事件数据里的
+     * {@code sourceRole}/{@code targetRole} 快照）：
+     *
+     * <ul>
+     * <li>1 误杀：好人侧（平民/义警）互杀；杀手侧（杀手/中立偏杀手）互杀；</li>
+     * <li>2 正义击杀：好人侧击杀非好人（杀手/中立偏杀手/纯中立）；</li>
+     * <li>3 邪恶击杀：杀手侧击杀好人侧或纯中立；纯中立击杀任何阵营（含纯中立）；</li>
+     * <li>0 未分类：非击杀事件、无击杀者（环境死亡等），或阵营信息缺失无法判定。</li>
+     * </ul>
+     */
+    private static int killTypeOf(ReplayTimelineEvent event) {
+        if (event.type() != ReplayEventTypes.EventType.PLAYER_KILL) {
+            return 0;
+        }
+        Map<String, String> data = event.data();
+        int killerType = factionOf(data == null ? null : data.get("sourceRole"));
+        int victimType = factionOf(data == null ? null : data.get("targetRole"));
+        if (killerType <= 0 || victimType <= 0) {
+            return 0;
+        }
+        // 阵营：1 好人 / 2 纯中立 / 3 中立偏杀手 / 4 杀手 / 5 义警
+        boolean killerGood = killerType == 1 || killerType == 5;
+        boolean victimGood = victimType == 1 || victimType == 5;
+        boolean killerSide = killerType == 3 || killerType == 4;
+        boolean victimSide = victimType == 3 || victimType == 4;
+
+        if (killerGood && victimGood) {
+            return 1; // 好人侧互杀
+        }
+        if (killerSide && victimSide) {
+            return 1; // 杀手侧互杀（含中立偏杀手）
+        }
+        if (killerGood) {
+            return 2; // 好人侧击杀非好人
+        }
+        if (killerSide) {
+            return 3; // 杀手侧击杀好人侧或纯中立
+        }
+        if (killerType == 2) {
+            return 3; // 纯中立击杀任何阵营（含纯中立）都算邪恶击杀
+        }
+        return 0; // 未知阵营兜底
     }
 
     /** 响应「按需拉取战绩列表的一页」请求：仅查询并同步该窗口，减少流量与数据库负载。 */

@@ -104,6 +104,8 @@
     "sre_commands.sre.pass.desc": "Activate Faction Card/Progress Pass.",
     "sre_commands.sre.roster.name": "role Roster",
     "sre_commands.sre.roster.desc": "Opens the role rotating roster; administrators can edit, enable, disable, randomize and view status.",
+    "sre_commands.sre.export_roles.name": "Export role factions",
+    "sre_commands.sre.export_roles.desc": "Classify every registered role (custom roles included) as Vigilante/Civilian/Killer/Neutral and export a role-id-to-faction JSON file to role_factions.json in the server run directory.",
     "sre_commands.sre.scene.name": "Scene management",
     "sre_commands.sre.scene.desc": "Manage scene resources and scene configuration.",
     "sre_commands.sre.camera.name": "advanced camera",

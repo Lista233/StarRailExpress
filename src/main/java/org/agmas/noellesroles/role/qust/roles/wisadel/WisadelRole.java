@@ -43,7 +43,7 @@ public class WisadelRole extends NormalRole {
         // 两件新品（祖宗发射器、肘子）置顶，其后跟默认杀手商店
         List<ShopEntry> shop = new ArrayList<>();
 
-        // 祖宗发射器：需要至少 5 层魂灵，购买消耗 5 层并进入 150 秒购买冷却
+        // 祖宗发射器：需要至少 4 层魂灵，购买消耗 4 层并进入 150 秒购买冷却
         shop.add(new ShopEntry(ModItems.WISDEL_SHOTGUN.getDefaultInstance(), SHOTGUN_PRICE, ShopEntry.Type.WEAPON) {
             @Override
             public boolean canBuy(@NotNull Player buyer) {

@@ -63,6 +63,10 @@ public final class ReplayFormatter {
             if (event.type() == ReplayEventTypes.EventType.STORE_BUY) {
                 continue;
             }
+            // 任务完成仅用于数据库查询，屏幕回放不展示
+            if (event.type() == ReplayEventTypes.EventType.TASK_COMPLETE) {
+                continue;
+            }
             if (shown >= limit) {
                 hiddenByLimit++;
                 continue;

@@ -1575,6 +1575,11 @@ public class SREClient implements ClientModInitializer {
             var role = SREClient.gameComponent.getRole(player);
             if (role != null) {
                 canUseInstinct = role.canUseInstinct(player);
+                // 超级记录员（QUST）：本能常开——无需按 Alt 切换，存活期间透视与夜视始终保持开启
+                if (isPlayerAliveAndInSurvival() && role.identifier()
+                        .equals(org.agmas.noellesroles.role.qust.QUSTRoles.SUPER_RECORDER_ID)) {
+                    return true;
+                }
             }
         }
         boolean t = isHoldSpecialItem.test(player);

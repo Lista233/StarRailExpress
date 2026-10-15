@@ -556,9 +556,23 @@ public class GameReplayManager implements IGameReplayRecorder {
   protected ReplayTimelineEvent buildTimelineEvent(GameReplayData.ReplayEvent dataEvent,
       TimelineReplayEvent replayEvent,
       Component eventText) {
-    Component text = eventText != null ? eventText
-        : Component.literal(dataEvent.getType().name()).withStyle(ChatFormatting.DARK_GRAY);
+    Component text = eventText != null ? eventText : fallbackEventText(dataEvent);
     long startTime = session.startTimestamp();
+    Map<String, String> eventData = session.eventData(dataEvent);
+    // 补充事件发生时相关玩家的职业快照（roles 记录的即为「当时职业」），
+    // 供落库等场景按事件还原阵营信息（如击杀性质的判定）。
+    if (replayEvent.roles() != null) {
+      UUID source = dataEvent.getSourcePlayer();
+      UUID target = dataEvent.getTargetPlayer();
+      ResourceLocation sourceRole = source == null ? null : replayEvent.roles().get(source);
+      ResourceLocation targetRole = target == null ? null : replayEvent.roles().get(target);
+      if (sourceRole != null) {
+        eventData.put("sourceRole", sourceRole.toString());
+      }
+      if (targetRole != null) {
+        eventData.put("targetRole", targetRole.toString());
+      }
+    }
     return new ReplayTimelineEvent(
         UUID.randomUUID(),
         replayEvent.eventType(),
@@ -568,7 +582,19 @@ public class GameReplayManager implements IGameReplayRecorder {
         dataEvent.getTargetPlayer() == null ? null : session.profile(dataEvent.getTargetPlayer()),
         text,
         dataEvent.isHidden(),
-        session.eventData(dataEvent));
+        eventData);
+  }
+
+  /**
+   * 无展示文本的事件（如任务完成）在时间线中使用的回退文本：带上关键标识，
+   * 保证落库后仍能通过数据库查询识别具体内容（此类事件默认隐藏，不会展示）。
+   */
+  private static Component fallbackEventText(GameReplayData.ReplayEvent dataEvent) {
+    if (dataEvent.getType() == GameReplayData.EventType.TASK_COMPLETE && dataEvent.getItemUsed() != null) {
+      return Component.literal(dataEvent.getType().name() + ": " + dataEvent.getItemUsed())
+          .withStyle(ChatFormatting.DARK_GRAY);
+    }
+    return Component.literal(dataEvent.getType().name()).withStyle(ChatFormatting.DARK_GRAY);
   }
 
   // public static List<Predicate<Player>> cantSeeEvent = new ArrayList<>();
@@ -639,6 +665,19 @@ public class GameReplayManager implements IGameReplayRecorder {
     addEvent(GameReplayData.EventType.STORE_BUY, playerUuid, null, itemBoughtStr + ":" + amount,
         String.valueOf(price), hidden);
     io.wifi.starrailexpress.progression.ProgressionDataManager.onShopBuy(playerUuid, itemBoughtStr);
+  }
+
+  /**
+   * 任务完成：playerUuid 完成了 taskId 对应任务。
+   * 该事件默认隐藏，仅写入回放时间线供落库（数据库查询）使用，不参与任何展示。
+   */
+  public void recordTaskComplete(UUID playerUuid, ResourceLocation taskId) {
+    recordTaskComplete(playerUuid, taskId, true);
+  }
+
+  public void recordTaskComplete(UUID playerUuid, ResourceLocation taskId, boolean hidden) {
+    String taskIdStr = taskId != null ? taskId.toString() : "unknown";
+    addEvent(GameReplayData.EventType.TASK_COMPLETE, playerUuid, null, taskIdStr, null, hidden);
   }
 
   public void recordItemUse(UUID playerUuid, ResourceLocation itemUsed) {
@@ -1056,6 +1095,8 @@ public class GameReplayManager implements IGameReplayRecorder {
           store.itemId() + ":1", String.valueOf(store.cost()), hidden);
     } else if (details instanceof ReplayEventTypes.ArmorBreakDetails armor) {
       addEvent(GameReplayData.EventType.ARMOR_BREAK, armor.playerUuid(), null, "unknown", null, hidden);
+    } else if (details instanceof ReplayEventTypes.TaskCompleteDetails task) {
+      recordTaskComplete(task.playerUuid(), task.taskId(), hidden);
     } else if (details instanceof ReplayEventTypes.CustomEventDetails custom) {
       recordCustomEvent(custom.Message(), hidden);
     } else {

@@ -128,17 +128,9 @@ public class RandomMinigameQuestPanelBlock extends BaseEntityBlock
         BlockEntity be = world.getBlockEntity(pos);
         if (be instanceof MinigameQuestBlockEntity questBe) {
             if (player instanceof ServerPlayer sp) {
-                // 检查冷却
-                if (SREGameWorldComponent.KEY.get(sp.level()).isRunning() && isBlockOnCooldown(sp, pos)) {
-                    sp.displayClientMessage(
-                            net.minecraft.network.chat.Component.translatable("message.sre.minigame_cooldown"),
-                            true);
-                    return InteractionResult.SUCCESS;
-                }
-                // 从小游戏池随机选取一个小游戏
+                // 随机小游戏点已移除复用冷却：每次交互均可立即开始一局
                 String randomId = pickRandomMinigame(sp);
                 if (randomId != null) {
-                    startBlockCooldown(sp, pos);
                     net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
                             new io.wifi.starrailexpress.network.MinigameQuestPayload.OpenGame(pos, randomId));
                 }
@@ -159,18 +151,6 @@ public class RandomMinigameQuestPanelBlock extends BaseEntityBlock
         if (ids.isEmpty())
             return null;
         return ids.get(sp.getRandom().nextInt(ids.size()));
-    }
-
-    private static boolean isBlockOnCooldown(ServerPlayer sp, BlockPos pos) {
-        var mgComp = SREPlayerMinigameTaskComponent.KEY.get(sp);
-        return mgComp != null && mgComp.isBlockUsed(pos);
-    }
-
-    private static void startBlockCooldown(ServerPlayer sp, BlockPos pos) {
-        var mgComp = SREPlayerMinigameTaskComponent.KEY.get(sp);
-        if (mgComp != null) {
-            mgComp.startBlockCooldown(pos);
-        }
     }
 
     @Nullable
@@ -238,7 +218,7 @@ public class RandomMinigameQuestPanelBlock extends BaseEntityBlock
     @Override
     public boolean shouldRenderTaskInstinct(Level level, BlockState state, BlockPos pos, Player player) {
         // 随机小游戏面板：仅在游戏运行中且玩家有「待办小游戏任务」时显示金色透视；
-        // 不再因点击后的复用冷却而隐藏高亮（否则点一下引导就消失），冷却拦截仍由 useWithoutItem 负责
+        // 随机小游戏点无复用冷却，点击后可立即再次游玩
         if (!(level.getBlockEntity(pos) instanceof MinigameQuestBlockEntity questBe)) {
             return false;
         }

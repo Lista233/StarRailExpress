@@ -25,8 +25,9 @@ import java.util.UUID;
  * <p>
  * 胜利条件（满足任一即可）：
  * <ul>
- *   <li>条件一：标记场上所有存活玩家</li>
- *   <li>条件二：标记游戏开始时 3/4 的人数（不管死了多少，总数不变）</li>
+ *   <li>条件一：标记场上所有存活玩家（按精确 UUID 核对当前每个存活玩家；
+ *       已标记玩家死亡后不再计入条件一的存活标记数）</li>
+ *   <li>条件二：标记游戏开始时 3/4 的人数（按累计标记数，不受死亡影响）</li>
  * </ul>
  */
 public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.component.tick.ServerTickingComponent {
@@ -42,7 +43,7 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
     /** 标记时间戳（玩家UUID -> 标记时的tick） */
     public final Map<UUID, Integer> markTimestamps = new HashMap<>();
 
-    /** 待发送的延迟通知（标记后8秒通知被标记者） */
+    /** 待发送的延迟通知（标记后5秒通知被标记者） */
     private final List<PendingNotification> pendingNotifications = new ArrayList<>();
 
     /** 延迟通知数据 */
@@ -50,6 +51,9 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
 
     /** 同步到客户端的存活玩家数（用于HUD显示） */
     public int syncedAliveCount = 0;
+
+    /** 同步到客户端的「已标记且仍存活」玩家数（用于HUD条件一显示） */
+    public int syncedMarkedAliveCount = 0;
 
     /** 同步到客户端的需要发送数（用于HUD显示，保留兼容） */
     public int syncedRequiredCount = 0;
@@ -63,6 +67,7 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
     /** 上次同步时的存活数/所需数（变化检测用，仅服务端运行时状态） */
     private int lastSyncedAliveCount = -1;
     private int lastSyncedRequiredCount = -1;
+    private int lastSyncedMarkedAliveCount = -1;
 
     public HackerRoleData(Player player) {
         this.player = player;
@@ -80,11 +85,13 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
         markTimestamps.clear();
         pendingNotifications.clear();
         syncedAliveCount = 0;
+        syncedMarkedAliveCount = 0;
         syncedRequiredCount = 0;
         syncedStartPlayerCount = 0;
         startPlayerCount = 0;
         lastSyncedAliveCount = -1;
         lastSyncedRequiredCount = -1;
+        lastSyncedMarkedAliveCount = -1;
     }
 
     @Override
@@ -94,11 +101,13 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
         markTimestamps.clear();
         pendingNotifications.clear();
         syncedAliveCount = 0;
+        syncedMarkedAliveCount = 0;
         syncedRequiredCount = 0;
         syncedStartPlayerCount = 0;
         startPlayerCount = 0;
         lastSyncedAliveCount = -1;
         lastSyncedRequiredCount = -1;
+        lastSyncedMarkedAliveCount = -1;
     }
 
     @Override
@@ -138,10 +147,10 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
     }
 
     /**
-     * 添加延迟通知（标记后8秒通知被标记者）
+     * 添加延迟通知（标记后5秒通知被标记者）
      */
     public void addPendingNotification(UUID targetUuid, String targetName, String ip, int currentTick) {
-        pendingNotifications.add(new PendingNotification(targetUuid, targetName, ip, currentTick + 160)); // 8秒 = 160 ticks
+        pendingNotifications.add(new PendingNotification(targetUuid, targetName, ip, currentTick + 100)); // 5秒 = 100 ticks
     }
 
     /**
@@ -179,33 +188,37 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
 
     /**
      * 检查是否达成胜利条件（满足任一即可）：
-     * 1. 标记了场上所有存活玩家
-     * 2. 标记了游戏开始时 3/4 的人数
+     * 1. 标记了场上所有存活玩家（按精确 UUID 核对：当前每个存活玩家都在标记集合中；
+     *    已标记玩家死亡后不再计入条件一的存活标记数）
+     * 2. 标记了游戏开始时 3/4 的人数（按累计标记数，不受死亡影响）
      */
     public boolean hasWon() {
         if (!(player instanceof ServerPlayer sp)) {
             return false;
         }
 
-        int markedCount = markedPlayers.size();
-
-        // 条件一：标记了场上所有存活玩家
+        // 条件一：当前每个存活玩家都必须被标记（精确 UUID 核对）。
+        // 已死亡的已标记玩家不再计入，避免"标记数 >= 存活数"被死者凑数误判
         var gameWorld = SREGameWorldComponent.KEY.get(player.level());
         int aliveCount = 0;
+        int markedAliveCount = 0;
         for (ServerPlayer p : sp.getServer().getPlayerList().getPlayers()) {
             if (p.getUUID().equals(player.getUUID())) continue;
             if (gameWorld.getRole(p) != null && GameUtils.isPlayerAliveAndSurvival(p)) {
                 aliveCount++;
+                if (markedPlayers.contains(p.getUUID())) {
+                    markedAliveCount++;
+                }
             }
         }
-        if (aliveCount > 0 && markedCount >= aliveCount) {
+        if (aliveCount > 0 && markedAliveCount >= aliveCount) {
             return true;
         }
 
-        // 条件二：标记了游戏开始时 3/4 的人数
+        // 条件二：标记了游戏开始时 3/4 的人数（累计标记数含已死亡玩家，不受死亡影响）
         if (startPlayerCount > 0) {
             int threeFourths = Math.max(2, (int) Math.ceil(startPlayerCount * 3.0 / 4.0));
-            if (markedCount >= threeFourths) {
+            if (markedPlayers.size() >= threeFourths) {
                 return true;
             }
         }
@@ -250,13 +263,18 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
         }
         var gameWorld = SREGameWorldComponent.KEY.get(player.level());
         int aliveCount = 0;
+        int markedAliveCount = 0;
         for (ServerPlayer p : sp.getServer().getPlayerList().getPlayers()) {
             if (p.getUUID().equals(player.getUUID())) continue;
             if (gameWorld.getRole(p) != null && GameUtils.isPlayerAliveAndSurvival(p)) {
                 aliveCount++;
+                if (markedPlayers.contains(p.getUUID())) {
+                    markedAliveCount++;
+                }
             }
         }
         syncedAliveCount = aliveCount;
+        syncedMarkedAliveCount = markedAliveCount;
         syncedRequiredCount = Math.min((int) Math.ceil(aliveCount * 0.75), 15);
 
         // 初始化开局玩家总数（仅首次，之后不再变化）
@@ -275,9 +293,11 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
 
         // 存活人数或所需发送数变化时同步到客户端（含职业刚分配后的首次初始化），
         // 保证一进游戏 HUD 的 x/y 就是正确值而非 0/0（此前只有标记/发送动作才触发 sync）
-        if (syncedAliveCount != lastSyncedAliveCount || syncedRequiredCount != lastSyncedRequiredCount) {
+        if (syncedAliveCount != lastSyncedAliveCount || syncedRequiredCount != lastSyncedRequiredCount
+                || syncedMarkedAliveCount != lastSyncedMarkedAliveCount) {
             lastSyncedAliveCount = syncedAliveCount;
             lastSyncedRequiredCount = syncedRequiredCount;
+            lastSyncedMarkedAliveCount = syncedMarkedAliveCount;
             sync();
         }
 
@@ -349,6 +369,7 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
         // 同步存活人数和需要发送数（用于客户端HUD显示）
         updateAliveCount();
         tag.putInt("SyncedAliveCount", syncedAliveCount);
+        tag.putInt("SyncedMarkedAliveCount", syncedMarkedAliveCount);
         tag.putInt("SyncedRequiredCount", syncedRequiredCount);
         tag.putInt("SyncedStartPlayerCount", syncedStartPlayerCount);
     }
@@ -357,6 +378,7 @@ public class HackerRoleData implements RoleComponent, org.ladysnake.cca.api.v3.c
     public void readFromSyncNbt(@NotNull CompoundTag tag, HolderLookup.Provider registryLookup) {
         readFromNbt(tag, registryLookup);
         syncedAliveCount = tag.getInt("SyncedAliveCount");
+        syncedMarkedAliveCount = tag.getInt("SyncedMarkedAliveCount");
         syncedRequiredCount = tag.getInt("SyncedRequiredCount");
         syncedStartPlayerCount = tag.getInt("SyncedStartPlayerCount");
     }

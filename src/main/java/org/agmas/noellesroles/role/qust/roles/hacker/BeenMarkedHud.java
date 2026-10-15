@@ -29,7 +29,7 @@ public class BeenMarkedHud implements HudRenderCallback {
     private static String displayIp = null;
     private static String displayLocation = null;
     private static long displayEndTime = 0;
-    private static final long DISPLAY_DURATION_MS = 6000; // 6秒（略长于 Title 的5秒，留出读 UUID 的时间）
+    private static final long DISPLAY_DURATION_MS = 1500; // 1.5秒
 
     /**
      * 显示被标记信息（传入已掩码的 IP 与属地查询结果）

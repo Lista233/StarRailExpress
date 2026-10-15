@@ -35,7 +35,7 @@ public final class GunTracerRenderer {
     private static final int GRADIENT_SEGMENTS = 10;
     private static final List<Tracer> TRACERS = new ArrayList<>();
 
-    private record Tracer(Vec3 from, Vec3 to, double travelTicks, long bornGameTime) {
+    private record Tracer(Vec3 from, Vec3 to, double travelTicks, long bornGameTime, int style) {
     }
 
     private GunTracerRenderer() {
@@ -64,7 +64,7 @@ public final class GunTracerRenderer {
         }
         double distance = from.distanceTo(to);
         double travelTicks = Mth.clamp(0.85D + distance / 38.0D, 1.15D, 3.4D);
-        TRACERS.add(new Tracer(from, to, travelTicks, client.level.getGameTime()));
+        TRACERS.add(new Tracer(from, to, travelTicks, client.level.getGameTime(), packet.style()));
     }
 
     public static void render(WorldRenderContext context) {
@@ -112,12 +112,16 @@ public final class GunTracerRenderer {
                 tail += (head - tail) * (0.35D + 0.65D * shrink);
             }
             float fade = (float) Math.pow(1.0D - clamp(age / LIFE_TICKS), 0.55D);
+            // 深红样式（祖宗发射器）：亮红外芯 + 更深红的外发光；其余样式保持琥珀色
+            boolean red = tracer.style() == GunTracerS2CPacket.STYLE_RED;
+            float r = 1.00F;
+            float g = red ? (glow ? 0.10F : 0.28F) : (glow ? 0.78F : 0.96F);
+            float b = red ? (glow ? 0.08F : 0.22F) : (glow ? 0.38F : 0.82F);
             matrices.pushPose();
             matrices.translate(tracer.from().x - cameraPos.x, tracer.from().y - cameraPos.y,
                     tracer.from().z - cameraPos.z);
             gradientLine(matrices.last(), consumer, tracer.to().subtract(tracer.from()),
-                    tail, head, 1.00F, glow ? 0.78F : 0.96F, glow ? 0.38F : 0.82F,
-                    fade * (glow ? 0.20F : 0.90F));
+                    tail, head, r, g, b, fade * (glow ? 0.20F : 0.90F));
             matrices.popPose();
         }
     }

@@ -1152,13 +1152,14 @@ public class GameUtils {
 
         TimeStopEffect.canMovePlayers.clear();
         SRE.REPLAY_MANAGER.finalizeReplay(roundEnd.getWinStatus(), roundEnd);
-        // 对局结束后把完整回放时间线作为全局战绩异步保存到远端数据库（未开启 MySQL 同步时自动跳过）。
-        net.exmo.sre.record.MatchRecordService.recordFinishedMatch(world);
 
         isGameStarted = false;
 
         gameComponent.getGameMode().recordWinStats(world, roundEnd, gameComponent);
         // --- 结束新增统计数据更新逻辑 (胜利/失败) ---
+        // 对局结束后把完整回放时间线作为全局战绩异步保存到远端数据库（未开启 MySQL 同步时自动跳过）。
+        // 必须放在 recordWinStats 之后：落库时需要读取 roundEnd 中刚写入的每玩家胜负标记。
+        net.exmo.sre.record.MatchRecordService.recordFinishedMatch(world);
         // roundEnd.sync();
         // Show replay to all players
         gameComponent.getGameMode().showReplay(world, roundEnd, gameComponent);

@@ -34,11 +34,13 @@ import java.util.List;
  * 全局战绩 / 对局回放 GUI —— 参考游戏介绍（Intro）界面的暗金主从布局：
  * 左侧为对局卡片列表（虚拟列表，按滚动位置按需向服务端拉取分页），
  * 右侧为所选对局的详情：玩家按阵营分组（显示本地化职业名与旧职业）+ 事件时间线。
- * 不展示 Store Buy（商店购买）与隐藏事件。
+ * 不展示 Store Buy（商店购买）、任务完成（TASK_COMPLETE）与隐藏事件。
  */
 public class MatchRecordsScreen extends Screen {
 
     private static final String STORE_BUY = "STORE_BUY";
+    /** 任务完成事件仅用于数据库查询，不在界面展示。 */
+    private static final String TASK_COMPLETE = "TASK_COMPLETE";
     /** 每页拉取的战绩条数。 */
     public static final int PAGE_SIZE = 16;
 
@@ -253,7 +255,8 @@ public class MatchRecordsScreen extends Screen {
         boolean any = false;
         if (selectedRecord.events != null) {
             for (MatchRecord.MatchEvent event : selectedRecord.events) {
-                if (event == null || event.hidden || STORE_BUY.equals(event.type)) {
+                if (event == null || event.hidden || STORE_BUY.equals(event.type)
+                        || TASK_COMPLETE.equals(event.type)) {
                     continue;
                 }
                 any = true;

@@ -61,6 +61,17 @@ public final class GunTracers {
         broadcast(shooter, hit, range, true, GunTracerS2CPacket.STYLE_SNIPER);
     }
 
+    /**
+     * 深红样式：祖宗发射器专属弹道线——客户端把轨迹线渲染为深红色（不附加烟雾），
+     * 与其它枪械的琥珀色轨迹区分。受服务端总开关
+     * {@link NoellesRolesConfig#gunTracerEffect} 控制。
+     *
+     * @param hit 命中的实体（null=未命中，按视线方向延伸 range）
+     */
+    public static void broadcastRed(ServerPlayer shooter, @Nullable Entity hit, double range) {
+        broadcast(shooter, hit, range, false, GunTracerS2CPacket.STYLE_RED);
+    }
+
     private static void broadcast(ServerPlayer shooter, @Nullable Entity hit, double range,
             boolean ignoreGlobalSwitch, int style) {
         // 服务端侧开关：关闭时不广播任何轨迹线
