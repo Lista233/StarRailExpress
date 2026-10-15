@@ -29,6 +29,7 @@ import org.agmas.noellesroles.init.ModEffects;
  * <ul>
  *     <li>{@code GravityFlipPhysicsMixin}：重力取反 + 撞天花板视为落地</li>
  *     <li>{@code GravityFlipJumpMixin}：跳跃方向反转</li>
+ *     <li>{@code GravityFlipCameraMixin}：投影矩阵旋转 180°，视野整体倒转</li>
  * </ul>
  * 模型倒立在 {@code LivingEntityRendererMixin#sre$isEntityUpsideDown} 里统一处理。
  */
