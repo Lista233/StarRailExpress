@@ -2226,6 +2226,7 @@
     "block.noellesroles.poison_zone": "Poison Zone",
     "block.noellesroles.fake_block": "Fake Block",
     "block.noellesroles.bounce_mushroom": "Bounce Mushroom",
+    "block.noellesroles.anti_gravity_block": "Anti-Gravity Block",
     "block.noellesroles.breaking_bridge": "Breaking Bridge Block",
     "block.noellesroles.breaking_bridge.tip": "[%s] Current crack display: %s",
     "block.noellesroles.breaking_bridge.set_to": "Set block to %s",

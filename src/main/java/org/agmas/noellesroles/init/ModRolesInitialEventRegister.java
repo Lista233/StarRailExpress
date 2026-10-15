@@ -448,6 +448,9 @@ public class ModRolesInitialEventRegister {
         org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerVoiceSwapManager.register();
         org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerPaletteManager.register();
 
+        // 反重力方块：接触翻转重力方向（服务端权威 + 客户端同步）
+        org.agmas.noellesroles.content.effects.GravityFlipManager.register();
+
         RoleSkill.register(ModRoles.NET_COP,
                 RoleSkill.skill(SRE.id("net_cop_swap_hands"),
                         "skill.noellesroles.net_cop.swap_hands",

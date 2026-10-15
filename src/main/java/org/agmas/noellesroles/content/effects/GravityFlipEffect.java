@@ -32,6 +32,13 @@ import org.agmas.noellesroles.init.ModEffects;
  *     <li>{@code GravityFlipCameraMixin}：投影矩阵旋转 180°，视野整体倒转</li>
  * </ul>
  * 模型倒立在 {@code LivingEntityRendererMixin#sre$isEntityUpsideDown} 里统一处理。
+ *
+ * <p>两条触发路径：
+ * <ul>
+ *     <li>药水效果：创造模式免疫；</li>
+ *     <li>反重力方块：不经过药水（避免被清除），由 {@link GravityFlipManager} 在双端维护，
+ *     冒险/创造模式均生效，死亡、退出冒险/创造、游戏结束/开始时自动解除。</li>
+ * </ul>
  */
 public class GravityFlipEffect extends SimpleMobEffect {
 
@@ -44,13 +51,6 @@ public class GravityFlipEffect extends SimpleMobEffect {
      *
      * <p>这是反重力<b>唯一的开关</b>：三个注入点全部以它为闸门，因此效果一旦结束（或玩家死亡、
      * 变旁观者、被移除）就会立刻全部失效，且不会残留任何状态。
-     *
-     * <p>限制：
-     * <ul>
-     *     <li>只对玩家生效，其它实体一律 false；</li>
-     *     <li>旁观者、创造模式玩家免疫；</li>
-     *     <li>已死亡 / 已移除的玩家立即失效（防止尸体或残留实体继续被翻转）。</li>
-     * </ul>
      */
     public static boolean isFlipped(Entity entity) {
         if (!(entity instanceof Player player)) {
@@ -60,9 +60,14 @@ public class GravityFlipEffect extends SimpleMobEffect {
         if (player.isRemoved() || !player.isAlive()) {
             return false;
         }
-        if (player.isSpectator() || player.isCreative()) {
+        if (player.isSpectator()) {
             return false;
         }
-        return player.hasEffect(ModEffects.GRAVITY_FLIP);
+        // 药水效果路径：创造模式免疫
+        if (player.hasEffect(ModEffects.GRAVITY_FLIP) && !player.isCreative()) {
+            return true;
+        }
+        // 反重力方块路径：由管理器在双端维护（冒险/创造均生效，含清理规则）
+        return GravityFlipManager.isFlipped(player);
     }
 }

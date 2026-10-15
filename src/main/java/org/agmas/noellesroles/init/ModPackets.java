@@ -347,6 +347,9 @@ public class ModPackets {
         PayloadTypeRegistry.playC2S().register(SkincrawlerC2SPacket.ID, SkincrawlerC2SPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(SkincrawlerSkinS2CPacket.ID, SkincrawlerSkinS2CPacket.CODEC);
 
+        // 注册反重力方块状态同步网络包（S2C，客户端接收器在 NoellesrolesClient）
+        PayloadTypeRegistry.playS2C().register(GravityFlipS2CPacket.ID, GravityFlipS2CPacket.CODEC);
+
         // 注册阿蒙夺舍皮肤顶替网络包
         PayloadTypeRegistry.playS2C().register(org.agmas.noellesroles.packet.AmonSkinS2CPacket.ID,
                 org.agmas.noellesroles.packet.AmonSkinS2CPacket.CODEC);
