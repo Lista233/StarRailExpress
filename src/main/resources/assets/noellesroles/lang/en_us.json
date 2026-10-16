@@ -4295,6 +4295,8 @@
     "message.noellesroles.godfather.cooldown": "Recruit on cooldown, %ss left",
     "message.noellesroles.godfather.cannot_recruit": "This player cannot be recruited",
     "message.noellesroles.godfather.recruit_success": "You successfully recruited %s as %s!",
+    "message.noellesroles.godfather.no_target": "No target player in sight",
+    "message.noellesroles.godfather.out_of_range": "Target is out of recruit range",
     "hud.noellesroles.godfather.ammo": "Ammo %s/%s",
     "hud.noellesroles.godfather.family": "Family %s/%s",
     "screen.noellesroles.godfather.recruit": "Recruit Family Member",

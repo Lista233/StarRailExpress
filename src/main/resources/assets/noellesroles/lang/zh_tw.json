@@ -4296,6 +4296,8 @@
   "message.noellesroles.godfather.cooldown": "招募技能冷卻中，剩餘 %s 秒",
   "message.noellesroles.godfather.cannot_recruit": "該玩家無法被招募",
   "message.noellesroles.godfather.recruit_success": "你成功將 %s 招募為 %s！",
+  "message.noellesroles.godfather.no_target": "未瞄準到目標玩家",
+  "message.noellesroles.godfather.out_of_range": "目標超出招募範圍",
   "hud.noellesroles.godfather.ammo": "子彈 %s/%s",
   "hud.noellesroles.godfather.family": "家族 %s/%s",
   "screen.noellesroles.godfather.recruit": "招募家族成員",
