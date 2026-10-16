@@ -1735,6 +1735,7 @@
     "announcement.star.win.bomber": "The Killer team wins!",
     "hud.noellesroles.bomber.count": "Bombs: %s",
     "hud.noellesroles.bomber.cost": "Purchase cost: 100 coins",
+    "message.noellesroles.bomb.cannot_give_to_backworld": "You cannot pass the bomb to a player in the backworld",
     "hud.noellesroles.niaoshoushou.missile": "Controlling loitering missile",
     "hud.noellesroles.niaoshoushou.controls": "Mouse steers · auto-advances",
     "message.noellesroles.cooldown": "Ability unavailable: on cooldown",

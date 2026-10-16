@@ -19,9 +19,11 @@ import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -38,6 +40,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.*;
+import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.utils.MCItemsUtils;
@@ -193,6 +196,12 @@ public class BombItem extends Item {
         if (level.isClientSide)
             return InteractionResultHolder.pass(stack);
 
+        // 里世界（怀旧者 / 布袋鬼 / 归途旅人等）与未现形的冤魂处于"另一层"状态：
+        // 不允许把炸弹右键递给其他玩家。客户端的按键屏蔽可被绕过，这里做服务端权威判定。
+        if (ModEffects.isInBackworldOrWraithDimension(player)) {
+            return InteractionResultHolder.pass(stack);
+        }
+
         // Raycast to find target player
         double reachDistance = 5.0; // 5 blocks reach
         Vec3 eyePosition = player.getEyePosition();
@@ -218,6 +227,14 @@ public class BombItem extends Item {
                 if (eyePosition.distanceTo(blockPos) < eyePosition.distanceTo(entityPos)) {
                     return InteractionResultHolder.pass(stack);
                 }
+            }
+            // 里世界 / 未现形的冤魂处于"另一层"状态：不能接收别人递交的炸弹
+            if (ModEffects.isInBackworldOrWraithDimension(target)) {
+                player.displayClientMessage(
+                        Component.translatable("message.noellesroles.bomb.cannot_give_to_backworld")
+                                .withStyle(ChatFormatting.RED),
+                        true);
+                return InteractionResultHolder.pass(stack);
             }
             // Transfer bomb
             ItemStack newStack = stack.copy();

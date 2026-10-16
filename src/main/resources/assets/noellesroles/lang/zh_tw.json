@@ -1735,6 +1735,7 @@
   "announcement.star.win.bomber": "殺手勝利！",
   "hud.noellesroles.bomber.count": "炸彈數量: %s",
   "hud.noellesroles.bomber.cost": "購買消耗: 100 金幣",
+  "message.noellesroles.bomb.cannot_give_to_backworld": "你無法將炸彈傳給處於裡世界的玩家",
   "hud.noellesroles.niaoshoushou.missile": "巡飛彈操控中",
   "hud.noellesroles.niaoshoushou.controls": "滑鼠控制方向 · 自動前進",
   "message.noellesroles.cooldown": "無法使用技能：技能冷卻中",
