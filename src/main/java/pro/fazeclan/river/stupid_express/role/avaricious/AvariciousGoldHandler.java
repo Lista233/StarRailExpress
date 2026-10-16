@@ -63,6 +63,9 @@ public class AvariciousGoldHandler {
     }
 
     public static void playerServerTick(ServerPlayer player, SREGameWorldComponent gameWorldComponent) {
+        // 旁观者模式（含死亡后的玩家）：不再扒窃周围玩家的金币，同时隐藏偷取倒计时 HUD
+        if (player.isSpectator())
+            return;
         var serverWorld = player.serverLevel();
         long time = serverWorld.getGameTime();
         if (player.hasEffect(ModEffects.SAFE_TIME))

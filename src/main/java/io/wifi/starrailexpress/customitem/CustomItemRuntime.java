@@ -1293,7 +1293,13 @@ public final class CustomItemRuntime {
         return InteractionResult.SUCCESS;
     }
 
-    /** 给被拷住玩家挂上「直到被解除」的药水效果（缺了就补）。 */
+    /**
+     * 给被拷住玩家挂上「直到被解除」的药水效果。
+     *
+     * <p>
+     * 重复拷上不叠加时长：先移除同名旧实例再按手铐配置重挂，
+     * 保证每次拷上都是从零开始的完整时长（残留的有限时长实例也会被一并重置）。
+     */
     public static void applyCuffEffects(ServerPlayer holder, CustomItemData data) {
         for (CustomItemData.EffectData effect : effectList(data.cuffEffects)) {
             Holder<MobEffect> effectHolder = resolveEffect(effect.effectId);
@@ -1303,19 +1309,35 @@ public final class CustomItemRuntime {
             int amplifier = Math.max(0, effect.amplifier);
             MobEffectInstance current = holder.getEffect(effectHolder);
             if (current != null && current.isInfiniteDuration() && current.getAmplifier() == amplifier) {
+                // 已是「本手铐配置的同款无限时长」：无需重挂（无限时长也不会因重复施加而叠加）
                 continue;
             }
+            // 先移除再挂：重复拷上 = 重置时长，而不是在原有时长上叠加
+            holder.removeEffect(effectHolder);
             holder.addEffect(new MobEffectInstance(effectHolder, MobEffectInstance.INFINITE_DURATION,
                     amplifier, false, false, true));
         }
     }
 
-    /** 解除手铐时移除配置里带来的药水效果。 */
+    /**
+     * 解除手铐时移除该手铐带来的全部药水效果。
+     *
+     * <p>
+     * 除配置里的 {@code cuffEffects} 外，「是否限制玩家行为」自带的减速也属手铐效果：
+     * 它每 tick 刷新 20 tick，不清就会在解除后残留整整一秒，一并清掉才是「立即清除」。
+     * 只清有限时长的那份（手铐限行的签名），无限时长的其它来源（如玉将军的永久缓慢）不受影响。
+     */
     public static void clearCuffEffects(ServerPlayer holder, CustomItemData data) {
         for (CustomItemData.EffectData effect : effectList(data.cuffEffects)) {
             Holder<MobEffect> effectHolder = resolveEffect(effect.effectId);
             if (effectHolder != null) {
                 holder.removeEffect(effectHolder);
+            }
+        }
+        if (data != null && data.cuffRestrict) {
+            MobEffectInstance slow = holder.getEffect(MobEffects.MOVEMENT_SLOWDOWN);
+            if (slow != null && !slow.isInfiniteDuration()) {
+                holder.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
             }
         }
     }
