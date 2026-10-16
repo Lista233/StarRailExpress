@@ -2327,7 +2327,7 @@
     "item.noellesroles.cooked_food.effects_title": "Food effects:",
     "item.noellesroles.cooked_food.effect.glowing": "Glowing for %s s",
     "item.noellesroles.cooked_food.effect.restore_san": "Restore Sanity",
-    "item.noellesroles.cooked_food.effect.reduce_cooldown": "Reduce skill cooldown by %s s",
+    "item.noellesroles.cooked_food.effect.reduce_cooldown": "Reduce item cooldown by %s s",
     "item.noellesroles.cooked_food.effect.speed": "Speed I for %s s",
     "item.noellesroles.cooked_food.effect.skip_task": "Skip the current task",
     "item.noellesroles.cooked_food.effect.night_vision": "Night Vision for %s s",
