@@ -1619,6 +1619,45 @@ public final class CustomItemRuntime {
         syncCooldown(player, keys, ticks);
     }
 
+    /**
+     * 减少该玩家全部自定义物品的冷却（菜肴「减少物品冷却」用），并同步客户端。
+     *
+     * <p>
+     * 与 {@link #applyCooldown} / {@link #clearCooldowns} 同一套写法：冷却条目写在<b>原版</b>
+     * {@link net.minecraft.world.item.ItemCooldowns} 里、键是自定义物品专属的，所以按「剩余时间」
+     * 重设（剩余不足则直接解除）。原版同步包带不了未注册物品，因此逐件用
+     * {@link io.wifi.starrailexpress.network.CustomItemCooldownS2CPayload} 按 id 同步。
+     *
+     * @param ticks 减少多少 tick（20 tick = 1 秒）
+     */
+    public static void reduceCooldowns(ServerPlayer player, int ticks) {
+        if (player == null || ticks <= 0) {
+            return;
+        }
+        final net.minecraft.world.item.ItemCooldowns cooldowns = player.getCooldowns();
+        if (cooldowns.cooldowns.isEmpty()) {
+            return;
+        }
+        for (net.minecraft.world.item.Item key : new ArrayList<>(cooldowns.cooldowns.keySet())) {
+            final String id = CustomItemCooldownKeys.idOf(key);
+            if (id == null) {
+                continue; // 不是自定义物品的冷却键
+            }
+            final net.minecraft.world.item.ItemCooldowns.CooldownInstance instance = cooldowns.cooldowns.get(key);
+            if (instance == null) {
+                continue;
+            }
+            final int next = instance.endTime - cooldowns.tickCount - ticks;
+            if (next <= 0) {
+                cooldowns.removeCooldown(key);
+                syncCooldown(player, List.of(key), 0);
+            } else {
+                cooldowns.addCooldown(key, next);
+                syncCooldown(player, List.of(key), next);
+            }
+        }
+    }
+
     /** 清空该玩家的全部自定义物品冷却（每局开始 / 结束时调用）。 */
     public static void clearCooldowns(ServerPlayer player) {
         if (player == null) {

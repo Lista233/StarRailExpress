@@ -2328,7 +2328,7 @@
   "item.noellesroles.cooked_food.effects_title": "食物效果：",
   "item.noellesroles.cooked_food.effect.glowing": "發光 %s 秒",
   "item.noellesroles.cooked_food.effect.restore_san": "恢復理智",
-  "item.noellesroles.cooked_food.effect.reduce_cooldown": "減少技能冷卻 %s 秒",
+  "item.noellesroles.cooked_food.effect.reduce_cooldown": "減少物品冷卻 %s 秒",
   "item.noellesroles.cooked_food.effect.speed": "速度 I %s 秒",
   "item.noellesroles.cooked_food.effect.skip_task": "跳過當前任務",
   "item.noellesroles.cooked_food.effect.night_vision": "夜視 %s 秒",
