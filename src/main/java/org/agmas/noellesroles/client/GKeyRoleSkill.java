@@ -26,7 +26,15 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.agmas.noellesroles.client.screen.BroadcasterScreen;
+import org.agmas.noellesroles.client.screen.GodfatherRecruitScreen;
 import org.agmas.noellesroles.client.screen.TelegrapherScreen;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.packet.AbilityC2SPacket;
@@ -201,7 +209,15 @@ public final class GKeyRoleSkill {
                     return true;
                 }
             }
-            client.execute(() -> client.setScreen(new org.agmas.noellesroles.client.screen.GodfatherRecruitScreen()));
+            // 只有在招募范围内成功瞄准到目标玩家时才打开发招募 UI；未瞄准到玩家不打开
+            Player target = findRecruitTarget(client);
+            if (target == null) {
+                client.player.displayClientMessage(
+                        Component.translatable("message.noellesroles.godfather.no_target").withStyle(ChatFormatting.RED),
+                        true);
+                return true;
+            }
+            client.execute(() -> client.setScreen(new GodfatherRecruitScreen(target.getUUID())));
             return true;
         });
         register(ModRoles.BROADCASTER, false, (client, gameWorld) -> {
@@ -252,5 +268,34 @@ public final class GKeyRoleSkill {
     @FunctionalInterface
     public interface Handler {
         boolean handle(Minecraft client, SREGameWorldComponent gameWorldComponent);
+    }
+
+    /**
+     * 教父招募瞄准判定：沿视线（准星指向）在 {@link GodfatherRoleData#RECRUIT_RANGE} 格内
+     * 找到第一个可瞄准的玩家，且视线不能被方块挡住；找不到返回 {@code null}。
+     */
+    private static Player findRecruitTarget(Minecraft client) {
+        Player self = client.player;
+        if (self == null || self.level() == null) {
+            return null;
+        }
+        double range = GodfatherRoleData.RECRUIT_RANGE;
+        Vec3 eye = self.getEyePosition(1.0F);
+        Vec3 look = self.getViewVector(1.0F);
+        Vec3 end = eye.add(look.scale(range));
+        AABB searchBox = self.getBoundingBox().expandTowards(look.scale(range)).inflate(1.0D);
+        EntityHitResult hit = ProjectileUtil.getEntityHitResult(self, eye, end, searchBox,
+                entity -> entity instanceof Player && !entity.isSpectator(), range * range);
+        if (hit == null || !(hit.getEntity() instanceof Player target)) {
+            return null;
+        }
+        // 视线遮挡判定：被方块挡住不算瞄准到（与炸弹递交的判定一致）
+        BlockHitResult blockHit = self.level().clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE, self));
+        if (blockHit.getType() == HitResult.Type.BLOCK
+                && eye.distanceTo(blockHit.getLocation()) < eye.distanceTo(hit.getLocation())) {
+            return null;
+        }
+        return target;
     }
 }

@@ -499,6 +499,25 @@ public class FakeSteveAi {
         }
     }
 
+    /**
+     * 重置「卡住」追踪（会议暂停等场景调用）：清空位移采样与卡死锚点。
+     *
+     * <p>
+     * AI 暂停期间身体坐在会议席位上不动，若不清会被 {@link #updateStuck} 累计成卡住，
+     * 并会在恢复后的第一次 {@link #rescueIfStuck} 因「锚点太久没更新」触发保底传送。
+     * 两个采样器都以「时间戳为 0」表示未初始化，下一次调用会自行重新锚定。
+     */
+    static void resetStuckTracking(ServerPlayer body, FakeSteveAgentState state, long now) {
+        state.stuckTicks = 0;
+        state.lastMoveTick = 0L;
+        state.stuckAnchorTick = 0L;
+        state.lastMoveX = body.getX();
+        state.lastMoveY = body.getY();
+        state.lastMoveZ = body.getZ();
+        state.stuckAnchorX = body.getX();
+        state.stuckAnchorZ = body.getZ();
+    }
+
     /** A body that wants to move but does not is recalculated instead of grinding. */
     private static void updateStuck(ServerLevel level, ServerPlayer body,
             FakeSteveAgentState state, long now) {
