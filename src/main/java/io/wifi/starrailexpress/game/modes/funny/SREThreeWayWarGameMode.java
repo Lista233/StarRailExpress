@@ -79,7 +79,7 @@ import java.util.UUID;
  * <p>本模式专属效果（不作用于其它模式）：
  * <ul>
  * <li>兔兔万岁的技能冷却固定为 {@value #RABBIT_SKILL_COOLDOWN_SECONDS} 秒</li>
- * <li>兔兔万岁每 30 秒发光 8 秒</li>
+ * <li>所有存活玩家每 30 秒发光 8 秒</li>
  * <li>蜂后复活出的工蜂资金减少 70%；开局生成的工蜂初始资金减少 50%</li>
  * </ul>
  */
@@ -106,11 +106,11 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
     /** 本模式下兔兔万岁的技能冷却（tick） */
     private static final int RABBIT_SKILL_COOLDOWN_TICKS = RABBIT_SKILL_COOLDOWN_SECONDS * 20;
 
-    /** 本模式下兔兔万岁的发光间隔（tick，30 秒） */
-    private static final int RABBIT_GLOW_INTERVAL_TICKS = 30 * 20;
+    /** 本模式下所有存活玩家的发光间隔（tick，30 秒） */
+    private static final int GLOW_INTERVAL_TICKS = 30 * 20;
 
-    /** 本模式下兔兔万岁每次发光的持续时长（tick，8 秒） */
-    private static final int RABBIT_GLOW_DURATION_TICKS = 8 * 20;
+    /** 本模式下所有存活玩家每次发光的持续时长（tick，8 秒） */
+    private static final int GLOW_DURATION_TICKS = 8 * 20;
 
     /** 本模式下蜂后复活出的工蜂保留的资金比例（减少 70%） */
     public static final float BEE_WORKER_REVIVE_MONEY_KEEP = 0.3F;
@@ -390,20 +390,19 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
         }
     }
 
-    /** 本模式专属定时器：兔兔万岁每 30 秒发光 8 秒 */
+    /** 本模式专属定时器：所有存活玩家每 30 秒发光 8 秒 */
     @Override
     protected void initTickTimers(ServerLevel serverWorld, SREGameWorldComponent gameWorldComponent,
             List<ServerPlayer> players) {
-        tickTimers.add(new TickTimer(RABBIT_GLOW_INTERVAL_TICKS, false, tickTimer -> {
+        tickTimers.add(new TickTimer(GLOW_INTERVAL_TICKS, false, tickTimer -> {
             for (ServerPlayer player : serverWorld.players()) {
-                if (!GameUtils.isPlayerAliveAndSurvival(player)
-                        || !gameWorldComponent.isRole(player, BounsRoles.RABBIT_WANSUI)) {
+                if (!GameUtils.isPlayerAliveAndSurvival(player)) {
                     continue;
                 }
                 if (player.hasEffect(MobEffects.GLOWING)) {
                     player.removeEffect(MobEffects.GLOWING);
                 }
-                player.addEffect(new MobEffectInstance(MobEffects.GLOWING, RABBIT_GLOW_DURATION_TICKS, 1, false,
+                player.addEffect(new MobEffectInstance(MobEffects.GLOWING, GLOW_DURATION_TICKS, 1, false,
                         false));
             }
         }));
