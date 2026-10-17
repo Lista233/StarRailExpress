@@ -66,13 +66,10 @@ public record FoolExecutionerGunShootC2SPacket(int targetId) implements CustomPa
                     TMMSounds.ITEM_REVOLVER_CLICK, SoundSource.PLAYERS, 0.5f,
                     1f + shooter.getRandom().nextFloat() * .1f - .05f);
 
-            var aimed = shooter.serverLevel().getEntity(payload.targetId());
             ServerPlayer target = null;
-            if (aimed instanceof ServerPlayer foundTarget && foundTarget.distanceTo(shooter) < 70.0) {
+            if (shooter.serverLevel().getEntity(payload.targetId()) instanceof ServerPlayer foundTarget
+                    && foundTarget.distanceTo(shooter) < 70.0) {
                 target = foundTarget;
-            } else if (aimed instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy
-                    && dummy.canReceiveHits() && dummy.distanceTo(shooter) < 70.0) {
-                dummy.showHit(shooter);
             }
 
             if (target != null) {

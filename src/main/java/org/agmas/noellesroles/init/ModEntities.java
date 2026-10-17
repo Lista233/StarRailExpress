@@ -27,7 +27,6 @@ import net.minecraft.world.entity.MobCategory;
 
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.content.block_entity.DevilRouletteTableEntity;
-import org.agmas.noellesroles.game.command_block.CommandBlockThrownEntity;
 import org.agmas.noellesroles.content.entity.*;
 
 public class ModEntities {
@@ -633,17 +632,6 @@ public class ModEntities {
                     .trackedUpdateRate(2)
                     .build());
 
-    /** 命令方块投掷物：石头、火球沿抛物线飞，石枪沿视线伸出再收回。 */
-    @SuppressWarnings("deprecation")
-    public static final EntityType<CommandBlockThrownEntity> COMMAND_BLOCK_THROWN = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            Noellesroles.id("command_block_thrown"),
-            FabricEntityTypeBuilder.<CommandBlockThrownEntity>create(MobCategory.MISC, CommandBlockThrownEntity::new)
-                    .dimensions(EntityDimensions.fixed(0.25F, 0.25F))
-                    .trackRangeBlocks(64)
-                    .trackedUpdateRate(1)
-                    .build());
-
     /** 滚木实体 - 沿方向滚动碾死玩家 */
     @SuppressWarnings("deprecation")
     public static final EntityType<RollingLogEntity> ROLLING_LOG = Registry.register(
@@ -699,26 +687,6 @@ public class ModEntities {
                     .trackRangeBlocks(64)
                     .trackedUpdateRate(1)
                     .build());
-
-    /** 命令方块裂缝。客户端用独立渲染器画裂口。 */
-    public static final EntityType<CommandBlockCrackEntity> COMMAND_BLOCK_CRACK = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            Noellesroles.id("command_block_crack"),
-            EntityType.Builder.of(CommandBlockCrackEntity::new, MobCategory.MISC)
-                    .sized(1.2F, 1.8F)
-                    .clientTrackingRange(128)
-                    .updateInterval(10)
-                    .build("command_block_crack"));
-
-    /** 天上的命令方块。碰撞箱盖住模型，跟踪距离够整张地图。 */
-    public static final EntityType<CommandBlockMarkerEntity> COMMAND_BLOCK_MARKER = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            Noellesroles.id("command_block_marker"),
-            EntityType.Builder.of(CommandBlockMarkerEntity::new, MobCategory.MISC)
-                    .sized(8.0F, 8.0F)
-                    .clientTrackingRange(128)
-                    .updateInterval(2)
-                    .build("command_block_marker"));
 
     /**
      * 初始化实体

@@ -60,8 +60,6 @@ public class ModPackets {
                 PurpleMonsterEventS2CPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(PurpleMonsterProgressS2CPacket.ID,
                 PurpleMonsterProgressS2CPacket.CODEC);
-        PayloadTypeRegistry.playS2C().register(org.agmas.noellesroles.packet.CommandBlockProgressS2CPacket.ID,
-                org.agmas.noellesroles.packet.CommandBlockProgressS2CPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(PurpleMonsterEventC2SPacket.ID,
                 PurpleMonsterEventC2SPacket.CODEC);
         // PayloadTypeRegistry.playS2C().register(FakeSteveHuntS2CPacket.ID,
@@ -338,17 +336,10 @@ public class ModPackets {
         // 注册嬉命人网络包
         PayloadTypeRegistry.playC2S().register(EmbalmerC2SPacket.ID, EmbalmerC2SPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(EmbalmerSkinSwapS2CPacket.ID, EmbalmerSkinSwapS2CPacket.CODEC);
-        PayloadTypeRegistry.playC2S().register(org.agmas.noellesroles.packet.EmbalmerVoiceSwapC2SPacket.ID,
-                org.agmas.noellesroles.packet.EmbalmerVoiceSwapC2SPacket.CODEC);
-        PayloadTypeRegistry.playS2C().register(org.agmas.noellesroles.packet.EmbalmerPaletteS2CPacket.ID,
-                org.agmas.noellesroles.packet.EmbalmerPaletteS2CPacket.CODEC);
 
         // 注册窃皮者网络包
         PayloadTypeRegistry.playC2S().register(SkincrawlerC2SPacket.ID, SkincrawlerC2SPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(SkincrawlerSkinS2CPacket.ID, SkincrawlerSkinS2CPacket.CODEC);
-
-        // 注册反重力方块状态同步网络包（S2C，客户端接收器在 NoellesrolesClient）
-        PayloadTypeRegistry.playS2C().register(GravityFlipS2CPacket.ID, GravityFlipS2CPacket.CODEC);
 
         // 注册阿蒙夺舍皮肤顶替网络包
         PayloadTypeRegistry.playS2C().register(org.agmas.noellesroles.packet.AmonSkinS2CPacket.ID,

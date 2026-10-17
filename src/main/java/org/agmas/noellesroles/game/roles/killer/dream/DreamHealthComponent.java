@@ -245,9 +245,6 @@ public class DreamHealthComponent implements RoleComponent {
         if (!GameUtils.isPlayerAliveAndSurvival(sp)) {
             return false;
         }
-        if (attacker != null && !org.agmas.noellesroles.game.command_block.CommandBlockCombat.allowsHimStrike(attacker, sp)) {
-            return false;
-        }
         // 武士刀格挡：所有走虚拟血量的「特殊原版武器」（Dream 铁斧 / 钻石剑 / 重锤、矛、武士刀……）
         // 统一在这里先过一遍格挡判定，命中格挡窗口就放弃本次伤害（消耗武士刀 1 点耐久）。
         // 放在这个总入口而不是逐个武器里写，后续新增同类武器会自动生效。

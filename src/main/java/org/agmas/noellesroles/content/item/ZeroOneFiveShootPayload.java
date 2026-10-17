@@ -64,15 +64,10 @@ public record ZeroOneFiveShootPayload(int target) implements CustomPacketPayload
                 return;
             }
 
-            var aimed = player.serverLevel().getEntity(payload.target());
-            if (aimed instanceof ServerPlayer target
+            if (player.serverLevel().getEntity(payload.target()) instanceof ServerPlayer target
                     && GameUtils.isPlayerAliveAndSurvival(target)
                     && target.distanceToSqr(player) < 30 * 30) {
                 ZeroOneFiveGunItem.onHit(player, target);
-            } else if (aimed instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy
-                    && dummy.canReceiveHits()
-                    && dummy.distanceToSqr(player) < 30 * 30) {
-                ZeroOneFiveGunItem.onHitDummy(player, dummy);
             }
 
             player.level().playSound(null, player.getX(), player.getEyeY(), player.getZ(),
