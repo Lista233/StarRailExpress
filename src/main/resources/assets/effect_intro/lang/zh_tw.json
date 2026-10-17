@@ -81,6 +81,8 @@
   "effect.noellesroles.mood_drain_reduction.desc": "減緩 SAN/心情的自然消耗。等級越高減緩越多（每級約 -30%，可疊到免疫）。",
   "effect.noellesroles.mood_drain_immunity.desc": "心情不再因任務自然下降。",
   "effect.noellesroles.mood_regeneration.desc": "持續緩慢恢復心情。等級越高回復越快。",
+  "effect.noellesroles.mood_max_boost": "san值上限提升",
+  "effect.noellesroles.mood_max_boost.desc": "每級提升 0.5 點心情（san）值上限；效果結束後恢復原本上限。僅提升上限，不會直接提升當前心情值。",
   "effect.noellesroles.invincible.desc": "無敵：通常免疫死亡。松脫等特殊職業仍可能破除。",
   "effect.noellesroles.infinite_stamina.desc": "衝刺不消耗體力。若同時有「無體力」則仍無法無限衝刺。",
   "effect.noellesroles.stamina_boost.desc": "提升體力上限。每級約 +35%。",

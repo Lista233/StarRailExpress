@@ -80,6 +80,8 @@
     "effect.noellesroles.mood_drain_reduction.desc": "Slows natural Sanity/mood depletion. Higher level means more reduction (about -30% per level, stacking to immunity).",
     "effect.noellesroles.mood_drain_immunity.desc": "Mood no longer naturally drops from tasks.",
     "effect.noellesroles.mood_regeneration.desc": "Continuously and slowly restores mood. Higher level means faster regen.",
+    "effect.noellesroles.mood_max_boost": "Sanity Max Boost",
+    "effect.noellesroles.mood_max_boost.desc": "Increases the mood (Sanity) max by 0.5 per level; when the effect ends the original cap is restored. Only raises the cap, it does not directly restore current mood.",
     "effect.noellesroles.invincible.desc": "Invincible: usually immune to death. Special roles such as Loose End may still break it.",
     "effect.noellesroles.infinite_stamina.desc": "Sprinting costs no stamina. If you also have No Stamina, you still cannot sprint infinitely.",
     "effect.noellesroles.stamina_boost.desc": "Increases stamina cap. About +35% per level.",

@@ -833,6 +833,8 @@
   "effect.noellesroles.mood_drain_immunity": "san值消耗免疫",
   "mob_effect.noellesroles.mood_regeneration": "san值恢复",
   "effect.noellesroles.mood_regeneration": "san值恢复",
+  "mob_effect.noellesroles.mood_max_boost": "san值上限提升",
+  "effect.noellesroles.mood_max_boost": "san值上限提升",
   "mob_effect.noellesroles.infinite_stamina": "无限体力",
   "effect.noellesroles.infinite_stamina": "无限体力",
   "mob_effect.noellesroles.stamina_boost": "体力提升",

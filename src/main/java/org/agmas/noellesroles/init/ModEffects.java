@@ -17,6 +17,7 @@ package org.agmas.noellesroles.init;
 
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import io.wifi.starrailexpress.cca.SREPlayerMoodComponent;
 import io.wifi.starrailexpress.game.data.MapStatusBarType;
 import io.wifi.starrailexpress.event.AllowPlayerDeathWithKiller;
 import io.wifi.starrailexpress.game.GameConstants;
@@ -377,6 +378,28 @@ public class ModEffects {
      */
     public static final Holder<MobEffect> MOOD_REGENERATION = register("mood_regeneration",
             new SimpleMobEffect(MobEffectCategory.BENEFICIAL, 0x7AF2D2));
+
+    /**
+     * 每级「san值上限提升」效果提供的心情值上限加成。
+     */
+    public static final float MOOD_MAX_BONUS_PER_LEVEL = 0.5f;
+
+    /**
+     * san值上限提升
+     * - 有益效果
+     * - 每级提升 0.5 点心情值上限
+     * - 效果结束恢复原本上限（只改上限，不直接改变当前心情值）
+     */
+    public static final Holder<MobEffect> MOOD_MAX_BOOST = register("mood_max_boost",
+            new SimpleMobEffect(MobEffectCategory.BENEFICIAL, 0x4FC3F7) {
+                @Override
+                public void onEffectEnded(ServerPlayer player) {
+                    var mood = SREPlayerMoodComponent.KEY.get(player);
+                    // 效果结束后按恢复后的上限重新夹取当前心情值（只降不升）
+                    mood.setMood(mood.getMood());
+                }
+            });
+
     /**
      * 无敌
      */
@@ -913,6 +936,11 @@ public class ModEffects {
             return 0f;
         }
         return 0.005f * (amp + 1);
+    }
+
+    /** 获取「san值上限提升」效果的等级（amplifier，未拥有时为 -1）。 */
+    public static int getMoodMaxBonusAmplifier(LivingEntity entity) {
+        return getAmplifier(entity, MOOD_MAX_BOOST);
     }
 
     public static boolean hasInfiniteStamina(LivingEntity entity) {

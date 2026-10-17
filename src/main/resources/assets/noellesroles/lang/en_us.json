@@ -833,6 +833,8 @@
     "effect.noellesroles.mood_drain_immunity": "Sanity Drain Immunity",
     "mob_effect.noellesroles.mood_regeneration": "Sanity Regeneration",
     "effect.noellesroles.mood_regeneration": "Sanity Regeneration",
+    "mob_effect.noellesroles.mood_max_boost": "Sanity Max Boost",
+    "effect.noellesroles.mood_max_boost": "Sanity Max Boost",
     "mob_effect.noellesroles.infinite_stamina": "Infinite Stamina",
     "effect.noellesroles.infinite_stamina": "Infinite Stamina",
     "mob_effect.noellesroles.stamina_boost": "Stamina Boost",
