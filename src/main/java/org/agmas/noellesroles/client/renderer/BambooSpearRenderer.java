@@ -35,25 +35,25 @@ import org.agmas.noellesroles.content.entity.BambooSpearEntity;
 import org.agmas.noellesroles.init.ModEffects;
 
 /**
- * 竹刀渲染：整根竹杆<b>从持有者手里长出来</b>，朝向恒等于持有者的当前朝向。
+ * 竹刀渲染：整根竹杆<b>压在持有者的视线射线上</b>，朝向恒等于持有者的当前朝向。
  * <p>
- * 视觉锚点取手部而不是眼睛，所以第一人称看着像从手上刺出去，第三人称（其他玩家 / 自己按 F5）
- * 也是从那只手伸出去的，而不是从脑门飘出来。手臂姿态由 {@code HumanoidModelBambooSpearMixin} 抬起来配合。
+ * <b>起点 = 眼睛沿视线前推一点（与服务端共用的 {@link BambooSpearEntity#poleBase}），
+ * 方向 = 视线</b>。因为杆根就落在视线上，画出来的这条杆与枪械射线
+ * （{@code ProjectileUtil#getHitResultOnViewVector}）是同一条轨道：
+ * 第一人称杆身正压在准星上笔直往前长，第三人称也是从身前朝准星方向刺出去，
+ * 不会再出现「杆被平移到视线一侧、近处偏得厉害」的错位。
+ * 手臂姿态由 {@code HumanoidModelBambooSpearMixin} 抬到视线高度配合。
  * <p>
- * <b>为什么方向直接用视线方向，而不是「手 → 命中点」：</b>
- * 握手点相对眼睛有约 0.3 格的侧向 / 向下偏移。如果用「手 → 命中点」求方向，那么杆越短这个偏移占比越大：
- * 刚右键（杆长≈0）时命中点几乎落在眼睛上，也就是在手的<b>后方</b>，竹杆就会朝身后长出来，
- * 再随着伸长慢慢甩到正前方——这就是之前那个「伸出动画」错乱的根因。
- * 现在改成：<b>起点 = 手（与服务端共用的 {@link BambooSpearEntity#handAnchor}），方向 = 视线</b>，
- * 杆的朝向恒等于准星方向，伸长过程就是一条笔直往前长的竹杆。
- * <p>
- * 方向与长度的来源分三层，顺序不能调：
+ * 眼睛与视线按下面四层取，顺序不能调：
  * <ol>
  * <li><b>本地持有者</b>：第一人称用相机视线（零帧延迟），第三人称用玩家自己的视线向量
  * （相机在前视角下是反的，不能直接拿来当视线）。</li>
- * <li><b>其他玩家</b>：服务端每 tick 同步的权威眼睛 / 视线，并在客户端按 partialTick 插值，
- * 否则会看到 20Hz 的跳动。命中判定就是用这组数据结算的，所以视觉与伤害一致。</li>
- * <li><b>兜底</b>：发射瞬间的实体朝向（同步还没到位的第一帧）。</li>
+ * <li><b>别的玩家在用</b>：取<b>他本人</b>在本客户端上的眼睛 / 视线。这样竹杆是贴着他长出来的，
+ * 指的就是他自己准星的方向（也就是他那边真正伸出、真正结算伤害的那条射线）；
+ * 用服务端快照的话，画面上的玩家模型和快照的眼睛位置会差出网络延迟那一段，看着像杆子飘在脸外面。</li>
+ * <li><b>兜底一</b>：持有者不在这边的客户端里（超出追踪范围）时，退回服务端每 tick 同步的
+ * 权威眼睛 / 视线，并在客户端按 partialTick 插值，否则会看到 20Hz 的跳动。</li>
+ * <li><b>兜底二</b>：发射瞬间的实体朝向（同步还没到位的第一帧）。</li>
  * </ol>
  */
 public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
@@ -92,13 +92,16 @@ public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
                 // 第三人称前视角的相机朝向是反的，只能用玩家本体的视线。
                 view = viewer.getViewVector(partialTick);
             }
-        } else {
+        } else if (owner != null) {
+            // 别的玩家在用竹枪：竹杆必须从「他自己的眼睛 → 他自己的视线」这条射线长出来，
+            // 也就是画面上这个玩家此时此刻准星所指的方向——两边看到的是同一根杆。
+            eye = owner.getEyePosition(partialTick);
+            view = owner.getViewVector(partialTick);
+        }
+        if (eye == null || view == null || view.lengthSqr() < 1.0e-6) {
+            // 持有者不在这边的客户端里：退回服务端每 tick 同步的权威眼睛 / 视线（已按 partialTick 插值）。
             eye = entity.getInterpolatedEye(partialTick);
             view = entity.getInterpolatedDir(partialTick);
-            if ((eye == null || view == null) && owner != null) {
-                eye = owner.getEyePosition(partialTick);
-                view = owner.getViewVector(partialTick);
-            }
         }
         if (eye == null || view == null || view.lengthSqr() < 1.0e-6) {
             float yaw = Mth.lerp(partialTick, entity.yRotO, entity.getYRot());
@@ -108,9 +111,9 @@ public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
         }
         view = view.normalize();
 
-        // 起点 = 握手点（服务端结算用的是同一个 handAnchor），方向 = 视线方向。
-        Vec3 origin = BambooSpearEntity.handAnchor(eye, view, owner);
-        // length 本身就是「从握手点沿视线量出去的杆长」，服务端也是这么算命中点的。
+        // 起点 = 杆根（服务端结算用的是同一个 poleBase，都在视线上），方向 = 视线方向。
+        Vec3 origin = BambooSpearEntity.poleBase(eye, view);
+        // length 本身就是「从杆根沿视线量出去的杆长」，服务端也是这么算命中点的。
         float drawLength = Math.max(MIN_LENGTH, length);
 
         Vec3 entityPos = entity.getPosition(partialTick);
