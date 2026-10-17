@@ -1472,7 +1472,7 @@
   "message.noellesroles.trapper.mud_triggered_victim": "你陷入了泥沼！无法移动和使用物品！",
   "message.noellesroles.trapper.mud_triggered_notify": "你的泥沼触发了，困住 %s 名玩家！",
   "message.noellesroles.trapper.net_gun_owned": "你已经拥有捕网枪了。",
-  "message.noellesroles.trapper.net_gun_bought": "花费 %s 金币购得捕网枪——初始冷却结束后即可发射。",
+  "message.noellesroles.trapper.net_gun_bought": "花费 %s 金币购得捕网枪！",
   "message.noellesroles.trapper.net_fired": "捕网发射！",
   "message.noellesroles.trapper.net_rooted": "你被捕网罩住了！8秒内无法行动！",
   "message.noellesroles.trapper.net_deployed": "捕网展开，罩住 %s 名玩家！",

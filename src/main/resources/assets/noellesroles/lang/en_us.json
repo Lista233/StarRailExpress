@@ -1472,7 +1472,7 @@
     "message.noellesroles.trapper.mud_triggered_victim": "You're stuck in the quagmire! Can't move or use items!",
     "message.noellesroles.trapper.mud_triggered_notify": "Your quagmire triggered, trapping %s player(s)!",
     "message.noellesroles.trapper.net_gun_owned": "You already own the net gun.",
-    "message.noellesroles.trapper.net_gun_bought": "Bought the net gun for %s coins — it's ready once the initial cooldown ends.",
+    "message.noellesroles.trapper.net_gun_bought": "Bought the net gun for %s coins — you can fire it right away!",
     "message.noellesroles.trapper.net_fired": "Net fired!",
     "message.noellesroles.trapper.net_rooted": "You're caught in a net! Can't act for 8s!",
     "message.noellesroles.trapper.net_deployed": "Net deployed, covering %s player(s)!",

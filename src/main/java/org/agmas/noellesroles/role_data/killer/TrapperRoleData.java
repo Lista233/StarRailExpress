@@ -74,9 +74,9 @@ public class TrapperRoleData extends SimpleRoleData {
     public static final int MUD_COST = 25;
 
     /** 捕网枪购买价格（金币） */
-    public static final int NET_GUN_COST = 200;
+    public static final int NET_GUN_COST = 130;
 
-    /** 捕网枪冷却（150s，技能冷却而非物品冷却；购得时即进入初始冷却） */
+    /** 捕网枪冷却（150s，技能冷却而非物品冷却；只在发射后才进入，购得时无初始冷却） */
     public static final int NET_GUN_COOLDOWN_SECONDS = 150;
     public static final int NET_GUN_COOLDOWN_TICKS = NET_GUN_COOLDOWN_SECONDS * 20;
 
@@ -115,7 +115,7 @@ public class TrapperRoleData extends SimpleRoleData {
     /** 泥沼放置冷却（tick） */
     public int mudCooldownTicks = 0;
 
-    /** 捕网枪冷却（tick，技能冷却：购得时即进入初始冷却） */
+    /** 捕网枪冷却（tick，技能冷却：购得时无初始冷却，发射后才开始计时） */
     public int netGunCooldownTicks = 0;
 
     /** 是否已购买捕网枪（一局限购一次） */
@@ -488,8 +488,8 @@ public class TrapperRoleData extends SimpleRoleData {
         shop.addToBalance(-NET_GUN_COST);
         hasNetGun = true;
         RoleUtils.insertStackInFreeSlot(sp, ModItems.TRAPPER_NET_GUN.getDefaultInstance());
-        // 初始冷却：到手不能立即使用（技能冷却，HUD 可见）
-        netGunCooldownTicks = NET_GUN_COOLDOWN_TICKS;
+        // 购得即可用：不再设初始冷却，150s 冷却只在发射捕网之后才开始计时。
+        netGunCooldownTicks = 0;
         if (sp.level() instanceof ServerLevel serverLevel) {
             serverLevel.playSound(null, sp.blockPosition(),
                     SoundEvents.CROSSBOW_LOADING_END.value(), SoundSource.PLAYERS, 1.0f, 1.0f);
