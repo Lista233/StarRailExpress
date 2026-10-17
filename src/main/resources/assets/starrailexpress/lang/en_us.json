@@ -2946,6 +2946,7 @@
     "sre.custom_role.fall_damage_immune": "Immune to fall damage",
     "sre.custom_role.can_auto_add_minigame_token": "Passive minigame token income",
     "sre.custom_role.can_climb_walls": "Can climb walls",
+    "sre.custom_role.can_uncuff_others": "Can take off handcuffs",
     "sre.custom_role.label.fall_to_death_height": "Lethal Fall Height",
     "sre.custom_role.hint.fall_to_death_height": "Falling this distance (blocks) is lethal; -1 = follow map setting",
     "sre.custom_role.shop.currency.money": "Coins",

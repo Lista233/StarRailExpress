@@ -493,6 +493,8 @@ public class CustomRoleLoader {
             role.setCanAutoAddMiniGameToken(data.canAutoAddMiniGameToken);
         if (data.canClimbWalls != null)
             role.setCanClimbWalls(data.canClimbWalls);
+        if (data.canUncuffOthers != null)
+            role.setCanUncuffOthers(data.canUncuffOthers);
         role.setCanBeRandomedByOtherRoles(data.canBeRandomedByOtherRoles);
         if (data.canIgnoreBlackout != null)
             role.setCanIgnoreBlackout(data.canIgnoreBlackout);
