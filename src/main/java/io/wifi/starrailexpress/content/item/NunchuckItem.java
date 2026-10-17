@@ -52,13 +52,21 @@ public class NunchuckItem extends Item {
                 }
             }
 
-            // 获取目标
             Player target = getTargetPlayer(user);
-            if (target != null) {
-                // 右键：向左击退 (direction = 0)
-                // Shift+右键：向前击退 (direction = 3)
+            int targetId = target == null ? -1 : target.getId();
+            if (targetId < 0) {
+                HitResult dummyHit = ProjectileUtil.getHitResultOnViewVector(user,
+                        entity -> entity instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy
+                                && dummy.canReceiveHits(),
+                        4.0F);
+                if (dummyHit instanceof EntityHitResult entityHit
+                        && entityHit.getEntity() instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity) {
+                    targetId = entityHit.getEntity().getId();
+                }
+            }
+            if (targetId >= 0) {
                 int direction = user.isShiftKeyDown() ? 3 : 0;
-                ClientPlayNetworking.send(new NunchuckHitPayload(target.getId(), direction));
+                ClientPlayNetworking.send(new NunchuckHitPayload(targetId, direction));
             }
         } else {
             // 服务端检查角色权限

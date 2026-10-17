@@ -147,15 +147,11 @@ public class SREClientCommand {
                         return 1;
                       })))
               .then(ClientCommandManager.literal("screen")
-                  .then(ClientCommandManager.literal("role_introduction").executes(context -> {
-                    {
-                      ClientScheduler.schedule(() -> {
-                        context.getSource().getClient()
-                            .setScreen(new RoleIntroduceScreen(context.getSource().getClient().player));
-                      }, 1);
-                    }
-                    return 1;
-                  }))
+                  .then(ClientCommandManager.literal("role_introduction")
+                      .executes(context -> openRoleIntroduction(context, ""))
+                      .then(ClientCommandManager.argument("role", StringArgumentType.word())
+                          .executes(context -> openRoleIntroduction(context,
+                              StringArgumentType.getString(context, "role")))))
                   .then(ClientCommandManager.literal("GameManagePanel")
                       .executes(context -> {
                         if (context.getSource().getPlayer().hasPermissions(2)) {
@@ -223,5 +219,24 @@ public class SREClientCommand {
                         return 1;
                       })))));
         });
+  }
+
+  private static int openRoleIntroduction(
+      com.mojang.brigadier.context.CommandContext<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> context,
+      String path) {
+    ClientScheduler.schedule(() -> {
+      var client = context.getSource().getClient();
+      if (path == null || path.isEmpty()) {
+        client.setScreen(new RoleIntroduceScreen(client.player));
+        return;
+      }
+      var role = io.wifi.starrailexpress.api.TMMRoles.getRoleByPath(path);
+      if (role == null) {
+        client.setScreen(new RoleIntroduceScreen(client.player));
+        return;
+      }
+      RoleIntroduceScreen.openOn(role);
+    }, 1);
+    return 1;
   }
 }

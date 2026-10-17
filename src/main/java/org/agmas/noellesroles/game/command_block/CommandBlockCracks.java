@@ -1,0 +1,230 @@
+package org.agmas.noellesroles.game.command_block;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import org.agmas.noellesroles.content.entity.CommandBlockCrackEntity;
+import org.agmas.noellesroles.init.ModEntities;
+
+import io.wifi.starrailexpress.api.hit.HitPriority;
+import io.wifi.starrailexpress.api.hit.HitType;
+import io.wifi.starrailexpress.api.hit.SREHitManager;
+import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import io.wifi.starrailexpress.game.GameUtils;
+import io.wifi.starrailexpress.index.tag.TMMItemTags;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+
+/**
+ * 任务点旁边的裂缝。每 60 到 90 秒只刷一道，并挑一块能站的空位。
+ * 击碎限定好人阵营的手枪，含平民和警长。
+ */
+public final class CommandBlockCracks {
+    public static final String TAG = "sre.command_block_crack";
+    public static final int MIN_DELAY = 60 * 20;
+    public static final int MAX_DELAY = 90 * 20;
+
+    private CommandBlockCracks() {
+    }
+
+    public static int rollDelay(ServerLevel level) {
+        return MIN_DELAY + level.random.nextInt(MAX_DELAY - MIN_DELAY + 1);
+    }
+
+    public static void registerAim() {
+        SREHitManager.registerTargetFilter((entity, attacker, type) -> {
+            if (type == HitType.GUN && isCrack(entity)) {
+                return HitPriority.FALLBACK;
+            }
+            return null;
+        });
+    }
+
+    public static boolean isCrack(Entity entity) {
+        if (entity == null || entity.isRemoved()) {
+            return false;
+        }
+        if (entity instanceof CommandBlockCrackEntity || entity.getTags().contains(TAG)) {
+            return true;
+        }
+        Component name = entity.getCustomName();
+        return name != null && TAG.equals(name.getString());
+    }
+
+    public static boolean isVisibleCrack(Entity entity) {
+        return entity instanceof CommandBlockCrackEntity && isCrack(entity);
+    }
+
+    /** 只刷一道。没有合适空位就返回 false，由调用方过一会儿再试。 */
+    public static boolean spawnOne(ServerLevel level) {
+        Vec3 spot = chooseSpot(level);
+        if (spot == null) {
+            return false;
+        }
+        CommandBlockCrackEntity crack = new CommandBlockCrackEntity(ModEntities.COMMAND_BLOCK_CRACK, level);
+        crack.setPos(spot.x, spot.y, spot.z);
+        crack.setYRot(level.random.nextFloat() * 360.0F);
+        crack.addTag(TAG);
+        crack.setCustomName(Component.literal(TAG));
+        crack.setCustomNameVisible(false);
+        level.addFreshEntity(crack);
+        level.playSound(null, spot.x, spot.y, spot.z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.45F, 0.55F);
+        return true;
+    }
+
+    /** 好人阵营（平民和警长）的手枪才能击碎。返回 true 表示这一枪打在裂缝上并已结算。 */
+    public static boolean tryShatter(ServerPlayer shooter, Entity target) {
+        if (shooter == null || !isCrack(target)) {
+            return false;
+        }
+        if (!shooter.getMainHandItem().is(TMMItemTags.GUNS)) {
+            return false;
+        }
+        var role = SREGameWorldComponent.KEY.get(shooter.level()).getRole(shooter);
+        if (role == null || !role.isInnocent() || role.canUseKiller() || role.isNeutrals()) {
+            return false;
+        }
+        Vec3 at = target.position();
+        if (shooter.level() instanceof ServerLevel level) {
+            discardNear(level, at);
+            level.sendParticles(ParticleTypes.CRIT, at.x, at.y + 0.8D, at.z, 16, 0.3D, 0.5D, 0.3D, 0.05D);
+            level.playSound(null, at.x, at.y, at.z, SoundEvents.GLASS_BREAK, SoundSource.PLAYERS, 0.7F, 0.7F);
+            CommandBlockDirector.addDestruction(level);
+        }
+        shooter.displayClientMessage(Component.translatable("message.noellesroles.command_block.crack_hit"), true);
+        return true;
+    }
+
+    public static Entity alongLook(ServerPlayer player, double range) {
+        if (player == null) {
+            return null;
+        }
+        HitResult hit = ProjectileUtil.getHitResultOnViewVector(player, CommandBlockCracks::isCrack, (float) range);
+        if (hit instanceof EntityHitResult entityHit && isCrack(entityHit.getEntity())) {
+            return entityHit.getEntity();
+        }
+        return null;
+    }
+
+    /** 裂缝比当前准星目标更近时，让手枪打到裂缝，而不是穿过它打到后面的人。 */
+    public static HitResult prefer(Player user, HitResult current, float range) {
+        if (user == null) {
+            return current;
+        }
+        HitResult crack = ProjectileUtil.getHitResultOnViewVector(user, CommandBlockCracks::isCrack, range);
+        if (!(crack instanceof EntityHitResult crackHit) || !isCrack(crackHit.getEntity())) {
+            return current;
+        }
+        if (!(current instanceof EntityHitResult currentHit)) {
+            return crack;
+        }
+        return crackHit.getEntity().distanceToSqr(user) < currentHit.getEntity().distanceToSqr(user) ? crack : current;
+    }
+
+    public static void discard(ServerLevel level) {
+        if (level == null) {
+            return;
+        }
+        List<Entity> found = new ArrayList<>();
+        for (Entity entity : level.getAllEntities()) {
+            if (isCrack(entity)) {
+                found.add(entity);
+            }
+        }
+        for (Entity entity : found) {
+            entity.discard();
+        }
+    }
+
+    private static void discardNear(ServerLevel level, Vec3 at) {
+        List<Entity> found = new ArrayList<>();
+        for (Entity entity : level.getEntities((Entity) null, new AABB(at, at).inflate(1.2D), CommandBlockCracks::isCrack)) {
+            found.add(entity);
+        }
+        for (Entity entity : found) {
+            entity.discard();
+        }
+    }
+
+    private static Vec3 chooseSpot(ServerLevel level) {
+        if (GameUtils.taskBlocks == null || GameUtils.taskBlocks.isEmpty()) {
+            return null;
+        }
+        List<Vec3> occupied = new ArrayList<>();
+        for (Entity entity : level.getAllEntities()) {
+            if (isVisibleCrack(entity)) {
+                occupied.add(entity.position());
+            }
+        }
+        List<BlockPos> points = new ArrayList<>(GameUtils.taskBlocks.keySet());
+        Collections.shuffle(points, new java.util.Random(level.random.nextLong()));
+        List<Vec3> found = new ArrayList<>();
+        for (BlockPos point : points) {
+            collectSpots(level, point, occupied, found);
+            if (found.size() >= 6) {
+                break;
+            }
+        }
+        if (found.isEmpty()) {
+            return null;
+        }
+        return found.get(level.random.nextInt(found.size()));
+    }
+
+    private static void collectSpots(ServerLevel level, BlockPos point, List<Vec3> occupied, List<Vec3> found) {
+        int[] radii = { 2, 3 };
+        int[][] dirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } };
+        List<int[]> offsets = new ArrayList<>();
+        for (int radius : radii) {
+            for (int[] dir : dirs) {
+                offsets.add(new int[] { dir[0] * radius, dir[1] * radius });
+            }
+        }
+        Collections.shuffle(offsets, new java.util.Random(point.asLong() ^ level.getGameTime()));
+        for (int[] offset : offsets) {
+            Vec3 spot = standAt(level, point.offset(offset[0], 0, offset[1]));
+            if (spot == null || tooClose(spot, occupied)) {
+                continue;
+            }
+            found.add(spot);
+            if (found.size() >= 6) {
+                return;
+            }
+        }
+    }
+
+    private static boolean tooClose(Vec3 spot, List<Vec3> others) {
+        for (Vec3 other : others) {
+            if (spot.distanceToSqr(other) < 16.0D) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Vec3 standAt(ServerLevel level, BlockPos origin) {
+        for (int dy = 1; dy >= -2; dy--) {
+            BlockPos feet = origin.offset(0, dy, 0);
+            BlockState ground = level.getBlockState(feet.below());
+            if (level.getBlockState(feet).isAir() && level.getBlockState(feet.above()).isAir()
+                    && !ground.isAir()) {
+                return Vec3.atBottomCenterOf(feet);
+            }
+        }
+        return null;
+    }
+}

@@ -1573,6 +1573,66 @@ public class ModItems {
                     org.agmas.noellesroles.content.item.KatanaItem.createProperties()),
             "katana", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
 
+    public static final Item STONE_SPEAR = register(
+            new org.agmas.noellesroles.game.command_block.item.StoneSpearItem(
+                    org.agmas.noellesroles.game.command_block.item.StoneSpearItem.properties()),
+            "stone_spear", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item THROW_STONE = register(
+            new org.agmas.noellesroles.game.command_block.item.ThrowStoneItem(new Item.Properties().stacksTo(16)),
+            "throw_stone", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item SUMMON_ROLLING_STONE = register(
+            new org.agmas.noellesroles.game.command_block.item.SummonRollingStoneItem(new Item.Properties().stacksTo(16)),
+            "summon_rolling_stone", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item HIM_FIREBALL = register(
+            new org.agmas.noellesroles.game.command_block.item.HimFireballItem(new Item.Properties().stacksTo(1)),
+            "him_fireball", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item HIM_SWORD = register(
+            new org.agmas.noellesroles.game.command_block.item.HimSwordItem(
+                    org.agmas.noellesroles.game.command_block.item.HimSwordItem.properties()),
+            "him_sword", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item ERROR_CORE = register(
+            new org.agmas.noellesroles.game.command_block.item.ErrorCoreItem(new Item.Properties().stacksTo(1)),
+            "error_core", ROLE_ITEMS_GROUP);
+    public static final Item PEEL_BLADE = register(
+            new org.agmas.noellesroles.game.command_block.item.PeelBladeItem(new Item.Properties().stacksTo(1)),
+            "peel_blade", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item VOID_STEP = register(
+            new org.agmas.noellesroles.game.command_block.item.VoidStepItem(new Item.Properties().stacksTo(1)),
+            "void_step", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item FARLANDS_RIFT = register(
+            new org.agmas.noellesroles.game.command_block.item.FarlandsRiftItem(new Item.Properties().stacksTo(1)),
+            "farlands_rift", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item EYE_NEEDLE = register(
+            new org.agmas.noellesroles.game.command_block.item.EyeNeedleItem(new Item.Properties().stacksTo(1)),
+            "eye_needle", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item THREAD_SPOOL = register(
+            new org.agmas.noellesroles.game.command_block.item.ThreadSpoolItem(new Item.Properties().stacksTo(1)),
+            "thread_spool", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item THREAD_BLADE = register(
+            new org.agmas.noellesroles.game.command_block.item.ThreadBladeItem(new Item.Properties().stacksTo(1)),
+            "thread_blade", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item PAPER_CUT = register(
+            new org.agmas.noellesroles.game.command_block.item.PaperCutItem(new Item.Properties().stacksTo(1)),
+            "paper_cut", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item FOG_BELL = register(
+            new org.agmas.noellesroles.game.command_block.item.FogBellItem(new Item.Properties().stacksTo(1)),
+            "fog_bell", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item FOG_BLADE = register(
+            new org.agmas.noellesroles.game.command_block.item.FogBladeItem(new Item.Properties().stacksTo(1)),
+            "fog_blade", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item CLOCK_HAMMER = register(
+            new org.agmas.noellesroles.game.command_block.item.ClockHammerItem(new Item.Properties().stacksTo(1)),
+            "clock_hammer", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item SECOND_NEEDLE = register(
+            new org.agmas.noellesroles.game.command_block.item.SecondNeedleItem(new Item.Properties().stacksTo(1)),
+            "second_needle", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item LAMP_OIL = register(
+            new org.agmas.noellesroles.game.command_block.item.LampOilItem(new Item.Properties().stacksTo(1)),
+            "lamp_oil", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item CANDLE_SNIP = register(
+            new org.agmas.noellesroles.game.command_block.item.CandleSnipItem(new Item.Properties().stacksTo(1)),
+            "candle_snip", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+
     public static Item register(Item item, String id, ResourceKey<CreativeModeTab>... extraGroups) {
         ResourceKey<CreativeModeTab>[] allGroups = java.util.Arrays.copyOf(extraGroups, extraGroups.length + 1);
         allGroups[extraGroups.length] = NOELLESROLES_ALL_GROUP;

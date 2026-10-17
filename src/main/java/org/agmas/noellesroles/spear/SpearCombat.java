@@ -214,6 +214,8 @@ public final class SpearCombat {
                         }
                     }
                 }
+            } else if (target instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy && dealDamage) {
+                hurt = io.wifi.starrailexpress.traindummy.TrainDummyWeapons.hitSpear(player, dummy, damage);
             } else if (dealDamage) {
                 hurt = target.hurt(attacker.damageSources().playerAttack(player), damage);
                 if (hurt) {

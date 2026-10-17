@@ -17,6 +17,7 @@ package org.agmas.noellesroles.init;
 
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import io.wifi.starrailexpress.cca.SREPlayerMoodComponent;
 import io.wifi.starrailexpress.game.data.MapStatusBarType;
 import io.wifi.starrailexpress.event.AllowPlayerDeathWithKiller;
 import io.wifi.starrailexpress.game.GameConstants;
@@ -37,6 +38,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.flag.FeatureFlagSet;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.component.GhostStateComponent;
+import org.agmas.noellesroles.content.effects.GravityFlipEffect;
 import org.agmas.noellesroles.content.effects.LimpEffect;
 import org.agmas.noellesroles.content.effects.MapStatusBarEffect;
 import org.agmas.noellesroles.content.effects.NegativeEffectResistanceEffect;
@@ -142,6 +144,10 @@ public class ModEffects {
     // 看其他生物都是倒立的
     public static final Holder<MobEffect> UPSIDE_DOWN = register("upside_down",
             new SimpleMobEffect(MobEffectCategory.HARMFUL, 0xFFFFFF));
+    /**
+     * 重力颠倒：垂直方向的重力反向（向天空坠落、撞天花板才算落地、跳跃改为向下蹬）。
+     */
+    public static final Holder<MobEffect> GRAVITY_FLIP = register("gravity_flip", new GravityFlipEffect());
     /**
      * 傀儡游走（操控者·失控之躯）
      * - 有害效果
@@ -372,6 +378,28 @@ public class ModEffects {
      */
     public static final Holder<MobEffect> MOOD_REGENERATION = register("mood_regeneration",
             new SimpleMobEffect(MobEffectCategory.BENEFICIAL, 0x7AF2D2));
+
+    /**
+     * 每级「san值上限提升」效果提供的心情值上限加成。
+     */
+    public static final float MOOD_MAX_BONUS_PER_LEVEL = 0.5f;
+
+    /**
+     * san值上限提升
+     * - 有益效果
+     * - 每级提升 0.5 点心情值上限
+     * - 效果结束恢复原本上限（只改上限，不直接改变当前心情值）
+     */
+    public static final Holder<MobEffect> MOOD_MAX_BOOST = register("mood_max_boost",
+            new SimpleMobEffect(MobEffectCategory.BENEFICIAL, 0x4FC3F7) {
+                @Override
+                public void onEffectEnded(ServerPlayer player) {
+                    var mood = SREPlayerMoodComponent.KEY.get(player);
+                    // 效果结束后按恢复后的上限重新夹取当前心情值（只降不升）
+                    mood.setMood(mood.getMood());
+                }
+            });
+
     /**
      * 无敌
      */
@@ -910,6 +938,11 @@ public class ModEffects {
         return 0.005f * (amp + 1);
     }
 
+    /** 获取「san值上限提升」效果的等级（amplifier，未拥有时为 -1）。 */
+    public static int getMoodMaxBonusAmplifier(LivingEntity entity) {
+        return getAmplifier(entity, MOOD_MAX_BOOST);
+    }
+
     public static boolean hasInfiniteStamina(LivingEntity entity) {
         if (entity.hasEffect(NO_STAMINA))
             return false;
@@ -1109,6 +1142,8 @@ public class ModEffects {
         // 而原版只把玩家自己的 MobEffect 下发给自己，所以必须广播出去（隐藏图标与粒子）。
         EffectBroadcastSync.register(PEER_XRAY);
         EffectBroadcastSync.register(INSTINCT_CONCEAL);
+        // 重力颠倒要让玩家在「别人眼中」也倒立渲染，所以同样需要广播（隐藏图标与粒子）。
+        EffectBroadcastSync.register(GRAVITY_FLIP);
         EffectBroadcastSync.init();
         WraithDimensionEffectSync.init();
         AllowPlayerDeathWithKiller.EVENT.register((player, killer, deathReason) -> {
