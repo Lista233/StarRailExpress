@@ -16,6 +16,7 @@
 package org.agmas.noellesroles.handler.utils;
 
 import org.agmas.noellesroles.commands.BroadcastCommand;
+import org.agmas.noellesroles.component.DefibrillatorComponent;
 import org.agmas.noellesroles.role.bouns.BounsRoles;
 import org.agmas.noellesroles.role.bouns.roles.BeeFamilyRole;
 import org.agmas.noellesroles.role_data.neutral.BeeFamilyRoleData;
@@ -229,6 +230,11 @@ public class BeeFamilyManager {
                     }
                     MoneyUtils.addToBalance(player, -BeeFamilyManager.BEE_QUEEN_SELECT_QUEEN_PRICE);
                     roledata.markSuccessor(marktargetplayer.getUUID());
+                    // 继承人将在蜂后死亡时被复活：其尸体在那之前不可被他人交互/复活
+                    PlayerBodyEntity markedBody = DefibrillatorComponent.findPlayerBodyEntity(marktargetplayer);
+                    if (markedBody != null) {
+                        markedBody.setNonInteractable(true);
+                    }
                     return true;
                 }).noCastCCA(true)
                         .withTarget()
@@ -268,6 +274,14 @@ public class BeeFamilyManager {
                                 .withStyle(ChatFormatting.RED),
                         true);
                 return InteractionResult.PASS;
+            }
+            // 主人即将被复活的尸体不可交互
+            if (PlayerBodyEntityComponent.KEY.get(body).nonInteractable) {
+                player.displayClientMessage(
+                        Component.translatable("message.noellesroles.corpse.pending_revive")
+                                .withStyle(ChatFormatting.RED),
+                        true);
+                return InteractionResult.CONSUME;
             }
             if (!gameWorldComponent.isSkillAvailable) {
                 // 技能不可用

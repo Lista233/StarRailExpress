@@ -79,6 +79,14 @@ public class UndeadLordHandler {
                         true);
                 return InteractionResult.PASS;
             }
+            // 主人即将被复活的尸体不可交互（不能被抓成亡灵，尸体也不会被移除）
+            if (PlayerBodyEntityComponent.KEY.get(body).nonInteractable) {
+                serverPlayer.displayClientMessage(
+                        Component.translatable("message.noellesroles.corpse.pending_revive")
+                                .withStyle(ChatFormatting.RED),
+                        true);
+                return InteractionResult.PASS;
+            }
 
             UndeadLordRoleData comp = RoleData.getNullable(UndeadLordRoleData.class, serverPlayer);
             if (comp == null) {

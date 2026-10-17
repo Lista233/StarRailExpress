@@ -24,6 +24,7 @@ import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.index.TMMItems;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -94,6 +95,21 @@ public class PlayerBodyEntity extends LivingEntity {
      */
     public boolean isCorrupted() {
         return this.entityData.get(CORRUPTED);
+    }
+
+    /**
+     * 该尸体是否不可交互（主人即将被复活）：不可被其它职业复活、不可被骸骨之书复活、
+     * 也不可被打开物品栏（含殡仪员）。
+     */
+    public boolean isNonInteractable() {
+        return getComponent().nonInteractable;
+    }
+
+    /**
+     * 设置不可交互标记。用于主人死亡后存在复活逻辑（即将被复活）的尸体。
+     */
+    public void setNonInteractable(boolean nonInteractable) {
+        getComponent().setNonInteractable(nonInteractable);
     }
 
     // 获取本实体上的 BodyDeathReasonComponent
@@ -338,6 +354,16 @@ public class PlayerBodyEntity extends LivingEntity {
 
     @Override
     public InteractionResult interactAt(Player player, Vec3 vec3, InteractionHand hand) {
+        // 不可交互标记：主人即将被复活的尸体不能被打开物品栏（含殡仪员）
+        if (isNonInteractable()) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                serverPlayer.displayClientMessage(
+                        Component.translatable("message.noellesroles.corpse.pending_revive")
+                                .withStyle(ChatFormatting.RED),
+                        true);
+            }
+            return InteractionResult.FAIL;
+        }
         if (player instanceof ServerPlayer serverPlayer
                 && !isLocked() && hasCorpseItems()
                 && (!GameUtils.isPlayerAliveAndSurvival(serverPlayer) || canSeeDeathBodyContent(serverPlayer))) {

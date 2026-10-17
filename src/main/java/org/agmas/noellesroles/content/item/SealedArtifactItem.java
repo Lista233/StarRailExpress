@@ -38,7 +38,8 @@ public class SealedArtifactItem extends Item {
     private static final Set<String> USABLE = Set.of(
             "sealed_vanishing_cloak",
             "sealed_doorless_key",
-            "sealed_last_match");
+            "sealed_last_match",
+            "sealed_splintered_compass");
 
     private final Tier tier;
     private final String translationKey;

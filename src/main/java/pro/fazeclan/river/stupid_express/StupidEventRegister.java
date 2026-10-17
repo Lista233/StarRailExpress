@@ -27,9 +27,18 @@ import io.wifi.starrailexpress.game.modes.WTLooseEndsGameMode;
 import io.wifi.starrailexpress.network.RemoveStatusBarPayload;
 import io.wifi.starrailexpress.rules.ChatHudRules;
 import io.wifi.starrailexpress.rules.ReplayRules;
+import io.wifi.starrailexpress.SRE;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.GameType;
 import org.agmas.harpymodloader.component.WorldModifierComponent;
 import org.agmas.harpymodloader.events.GameInitializeEvent;
+import org.agmas.noellesroles.game.roles.neutral.pelican.PelicanManager;
+import org.agmas.noellesroles.utils.RoleUtils;
 
 import pro.fazeclan.river.stupid_express.constants.SEModifiers;
 import pro.fazeclan.river.stupid_express.modifier.lovers.LoversWinCheckEvent;
@@ -137,6 +146,11 @@ public class StupidEventRegister {
                             lover,
                             true,
                             victim, GameConstants.DeathReasons.BROKEN_HEART);
+                } else if (lover instanceof ServerPlayer stashedLover
+                        && PelicanManager.isStashed(stashedLover)) {
+                    // 鹈鹕肚内的恋人：肚内玩家在服务端是旁观者，标准死亡管线
+                    // （GameMode#killPlayer）不会结算他们，这里手动补齐「殉情而亡」
+                    killStashedLover(stashedLover, victim);
                 }
             }
         });
@@ -147,5 +161,41 @@ public class StupidEventRegister {
                 cca.addModifier(killer, SEModifiers.CURSED);
             }
         });
+    }
+
+    /**
+     * 鹈鹕肚内恋人的殉情死亡结算。
+     *
+     * <p>
+     * 被吞玩家在服务端是旁观者，{@code GameMode#killPlayer} 的死亡管线只处理存活玩家，
+     * 肚内恋人不会随伴侣死亡而殉情。这里按标准死亡顺序手动补齐：
+     * 生成尸体 → 记录回放 → 广播死亡事件（{@code handleStashedPlayerDeath} 会清理肚内状态）→ 死因消息。
+     */
+    private static void killStashedLover(ServerPlayer lover, Player killer) {
+        if (lover == null || lover.level().isClientSide()) {
+            return;
+        }
+        ResourceLocation deathReason = GameConstants.DeathReasons.BROKEN_HEART;
+        // 生成尸体（肚内玩家被固定在鹈鹕身边，尸体即落在当前位置）
+        GameUtils.spawnBodyEntity(lover, killer, RoleUtils.getPlayerRole(lover), deathReason);
+        // 回放记录（返回值即死因播报组件）
+        Component deathMessage = SRE.REPLAY_MANAGER.recordPlayerKill(
+                killer != null ? killer.getUUID() : null,
+                lover.getUUID(),
+                deathReason);
+        // 确保处于旁观（死亡）状态
+        if (lover.gameMode.getGameModeForPlayer() != GameType.SPECTATOR) {
+            lover.setGameMode(GameType.SPECTATOR);
+        }
+        // 广播死亡事件：handleStashedPlayerDeath 负责清理肚内状态，其余死亡逻辑照常结算
+        OnPlayerDeath.EVENT.invoker().onPlayerDeath(lover, deathReason);
+        OnPlayerDeathWithKiller.EVENT.invoker().onPlayerDeath(lover, killer, deathReason);
+        // 死因消息
+        boolean cantSend = ReplayRules.cantSendReplay.stream().anyMatch(pre -> pre.test(lover));
+        if (!cantSend) {
+            lover.sendSystemMessage(Component.translatable("message.death_reason.prefix",
+                    Component.literal("").withStyle(ChatFormatting.LIGHT_PURPLE).append(deathMessage))
+                    .withStyle(ChatFormatting.DARK_RED));
+        }
     }
 }
