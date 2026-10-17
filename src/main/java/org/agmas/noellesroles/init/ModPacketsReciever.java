@@ -719,14 +719,20 @@ public class ModPacketsReciever {
         return;
       }
       if (mainHandItem.getItem() instanceof ThrowingKnife tk) {
+        // 飞刀（throwing_knife）按 Q 扔出不再进入冷却：否则时停时将无法扔出多个飞刀
+        // 注意：下面 shrink(1) 之后手上的物品就没了，凡是「扔出去的是不是飞刀」的判断都得在这之前取好，
+        // 否则生存模式下音效会永远判不上（以前就是这样静音的）。
+        boolean isThrowingKnife = mainHandItem.is(ModItems.THROWING_KNIFE);
         ItemCooldowns cooldowns1 = player.getCooldowns();
-        Map<Item, ItemCooldowns.CooldownInstance> cooldowns = cooldowns1.cooldowns;
-        if (GameUtils.isPlayerAliveAndSurvival(player) && cooldowns1.isOnCooldown(tk)
-            && cooldowns.get(tk).endTime - cooldowns1.tickCount <= 20)
-          return;
+        if (!isThrowingKnife) {
+          Map<Item, ItemCooldowns.CooldownInstance> cooldowns = cooldowns1.cooldowns;
+          if (GameUtils.isPlayerAliveAndSurvival(player) && cooldowns1.isOnCooldown(tk)
+              && cooldowns.get(tk).endTime - cooldowns1.tickCount <= 20)
+            return;
+        }
         if (!player.isCreative())
           mainHandItem.shrink(1);
-        if (!cooldowns1.isOnCooldown(tk)) {
+        if (!isThrowingKnife && !cooldowns1.isOnCooldown(tk)) {
           cooldowns1.addCooldown(tk, 20);
         }
         ThrowingKnifeEntity entity = new ThrowingKnifeEntity(ModEntities.THROWING_KNIFE, player, player.level(),
@@ -738,7 +744,7 @@ public class ModPacketsReciever {
         player.level().addFreshEntity(entity);
         player.swing(InteractionHand.MAIN_HAND);
         ServerLevel serverLevel = player.serverLevel();
-        if (mainHandItem.is(ModItems.THROWING_KNIFE)) {
+        if (isThrowingKnife) {
           serverLevel.players().forEach(p -> {
             serverLevel.playSound(p, entity.getX(), entity.getY(), entity.getZ(), SoundEvents.TRIDENT_THROW,
                 SoundSource.PLAYERS, 1.0f, 1.0f);
@@ -1033,16 +1039,14 @@ public class ModPacketsReciever {
       ServerPlayer player = context.player();
       if (context.player().hasEffect(ModEffects.SAFE_TIME))// 安全时间
         return;
-      var stabbed = player.serverLevel().getEntity(payload.target());
-      io.wifi.starrailexpress.traindummy.TrainDummyEntity dummyTarget = stabbed instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy
-          && dummy.canReceiveHits() ? dummy : null;
-      ServerPlayer target = stabbed instanceof ServerPlayer playerTarget ? playerTarget : null;
-      if (target == null && dummyTarget == null)
+      // 验证目标是否存在且在范围内
+      if (!(player.serverLevel().getEntity(payload.target()) instanceof ServerPlayer target))
         return;
-      if (stabbed.distanceTo(player) > 3.0)
+      if (target.distanceTo(player) > 3.0)
         return;
 
-      if (dummyTarget == null && !GameUtils.isPlayerAliveAndSurvival(target)) {
+      // 检查目标是否存活
+      if (!GameUtils.isPlayerAliveAndSurvival(target)) {
         player.displayClientMessage(
             Component.translatable("item.noellesroles.fire_axe.target_dead")
                 .withStyle(ChatFormatting.RED),
@@ -1084,14 +1088,9 @@ public class ModPacketsReciever {
         player.getCooldowns().addCooldown(ModItems.FIRE_AXE, 60 * 20); // 60秒冷却
       }
 
-      if (dummyTarget != null) {
-        io.wifi.starrailexpress.traindummy.TrainDummyCombat.applyLethal(dummyTarget, player,
-            org.agmas.noellesroles.content.item.FireAxeItem.DEATH_REASON_FIRE_AXE);
-        dummyTarget.playSound(TMMSounds.ITEM_KNIFE_STAB, 1.0f, 1.0f);
-      } else {
-        GameUtils.killPlayer(target, true, player, org.agmas.noellesroles.content.item.FireAxeItem.DEATH_REASON_FIRE_AXE);
-        target.playSound(TMMSounds.ITEM_KNIFE_STAB, 1.0f, 1.0f);
-      }
+      // 执行击杀
+      GameUtils.killPlayer(target, true, player, org.agmas.noellesroles.content.item.FireAxeItem.DEATH_REASON_FIRE_AXE);
+      target.playSound(TMMSounds.ITEM_KNIFE_STAB, 1.0f, 1.0f);
       player.swing(InteractionHand.MAIN_HAND);
 
       // 回放记录
@@ -1560,56 +1559,52 @@ public class ModPacketsReciever {
           var comp = RoleData.getNullable(EmbalmerRoleData.class, player);
           if (comp == null)
             return;
-          // 变身派对的完整实现已抽到 EmbalmerRoleData#triggerMasquerade，供统一技能系统复用
-          EmbalmerRoleData.triggerMasquerade(player);
-        });
-
-    // 嬉命人·语音互换：背包 Screen 中选中两名玩家后交换两人的语音发声位置
-    ServerPlayNetworking.registerGlobalReceiver(org.agmas.noellesroles.packet.EmbalmerVoiceSwapC2SPacket.ID,
-        (payload, context) -> {
-          ServerPlayer player = context.player();
-          SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(player.level());
-          if (!gameWorld.isSkillAvailable)
-            return;
-          if (player.hasEffect(ModEffects.SAFE_TIME))
-            return;
-          if (player.hasEffect(ModEffects.SKILL_BANED) || player.hasEffect(ModEffects.SKILL_FREEZED))
-            return;
-          if (!gameWorld.isRole(player, ModRoles.EMBALMER))
-            return;
-          if (!GameUtils.isPlayerAliveAndSurvival(player))
-            return;
-          var comp = RoleData.getNullable(EmbalmerRoleData.class, player);
-          if (comp == null)
-            return;
-          if (comp.voiceSwapCooldown > 0) {
+          if (comp.masqueradeCooldown > 0) {
             player.displayClientMessage(
-                Component
-                    .translatable("message.noellesroles.embalmer.voice_swap.cooldown",
-                        (comp.voiceSwapCooldown + 19) / 20)
+                Component.translatable("message.noellesroles.embalmer.cooldown", (comp.masqueradeCooldown + 19) / 20)
                     .withStyle(ChatFormatting.RED),
                 true);
             return;
           }
-
-          ServerPlayer first = player.getServer().getPlayerList().getPlayer(payload.player());
-          ServerPlayer second = player.getServer().getPlayerList().getPlayer(payload.player2());
-          if (first == null || second == null || first == second)
+          // Trigger masquerade - 排除拥有 jeb 修饰符的玩家
+          java.util.List<ServerPlayer> players = player.serverLevel().getPlayers(
+              p2 -> !p2.isSpectator() && !WorldModifierComponent.KEY.get(p2.level()).isModifier(p2, SEModifiers.JEB_));
+          if (players.size() < 2) {
+            player.displayClientMessage(Component.literal("Need at least 2 players."), true);
             return;
-          if (first.level() != player.level() || second.level() != player.level())
-            return;
-          if (!GameUtils.isPlayerAliveAndSurvival(first) || !GameUtils.isPlayerAliveAndSurvival(second))
-            return;
-
-          org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerVoiceSwapManager.swap(first, second,
-              player.level().getGameTime());
-          comp.voiceSwapCooldown =
-              org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerVoiceSwapManager.COOLDOWN_TICKS;
+          }
+          java.util.Map<UUID, UUID> swaps = new java.util.LinkedHashMap<>();
+          java.util.Map<UUID, Float> pitches = new java.util.HashMap<>();
+          java.util.List<UUID> uuids = new java.util.ArrayList<>();
+          for (var p : players)
+            uuids.add(p.getUUID());
+          java.util.Collections.shuffle(uuids, new java.util.Random());
+          for (int i = 0; i < uuids.size(); i++) {
+            UUID from = players.get(i).getUUID();
+            UUID to = uuids.get(i);
+            if (from.equals(to))
+              to = uuids.get((i + 1) % uuids.size());
+            swaps.put(from, to);
+            pitches.put(from, 0.7F + (new java.util.Random().nextFloat() * 0.6F));
+          }
+          comp.skinSwaps = swaps;
+          comp.voicePitches = pitches;
+          comp.masqueradeActive = true;
+          comp.masqueradeTicksLeft = EmbalmerRoleData.MASQUERADE_DURATION;
+          comp.masqueradeCooldown = EmbalmerRoleData.MASQUERADE_COOLDOWN;
           comp.sync();
-
+          // 全场播放音效（遍历所有玩家，绕过距离衰减）
+          for (ServerPlayer p : player.serverLevel().getPlayers(p2 -> true)) {
+            p.playNotifySound(SoundEvents.ILLUSIONER_PREPARE_MIRROR, SoundSource.MASTER, 1.0F, 1.0F);
+          }
+          // 广播皮肤交换数据给所有玩家
+          EmbalmerSkinSwapS2CPacket swapPacket = new EmbalmerSkinSwapS2CPacket(swaps, pitches,
+              EmbalmerRoleData.MASQUERADE_DURATION);
+          for (ServerPlayer p : player.serverLevel().getPlayers(p2 -> true)) {
+            ServerPlayNetworking.send(p, swapPacket);
+          }
           player.displayClientMessage(
-              Component.translatable("message.noellesroles.embalmer.voice_swap.done", first.getName(),
-                  second.getName()).withStyle(ChatFormatting.LIGHT_PURPLE),
+              Component.translatable("message.noellesroles.embalmer.activated").withStyle(ChatFormatting.DARK_PURPLE),
               true);
         });
 

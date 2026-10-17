@@ -309,10 +309,6 @@ public class NoellesrolesClient implements ClientModInitializer {
         });
         // 注册HUD渲染
         org.agmas.noellesroles.client.RefugeeDesperadoClientFx.register();
-        org.agmas.noellesroles.client.LegendRingClientFx.register();
-        org.agmas.noellesroles.client.CommandBlockProgressClient.register();
-        org.agmas.noellesroles.content.item.LetterItem.clientReplacementOpener =
-                org.agmas.noellesroles.client.CommandBlockLetter::tryOpen;
         LimitedInventoryScreen.NotAllowItemTakePredicates.add(stack -> stack.is(ModItems.BOMB));
 
         BlockEntityRenderers.register(
@@ -342,9 +338,6 @@ public class NoellesrolesClient implements ClientModInitializer {
                 org.agmas.noellesroles.init.ModSceneBlocks.POISON_ZONE, RenderType.translucent());
         BlockRenderLayerMap.INSTANCE.putBlock(
                 org.agmas.noellesroles.init.ModSceneBlocks.FOG_ZONE, RenderType.translucent());
-        // 反重力方块：半透明能量场
-        BlockRenderLayerMap.INSTANCE.putBlock(
-                org.agmas.noellesroles.init.ModSceneBlocks.ANTI_GRAVITY_BLOCK, RenderType.translucent());
         LoopingMirrorClientRenderer.register();
         // 灌木（树叶贴图）使用 cutout 渲染层
         BlockRenderLayerMap.INSTANCE.putBlock(
@@ -452,12 +445,6 @@ public class NoellesrolesClient implements ClientModInitializer {
             }
         };
         EntityRendererRegistry.register(ModEntities.WHEELCHAIR, WheelchairEntityRenderer::new);
-        EntityRendererRegistry.register(ModEntities.COMMAND_BLOCK_CRACK,
-                org.agmas.noellesroles.client.renderer.CommandBlockCrackRenderer::new);
-        EntityRendererRegistry.register(ModEntities.COMMAND_BLOCK_MARKER,
-                org.agmas.noellesroles.client.renderer.CommandBlockMarkerRenderer::new);
-        EntityRendererRegistry.register(org.agmas.noellesroles.init.ModEntities.COMMAND_BLOCK_THROWN,
-                net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
         EntityRendererRegistry.register(ModEntities.MUSHROOM_ESSENCE,
                 net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
         // 康复试剂投掷物（护士体系）：与蘑菇素同样使用投掷物品渲染器
@@ -527,7 +514,6 @@ public class NoellesrolesClient implements ClientModInitializer {
             return true;
         });
         ClientEmbalmerState.register();
-        ClientEmbalmerPaletteState.register();
         ClientSkincrawlerState.register();
         SaltedFishClientHandle.register();
         NatureSpiritClientHandle.register();
@@ -565,11 +551,6 @@ public class NoellesrolesClient implements ClientModInitializer {
                 (payload, context) -> context.client().execute(() ->
                         org.agmas.noellesroles.client.sound.SpeakerClientSounds
                                 .apply(payload.playerId(), payload.trackId(), payload.playing(), payload.volume())));
-        // 反重力方块状态同步（S2C）：维护客户端反重力集合，供本地物理预测 / 模型倒立 / 相机翻转读取
-        ClientPlayNetworking.registerGlobalReceiver(GravityFlipS2CPacket.ID,
-                (payload, context) -> context.client().execute(() ->
-                        org.agmas.noellesroles.content.effects.GravityFlipManager
-                                .setClientFlipped(payload.playerId(), payload.flipped())));
         ClientPlayNetworking.registerGlobalReceiver(RefreshDimensionsS2CPacket.ID, (payload, context) -> {
             ClientScheduler.schedule(() -> {
                 if (context.client().player != null) {

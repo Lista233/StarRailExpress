@@ -92,6 +92,7 @@ public class OtherRolesHudRegister {
         AdventurerHud.register();
         ReasonerHud.register();
         VoiceChangerHud.register();
+        EmbalmerHud.register();
         SkincrawlerHud.register();
         SwapperHud.register();
         PhantomMusicianHud.register();

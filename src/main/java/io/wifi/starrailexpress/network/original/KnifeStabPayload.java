@@ -97,33 +97,6 @@ public record KnifeStabPayload(int target) implements CustomPacketPayload {
                 }
                 return;
             }
-            if (targetEntity instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy
-                    && dummy.canReceiveHits()) {
-                if (dummy.distanceTo(player) > 3.0) {
-                    return;
-                }
-                ItemStack knifeStack = player.getMainHandItem();
-                if (io.wifi.starrailexpress.game.KillerKnifeDurability.isDurabilityModeEnabled(player.level())
-                        && io.wifi.starrailexpress.game.KillerKnifeDurability.isMarkedKnife(knifeStack)
-                        && io.wifi.starrailexpress.game.KillerKnifeDurability.isDepleted(knifeStack)) {
-                    return;
-                }
-                var knifeRole = SREGameWorldComponent.KEY.get(player.level()).getRole(player);
-                if (knifeRole != null && !knifeRole.onUseKnife(player)) {
-                    return;
-                }
-                ResourceLocation knifeReason = GameConstants.DeathReasons.KNIFE;
-                if (knifeStack.getItem() instanceof ThrowingKnife) {
-                    ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(knifeStack.getItem());
-                    if (itemId != null) {
-                        knifeReason = itemId;
-                    }
-                }
-                io.wifi.starrailexpress.traindummy.TrainDummyCombat.applyLethal(dummy, player, knifeReason);
-                dummy.playSound(TMMSounds.ITEM_KNIFE_STAB, 1.0f, 1.0f);
-                player.swing(InteractionHand.MAIN_HAND);
-                return;
-            }
             if (target == null)
                 return;
             if (target.distanceTo(player) > 3.0)

@@ -24,10 +24,8 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
 import java.util.UUID;
@@ -37,19 +35,25 @@ import org.agmas.noellesroles.content.entity.BambooSpearEntity;
 import org.agmas.noellesroles.init.ModEffects;
 
 /**
- * 竹刀渲染：整根竹杆<b>从持有者手里长出来</b>，杆尖正好落在服务端结算出的命中点上。
+ * 竹刀渲染：整根竹杆<b>压在持有者的视线射线上</b>，朝向恒等于持有者的当前朝向。
  * <p>
- * 与「矛」的渲染思路一致——视觉锚点取手部而不是眼睛，所以第一人称看着像从手上刺出去，
- * 第三人称（其他玩家 / 自己按 F5）也是从那只手伸出去的，而不是从脑门飘出来。手臂姿态由
- * {@code HumanoidModelBambooSpearMixin} 抬起来配合。
+ * <b>起点 = 眼睛沿视线前推一点（与服务端共用的 {@link BambooSpearEntity#poleBase}），
+ * 方向 = 视线</b>。因为杆根就落在视线上，画出来的这条杆与枪械射线
+ * （{@code ProjectileUtil#getHitResultOnViewVector}）是同一条轨道：
+ * 第一人称杆身正压在准星上笔直往前长，第三人称也是从身前朝准星方向刺出去，
+ * 不会再出现「杆被平移到视线一侧、近处偏得厉害」的错位。
+ * 手臂姿态由 {@code HumanoidModelBambooSpearMixin} 抬到视线高度配合。
  * <p>
- * 方向与长度的来源分三层，顺序不能调：
+ * 眼睛与视线按下面四层取，顺序不能调：
  * <ol>
  * <li><b>本地持有者</b>：第一人称用相机视线（零帧延迟），第三人称用玩家自己的视线向量
  * （相机在前视角下是反的，不能直接拿来当视线）。</li>
- * <li><b>其他玩家</b>：服务端每 tick 同步的权威眼睛 / 视线，并在客户端按 partialTick 插值，
- * 否则会看到 20Hz 的跳动。命中判定就是用这组数据结算的，所以视觉与伤害一致。</li>
- * <li><b>兜底</b>：发射瞬间的实体朝向（同步还没到位的第一帧）。</li>
+ * <li><b>别的玩家在用</b>：取<b>他本人</b>在本客户端上的眼睛 / 视线。这样竹杆是贴着他长出来的，
+ * 指的就是他自己准星的方向（也就是他那边真正伸出、真正结算伤害的那条射线）；
+ * 用服务端快照的话，画面上的玩家模型和快照的眼睛位置会差出网络延迟那一段，看着像杆子飘在脸外面。</li>
+ * <li><b>兜底一</b>：持有者不在这边的客户端里（超出追踪范围）时，退回服务端每 tick 同步的
+ * 权威眼睛 / 视线，并在客户端按 partialTick 插值，否则会看到 20Hz 的跳动。</li>
+ * <li><b>兜底二</b>：发射瞬间的实体朝向（同步还没到位的第一帧）。</li>
  * </ol>
  */
 public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
@@ -57,18 +61,6 @@ public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
     private static final float RADIUS = 0.08F;
     private static final float TIP_LENGTH = 0.38F;
     private static final float MIN_LENGTH = 0.08F;
-
-    /**
-     * 手部锚点相对眼睛的偏移。数值对着人形模型量出来的：手臂枢轴在 y≈1.375、x≈±0.3125，
-     * 手臂前伸时掌心落在身体中心前方约 0.75 格，这里取略小的 0.6 让竹杆看着是「握住」而不是浮在指尖外。
-     */
-    private static final double HAND_DROP = -0.25;
-    private static final double HAND_SIDE = 0.32;
-    private static final double HAND_FORWARD = 0.60;
-    /** 第一人称额外前推，免得杆根被近裁剪面切掉。 */
-    private static final double FIRST_PERSON_PUSH = 0.35;
-    /** 杆长短于这个值时不按「锚点→命中点」求方向，否则短杆期方向会大幅歪向侧面。 */
-    private static final double DIRECTION_MIN_SPAN = 0.35;
 
     public BambooSpearRenderer(EntityRendererProvider.Context context) {
         super(context);
@@ -85,14 +77,13 @@ public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
             return;
         }
 
-        float length = Math.max(MIN_LENGTH, entity.getInterpolatedLength(partialTick));
+        float length = entity.getInterpolatedLength(partialTick);
         UUID ownerUuid = entity.getOwnerUuid();
-        boolean isLocalOwner = viewer != null && ownerUuid != null && ownerUuid.equals(viewer.getUUID());
         Player owner = entity.getOwner();
 
         Vec3 eye = null;
         Vec3 view = null;
-        if (isLocalOwner) {
+        if (viewer != null && ownerUuid != null && ownerUuid.equals(viewer.getUUID())) {
             eye = viewer.getEyePosition(partialTick);
             if (minecraft.options.getCameraType().isFirstPerson()) {
                 Vector3f look = minecraft.gameRenderer.getMainCamera().getLookVector();
@@ -101,13 +92,16 @@ public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
                 // 第三人称前视角的相机朝向是反的，只能用玩家本体的视线。
                 view = viewer.getViewVector(partialTick);
             }
-        } else {
+        } else if (owner != null) {
+            // 别的玩家在用竹枪：竹杆必须从「他自己的眼睛 → 他自己的视线」这条射线长出来，
+            // 也就是画面上这个玩家此时此刻准星所指的方向——两边看到的是同一根杆。
+            eye = owner.getEyePosition(partialTick);
+            view = owner.getViewVector(partialTick);
+        }
+        if (eye == null || view == null || view.lengthSqr() < 1.0e-6) {
+            // 持有者不在这边的客户端里：退回服务端每 tick 同步的权威眼睛 / 视线（已按 partialTick 插值）。
             eye = entity.getInterpolatedEye(partialTick);
             view = entity.getInterpolatedDir(partialTick);
-            if ((eye == null || view == null) && owner != null) {
-                eye = owner.getEyePosition(partialTick);
-                view = owner.getViewVector(partialTick);
-            }
         }
         if (eye == null || view == null || view.lengthSqr() < 1.0e-6) {
             float yaw = Mth.lerp(partialTick, entity.yRotO, entity.getYRot());
@@ -117,46 +111,18 @@ public class BambooSpearRenderer extends EntityRenderer<BambooSpearEntity> {
         }
         view = view.normalize();
 
-        Vec3 origin = handAnchor(eye, view, owner, isLocalOwner && minecraft.options.getCameraType().isFirstPerson());
-        // 杆尖必须落在命中点上（服务端是从眼睛沿视线结算的），所以方向取「手 → 命中点」。
-        Vec3 tip = eye.add(view.scale(length));
-        Vec3 span = tip.subtract(origin);
-        double spanLength = span.length();
-        Vec3 direction;
-        float drawLength;
-        if (spanLength < DIRECTION_MIN_SPAN) {
-            direction = view;
-            drawLength = MIN_LENGTH;
-        } else {
-            direction = span.scale(1.0 / spanLength);
-            drawLength = (float) spanLength;
-        }
+        // 起点 = 杆根（服务端结算用的是同一个 poleBase，都在视线上），方向 = 视线方向。
+        Vec3 origin = BambooSpearEntity.poleBase(eye, view);
+        // length 本身就是「从杆根沿视线量出去的杆长」，服务端也是这么算命中点的。
+        float drawLength = Math.max(MIN_LENGTH, length);
 
         Vec3 entityPos = entity.getPosition(partialTick);
         poseStack.pushPose();
         poseStack.translate(origin.x - entityPos.x, origin.y - entityPos.y, origin.z - entityPos.z);
-        BambooPoleGeometry.orient(poseStack, direction);
+        BambooPoleGeometry.orient(poseStack, view);
         BambooPoleGeometry.render(poseStack, bufferSource, packedLight, 0.0F, drawLength, RADIUS, TIP_LENGTH);
         poseStack.popPose();
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
-    }
-
-    /**
-     * 由眼睛位置推出持刀那只手的世界坐标。
-     * <p>
-     * 侧向偏移用的是<b>水平</b>朝向的右向量而不是完整视线，这样抬头低头时手不会绕着身体转——
-     * 人形模型的肩膀本来也只跟身体朝向走。前向偏移反过来要用完整视线，因为手臂姿态
-     * （{@code HumanoidModelBambooSpearMixin}）是跟着俯仰角一起抬起来的。
-     */
-    private static Vec3 handAnchor(Vec3 eye, Vec3 view, @Nullable Player owner, boolean firstPerson) {
-        Vec3 flat = new Vec3(view.x, 0.0, view.z);
-        flat = flat.lengthSqr() < 1.0e-6 ? new Vec3(0.0, 0.0, 1.0) : flat.normalize();
-        Vec3 right = new Vec3(-flat.z, 0.0, flat.x);
-        int side = owner != null && owner.getMainArm() == HumanoidArm.LEFT ? -1 : 1;
-        Vec3 anchor = eye.add(0.0, HAND_DROP, 0.0)
-                .add(right.scale(side * HAND_SIDE))
-                .add(view.scale(HAND_FORWARD));
-        return firstPerson ? anchor.add(view.scale(FIRST_PERSON_PUSH)) : anchor;
     }
 
     @SuppressWarnings("deprecation")

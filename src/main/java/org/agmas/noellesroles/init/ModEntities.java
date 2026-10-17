@@ -27,7 +27,6 @@ import net.minecraft.world.entity.MobCategory;
 
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.content.block_entity.DevilRouletteTableEntity;
-import org.agmas.noellesroles.game.command_block.CommandBlockThrownEntity;
 import org.agmas.noellesroles.content.entity.*;
 
 public class ModEntities {
@@ -158,14 +157,20 @@ public class ModEntities {
                     .trackedUpdateRate(1)
                     .build());
 
-    /** 竹枪延伸体：沿视线伸长最多 10 格 / 3 秒 */
+    /**
+     * 竹枪延伸体：沿视线伸长最多 10 格 / 3 秒。
+     * <p>
+     * 追踪范围要盖住「伸长后能看到杆尖」的距离：杆最长 10 格，站在 16 格外的旁观者会整根都收不到实体
+     * （表现为别人戳出去的竹枪在自己画面上根本不出现），这里放宽到 32 格。
+     * 更新速率保持 1 tick，否则别的玩家看到的伸长过程会一顿一顿的。
+     */
     @SuppressWarnings("deprecation")
     public static final EntityType<BambooSpearEntity> BAMBOO_SPEAR = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
             ResourceLocation.fromNamespaceAndPath(Noellesroles.MOD_ID, "bamboo_spear"),
             FabricEntityTypeBuilder.<BambooSpearEntity>create(MobCategory.MISC, BambooSpearEntity::new)
                     .dimensions(EntityDimensions.fixed(0.2F, 0.2F))
-                    .trackRangeBlocks(16)
+                    .trackRangeBlocks(32)
                     .trackedUpdateRate(1)
                     .build());
     @SuppressWarnings("deprecation")
@@ -627,17 +632,6 @@ public class ModEntities {
                     .trackedUpdateRate(2)
                     .build());
 
-    /** 命令方块投掷物：石头、火球沿抛物线飞，石枪沿视线伸出再收回。 */
-    @SuppressWarnings("deprecation")
-    public static final EntityType<CommandBlockThrownEntity> COMMAND_BLOCK_THROWN = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            Noellesroles.id("command_block_thrown"),
-            FabricEntityTypeBuilder.<CommandBlockThrownEntity>create(MobCategory.MISC, CommandBlockThrownEntity::new)
-                    .dimensions(EntityDimensions.fixed(0.25F, 0.25F))
-                    .trackRangeBlocks(64)
-                    .trackedUpdateRate(1)
-                    .build());
-
     /** 滚木实体 - 沿方向滚动碾死玩家 */
     @SuppressWarnings("deprecation")
     public static final EntityType<RollingLogEntity> ROLLING_LOG = Registry.register(
@@ -693,26 +687,6 @@ public class ModEntities {
                     .trackRangeBlocks(64)
                     .trackedUpdateRate(1)
                     .build());
-
-    /** 命令方块裂缝。客户端用独立渲染器画裂口。 */
-    public static final EntityType<CommandBlockCrackEntity> COMMAND_BLOCK_CRACK = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            Noellesroles.id("command_block_crack"),
-            EntityType.Builder.of(CommandBlockCrackEntity::new, MobCategory.MISC)
-                    .sized(1.2F, 1.8F)
-                    .clientTrackingRange(128)
-                    .updateInterval(10)
-                    .build("command_block_crack"));
-
-    /** 天上的命令方块。碰撞箱盖住模型，跟踪距离够整张地图。 */
-    public static final EntityType<CommandBlockMarkerEntity> COMMAND_BLOCK_MARKER = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            Noellesroles.id("command_block_marker"),
-            EntityType.Builder.of(CommandBlockMarkerEntity::new, MobCategory.MISC)
-                    .sized(8.0F, 8.0F)
-                    .clientTrackingRange(128)
-                    .updateInterval(2)
-                    .build("command_block_marker"));
 
     /**
      * 初始化实体

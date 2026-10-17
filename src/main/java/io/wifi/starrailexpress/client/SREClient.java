@@ -372,8 +372,6 @@ public class SREClient implements ClientModInitializer {
                 io.wifi.starrailexpress.client.render.entity.PurpleMonsterRenderer::new);
         EntityRendererRegistry.register(TMMEntities.PURPLE_MONSTER_SECOND,
                 io.wifi.starrailexpress.client.render.entity.PurpleMonsterSecondRenderer::new);
-        EntityRendererRegistry.register(io.wifi.starrailexpress.traindummy.TrainDummyEntity.TYPE,
-                context -> new io.wifi.starrailexpress.client.render.entity.TrainDummyRenderer(context, false));
         net.exmo.sre.planecrash.client.PlaneCrashFakeFlames.register();
 
         // Register entity model layers

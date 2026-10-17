@@ -48,7 +48,6 @@ public class NRCommandRegister {
         MurderTimeCommand.register();
         TimeRewindCommand.register();
         FakeSteveCommand.register();
-        CommandBlockCommand.register();
         PurpleMonsterCommand.register();
         VirtualHealthCommand.register();
         MirrorReunionEndEggCommand.register();
