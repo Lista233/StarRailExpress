@@ -719,14 +719,20 @@ public class ModPacketsReciever {
         return;
       }
       if (mainHandItem.getItem() instanceof ThrowingKnife tk) {
+        // 飞刀（throwing_knife）按 Q 扔出不再进入冷却：否则时停时将无法扔出多个飞刀
+        // 注意：下面 shrink(1) 之后手上的物品就没了，凡是「扔出去的是不是飞刀」的判断都得在这之前取好，
+        // 否则生存模式下音效会永远判不上（以前就是这样静音的）。
+        boolean isThrowingKnife = mainHandItem.is(ModItems.THROWING_KNIFE);
         ItemCooldowns cooldowns1 = player.getCooldowns();
-        Map<Item, ItemCooldowns.CooldownInstance> cooldowns = cooldowns1.cooldowns;
-        if (GameUtils.isPlayerAliveAndSurvival(player) && cooldowns1.isOnCooldown(tk)
-            && cooldowns.get(tk).endTime - cooldowns1.tickCount <= 20)
-          return;
+        if (!isThrowingKnife) {
+          Map<Item, ItemCooldowns.CooldownInstance> cooldowns = cooldowns1.cooldowns;
+          if (GameUtils.isPlayerAliveAndSurvival(player) && cooldowns1.isOnCooldown(tk)
+              && cooldowns.get(tk).endTime - cooldowns1.tickCount <= 20)
+            return;
+        }
         if (!player.isCreative())
           mainHandItem.shrink(1);
-        if (!cooldowns1.isOnCooldown(tk)) {
+        if (!isThrowingKnife && !cooldowns1.isOnCooldown(tk)) {
           cooldowns1.addCooldown(tk, 20);
         }
         ThrowingKnifeEntity entity = new ThrowingKnifeEntity(ModEntities.THROWING_KNIFE, player, player.level(),
@@ -738,7 +744,7 @@ public class ModPacketsReciever {
         player.level().addFreshEntity(entity);
         player.swing(InteractionHand.MAIN_HAND);
         ServerLevel serverLevel = player.serverLevel();
-        if (mainHandItem.is(ModItems.THROWING_KNIFE)) {
+        if (isThrowingKnife) {
           serverLevel.players().forEach(p -> {
             serverLevel.playSound(p, entity.getX(), entity.getY(), entity.getZ(), SoundEvents.TRIDENT_THROW,
                 SoundSource.PLAYERS, 1.0f, 1.0f);
