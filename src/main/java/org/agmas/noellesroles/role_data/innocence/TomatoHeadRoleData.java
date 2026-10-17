@@ -183,7 +183,13 @@ public class TomatoHeadRoleData extends SimpleRoleData {
             return;
         }
         SREGameWorldComponent game = SREGameWorldComponent.KEY.get(sp.level());
-        if (game == null || !game.isRunning() || !game.isRole(sp, ModRoles.TOMATO_HEAD)) {
+        if (game == null || !game.isRunning()) {
+            return;
+        }
+        if (!game.isRole(sp, ModRoles.TOMATO_HEAD)) {
+            // 职业已变更：立即结束西红柿形态恢复人形（旧数据在无声换职业时会继续 tick，
+            // 只静默返回会把 tomatoFormEndTick 留在未来，外观/眼高会残留到原定时结束）
+            endTomatoForm(sp, false);
             return;
         }
         if (!GameUtils.isPlayerAliveAndSurvival(sp)) {
