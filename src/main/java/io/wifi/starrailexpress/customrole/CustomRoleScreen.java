@@ -328,6 +328,9 @@ public class CustomRoleScreen extends CustomEditorScreen {
                 triCell(PREFIX + ".can_climb_walls", data.canClimbWalls,
                         value -> data.canClimbWalls = value, false));
         r = cluster(r, null,
+                triCell(PREFIX + ".can_uncuff_others", data.canUncuffOthers,
+                        value -> data.canUncuffOthers = value, false));
+        r = cluster(r, null,
                 toggleCell(PREFIX + ".can_be_randomed", data.canBeRandomedByOtherRoles,
                         value -> data.canBeRandomedByOtherRoles = value, false),
                 triCell(PREFIX + ".can_ignore_blackout", data.canIgnoreBlackout,

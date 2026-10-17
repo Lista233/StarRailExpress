@@ -2946,6 +2946,7 @@
   "sre.custom_role.fall_damage_immune": "免疫摔落傷害",
   "sre.custom_role.can_auto_add_minigame_token": "被動遊戲幣收入",
   "sre.custom_role.can_climb_walls": "是否可攀爬",
+  "sre.custom_role.can_uncuff_others": "可取用手銬",
   "sre.custom_role.label.fall_to_death_height": "摔落致死高度",
   "sre.custom_role.hint.fall_to_death_height": "摔落距離達到該值（格）即判死；-1 = 跟隨地圖設置",
   "sre.custom_role.shop.currency.money": "金幣",

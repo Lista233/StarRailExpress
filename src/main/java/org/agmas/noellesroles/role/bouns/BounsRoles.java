@@ -396,7 +396,8 @@ public class BounsRoles {
             .setDefaultEnableNeededPlayerCount(12) // 人数刷新上限 12 人
             .setAddedVersion("4.4") // versiontag 4.4
             .setTaskReward(2, 1, new ItemStack(TMMItems.STANDARD_REVOLVER)) // 完成 2 个任务获制式左轮
-            .setCanUseInstinctAndNightVision(true);
+            .setCanUseInstinctAndNightVision(true)
+            .setCanUncuffOthers(true);
 
     /**
      * 程序员角色

@@ -931,6 +931,12 @@ public abstract class SRERole extends SREAbstractInfoClass {
      */
     protected boolean canClimbWalls = false;
 
+    /**
+     * 是否可取用 / 取下他人手铐（巡警队之外的补充渠道）。默认关闭；
+     * 子类（如黑警、程序员）可覆写 {@link #canUncuffOthers(Player)} 或开启本开关。
+     */
+    protected boolean canUncuffOthers = false;
+
     public boolean isNeutrals() {
         return this.isNeutrals;
     }
@@ -1588,6 +1594,36 @@ public abstract class SRERole extends SREAbstractInfoClass {
     public SRERole setCanClimbWalls(boolean able) {
         this.canClimbWalls = able;
         return this;
+    }
+
+    /** 静态开关：该职业是否可取下他人手铐 */
+    public boolean canUncuffOthers() {
+        return this.canUncuffOthers;
+    }
+
+    /**
+     * 该玩家此刻能否取下他人手铐。
+     * <p>
+     * 默认返回静态开关；需要按玩家状态判断的职业覆写本方法（例如程序员）。
+     *
+     * @param player 目标玩家
+     */
+    public boolean canUncuffOthers(Player player) {
+        return canUncuffOthers();
+    }
+
+    /** 开启 / 关闭该职业取下他人手铐的能力 */
+    public SRERole setCanUncuffOthers(boolean able) {
+        this.canUncuffOthers = able;
+        return this;
+    }
+
+    /**
+     * 是否可取用手铐（通用判定）：警长阵营，或该职业开启了取用手铐能力
+     * （{@link #canUncuffOthers(Player)} 返回 {@code true}）时允许。
+     */
+    public boolean canTakeOffHandcuffs(Player player) {
+        return isVigilanteTeam() || canUncuffOthers(player);
     }
 
     public SRERole setCanSeeCoin(boolean able) {

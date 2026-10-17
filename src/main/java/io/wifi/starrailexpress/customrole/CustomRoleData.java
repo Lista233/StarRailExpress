@@ -114,6 +114,10 @@ public class CustomRoleData {
     @SerializedName("canClimbWalls")
     public Boolean canClimbWalls = null;
 
+    /** 可取用手铐（取下他人手铐），对应 {@code SRERole#setCanUncuffOthers}。 */
+    @SerializedName("canUncuffOthers")
+    public Boolean canUncuffOthers = null;
+
     @SerializedName("canBeRandomedByOtherRoles")
     public boolean canBeRandomedByOtherRoles = true;
 
