@@ -266,6 +266,9 @@ public class ThrownBambooEntity extends AbstractArrow {
         }
         this.hungPlayers.add(target.getUUID());
         target.startRiding(this, true);
+        // 挂上时立刻清零被命中玩家自身的动量（冲力），否则这股朝墙的速度会把人顶穿薄墙。
+        target.setDeltaMovement(Vec3.ZERO);
+        target.fallDistance = 0.0F;
 
         ServerLevel serverLevel = target.serverLevel();
         serverLevel.sendParticles(ParticleTypes.CRIT, location.x, location.y + 1.0f, location.z, 10, 0.25, 0.25,
@@ -448,6 +451,7 @@ public class ThrownBambooEntity extends AbstractArrow {
             if (serverPlayer.getVehicle() != this) {
                 serverPlayer.startRiding(this, true);
             }
+            serverPlayer.setDeltaMovement(Vec3.ZERO);
             banMovement(serverPlayer);
             return false;
         });
@@ -467,15 +471,19 @@ public class ThrownBambooEntity extends AbstractArrow {
         player.addEffect(new MobEffectInstance(ModEffects.MOVE_BANED, 40, 0, false, false, false));
     }
 
-    /** 兜底：万一玩家还是嵌在方块里，找安全位；找不到就下竹落地，绝不把人传送到墙对面。 */
+    /** 兜底：万一玩家嵌进方块、或被墙挡在竹子另一侧，清零动量后找同侧安全位；找不到就下竹落地，绝不把人传到墙对面。 */
     private void unstickRiders() {
         for (Entity passenger : this.getPassengers()) {
             if (!(passenger instanceof ServerPlayer player)) {
                 continue;
             }
-            if (this.level().noCollision(player.getBoundingBox())) {
+            boolean embedded = !this.level().noCollision(player.getBoundingBox());
+            boolean behindWall = !this.isVisibleFromBamboo(player.position());
+            if (!embedded && !behindWall) {
                 continue;
             }
+            // 先掐掉动量，避免重定位瞬间又被残留速度带穿墙。
+            player.setDeltaMovement(Vec3.ZERO);
             Vec3 safe = this.findFreeSpot(player, player.position());
             if (safe == null) {
                 safe = this.findGroundSpot(player, this.getX(), this.getY(), this.getZ());
@@ -489,7 +497,19 @@ public class ThrownBambooEntity extends AbstractArrow {
             }
             player.teleportTo(player.serverLevel(), safe.x, safe.y, safe.z, Set.of(), player.getYRot(),
                     player.getXRot());
+            player.setDeltaMovement(Vec3.ZERO);
         }
+    }
+
+    /** 从竹子本体能否无遮挡地看到该点（中间隔了方块即视为被墙隔开）。 */
+    private boolean isVisibleFromBamboo(Vec3 point) {
+        Vec3 from = this.position();
+        if (from.distanceToSqr(point) < 1.0E-4) {
+            return true;
+        }
+        BlockHitResult clip = this.level().clip(new ClipContext(from, point, ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE, this));
+        return clip.getType() == HitResult.Type.MISS || clip.getLocation().distanceToSqr(point) < 0.09;
     }
 
     /**
