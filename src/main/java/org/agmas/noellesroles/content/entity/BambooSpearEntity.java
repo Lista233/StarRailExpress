@@ -28,6 +28,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
@@ -49,6 +50,19 @@ import java.util.UUID;
 /**
  * 竹刀延伸体：右键后从持有者手部沿视线慢慢伸长，最长 10 格、<b>1.5 秒</b>伸到底；
  * 命中玩家则目标立即死亡、竹刀收回（耐久由 {@code BambooSpearItem} 在释放时扣 1 点）。
+ *
+ * <p>
+ * <b>几何约定（改这里之前先读一遍，否则很容易又长出「往身后戳」的杆）：</b>
+ * <ol>
+ * <li><b>方向</b>：永远取持有者的当前朝向 {@code getViewVector(1.0F)}，与枪械射线一致，
+ * 屏幕上指哪就往哪长。</li>
+ * <li><b>起点</b>：取「握住竹枪的那只手」{@link #handAnchor}，服务端结算和客户端渲染
+ * 共用同一个静态方法，保证看到的和打到的是同一根杆。</li>
+ * <li><b>长度</b>：{@code length} 是从<b>握手点</b>沿视线量出去的杆长，由服务端每 tick
+ * 递增；因为枪是瞬时命中而竹枪是「长出来」的，所以每一 tick 都要按当前长度重新打一次射线。</li>
+ * <li><b>撞墙上限</b>：握手点在眼睛前方，所以墙的判断从<b>眼睛</b>起算再减掉这段前推，
+ * 否则杆尖会戳穿墙面。</li>
+ * </ol>
  */
 public class BambooSpearEntity extends Entity {
 
@@ -57,14 +71,26 @@ public class BambooSpearEntity extends Entity {
     public static final int EXTEND_TICKS = 30;
     public static final int RETRACT_TICKS = 10;
 
+    /**
+     * 握持点相对眼睛的偏移（单位：格）。对着人形模型量出来的：手臂枢轴在 y≈1.375、x≈±0.3125，
+     * 手臂前伸时掌心落在身体中心前方约 0.75 格，这里取略小的值让竹杆看着是「握住」而不是浮在指尖外。
+     */
+    private static final double HAND_DROP = -0.25;
+    private static final double HAND_SIDE = 0.32;
+    private static final double HAND_FORWARD = 0.60;
+    /** 杆根相对眼睛的最小前推，太靠近眼睛会被第一人称近裁剪面切掉。 */
+    private static final double MIN_BASE_REACH = 0.30;
+    /** 命中判定的整杆扫掠半径。 */
+    private static final double HIT_INFLATE = 0.35;
+
     private static final EntityDataAccessor<Float> LENGTH = SynchedEntityData.defineId(BambooSpearEntity.class,
             EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Optional<UUID>> OWNER_UUID = SynchedEntityData.defineId(
             BambooSpearEntity.class, EntityDataSerializers.OPTIONAL_UUID);
     private static final EntityDataAccessor<Boolean> RETRACTING = SynchedEntityData.defineId(BambooSpearEntity.class,
             EntityDataSerializers.BOOLEAN);
-    // 每 tick 由服务端把持有者的权威眼睛位置 / 视线方向同步给客户端，
-    // 渲染端据此绘制，保证「屏幕上的方向」与「实际命中的方向」完全一致，
+    // 每 tick 由服务端把权威的「眼睛位置」与「视线方向」同步给客户端，渲染端用同一套
+    // 静态方法推出杆根，保证「屏幕上的方向」与「实际命中的方向」完全一致，
     // 且始终跟随持有者当前视角（不会卡在发射瞬间的朝向）。
     private static final EntityDataAccessor<Float> EYE_X = SynchedEntityData.defineId(BambooSpearEntity.class,
             EntityDataSerializers.FLOAT);
@@ -115,7 +141,7 @@ public class BambooSpearEntity extends Entity {
         this.setPos(owner.getEyePosition());
         this.setYRot(owner.getYRot());
         this.setXRot(owner.getXRot());
-        this.entityData.set(LENGTH, 0.05f);
+        this.entityData.set(LENGTH, 0.0f);
         this.entityData.set(RETRACTING, false);
     }
 
@@ -212,9 +238,31 @@ public class BambooSpearEntity extends Entity {
         return false;
     }
 
+    /**
+     * 由眼睛位置与视线方向推出「握住竹枪的那只手」的世界坐标。
+     * <p>
+     * 侧向偏移用<b>水平</b>朝向的右向量而不是完整视线，这样抬头低头时手不会绕着身体转——
+     * 人形模型的肩膀本来也只跟身体朝向走。前向偏移反过来要用完整视线，因为手臂姿态
+     * （{@code HumanoidModelBambooSpearMixin}）是跟着俯仰角一起抬起来的。
+     * <p>
+     * <b>服务端结算与客户端渲染必须调用同一个方法</b>：以前渲染端自己算了一套
+     * 「手 → 命中点」的方向，短杆阶段 0.3 格的侧向偏移会把方向彻底带歪，
+     * 刚右键时杆是朝身后长的，然后才慢慢甩到正前方。现在两端都从这里取起点、
+     * 方向统一取视线方向，杆的朝向恒等于准星方向。
+     */
+    public static Vec3 handAnchor(Vec3 eye, Vec3 look, @Nullable Player owner) {
+        Vec3 flat = new Vec3(look.x, 0.0, look.z);
+        flat = flat.lengthSqr() < 1.0e-6 ? new Vec3(0.0, 0.0, 1.0) : flat.normalize();
+        Vec3 right = new Vec3(-flat.z, 0.0, flat.x);
+        int side = owner != null && owner.getMainArm() == HumanoidArm.LEFT ? -1 : 1;
+        return eye.add(0.0, HAND_DROP, 0.0)
+                .add(right.scale(side * HAND_SIDE))
+                .add(look.scale(HAND_FORWARD));
+    }
+
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(LENGTH, 0.05f);
+        builder.define(LENGTH, 0.0f);
         builder.define(OWNER_UUID, Optional.empty());
         builder.define(RETRACTING, false);
         builder.define(EYE_X, 0.0f);
@@ -233,11 +281,11 @@ public class BambooSpearEntity extends Entity {
             this.clientLength = getLength();
             // 同步数据是「每 tick 一跳」的，直接拿来画会让其他玩家看到 20Hz 的抖动；
             // 这里存上一 tick 的值，渲染端再按 partialTick 插值。
-            Vec3 eye = getSyncedEyePos();
+            Vec3 syncEye = getSyncedEyePos();
             Vec3 dir = getSyncedLookDir();
-            this.clientPrevEye = this.clientEye == null ? eye : this.clientEye;
+            this.clientPrevEye = this.clientEye == null ? syncEye : this.clientEye;
             this.clientPrevDir = this.clientDir == null ? dir : this.clientDir;
-            this.clientEye = eye;
+            this.clientEye = syncEye;
             this.clientDir = dir;
             UUID owner = getOwnerUuid();
             if (owner != null) {
@@ -257,21 +305,15 @@ public class BambooSpearEntity extends Entity {
             return;
         }
 
-        // 命中射线从眼睛（准星中心线）发出：屏幕上指哪打哪，与视觉收敛线在最远端重合
-        // 注意：此处视线方向是命中判定的权威方向，切勿取反，否则伤害会打偏到身后。
-        Vec3 start = serverOwner.getEyePosition();
-        Vec3 look = serverOwner.getLookAngle();
-        // 把权威的眼睛位置与视线方向同步给客户端，渲染端据此绘制，
-        // 保证视觉方向与命中方向一致，且始终跟随持有者当前视角。
-        this.entityData.set(EYE_X, (float) start.x);
-        this.entityData.set(EYE_Y, (float) start.y);
-        this.entityData.set(EYE_Z, (float) start.z);
-        this.entityData.set(DIR_X, (float) look.x);
-        this.entityData.set(DIR_Y, (float) look.y);
-        this.entityData.set(DIR_Z, (float) look.z);
-        // 注意：实体不再每 tick 跟随所有者移动。传送式跟随会让客户端插值严重滞后，
-        // 导致渲染出的竹枪不朝当前视角伸长（伤害判定不受影响，因此此前「打得到但看不到」）。
-        // 实体保持在发射时的眼睛位置不动，渲染端按所有者的实时视角绘制整根竹枪。
+        // 与枪械射线同一套写法：起点取眼睛、方向取持有者当前朝向（getViewVector）。
+        // 唯一区别是枪的射程固定，而竹枪的射程是「长出来」的，
+        // 所以每一 tick 都要按当前长度重新打一次这条射线。
+        Vec3 eye = serverOwner.getEyePosition();
+        Vec3 look = serverOwner.getViewVector(1.0F).normalize();
+        // 握手点 = 竹杆的起点；服务端结算和客户端渲染都走 handAnchor，数值不会跑偏。
+        Vec3 origin = handAnchor(eye, look, serverOwner);
+        // 握手点沿视线在眼睛前方多少格（向下偏移会带来俯仰角分量，抬头/低头时会变）。
+        double baseReach = Math.max(MIN_BASE_REACH, origin.subtract(eye).dot(look));
 
         float length = getLength();
         boolean retracting = isRetracting();
@@ -279,30 +321,40 @@ public class BambooSpearEntity extends Entity {
             length = Math.min(MAX_LENGTH, length + MAX_LENGTH / EXTEND_TICKS);
         } else {
             length = Math.max(0.0f, length - MAX_LENGTH / RETRACT_TICKS);
-            if (length <= 0.05f) {
-                this.discard();
-                return;
-            }
         }
 
-        Vec3 end = start.add(look.scale(length));
-        BlockHitResult blockHit = this.level().clip(new ClipContext(start, end, ClipContext.Block.COLLIDER,
+        // 撞墙上限：从眼睛起算（握手点本身可能已经嵌进墙里），命中后换算回杆长，
+        // 这样杆尖正好停在墙面上，不会戳穿。
+        Vec3 eyeEnd = eye.add(look.scale(baseReach + length));
+        BlockHitResult blockHit = this.level().clip(new ClipContext(eye, eyeEnd, ClipContext.Block.COLLIDER,
                 ClipContext.Fluid.NONE, serverOwner));
         if (blockHit.getType() != HitResult.Type.MISS) {
-            length = (float) start.distanceTo(blockHit.getLocation());
-            end = start.add(look.scale(Math.max(0.05, length)));
+            length = (float) Math.max(0.0, eye.distanceTo(blockHit.getLocation()) - baseReach);
             if (!retracting) {
                 retracting = true;
             }
         }
 
+        this.entityData.set(EYE_X, (float) eye.x);
+        this.entityData.set(EYE_Y, (float) eye.y);
+        this.entityData.set(EYE_Z, (float) eye.z);
+        this.entityData.set(DIR_X, (float) look.x);
+        this.entityData.set(DIR_Y, (float) look.y);
+        this.entityData.set(DIR_Z, (float) look.z);
+        // 注意：实体不再每 tick 跟随所有者移动。传送式跟随会让客户端插值严重滞后，
+        // 导致渲染出的竹枪不朝当前视角伸长（伤害判定不受影响，因此此前「打得到但看不到」）。
+        // 实体保持在发射时的眼睛位置不动，渲染端按所有者的实时视角绘制整根竹枪。
+
+        Vec3 end = origin.add(look.scale(length));
+
         if (!retracting && !this.killed) {
-            AABB sweep = new AABB(start, end).inflate(0.35);
-            EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(serverOwner, start, end, sweep,
+            AABB sweep = new AABB(origin, end).inflate(HIT_INFLATE);
+            // 用不带距离上限的重载：扫掠盒本身已经只覆盖「杆根 → 杆尖」这一段，
+            // 距离参数再传 length*length 反而会在短杆阶段把命中全部筛掉。
+            EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(serverLevel, this, origin, end, sweep,
                     entity -> entity instanceof ServerPlayer target
                             && target != serverOwner
-                            && GameUtils.isPlayerAliveAndSurvival(target),
-                    length * length);
+                            && GameUtils.isPlayerAliveAndSurvival(target));
             if (entityHit != null && entityHit.getEntity() instanceof ServerPlayer target) {
                 this.killed = true;
                 retracting = true;
@@ -311,7 +363,7 @@ public class BambooSpearEntity extends Entity {
                 serverLevel.playSound(null, hit.x, hit.y, hit.z, SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.PLAYERS,
                         1.0f, 1.1f);
                 GameUtils.killPlayer(target, true, serverOwner, Noellesroles.id("bamboo_spear"));
-                length = (float) start.distanceTo(hit);
+                length = (float) origin.distanceTo(hit);
             }
         }
 
@@ -321,6 +373,9 @@ public class BambooSpearEntity extends Entity {
 
         this.entityData.set(LENGTH, length);
         this.entityData.set(RETRACTING, retracting);
+        if (retracting && length <= 0.0f) {
+            this.discard();
+        }
     }
 
     /** 设置「持有者不再持有竹刀」的检查豁免（最后一格耐久碎裂时使用）。 */
