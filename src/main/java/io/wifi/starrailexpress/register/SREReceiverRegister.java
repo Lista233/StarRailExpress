@@ -87,6 +87,8 @@ public class SREReceiverRegister {
                         payload.matchId()));
         ServerPlayNetworking.registerGlobalReceiver(GunShootPayload.ID, new GunShootPayload.Receiver());
         ServerPlayNetworking.registerGlobalReceiver(SniperShootPayload.TYPE, new SniperShootPayload.Receiver());
+        ServerPlayNetworking.registerGlobalReceiver(TrainDummySpawnC2SPayload.ID,
+                new TrainDummySpawnC2SPayload.Receiver());
         // 自定义枪械「左键发射」请求
         ServerPlayNetworking.registerGlobalReceiver(
                 io.wifi.starrailexpress.network.original.CustomItemFirePayload.TYPE,

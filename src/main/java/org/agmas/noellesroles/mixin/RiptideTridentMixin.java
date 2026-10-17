@@ -264,5 +264,19 @@ public class RiptideTridentMixin {
                 player.getCooldowns().addCooldown(Items.TRIDENT, 20 * 30);
             }
         }
+        for (io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy : serverLevel.getEntitiesOfClass(
+                io.wifi.starrailexpress.traindummy.TrainDummyEntity.class, hitBox,
+                io.wifi.starrailexpress.traindummy.TrainDummyEntity::canReceiveHits)) {
+            if (this.riptideHitTargets.contains(dummy.getUUID())) {
+                continue;
+            }
+            Vec3 eye = from.add(0.0, player.getEyeHeight(), 0.0);
+            if (serverLevel.clip(new ClipContext(eye, dummy.getEyePosition(),
+                    ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player)).getType() != HitResult.Type.MISS) {
+                continue;
+            }
+            this.riptideHitTargets.add(dummy.getUUID());
+            io.wifi.starrailexpress.traindummy.TrainDummyCombat.applyLethal(dummy, serverPlayer, SRE.id("trident"));
+        }
     }
 }
