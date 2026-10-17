@@ -188,7 +188,10 @@ public class LeatherPigRoleData extends SimpleRoleData {
             return;
         }
         SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(sp.level());
-        boolean shouldDisguise = gameWorld.isRunning() && GameUtils.isPlayerAliveAndSurvival(sp);
+        // 职业已变更（不再是皮革噶的）时立即脱下猪皮：直接 addRole 的换职业
+        // （管理员指令 / 变身模式）不走转职链路，旧数据会继续 tick。
+        boolean shouldDisguise = gameWorld.isRunning() && GameUtils.isPlayerAliveAndSurvival(sp)
+                && gameWorld.isRole(sp, ModRoles.LEATHER_PIG);
         if (shouldDisguise != disguised) {
             setDisguised(shouldDisguise);
             disguiseResyncTicks = DISGUISE_RESYNC_WINDOW;

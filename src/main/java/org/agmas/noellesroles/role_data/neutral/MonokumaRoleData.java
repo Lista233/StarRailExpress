@@ -40,6 +40,7 @@ import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.game.roles.neutral.panda.PandaClientHandle;
 import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.init.ModItems;
+import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.utils.RoleUtils;
 
 public class MonokumaRoleData extends SimpleRoleData {
@@ -115,6 +116,12 @@ public class MonokumaRoleData extends SimpleRoleData {
         if (this.phase == 2) {
             stopFrenzy();
         }
+        // 变身黑白熊(3)时给予了永久隐形与无敌，clear 必须收回，
+        // 否则转职 / 死亡 / 游戏重置后玩家仍处于隐形+无敌状态。
+        if (this.phase == 3 && player instanceof ServerPlayer sp) {
+            sp.removeEffect(MobEffects.INVISIBILITY);
+            sp.removeEffect(ModEffects.INVINCIBLE);
+        }
         this.phase = 0;
         this.frenzyTimer = 0;
         this.auraCoinTimer = 0;
@@ -124,6 +131,13 @@ public class MonokumaRoleData extends SimpleRoleData {
         this.isPanda = false;
         this.kill_count = 0;
         this.sync();
+        // isPanda 清零后 shouldSyncWith 只含本人，熊猫皮会留在其他玩家的屏幕上；
+        // 这里显式广播给所有玩家，确保外观立即复位（无声换职业路径不走上面的广播）。
+        if (player instanceof ServerPlayer sp) {
+            for (ServerPlayer p : sp.serverLevel().players()) {
+                syncTo(p);
+            }
+        }
     }
 
     /**
@@ -340,6 +354,13 @@ public class MonokumaRoleData extends SimpleRoleData {
         var gameComponent = SREGameWorldComponent.KEY.get(player.level());
         if (!gameComponent.isRunning())
             return;
+
+        // 职业已变更（不再是黑白熊）：立即退出黑白熊形态，恢复人形。
+        // 直接 addRole 的换职业（管理员指令 / 变身模式）不走转职链路，旧数据会继续 tick。
+        if (!gameComponent.isRole(player, ModRoles.MONOKUMA)) {
+            clear();
+            return;
+        }
 
         // 狂暴前奏阶段
         if (phase == 2) {
