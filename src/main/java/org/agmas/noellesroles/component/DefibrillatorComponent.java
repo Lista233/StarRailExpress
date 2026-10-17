@@ -71,6 +71,12 @@ public class DefibrillatorComponent implements RoleComponent, ServerTickingCompo
         this.deathPos = pos;
         if (player instanceof ServerPlayer sp) {
             DeathPenaltyComponent.KEY.get(sp).setPenaltyWithPositionLimit(-1, pos, true);
+            // 该玩家即将被复活：若尸体已生成，标记为不可交互，
+            // 防止复活完成前被亡灵法师 / 骸骨之书 / 殡仪员等其它途径交互
+            PlayerBodyEntity body = findPlayerBodyEntity(sp);
+            if (body != null) {
+                body.setNonInteractable(true);
+            }
         }
         ModComponents.DEFIBRILLATOR.sync(player);
     }

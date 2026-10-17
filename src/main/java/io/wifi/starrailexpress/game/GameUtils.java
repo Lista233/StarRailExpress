@@ -334,6 +334,11 @@ public class GameUtils {
                 bodycca.playerRole = role.identifier();
                 // 不立即同步
             }
+            // 玩家死亡时若已安排复活（如循声者的被动复活先于尸体生成触发），
+            // 其尸体标记为不可交互，避免复活完成前被他人复活 / 打开物品栏
+            if (DefibrillatorComponent.KEY.get(victim).isDead) {
+                bodycca.setNonInteractable(true, false);
+            }
             // 最后统一同步一次
             bodycca.sync();
         }
@@ -1740,6 +1745,11 @@ public class GameUtils {
     public static void revivePlayerToItsRoom(ServerPlayer player) {
         DeathPenaltyComponent.KEY.get(player).clear();
         DefibrillatorComponent.KEY.get(player).clear();
+        // 复活后清掉尸体上的不可交互标记（部分复活路径不会销毁尸体，如蜂后继承人继位）
+        PlayerBodyEntity body = DefibrillatorComponent.findPlayerBodyEntity(player);
+        if (body != null) {
+            body.setNonInteractable(false);
+        }
         GameUtils.teleportBackToRoom(player);
         player.setGameMode(GameType.ADVENTURE);
         {
@@ -1769,6 +1779,11 @@ public class GameUtils {
     public static void revivePlayer(ServerPlayer player, double x, double y, double z) {
         DeathPenaltyComponent.KEY.get(player).clear();
         DefibrillatorComponent.KEY.get(player).clear();
+        // 复活后清掉尸体上的不可交互标记（部分复活路径不会销毁尸体，如蜂后继承人继位）
+        PlayerBodyEntity body = DefibrillatorComponent.findPlayerBodyEntity(player);
+        if (body != null) {
+            body.setNonInteractable(false);
+        }
         {
             var gravityAttr = player.getAttribute(Attributes.GRAVITY);
             if (gravityAttr != null) {

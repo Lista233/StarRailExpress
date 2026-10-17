@@ -139,6 +139,7 @@
     "message.noellesroles.bone_book.offline": "The corpse's owner is offline, Book of Bones not consumed",
     "message.noellesroles.bone_book.fake_body": "A fake corpse cannot be revived by the Book of Bones",
     "message.noellesroles.bone_book.not_dead": "This player is still alive, Book of Bones not consumed",
+    "message.noellesroles.corpse.pending_revive": "This corpse is about to be revived and cannot be interacted with",
     "announcement.star.goals.canada_goose": "I'm a good guy, don't kill me!",
     "announcement.star.goals.dummy_bird": "Get yourself voted out during a meeting.",
     "announcement.star.win.dummy_bird": "Dummy Bird wins",
