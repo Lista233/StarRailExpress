@@ -70,6 +70,7 @@ public final class ProgressionObjectives {
     public static final String ZIPLINE_USED = "ZIPLINE_USED";
     public static final String WATER_DISPENSER_USED = "WATER_DISPENSER_USED";
     public static final String REDEEM_CODE = "REDEEM_CODE";
+    public static final String PLAY_SPECIFIC_MAP = "PLAY_SPECIFIC_MAP";
 
     public record Definition(
             String id,
@@ -123,7 +124,8 @@ public final class ProgressionObjectives {
             def(CHAT_MESSAGES, "聊天发言", "在聊天栏发言次数", false, ""),
             def(ZIPLINE_USED, "滑索交互", "使用滑索次数", false, ""),
             def(WATER_DISPENSER_USED, "取水次数", "从饮水机取水次数", false, ""),
-            def(REDEEM_CODE, "兑换指定口令", "兑换含指定口令的兑换码自动完成", true, ""));
+            def(REDEEM_CODE, "兑换指定口令", "兑换含指定口令的兑换码自动完成", true, ""),
+            def(PLAY_SPECIFIC_MAP, "游玩指定地图", "objectiveKey 为地图 ID；空=任意地图", true, ""));
 
     public static String normalize(String raw) {
         if (raw == null || raw.isBlank()) {

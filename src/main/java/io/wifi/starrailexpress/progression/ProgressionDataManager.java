@@ -447,6 +447,14 @@ public final class ProgressionDataManager {
         increment(player, ProgressionObjectives.WATER_DISPENSER_USED, null, 1);
     }
 
+    /** 游玩指定地图时累加 PLAY_SPECIFIC_MAP（key=地图 ID）。 */
+    public static void onPlayMap(ServerPlayer player, String mapId) {
+        if (!isActive() || mapId == null || mapId.isEmpty()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.PLAY_SPECIFIC_MAP, mapId, 1);
+    }
+
     public static void addFactionCard(ServerPlayer player, ProgressionState.FactionCardType type, int count) {
         BackpackManager.addCard(player, type, count);
     }
