@@ -68,24 +68,39 @@ public class DreadlordRoleData extends SimpleRoleData {
                     .withStyle(ChatFormatting.GRAY), true);
             return false;
         }
-        if (dark) {
-            leaveDark(self, false);
-            return true;
-        }
-        if (killing) {
-            int now = self.tickCount;
-            if (now < darkReadyAt) {
-                self.displayClientMessage(Component.translatable("message.noellesroles.dreadlord.dark_wait")
-                        .withStyle(ChatFormatting.GRAY), true);
-                return false;
-            }
-            enterDark(self);
-            return true;
-        }
         if (!payForm(self)) {
             return false;
         }
         enterKilling(self);
+        return true;
+    }
+
+    /** 第二个技能：只在狂暴中进出黑暗，不占用恐惧技能的冷却。 */
+    public boolean useDark() {
+        if (!(player instanceof ServerPlayer self)) {
+            return false;
+        }
+        if (isStunned()) {
+            self.displayClientMessage(Component.translatable("message.noellesroles.dreadlord.stunned")
+                    .withStyle(ChatFormatting.GRAY), true);
+            return false;
+        }
+        if (dark) {
+            leaveDark(self, false);
+            return true;
+        }
+        if (!killing) {
+            self.displayClientMessage(Component.translatable("message.noellesroles.dreadlord.dark_need_form")
+                    .withStyle(ChatFormatting.GRAY), true);
+            return false;
+        }
+        int now = self.tickCount;
+        if (now < darkReadyAt) {
+            self.displayClientMessage(Component.translatable("message.noellesroles.dreadlord.dark_wait")
+                    .withStyle(ChatFormatting.GRAY), true);
+            return false;
+        }
+        enterDark(self);
         return true;
     }
 

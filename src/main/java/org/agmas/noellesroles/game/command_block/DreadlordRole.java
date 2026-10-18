@@ -30,7 +30,7 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * 恐惧魔王：伪装成乘客。盯住一个人会让所有人看见自己被注视，并打乱皮肤和名牌。
- * 恐惧技能直接开启 25 秒狂暴，走 Psycho 的倒计时、滤镜和追杀音。G 键在狂暴中变成贴地的黑暗。
+ * 恐惧技能直接开启 25 秒狂暴，走 Psycho 的倒计时、滤镜和追杀音。第二个技能在狂暴中遁入黑暗。
  */
 public class DreadlordRole extends NormalRole {
     public static final ResourceLocation DEATH = Noellesroles.id("reaper_scythe");
@@ -69,12 +69,19 @@ public class DreadlordRole extends NormalRole {
     }
 
     public static void registerSkill() {
-        RoleSkill.register(ModRoles.DREADLORD, RoleSkill.skill(
-                SRE.id("dreadlord_form"),
-                "skill.noellesroles.dreadlord.form",
-                context -> useForm(context.player()))
-                .cooldownSeconds(FORM_COOLDOWN)
-                .announceToSelf().showOnHud(true).build());
+        RoleSkill.register(ModRoles.DREADLORD,
+                RoleSkill.skill(
+                        SRE.id("dreadlord_form"),
+                        "skill.noellesroles.dreadlord.form",
+                        context -> useForm(context.player()))
+                        .cooldownSeconds(FORM_COOLDOWN)
+                        .announceToSelf().showOnHud(true).build(),
+                RoleSkill.skill(
+                        SRE.id("dreadlord_dark"),
+                        "skill.noellesroles.dreadlord.dark",
+                        context -> useDark(context.player()))
+                        .toggleable(true)
+                        .announceToSelf().showOnHud(true).build());
     }
 
     public static boolean useForm(ServerPlayer player) {
@@ -83,6 +90,14 @@ public class DreadlordRole extends NormalRole {
             return false;
         }
         return data.useForm();
+    }
+
+    public static boolean useDark(ServerPlayer player) {
+        DreadlordRoleData data = RoleData.getNullable(DreadlordRoleData.class, player);
+        if (data == null || !GameUtils.isPlayerAliveAndSurvival(player)) {
+            return false;
+        }
+        return data.useDark();
     }
 
     public static boolean isDreadlord(Player player) {
