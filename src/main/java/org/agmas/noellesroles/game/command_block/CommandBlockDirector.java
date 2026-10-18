@@ -29,6 +29,7 @@ import org.agmas.noellesroles.api.time.TimeRewindOptions;
 import org.agmas.noellesroles.api.time.TimeRewindSnapshot;
 import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.init.ModItems;
+import org.agmas.noellesroles.component.DeathPenaltyComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 
@@ -612,13 +613,13 @@ public final class CommandBlockDirector {
         }
         for (Map.Entry<UUID, TimeRewindSnapshot> entry : session.rewindNodes.entrySet()) {
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(entry.getKey());
-            if (player == null) {
+            // 节点之后死亡的人留在死亡状态，不因回溯复活。
+            if (player == null || !GameUtils.isPlayerAliveAndSurvival(player)) {
                 continue;
             }
-            if (!GameUtils.isPlayerAliveAndSurvival(player)) {
-                GameUtils.revivePlayer(player, player.getX(), player.getY(), player.getZ());
-            }
             TimeRewind.smoothRestore(player, entry.getValue(), 40);
+            // 回溯会把旁观者切回存活，先挂上死亡惩罚，避免这段时间看见职业。
+            DeathPenaltyComponent.KEY.get(player).setPenalty(80, true);
         }
         if (session.rewindArea != null) {
             TimeRewind.restoreArea(level, session.rewindArea);

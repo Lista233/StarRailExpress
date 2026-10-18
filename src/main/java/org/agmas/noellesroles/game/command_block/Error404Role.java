@@ -32,7 +32,6 @@ import io.wifi.starrailexpress.util.ShopEntry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -506,45 +505,31 @@ public class Error404Role extends NormalRole {
     private static Error404Pathfinder.Grid grid(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
         return new Error404Pathfinder.Grid() {
-            @Override public boolean clear(Cell cell) {
+            private boolean inside(Cell cell) {
                 BlockPos pos = new BlockPos(cell.x(), cell.y(), cell.z());
-                if (!level.hasChunkAt(pos) || !level.getWorldBorder().isWithinBounds(pos)
-                        || cell.y() < level.getMinBuildHeight() || cell.y() + 2 >= level.getMaxBuildHeight()) return false;
-                AABB box = new AABB(cell.x() + 0.2, cell.y(), cell.z() + 0.2,
-                        cell.x() + 0.8, cell.y() + 1.8, cell.z() + 0.8);
-                return level.noCollision(player, box) && level.getFluidState(pos).isEmpty()
-                        && level.getFluidState(pos.above()).isEmpty();
+                return level.hasChunkAt(pos) && level.getWorldBorder().isWithinBounds(pos)
+                        && cell.y() >= level.getMinBuildHeight() && cell.y() < level.getMaxBuildHeight();
             }
-            @Override public boolean standable(Cell cell) {
-                if (!clear(cell)) return false;
-                BlockPos below = new BlockPos(cell.x(), cell.y() - 1, cell.z());
-                BlockState floor = level.getBlockState(below);
-                return floor.isFaceSturdy(level, below, Direction.UP) && !floor.is(Blocks.MAGMA_BLOCK)
-                        && !floor.is(Blocks.CAMPFIRE) && !floor.is(Blocks.SOUL_CAMPFIRE)
-                        && !floor.is(Blocks.CACTUS);
-            }
+            @Override public boolean clear(Cell cell) { return inside(cell); }
+            @Override public boolean standable(Cell cell) { return inside(cell); }
         };
     }
 
     private static boolean setPath(ServerPlayer player, Error404PuppetRoleData data, Vec3 destination) {
-        if (player.position().distanceToSqr(destination) > 64 * 64) return false;
+        if (!player.level().isInWorldBounds(BlockPos.containing(destination))) return false;
         Error404Pathfinder.Grid grid = grid(player);
         BlockPos startPos = player.blockPosition();
         Cell start = new Cell(startPos.getX(), startPos.getY(), startPos.getZ());
         BlockPos end = BlockPos.containing(destination);
-        for (int dy : new int[] {0, 1, -1, 2, -2, 3, -3}) {
-            Cell goal = new Cell(end.getX(), end.getY() + dy, end.getZ());
-            List<Cell> path = Error404Pathfinder.find(grid, start, goal);
-            if (path.isEmpty()) continue;
-            data.path = path;
-            data.pathIndex = 0;
-            data.destination = new Vec3(goal.x() + 0.5, goal.y(), goal.z() + 0.5);
-            data.repathAt = player.level().getGameTime() + 20;
-            return true;
-        }
-        return false;
+        Cell goal = new Cell(end.getX(), end.getY(), end.getZ());
+        List<Cell> path = Error404Pathfinder.find(grid, start, goal);
+        if (path.isEmpty()) return false;
+        data.path = path;
+        data.pathIndex = 0;
+        data.destination = new Vec3(goal.x() + 0.5, goal.y(), goal.z() + 0.5);
+        data.repathAt = player.level().getGameTime() + 20;
+        return true;
     }
-
     private static void movePuppet(ServerPlayer player, Error404PuppetRoleData data, ServerPlayer owner) {
         if (data.pathIndex >= data.path.size()) {
             if (data.order == 1) stop(data);
@@ -555,16 +540,7 @@ public class Error404Role extends NormalRole {
         Vec3 current = player.position();
         if (current.distanceToSqr(destination) < 0.015) { data.pathIndex++; return; }
         Vec3 delta = destination.subtract(current);
-        // 台阶拆成垂直与水平段，每个细分段都扫掠碰撞，不能用小步传送穿墙。
-        if (delta.y > 0.02) delta = new Vec3(0, Math.min(0.36, delta.y), 0);
-        else if (delta.horizontalDistanceSqr() > 0.01) delta = new Vec3(delta.x, 0, delta.z);
         if (delta.length() > 0.36) delta = delta.normalize().scale(0.36);
-        AABB swept = player.getBoundingBox().expandTowards(delta).deflate(0.001);
-        if (!player.serverLevel().noCollision(player, swept)) {
-            stop(data);
-            message(owner, "no_path");
-            return;
-        }
         Vec3 next = current.add(delta);
         float[] rotation = GazeRays.lookAt(player, destination.add(0, player.getEyeHeight(), 0));
         player.setYRot(rotation[0]);

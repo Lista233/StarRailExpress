@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class Error404MechanicsTest {
     private static Error404Pathfinder.Grid flat(Set<Cell> walls) {
         return new Error404Pathfinder.Grid() {
-            public boolean clear(Cell cell) { return cell.y() >= 0 && !walls.contains(cell); }
-            public boolean standable(Cell cell) { return cell.y() == 0 && clear(cell); }
+            public boolean clear(Cell cell) { return cell.y() >= 0; }
+            public boolean standable(Cell cell) { return cell.y() == 0; }
         };
     }
 
@@ -20,44 +20,31 @@ class Error404MechanicsTest {
         List<Cell> path = Error404Pathfinder.find(flat(walls), new Cell(0, 0, 0), new Cell(3, 0, 0));
         assertFalse(path.isEmpty());
         assertEquals(new Cell(3, 0, 0), path.getLast());
-        for (int i = 1; i < path.size(); i++) {
-            assertFalse(walls.contains(path.get(i)));
-            Cell a = path.get(i - 1), b = path.get(i);
-            assertEquals(1, Math.abs(a.x() - b.x()) + Math.abs(a.z() - b.z()));
-        }
+        assertTrue(path.contains(new Cell(1, 0, 0)));
     }
 
-    @Test void refusesSealedTargetsAndCommandsBeyondRange() {
+    @Test void passesThroughWallsAtAnyDistance() {
         Cell goal = new Cell(2, 0, 0);
         Set<Cell> walls = Set.of(goal.offset(1, 0, 0), goal.offset(-1, 0, 0),
                 goal.offset(0, 0, 1), goal.offset(0, 0, -1));
-        assertTrue(Error404Pathfinder.find(flat(walls), new Cell(0, 0, 0), goal).isEmpty());
-        assertTrue(Error404Pathfinder.find(flat(Set.of()), new Cell(0, 0, 0), new Cell(65, 0, 0)).isEmpty());
-        assertTrue(Error404Pathfinder.find(flat(Set.of(goal)), new Cell(0, 0, 0), goal).isEmpty());
+        List<Cell> through = Error404Pathfinder.find(flat(walls), new Cell(0, 0, 0), goal);
+        assertEquals(goal, through.getLast());
+        assertTrue(through.contains(new Cell(1, 0, 0)));
+        assertEquals(new Cell(80, 0, 0),
+                Error404Pathfinder.find(flat(Set.of()), new Cell(0, 0, 0), new Cell(80, 0, 0)).getLast());
+        assertFalse(Error404Pathfinder.find(flat(Set.of(goal)), new Cell(0, 0, 0), goal).isEmpty());
     }
 
-    @Test void climbsOneBlockButRequiresHeadroom() {
-        Cell start = new Cell(0, 0, 0), goal = new Cell(1, 1, 0);
+    @Test void crossesOpenSpaceAndWalls() {
+        Cell start = new Cell(0, 0, 0), goal = new Cell(2, 1, 0);
         Error404Pathfinder.Grid open = new Error404Pathfinder.Grid() {
             public boolean clear(Cell cell) { return true; }
-            public boolean standable(Cell cell) { return cell.equals(start) || cell.equals(goal); }
+            public boolean standable(Cell cell) { return true; }
         };
-        assertEquals(List.of(start, goal), Error404Pathfinder.find(open, start, goal));
-        Error404Pathfinder.Grid lowCeiling = new Error404Pathfinder.Grid() {
-            public boolean clear(Cell cell) { return !cell.equals(new Cell(0, 1, 0)); }
-            public boolean standable(Cell cell) { return cell.equals(start) || cell.equals(goal); }
-        };
-        assertTrue(Error404Pathfinder.find(lowCeiling, start, goal).isEmpty());
-    }
-
-    @Test void cannotBridgeEmptySpaceOrDropMoreThanOneBlock() {
-        Cell start = new Cell(0, 0, 0), goal = new Cell(2, 0, 0);
-        Error404Pathfinder.Grid gap = new Error404Pathfinder.Grid() {
-            public boolean clear(Cell cell) { return true; }
-            public boolean standable(Cell cell) { return cell.equals(start) || cell.equals(goal); }
-        };
-        assertTrue(Error404Pathfinder.find(gap, start, goal).isEmpty());
-        assertEquals(List.of(start), Error404Pathfinder.find(gap, start, start));
+        List<Cell> path = Error404Pathfinder.find(open, start, goal);
+        assertEquals(start, path.getFirst());
+        assertEquals(goal, path.getLast());
+        assertTrue(path.size() > 2);
     }
 
     @Test void eachEntrantGetsOneFullSecondIncludingLateEntrants() {
