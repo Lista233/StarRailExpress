@@ -15,6 +15,8 @@
 
 package org.agmas.noellesroles.game.roles.innocence.fool;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.data.RoleData;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
@@ -235,6 +237,7 @@ public class TarotAssemblyManager {
         if (comp.meetingOriginalPositions.containsKey(member.getUUID()))
             return;
 
+        ProgressionDataManager.onMeetingParticipated(member, "fool");
         teleportToMeeting(member, comp, serverLevel);
         refreshVoteParticipants(serverLevel, comp);
         comp.sync();

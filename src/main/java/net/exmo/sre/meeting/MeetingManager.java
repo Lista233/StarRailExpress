@@ -15,6 +15,8 @@
 
 package net.exmo.sre.meeting;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.AreasSettings;
@@ -423,6 +425,7 @@ public final class MeetingManager {
 
         int index = 0;
         for (ServerPlayer participant : alive) {
+            ProgressionDataManager.onMeetingParticipated(participant, "map");
             participants.put(participant.getUUID(), new ReturnPos(
                     participant.getX(), participant.getY(), participant.getZ(),
                     participant.getYRot(), participant.getXRot()));

@@ -28,7 +28,9 @@ import io.wifi.starrailexpress.backpack.BackpackManager;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.data.PlayerSkinEconomyManager;
 import io.wifi.starrailexpress.network.PlayerDataPartSyncPayload;
+import io.wifi.starrailexpress.event.OnPlayerDeathWithKiller;
 import io.wifi.starrailexpress.util.ShopEntry;
+import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import io.wifi.starrailexpress.network.ProgressionQuestToastPayload;
 import io.wifi.starrailexpress.progression.ProgressionState.FactionCardType;
 import io.wifi.starrailexpress.progression.ProgressionState.PassQuest;
@@ -71,6 +73,15 @@ public final class ProgressionDataManager {
         ServerTickEvents.END_SERVER_TICK.register(ProgressionDataManager::tick);
         ServerLifecycleEvents.SERVER_STOPPING.register(ProgressionDataManager::flushAllBlocking);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> ENTRIES.clear());
+        OnPlayerDeathWithKiller.FINAL_EVENT.register((player, killer, deathReason) -> {
+            if (player instanceof ServerPlayer sp) {
+                onPlayerDeath(sp, deathReason == null ? "" : deathReason.toString());
+            }
+        });
+        ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, serverPlayer, bound) -> {
+            onChatMessage(serverPlayer);
+            return true;
+        });
     }
 
     /** 通行证任务仅在开启系统且 MySQL 可用时生效。 */
@@ -325,6 +336,115 @@ public final class ProgressionDataManager {
             return;
         }
         increment(player, ProgressionObjectives.CAST_VOTE, null, 1);
+    }
+
+    /** 完成一个局内小游戏任务时累加 MINIGAME_TASK_COMPLETE。 */
+    public static void onMinigameTaskComplete(ServerPlayer player, String minigameId) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.MINIGAME_TASK_COMPLETE, minigameId, 1);
+    }
+
+    /** 恢复理智值时累加 SANITY_RESTORED（累计恢复量）。 */
+    public static void onSanityRestored(ServerPlayer player, int amount) {
+        if (!isActive() || amount <= 0) {
+            return;
+        }
+        increment(player, ProgressionObjectives.SANITY_RESTORED, null, amount);
+    }
+
+    /** 消耗体力值时累加 STAMINA_CONSUMED（累计消耗量）。 */
+    public static void onStaminaConsumed(ServerPlayer player, int amount) {
+        if (!isActive() || amount <= 0) {
+            return;
+        }
+        increment(player, ProgressionObjectives.STAMINA_CONSUMED, null, amount);
+    }
+
+    /** 状态条数值变化（恢复/减少）时累加 STATUS_BAR_RESTORED。 */
+    public static void onStatusBarRestored(ServerPlayer player, String type, int delta) {
+        if (!isActive() || delta == 0 || type == null) {
+            return;
+        }
+        int value = type.equalsIgnoreCase("POLLUTION")
+                ? (delta < 0 ? -delta : 0)
+                : (delta > 0 ? delta : 0);
+        if (value > 0) {
+            increment(player, ProgressionObjectives.STATUS_BAR_RESTORED, type, value);
+        }
+    }
+
+    /** 玩家死亡时累加 PLAYER_DEATH（可按 deathreason 区分）。 */
+    public static void onPlayerDeath(ServerPlayer player, String deathReason) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.PLAYER_DEATH, deathReason, 1);
+    }
+
+    /** 玩家转职时累加 ROLE_CHANGED。 */
+    public static void onRoleChanged(ServerPlayer player, String roleId) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.ROLE_CHANGED, roleId, 1);
+    }
+
+    /** 玩家被复活时累加 REVIVED。 */
+    public static void onRevived(ServerPlayer player) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.REVIVED, null, 1);
+    }
+
+    /** 对其他玩家造成虚拟血量伤害时累加 VIRTUAL_DAMAGE_DEALT。 */
+    public static void onVirtualDamageDealt(ServerPlayer attacker, int damage) {
+        if (!isActive() || damage <= 0) {
+            return;
+        }
+        increment(attacker, ProgressionObjectives.VIRTUAL_DAMAGE_DEALT, null, damage);
+    }
+
+    /** 获得护盾层数时累加 SHIELD_GAINED（key=护盾类型）。 */
+    public static void onShieldGained(ServerPlayer player, String shieldType, int layers) {
+        if (!isActive() || layers <= 0) {
+            return;
+        }
+        increment(player, ProgressionObjectives.SHIELD_GAINED, shieldType, layers);
+    }
+
+    /** 参与会议时累加 MEETING_PARTICIPATED（key=会议类型 map/fool）。 */
+    public static void onMeetingParticipated(ServerPlayer player, String meetingType) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.MEETING_PARTICIPATED, meetingType, 1);
+    }
+
+    /** 聊天栏发言时累加 CHAT_MESSAGES。 */
+    public static void onChatMessage(ServerPlayer player) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.CHAT_MESSAGES, null, 1);
+    }
+
+    /** 使用滑索时累加 ZIPLINE_USED。 */
+    public static void onZiplineUsed(ServerPlayer player) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.ZIPLINE_USED, null, 1);
+    }
+
+    /** 从饮水机取水时累加 WATER_DISPENSER_USED。 */
+    public static void onWaterDispenserUsed(ServerPlayer player) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.WATER_DISPENSER_USED, null, 1);
     }
 
     public static void addFactionCard(ServerPlayer player, ProgressionState.FactionCardType type, int count) {

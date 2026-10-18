@@ -15,6 +15,8 @@
 
 package org.agmas.noellesroles.scene;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import io.wifi.starrailexpress.cca.AreasWorldComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.cca.SREPlayerMoodComponent;
@@ -225,6 +227,7 @@ public final class MapStatusBarRuntime {
             state.reset(type);
         }
         state.change(delta);
+        ProgressionDataManager.onStatusBarRestored(player, type.name(), delta);
         if (state.value <= 0 && type != MapStatusBarType.POLLUTION) {
             killByStatus(player, type);
             STATES.remove(player.getUUID());

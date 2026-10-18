@@ -56,6 +56,20 @@ public final class ProgressionObjectives {
     public static final String CAST_VOTE = "CAST_VOTE";
     public static final String BUY_SHOP_ITEM = "BUY_SHOP_ITEM";
     public static final String USE_SKILL = "USE_SKILL";
+    public static final String MINIGAME_TASK_COMPLETE = "MINIGAME_TASK_COMPLETE";
+    public static final String SANITY_RESTORED = "SANITY_RESTORED";
+    public static final String STAMINA_CONSUMED = "STAMINA_CONSUMED";
+    public static final String STATUS_BAR_RESTORED = "STATUS_BAR_RESTORED";
+    public static final String PLAYER_DEATH = "PLAYER_DEATH";
+    public static final String ROLE_CHANGED = "ROLE_CHANGED";
+    public static final String REVIVED = "REVIVED";
+    public static final String VIRTUAL_DAMAGE_DEALT = "VIRTUAL_DAMAGE_DEALT";
+    public static final String SHIELD_GAINED = "SHIELD_GAINED";
+    public static final String MEETING_PARTICIPATED = "MEETING_PARTICIPATED";
+    public static final String CHAT_MESSAGES = "CHAT_MESSAGES";
+    public static final String ZIPLINE_USED = "ZIPLINE_USED";
+    public static final String WATER_DISPENSER_USED = "WATER_DISPENSER_USED";
+    public static final String REDEEM_CODE = "REDEEM_CODE";
 
     public record Definition(
             String id,
@@ -95,7 +109,21 @@ public final class ProgressionObjectives {
             def(CALL_MEETING, "召开紧急会议", "摇铃/紧急按钮开会", false, ""),
             def(CAST_VOTE, "参与投票", "地图/模式等投票", false, ""),
             def(BUY_SHOP_ITEM, "购买商店物品", "objectiveKey 为物品 ID；空=任意购买", true, "starrailexpress:gun"),
-            def(USE_SKILL, "使用技能", "objectiveKey 为技能 ID；空=任意技能", true, ""));
+            def(USE_SKILL, "使用技能", "objectiveKey 为技能 ID；空=任意技能", true, ""),
+            def(MINIGAME_TASK_COMPLETE, "完成小游戏任务", "完成一个局内小游戏任务", true, "starrailexpress:signal_calibration"),
+            def(SANITY_RESTORED, "恢复理智值", "累计恢复的理智值", false, ""),
+            def(STAMINA_CONSUMED, "消耗体力值", "累计消耗的体力值", false, ""),
+            def(STATUS_BAR_RESTORED, "恢复状态条", "保暖/口渴/饥饿恢复量、污染减少量累计", true, "warmth"),
+            def(PLAYER_DEATH, "玩家死亡", "因指定死因死亡一次", true, "starrailexpress:thirst"),
+            def(ROLE_CHANGED, "转职次数", "转变职业一次", true, "noellesroles:sheriff"),
+            def(REVIVED, "被复活次数", "被复活一次", false, ""),
+            def(VIRTUAL_DAMAGE_DEALT, "造成虚拟伤害", "累计对其他玩家造成的虚拟血量伤害", false, ""),
+            def(SHIELD_GAINED, "获得护盾层数", "累计获得护盾层数(普通/限时/弱效/虚拟)", true, "normal"),
+            def(MEETING_PARTICIPATED, "参与会议", "参与地图会议或愚者会议", true, "map"),
+            def(CHAT_MESSAGES, "聊天发言", "在聊天栏发言次数", false, ""),
+            def(ZIPLINE_USED, "滑索交互", "使用滑索次数", false, ""),
+            def(WATER_DISPENSER_USED, "取水次数", "从饮水机取水次数", false, ""),
+            def(REDEEM_CODE, "兑换指定口令", "兑换含指定口令的兑换码自动完成", true, ""));
 
     public static String normalize(String raw) {
         if (raw == null || raw.isBlank()) {

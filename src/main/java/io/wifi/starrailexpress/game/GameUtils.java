@@ -1819,6 +1819,7 @@ public class GameUtils {
 
         player.updateFluidOnEyes();
         player.updateInWaterStateAndDoFluidPushing();
+        ProgressionDataManager.onRevived(player);
     }
 
     public static boolean isGameRunning(Player player) {
