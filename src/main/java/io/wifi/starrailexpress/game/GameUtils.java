@@ -1272,6 +1272,13 @@ public class GameUtils {
                         stats.incrementTotalLoversWins();
                         ProgressionDataManager.onLoversWin(player);
                     }
+                    // 中立达成独立胜利：CUSTOM 及内置特殊胜负 GAMBLER/NIAN_SHOU/RECORDER/LOOSE_END
+                    if (playerRole != null && playerRole.isNeutrals()
+                            && (winStatus == WinStatus.CUSTOM || winStatus == WinStatus.GAMBLER
+                                    || winStatus == WinStatus.NIAN_SHOU || winStatus == WinStatus.RECORDER
+                                    || winStatus == WinStatus.LOOSE_END)) {
+                        ProgressionDataManager.onNeutralIndependentWin(player);
+                    }
                 } else {
                     stats.incrementTotalLosses();
                     if (playerRole != null) {

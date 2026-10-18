@@ -291,6 +291,14 @@ public final class ProgressionDataManager {
         increment(player, ProgressionObjectives.LOTTERY_PURCHASE, null, 1);
     }
 
+    /** 中立玩家达成独立/特殊胜负时累加 NEUTRAL_INDEPENDENT_WIN 目标进度。 */
+    public static void onNeutralIndependentWin(ServerPlayer player) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.NEUTRAL_INDEPENDENT_WIN, null, 1);
+    }
+
     public static void onSkillUsed(ServerPlayer player, String skillId) {
         if (!isActive()) {
             return;

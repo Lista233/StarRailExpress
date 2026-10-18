@@ -50,6 +50,7 @@ public final class ProgressionObjectives {
     public static final String GAME_TOKEN_SPENT = "GAME_TOKEN_SPENT";
     public static final String VENDING_PURCHASE = "VENDING_PURCHASE";
     public static final String LOTTERY_PURCHASE = "LOTTERY_PURCHASE";
+    public static final String NEUTRAL_INDEPENDENT_WIN = "NEUTRAL_INDEPENDENT_WIN";
     public static final String REPORT_BODY = "REPORT_BODY";
     public static final String CALL_MEETING = "CALL_MEETING";
     public static final String CAST_VOTE = "CAST_VOTE";
@@ -89,6 +90,7 @@ public final class ProgressionObjectives {
             def(GAME_TOKEN_SPENT, "消耗游戏币", "累计消耗的游戏代币(minigametoken)", false, ""),
             def(VENDING_PURCHASE, "售货机购买", "在售货机完成一次购买", true, "minecraft:golden_apple"),
             def(LOTTERY_PURCHASE, "抽奖机购买", "在抽奖机完成一次抽奖", false, ""),
+            def(NEUTRAL_INDEPENDENT_WIN, "中立独立胜利", "中立玩家达成独立胜利", false, ""),
             def(REPORT_BODY, "报告尸体", "召开尸体会议", false, ""),
             def(CALL_MEETING, "召开紧急会议", "摇铃/紧急按钮开会", false, ""),
             def(CAST_VOTE, "参与投票", "地图/模式等投票", false, ""),
