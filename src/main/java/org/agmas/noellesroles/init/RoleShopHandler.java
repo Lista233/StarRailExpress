@@ -2748,6 +2748,7 @@ public class RoleShopHandler {
         // DIO 商店
         {
             List<ShopEntry> entries = new ArrayList<>();
+            entries.add(org.agmas.noellesroles.game.dio.RoadRollerAttack.shopEntry());
             entries.add(new ShopEntry(ModItems.THROWING_KNIFE.getDefaultInstance(), 120,
                     ShopEntry.Type.TOOL));
             entries.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(),
@@ -2772,6 +2773,37 @@ public class RoleShopHandler {
             });
             ShopContent.customEntries.put(
                     ModRoles.DIO_ID, entries);
+        }
+
+        // 承太郎商店：波纹之力 50 金币，背包已有不可买，购买冷却 90 秒
+        {
+            List<ShopEntry> entries = new ArrayList<>();
+            entries.add(new ShopEntry(ModItems.HAMOON.getDefaultInstance(), 50, ShopEntry.Type.TOOL) {
+                static final int BUY_COOLDOWN = 90 * 20;
+
+                @Override
+                public boolean canBuy(@NotNull Player player) {
+                    if (SREItemUtils.hasItem(player, ModItems.HAMOON)) {
+                        setFailedMessage(Component.translatable("message.noellesroles.hamoon.already_owned"));
+                        return false;
+                    }
+                    if (player.getCooldowns().isOnCooldown(ModItems.HAMOON)) {
+                        setFailedMessage(Component.translatable("message.tip.purchase_failed.cooldown"));
+                        return false;
+                    }
+                    return super.canBuy(player);
+                }
+
+                @Override
+                public boolean onBuy(@NotNull Player player) {
+                    if (!RoleUtils.insertStackInFreeSlot(player, this.stack().copy())) {
+                        return false;
+                    }
+                    player.getCooldowns().addCooldown(ModItems.HAMOON, BUY_COOLDOWN);
+                    return true;
+                }
+            });
+            ShopContent.customEntries.put(ModRoles.JOJO_ID, entries);
         }
 
         // 牢大商店

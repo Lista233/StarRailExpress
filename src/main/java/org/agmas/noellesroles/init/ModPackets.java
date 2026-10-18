@@ -50,6 +50,13 @@ public class ModPackets {
     public static final CustomPacketPayload.Type<ImitatorSwitchSlotC2SPacket> IMITATOR_SWITCH_SLOT_PACKET = ImitatorSwitchSlotC2SPacket.TYPE;
 
     public static void registerPackets() {
+        org.agmas.noellesroles.game.dio.RoadRollerAttack.register();
+        PayloadTypeRegistry.playS2C().register(Error404StateS2CPacket.ID, Error404StateS2CPacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(Error404FeedbackS2CPacket.ID, Error404FeedbackS2CPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(Error404ActionC2SPacket.ID, Error404ActionC2SPacket.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(Error404ActionC2SPacket.ID,
+                (payload, context) -> context.server().execute(() ->
+                        org.agmas.noellesroles.game.command_block.Error404Role.handleAction(context.player(), payload)));
         PayloadTypeRegistry.playS2C().register(RefreshDimensionsS2CPacket.ID,
                 RefreshDimensionsS2CPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(FakeSteveControlS2CPacket.ID,

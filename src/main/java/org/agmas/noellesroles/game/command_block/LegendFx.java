@@ -22,6 +22,7 @@ public final class LegendFx {
     public static final float FOG = 6.0F;
     public static final float SWING = 7.0F;
     public static final float CANDLE = 8.0F;
+    public static final float DREAD = 9.0F;
 
     private LegendFx() {
     }

@@ -15,6 +15,8 @@ import org.agmas.harpymodloader.events.GameInitializeEvent;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.config.NoellesRolesConfig;
 import org.agmas.noellesroles.role.ModRoles;
+import org.agmas.noellesroles.role_data.innocence.DisabledPatientRoleData;
+import org.agmas.noellesroles.game.command_block.DreadlordRole;
 import org.agmas.noellesroles.utils.RoleUtils;
 import org.agmas.noellesroles.game.modifier.NRModifiers;
 import org.agmas.noellesroles.packet.CommandBlockProgressS2CPacket;
@@ -26,6 +28,8 @@ import org.agmas.noellesroles.api.time.TimeRewindAreaSnapshot;
 import org.agmas.noellesroles.api.time.TimeRewindOptions;
 import org.agmas.noellesroles.api.time.TimeRewindSnapshot;
 import org.agmas.noellesroles.init.ModEffects;
+import org.agmas.noellesroles.init.ModItems;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 
 import io.wifi.starrailexpress.api.GameMode;
@@ -47,6 +51,7 @@ import io.wifi.starrailexpress.event.OnKillPlayerTriggered;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.util.SRENetworkMessageUtils;
+import io.wifi.starrailexpress.util.Scheduler;
 import io.wifi.starrailexpress.util.TrueFalseResult;
 import io.wifi.utils.RandomSelector;
 import io.wifi.starrailexpress.network.PacketTracker;
@@ -107,12 +112,27 @@ public final class CommandBlockDirector {
         FogGuestRole.registerSkill();
         PendulumRole.registerSkill();
         CandleShadeRole.registerSkill();
+        DreadlordRole.registerSkill();
         CommandBlockCracks.registerAim();
         GameInitializeEvent.EVENT.register(CommandBlockDirector::prepare);
         OnGameTrueStarted.EVENT.register(CommandBlockDirector::onTrueStart);
         OnGameStarted.EVENT.register(CommandBlockDirector::onGameStarted);
         OnGameEnd.EVENT.register((level, game) -> clear(level));
         ServerTickEvents.END_WORLD_TICK.register(CommandBlockDirector::tick);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register(
+                (handler, server) -> Error404Role.disconnected(handler.player));
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) ->
+                Error404Role.isHighDimension(player) ? InteractionResult.FAIL : InteractionResult.PASS);
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) ->
+                Error404Role.isHighDimension(player) ? InteractionResult.FAIL : InteractionResult.PASS);
+        net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.register((player, world, hand) -> {
+            ItemStack stack = player.getItemInHand(hand);
+            if (Error404Role.isHighDimension(player) && !stack.is(ModItems.ERROR_TERMINAL)
+                    && !stack.is(ModItems.ERROR_DETONATOR) && !stack.is(ModItems.ERROR_ACCELERATOR)) {
+                return net.minecraft.world.InteractionResultHolder.fail(stack);
+            }
+            return net.minecraft.world.InteractionResultHolder.pass(stack);
+        });
         AllowPlayerDeath.EVENT.register((player, reason) -> CommandBlockCombat.allowScriptDeath(player, null, reason,
                 GameUtils.isForcedDeathInProgress()));
         AllowPlayerDeathWithKiller.EVENT.register((player, killer, reason) -> CommandBlockCombat.allowScriptDeath(player,
@@ -164,6 +184,11 @@ public final class CommandBlockDirector {
         }
         GameUtils.WinStatus effective = result == null || result == GameUtils.WinStatus.NOT_MODIFY ? proposed : result;
         if (effective == GameUtils.WinStatus.KILLERS || effective == GameUtils.WinStatus.PASSENGERS) {
+            return GameUtils.WinStatus.NONE;
+        }
+        // 平滑回溯会临时把玩家切成旁观者，不能把这段保护期算作全员离场。
+        if (effective == GameUtils.WinStatus.NO_PLAYER
+                && level.players().stream().anyMatch(TimeRewind::isSmoothRewinding)) {
             return GameUtils.WinStatus.NONE;
         }
         return result;
@@ -222,7 +247,7 @@ public final class CommandBlockDirector {
         suppressOfficialRoll = false;
         session = null;
         CommandBlockCombat.clear();
-        Error404Role.clear();
+        Error404Role.clear(level);
         if (!supports(game.getGameMode()) || SREDisableManager.isRoleDisabled(ModRoles.COMMAND_BLOCK)
                 || Noellesroles.isRoleDisabled(ModRoles.COMMAND_BLOCK)) {
             suppressOfficialRoll = true;
@@ -268,7 +293,14 @@ public final class CommandBlockDirector {
         spawnMarker(level);
         session.introPlayed = true;
         syncProgress(level);
-        sendIntro(level);
+        // 和飞机开场一样，先让区块及实体生成包同步到客户端，再切入远景。
+        Session introSession = session;
+        Scheduler.schedule(() -> {
+            if (session == introSession && replacesOpeningIntro(level)
+                    && SREGameWorldComponent.KEY.get(level).isRunning()) {
+                sendIntro(level);
+            }
+        }, 6);
     }
 
     private static void sendIntro(ServerLevel level) {
@@ -361,6 +393,11 @@ public final class CommandBlockDirector {
         tickEvents(level, now);
         tickPendingKills(level, now);
         CommandBlockCombat.tick(level);
+        if (session.jumpRestoreAt > 0 && now >= session.jumpRestoreAt) {
+            session.jumpRestoreAt = 0;
+            SREGameWorldComponent.KEY.get(level)
+                    .setJumpAvailable(AreasWorldComponent.KEY.get(level).areasSettings.canJump);
+        }
         if (now >= session.nextCrackAt) {
             CommandBlockCracks.spawnOne(level);
             session.nextCrackAt = now + CommandBlockCracks.rollDelay(level);
@@ -368,7 +405,6 @@ public final class CommandBlockDirector {
         if (now % 40L == 0L) {
             syncProgress(level);
         }
-        Error404Role.tick(level);
     }
 
     private static void tickConversions(ServerLevel level, long now) {
@@ -422,9 +458,10 @@ public final class CommandBlockDirector {
         session.nextWarnAt = 0;
         RoleUtils.changeRole(player, ModRoles.ABNORMAL, false, false, false, false, true);
         RoleUtils.addModifier(player, NRModifiers.ABNORMAL);
-        SRENetworkMessageUtils.sendCODSubtitleToPlayer(player,
-                Component.translatable("message.noellesroles.command_block.preview", role.getName()),
-                Component.empty(), 80, 0xFFE7D4FF, false, SubtitleS2CPayload.POS_CENTER);
+        PacketTracker.sendToClient(player,
+                new SubtitleS2CPayload(Component.translatable("message.noellesroles.command_block.preview",
+                        role.getName()), Component.empty(), 80, 0xFFE7D4FF, false,
+                        SubtitleS2CPayload.POS_TOP, false));
     }
 
     private static void convertNext(ServerLevel level) {
@@ -437,7 +474,7 @@ public final class CommandBlockDirector {
         session.previewed = false;
         SRERole role = session.nextRole;
         session.nextRole = null;
-        if (player == null || !GameUtils.isPlayerAliveAndSurvival(player)) {
+        if (player == null || !GameUtils.isPlayerAliveAndSurvival(player) || Error404Role.isAssimilated(player)) {
             return;
         }
         if (role == null || !CommandBlockRules.isPoolRole(role)) {
@@ -458,9 +495,9 @@ public final class CommandBlockDirector {
     private static void announceBirth(ServerLevel level, SRERole role) {
         Component text = Component.translatable("message.noellesroles.command_block.born", role.getName());
         for (ServerPlayer player : level.players()) {
-            SRENetworkMessageUtils.sendCODSubtitleToPlayer(player, text, Component.empty(), 80, 0xFFB44DFF, false,
-                    SubtitleS2CPayload.POS_CENTER);
-            player.playNotifySound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.MASTER, 1.0F, 1.0F);
+            PacketTracker.sendToClient(player, new SubtitleS2CPayload(text, Component.empty(), 80, 0xFFB44DFF,
+                    false, SubtitleS2CPayload.POS_TOP, false));
+            player.playNotifySound(SoundEvents.EVOKER_CAST_SPELL, SoundSource.MASTER, 0.8F, 0.65F);
         }
     }
 
@@ -491,19 +528,29 @@ public final class CommandBlockDirector {
                 }
             }
             case REWIND -> applyRewind(level);
-            case LEVITY -> {
-                for (ServerPlayer player : level.players()) {
-                    if (GameUtils.isPlayerAliveAndSurvival(player)) {
-                        player.addEffect(new MobEffectInstance(MobEffects.LEVITATION, 40, 0));
-                        player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 80, 0));
-                    }
-                }
-            }
             case HUSH -> {
                 for (ServerPlayer player : level.players()) {
                     if (GameUtils.isPlayerAliveAndSurvival(player)) {
-                        player.addEffect(new MobEffectInstance(ModEffects.VOICE_SILENCE, 8 * 20, 0));
-                        player.addEffect(new MobEffectInstance(ModEffects.CHAT_BAN, 8 * 20, 0));
+                        player.addEffect(new MobEffectInstance(ModEffects.VOICE_SILENCE, 20 * 20, 0));
+                        player.addEffect(new MobEffectInstance(ModEffects.CHAT_BAN, 20 * 20, 0));
+                    }
+                }
+            }
+            case TRACE -> {
+                for (ServerPlayer player : level.players()) {
+                    if (GameUtils.isPlayerAliveAndSurvival(player)) {
+                        player.addEffect(new MobEffectInstance(MobEffects.GLOWING, 12 * 20, 0));
+                    }
+                }
+            }
+            case JAM -> {
+                SREGameWorldComponent.KEY.get(level).setJumpAvailable(false);
+                session.jumpRestoreAt = level.getGameTime() + 15 * 20;
+            }
+            case INJECT -> {
+                for (ServerPlayer player : level.players()) {
+                    if (GameUtils.isPlayerAliveAndSurvival(player)) {
+                        DisabledPatientRoleData.applyRandomTemporary(player, 12 * 20);
                     }
                 }
             }
@@ -773,21 +820,21 @@ public final class CommandBlockDirector {
 
     private static Vec3 markerPos(ServerLevel level) {
         AreasWorldComponent areas = AreasWorldComponent.KEY.get(level);
-        Vec3 anchor = null;
-        if (areas.getSpawnPos() != null && areas.getSpawnPos().pos != null) {
-            anchor = areas.getSpawnPos().pos;
+        AABB play = areas.getPlayArea();
+        // getSpawnPos() 是世界重生点，可能在大厅；和飞机事件一样按本局游玩区域定位。
+        if (play != null && (play.getXsize() >= 2.0D || play.getZsize() >= 2.0D)) {
+            Vec3 center = play.getCenter();
+            return openSky(level, center.x, center.z, Mth.floor(play.minY));
         }
-        if (anchor == null && !level.players().isEmpty()) {
-            anchor = level.players().get(0).position();
-        }
-        if (anchor == null) {
-            AABB play = areas.getPlayArea();
-            anchor = play == null ? new Vec3(0.0D, 80.0D, 0.0D) : play.getCenter();
-        }
+        Vec3 anchor = level.players().stream()
+                .filter(player -> player.gameMode.getGameModeForPlayer() == GameType.ADVENTURE)
+                .map(ServerPlayer::position)
+                .findFirst()
+                .orElseGet(() -> Vec3.atCenterOf(level.getSharedSpawnPos()));
         return openSky(level, anchor.x, anchor.z, Mth.floor(anchor.y));
     }
 
-    /** 沿出生点那一列爬过屋顶，把方块中心放在最高实心方块上方。 */
+    /** 沿游玩区域中心那一列爬过屋顶，把方块中心放在最高实心方块上方。 */
     private static Vec3 openSky(ServerLevel level, double x, double z, int startY) {
         int bx = Mth.floor(x);
         int bz = Mth.floor(z);
@@ -853,11 +900,15 @@ public final class CommandBlockDirector {
             for (ServerPlayer player : level.players()) {
                 ServerPlayNetworking.send(player, hide);
             }
+            // 封锁事件可能没到时间就结束对局，结束时无条件还原跳跃开关。
+            SREGameWorldComponent.KEY.get(level)
+                    .setJumpAvailable(AreasWorldComponent.KEY.get(level).areasSettings.canJump);
         }
         discardMarkers(level);
         session = null;
         CommandBlockCombat.clear();
-        Error404Role.clear();
+        if (level != null) Error404Role.clear(level);
+        else Error404Role.clear();
     }
 
     private static boolean supports(GameMode mode) {
@@ -878,12 +929,16 @@ public final class CommandBlockDirector {
                 "message.noellesroles.command_block.event.static_fired"),
         REWIND("message.noellesroles.command_block.event.rewind",
                 "message.noellesroles.command_block.event.rewind_fired"),
-        LEVITY("message.noellesroles.command_block.event.levity",
-                "message.noellesroles.command_block.event.levity_fired"),
         HUSH("message.noellesroles.command_block.event.hush",
                 "message.noellesroles.command_block.event.hush_fired"),
         ANCHOR("message.noellesroles.command_block.event.anchor",
-                "message.noellesroles.command_block.event.anchor_fired");
+                "message.noellesroles.command_block.event.anchor_fired"),
+        TRACE("message.noellesroles.command_block.event.trace",
+                "message.noellesroles.command_block.event.trace_fired"),
+        JAM("message.noellesroles.command_block.event.jam",
+                "message.noellesroles.command_block.event.jam_fired"),
+        INJECT("message.noellesroles.command_block.event.inject",
+                "message.noellesroles.command_block.event.inject_fired");
 
         private final String key;
         private final String fired;
@@ -918,6 +973,7 @@ public final class CommandBlockDirector {
         private long nextWarnAt;
         private long nextEventAt;
         private long nextCrackAt;
+        private long jumpRestoreAt;
         private UUID nextConvert;
         private SRERole nextRole;
         private boolean previewed;

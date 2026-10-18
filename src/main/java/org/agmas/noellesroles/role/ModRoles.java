@@ -65,6 +65,7 @@ import org.agmas.noellesroles.game.command_block.PaperDollRole;
 import org.agmas.noellesroles.game.command_block.FogGuestRole;
 import org.agmas.noellesroles.game.command_block.PendulumRole;
 import org.agmas.noellesroles.game.command_block.CandleShadeRole;
+import org.agmas.noellesroles.game.command_block.DreadlordRole;
 import org.agmas.noellesroles.game.command_block.StringerRole;
 import org.agmas.noellesroles.game.command_block.Error404Role;
 import org.agmas.noellesroles.game.command_block.HimRole;
@@ -369,6 +370,7 @@ public class ModRoles {
     public static final ResourceLocation FOG_GUEST_ID = Noellesroles.id("fog_guest");
     public static final ResourceLocation PENDULUM_ID = Noellesroles.id("pendulum");
     public static final ResourceLocation CANDLE_SHADE_ID = Noellesroles.id("candle_shade");
+    public static final ResourceLocation DREADLORD_ID = Noellesroles.id("dreadlord");
     public static final ResourceLocation ABNORMAL_ID = Noellesroles.id("abnormal");
 
     // 葬仪 ID - 杀手方中立
@@ -2042,6 +2044,7 @@ public class ModRoles {
                     CommandBlockDirector::onEventRoundEnd,
                     CommandBlockDirector::chance)
             .setEventNeutral(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** 方块石头人。只由命令方块事件改写产生。 */
@@ -2054,6 +2057,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** him。只由命令方块事件改写产生。 */
@@ -2067,6 +2071,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** Error404。只由命令方块事件改写产生。 */
@@ -2079,7 +2084,14 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
+
+    /** 404 同化者：独立阵营身份，不继承原职业技能，也不进入随机池。 */
+    public static final SRERole ERROR_404_PUPPET = TMMRoles.registerRole(
+            new org.agmas.noellesroles.game.command_block.Error404PuppetRole(
+                    Noellesroles.id("error404_puppet")));
+
 
     /** 实体303。只由命令方块事件改写产生。无限体力。 */
     public static final SRERole ENTITY_303 = TMMRoles.registerRole(
@@ -2092,6 +2104,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** Null。只由命令方块事件改写产生。无限体力。 */
@@ -2105,6 +2118,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** 远境。只由命令方块事件改写产生。无限体力。 */
@@ -2118,6 +2132,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** 白瞳。只由命令方块事件改写产生。无限体力。 */
@@ -2131,6 +2146,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** 丝线人。只由命令方块事件改写产生。冲刺不缩短。 */
@@ -2144,6 +2160,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** 纸人。只由命令方块事件改写产生。冲刺不缩短。 */
@@ -2157,6 +2174,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** 雾客。只由命令方块事件改写产生。藏雾时不能出手。 */
@@ -2170,6 +2188,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** 钟摆。只由命令方块事件改写产生。先记下位置，再摆回去。 */
@@ -2183,6 +2202,7 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** 烛影。只由命令方块事件改写产生。看着烛火会把它吹灭。 */
@@ -2196,6 +2216,21 @@ public class ModRoles {
             .setDefaultMax(0)
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
+            .setAddedVersion("4.5");
+
+    /** 恐惧魔王。只由命令方块事件改写产生。伪装成乘客，盯住别人会让所有人看见自己被注视。 */
+    public static final SRERole DREADLORD = TMMRoles.registerRole(
+            new DreadlordRole(DREADLORD_ID, new Color(40, 8, 48).getRGB(),
+                    false, true, SRERole.MoodType.FAKE, Integer.MAX_VALUE, true)
+                    .setRoleData(DreadlordRoleData::new))
+            .setCanSeeCoin(true)
+            .setCanBeRandomedByOtherRoles(false)
+            .setCanSetSpawnInfoInConfig(false)
+            .setDefaultMax(0)
+            .setOtherModeRole(true)
+            .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
     /** 异常。命令方块转化前一分钟的空壳中立，不会自然刷新。 */
@@ -2213,6 +2248,7 @@ public class ModRoles {
             .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .setSpecialNeutral(true)
+            .addFlag("Command_Role")
             .setAddedVersion("4.5");
     public static SRERole VULTURE = TMMRoles
             .registerRole(new NormalRole(VULTURE_ID, new Color(210, 105, 30).getRGB(), false,
@@ -3498,6 +3534,7 @@ public class ModRoles {
             .setDefaultMax(1)
             .setCanUseInstinctAndNightVision(true)
             .setCanSeeCoin(true)
+            .addFlag("Command_Role")
             .setCanUseSpVanillaWeapon(true);
 
     // ==================== 嬉命人（Embalmer）====================

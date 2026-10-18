@@ -15,6 +15,7 @@ import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.data.RoleData;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.game.GameUtils;
+import io.wifi.starrailexpress.event.OnPlayerMorph;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.morph.MorphApi;
 import io.wifi.starrailexpress.util.ShopEntry;
@@ -25,12 +26,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 /**
  * 实体303：偷来的身份。
- * 技能窃形复制视线中的玩家。戴着那张脸时无法伤害任何人；
- * 本人盯着你时伪装碎掉。只能杀死偷过脸的人，冲刺只有 3 秒。
+ * 技能窃形复制视线中玩家的外观和物品栏，结束后恢复自己的物品栏。
+ * 戴着那张脸时死亡会带走本人；本人盯着你时伪装碎掉。只能杀死偷过脸的人，冲刺只有 3 秒。
  */
 public class Entity303Role extends NormalRole {
     public static final ResourceLocation DEATH_PEEL = org.agmas.noellesroles.Noellesroles.id("entity_303_peel");
@@ -46,6 +48,12 @@ public class Entity303Role extends NormalRole {
                 "skill.noellesroles.entity_303.steal",
                 Entity303Role::stealFace)
                 .cooldownSeconds(40).announceToSelf().showOnHud(true).build());
+        OnPlayerMorph.EVENT.register((player, previous, next) -> {
+            Entity303RoleData data = RoleData.getNullable(Entity303RoleData.class, player);
+            if (data != null && !data.isWearing(next.targetPlayer())) {
+                data.endDisguise(player);
+            }
+        });
     }
 
     public static boolean rejectsHarm(ServerPlayer attacker, ServerPlayer victim) {
@@ -54,9 +62,6 @@ public class Entity303Role extends NormalRole {
         }
         if (!SREGameWorldComponent.KEY.get(attacker.level()).isRole(attacker, ModRoles.ENTITY_303)) {
             return false;
-        }
-        if (MorphApi.isMorphed(attacker)) {
-            return true;
         }
         Entity303RoleData data = RoleData.getNullable(Entity303RoleData.class, attacker);
         return data == null || !data.knows(victim.getUUID());
@@ -92,7 +97,7 @@ public class Entity303Role extends NormalRole {
         if (!MorphApi.morphToPlayer(self, target, Entity303RoleData.MORPH_TICKS)) {
             return false;
         }
-        data.remember(target, now);
+        data.remember(self, target);
         self.serverLevel().playSound(null, self.blockPosition(), SoundEvents.EVOKER_CAST_SPELL, SoundSource.PLAYERS,
                 0.7F, 0.6F);
         self.serverLevel().sendParticles(ParticleTypes.WITCH, self.getX(), self.getY() + 1.0D, self.getZ(),
@@ -100,6 +105,14 @@ public class Entity303Role extends NormalRole {
         self.displayClientMessage(Component.translatable("message.noellesroles.entity_303.stole", target.getName())
                 .withStyle(ChatFormatting.DARK_RED), true);
         return true;
+    }
+
+    @Override
+    public void onDeath(Player victim, boolean spawnBody, Player killer, ResourceLocation deathReason,
+            boolean forceDeath) {
+        if (victim instanceof ServerPlayer self) {
+            RoleData.ifPresent(Entity303RoleData.class, self, data -> data.onDeath(self));
+        }
     }
 
     @Override

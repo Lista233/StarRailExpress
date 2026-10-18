@@ -310,6 +310,10 @@ public class NoellesrolesClient implements ClientModInitializer {
         // 注册HUD渲染
         org.agmas.noellesroles.client.RefugeeDesperadoClientFx.register();
         org.agmas.noellesroles.client.LegendRingClientFx.register();
+        org.agmas.noellesroles.client.NullRiftClientFx.register();
+        org.agmas.noellesroles.client.ReaperScytheClientFx.register();
+        org.agmas.noellesroles.client.HamoonClientFx.register();
+        org.agmas.noellesroles.client.RoadRollerClient.register();
         org.agmas.noellesroles.client.CommandBlockProgressClient.register();
         org.agmas.noellesroles.content.item.LetterItem.clientReplacementOpener =
                 org.agmas.noellesroles.client.CommandBlockLetter::tryOpen;
@@ -457,7 +461,7 @@ public class NoellesrolesClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.COMMAND_BLOCK_MARKER,
                 org.agmas.noellesroles.client.renderer.CommandBlockMarkerRenderer::new);
         EntityRendererRegistry.register(org.agmas.noellesroles.init.ModEntities.COMMAND_BLOCK_THROWN,
-                net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
+                org.agmas.noellesroles.client.renderer.CommandBlockThrownRenderer::new);
         EntityRendererRegistry.register(ModEntities.MUSHROOM_ESSENCE,
                 net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
         // 康复试剂投掷物（护士体系）：与蘑菇素同样使用投掷物品渲染器
@@ -547,6 +551,10 @@ public class NoellesrolesClient implements ClientModInitializer {
         org.agmas.noellesroles.client.ClientAmonState.register();
         ScoutClimbClient.register();
         FatFishSkinHandler.register();
+        HimSkinHandler.register();
+        Error404Client.register();
+        DreadlordSkinHandler.register();
+        DreadlordDreadClient.register();
         CommonClientHudRenderer.registerRenderersEvent();
         WorldRenderEvents.AFTER_TRANSLUCENT.register((renderContext) -> {
             TaskBlockOverlayRenderer.render(renderContext);
@@ -555,6 +563,8 @@ public class NoellesrolesClient implements ClientModInitializer {
             org.agmas.noellesroles.gunfx.GunTracerRenderer.render(renderContext);
             org.agmas.noellesroles.gunfx.StalkerDashTrailRenderer.render(renderContext);
             org.agmas.noellesroles.gunfx.StalkerPierceFxRenderer.render(renderContext);
+            DreadlordClientFx.renderSouls(renderContext);
+            DreadlordClientFx.renderFloats(renderContext);
             // 确定性地绘制所有透视线条（相机矩阵仍有效、地形已完成）
             TaskBlockOverlayRenderer.flushLines();
         });
@@ -1268,7 +1278,8 @@ public class NoellesrolesClient implements ClientModInitializer {
                         for (final var player : client.level.players()) {
                             {
                                 if (clientPositions.containsKey(player.getUUID())
-                                        && !TimeStopEffect.clientCanMovePlayers.contains(player.getUUID())) {
+                                        && !TimeStopEffect.clientCanMovePlayers.contains(player.getUUID())
+                                        && !RoadRollerClient.isPressing(player.getUUID())) {
                                     player.setPos(clientPositions.get(player.getUUID()));
                                 }
                             }
@@ -1515,6 +1526,8 @@ public class NoellesrolesClient implements ClientModInitializer {
                     i++;
                 }
             }
+            DreadlordDreadClient.lookAtSelf(client.player);
+            DreadlordClientFx.tickFloats(client);
 
             handleStalkerContinuousInput(client);
 

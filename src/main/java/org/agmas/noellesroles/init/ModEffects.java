@@ -801,6 +801,23 @@ public class ModEffects {
     public static final Holder<MobEffect> COGNITIVE_BIAS = register("cognitive_bias",
             new SimpleMobEffect(MobEffectCategory.HARMFUL, 0x9A6BB5));
 
+    /** 惧意：所有人看见自己被注视，皮肤和名牌一起乱，并持续掉理智。 */
+    public static final Holder<MobEffect> DREADLORD_DREAD = register("dreadlord_dread",
+            new SimpleMobEffect(MobEffectCategory.HARMFUL, 0x2A0830) {
+                @Override
+                public boolean applyEffectTick(LivingEntity entity, int amplifier) {
+                    if (entity instanceof ServerPlayer player && player.tickCount % 20 == 0) {
+                        SREPlayerMoodComponent.KEY.get(player).addMood(-0.03F);
+                    }
+                    return true;
+                }
+
+                @Override
+                public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) {
+                    return true;
+                }
+            });
+
     /**
      * 食欲不振：无法食用食物和饮品。
      */

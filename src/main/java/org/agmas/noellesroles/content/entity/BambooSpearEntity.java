@@ -345,8 +345,8 @@ public class BambooSpearEntity extends Entity {
         Vec3 end = origin.add(look.scale(length));
 
         if (!retracting && !this.killed) {
-            AABB sweep = new AABB(start, end).inflate(0.35);
-            EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(serverOwner, start, end, sweep,
+            AABB sweep = new AABB(origin, end).inflate(0.35);
+            EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(serverOwner, origin, end, sweep,
                     entity -> (entity instanceof ServerPlayer target
                             && target != serverOwner
                             && GameUtils.isPlayerAliveAndSurvival(target))
@@ -361,7 +361,7 @@ public class BambooSpearEntity extends Entity {
                 serverLevel.playSound(null, hit.x, hit.y, hit.z, SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.PLAYERS,
                         1.0f, 1.1f);
                 GameUtils.killPlayer(target, true, serverOwner, Noellesroles.id("bamboo_spear"));
-                length = (float) start.distanceTo(hit);
+                length = (float) origin.distanceTo(hit);
             } else if (entityHit != null
                     && entityHit.getEntity() instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy) {
                 this.killed = true;
@@ -372,7 +372,7 @@ public class BambooSpearEntity extends Entity {
                         1.0f, 1.1f);
                 io.wifi.starrailexpress.traindummy.TrainDummyCombat.applyLethal(dummy, serverOwner,
                         Noellesroles.id("bamboo_spear"));
-                length = (float) start.distanceTo(hit);
+                length = (float) origin.distanceTo(hit);
             }
         }
 

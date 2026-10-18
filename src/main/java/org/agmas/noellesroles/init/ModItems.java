@@ -598,6 +598,19 @@ public class ModItems {
             "bang", ROLE_ITEMS_GROUP);
 
     /**
+     * 波纹之力（承太郎商店，50 金币）
+     * - 背包已有时不可再买，购买冷却 90 秒
+     * - 右键：半径 5 格拉向自己，缓慢 I 5 秒，周围玩家理智 +30%，使用冷却 60 秒
+     */
+    public static final Item HAMOON = register(
+            new HamoonItem(new Item.Properties().stacksTo(1)),
+            "hamoon", ROLE_ITEMS_GROUP);
+
+    /** 压路机（DIO 商店消耗品，200 金币）。 */
+    public static final Item ROAD_ROLLER = register(
+            new RoadRollerItem(new Item.Properties().stacksTo(1)), "road_roller", ROLE_ITEMS_GROUP);
+
+    /**
      * 加固门道具
      * - 工程师专属物品
      * - 在商店以75金币购买
@@ -1593,6 +1606,18 @@ public class ModItems {
     public static final Item ERROR_CORE = register(
             new org.agmas.noellesroles.game.command_block.item.ErrorCoreItem(new Item.Properties().stacksTo(1)),
             "error_core", ROLE_ITEMS_GROUP);
+    public static final Item ERROR_TERMINAL = register(
+            new org.agmas.noellesroles.game.command_block.item.Error404ToolItem(
+                    new Item.Properties().stacksTo(1), org.agmas.noellesroles.game.command_block.item.Error404ToolItem.Tool.TERMINAL),
+            "error_terminal", ROLE_ITEMS_GROUP);
+    public static final Item ERROR_DETONATOR = register(
+            new org.agmas.noellesroles.game.command_block.item.Error404ToolItem(
+                    new Item.Properties().stacksTo(16), org.agmas.noellesroles.game.command_block.item.Error404ToolItem.Tool.DETONATOR),
+            "error_detonator", ROLE_ITEMS_GROUP);
+    public static final Item ERROR_ACCELERATOR = register(
+            new org.agmas.noellesroles.game.command_block.item.Error404ToolItem(
+                    new Item.Properties().stacksTo(16), org.agmas.noellesroles.game.command_block.item.Error404ToolItem.Tool.ACCELERATOR),
+            "error_accelerator", ROLE_ITEMS_GROUP);
     public static final Item PEEL_BLADE = register(
             new org.agmas.noellesroles.game.command_block.item.PeelBladeItem(new Item.Properties().stacksTo(1)),
             "peel_blade", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
@@ -1632,6 +1657,9 @@ public class ModItems {
     public static final Item CANDLE_SNIP = register(
             new org.agmas.noellesroles.game.command_block.item.CandleSnipItem(new Item.Properties().stacksTo(1)),
             "candle_snip", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item REAPER_SCYTHE = register(
+            new org.agmas.noellesroles.game.command_block.item.ReaperScytheItem(new Item.Properties().stacksTo(1)),
+            "reaper_scythe", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
 
     public static Item register(Item item, String id, ResourceKey<CreativeModeTab>... extraGroups) {
         ResourceKey<CreativeModeTab>[] allGroups = java.util.Arrays.copyOf(extraGroups, extraGroups.length + 1);

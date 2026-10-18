@@ -21,7 +21,7 @@ import net.minecraft.network.chat.MutableComponent;
  */
 public final class CommandBlockLetter {
     private static final String[] EVENTS = {
-            "blackout", "chaos", "static", "rewind", "levity", "hush", "anchor"
+            "blackout", "chaos", "static", "rewind", "hush", "anchor", "trace", "jam", "inject"
     };
 
     private CommandBlockLetter() {

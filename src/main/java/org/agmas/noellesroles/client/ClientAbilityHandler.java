@@ -235,6 +235,7 @@ public class ClientAbilityHandler {
             // modeSwitch 技能本身可能是「潜行切换」（建筑师、葬仪、设陷者……），
             // 也可能是「不潜行就能切换」（厨师）。服务端 useUnified 会按 shifted 过滤出
             // 一个子列表再用 slot 取下标，所以这里必须用同一个 shifted 值、同一个子列表算下标。
+            // 切换键只负责触发这个模式技能，不要求玩家真的蹲下。
             var definition = modeSwitch.get();
             boolean shifted = definition.shifted();
             var definitions = RoleSkill.getDefinitions(role);

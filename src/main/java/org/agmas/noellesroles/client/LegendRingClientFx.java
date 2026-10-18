@@ -18,6 +18,7 @@ public final class LegendRingClientFx {
     private static final DustParticleOptions PAPER = dust(0.96F, 0.93F, 0.84F, 1.2F);
     private static final DustParticleOptions FOG = dust(0.55F, 0.62F, 0.68F, 1.5F);
     private static final DustParticleOptions CANDLE = dust(1.0F, 0.55F, 0.12F, 1.3F);
+    private static final DustParticleOptions DREAD = dust(0.35F, 0.05F, 0.45F, 1.4F);
 
     private LegendRingClientFx() {
     }
@@ -39,6 +40,7 @@ public final class LegendRingClientFx {
             case 6 -> FOG;
             case 7 -> GOLD;
             case 8 -> CANDLE;
+            case 9 -> DREAD;
             default -> PURPLE;
         };
         for (int i = 0; i < count; i++) {

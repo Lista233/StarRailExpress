@@ -9,6 +9,9 @@ import org.agmas.noellesroles.game.command_block.CommandBlockCracks;
 import org.agmas.noellesroles.game.command_block.CommandBlockRules;
 import org.agmas.noellesroles.packet.CommandBlockProgressS2CPacket;
 
+import io.wifi.starrailexpress.SREClientConfig;
+import io.wifi.starrailexpress.client.gui.HudMoodRenderer;
+import io.wifi.starrailexpress.client.gui.MiniGameHudRenderer;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.client.SREClient;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -18,7 +21,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 
-/** 时间下方的破坏条，以及只给杀手看的裂缝发光。 */
+/** 屏幕左侧的破坏进度，以及只给杀手看的裂缝发光。 */
 public final class CommandBlockProgressClient {
     private static int progress;
     private static int goal;
@@ -55,14 +58,26 @@ public final class CommandBlockProgressClient {
         if (goal <= 0) {
             return;
         }
-        int width = 84;
-        int x = graphics.guiWidth() / 2 - width / 2;
-        int y = 30;
-        float fill = Math.min(1.0F, progress / (float) goal);
-        graphics.fill(x - 1, y - 1, x + width + 1, y + 5, 0xAA120018);
-        graphics.fill(x, y, x + (int) (width * fill), y + 4, 0xFFB44DFF);
+        var client = Minecraft.getInstance();
+        if (client.options.hideGui) {
+            return;
+        }
+        var font = client.font;
+        var config = SREClientConfig.instance();
         Component text = Component.translatable("hud.noellesroles.command_block.progress", progress, goal);
-        graphics.drawCenteredString(Minecraft.getInstance().font, text, graphics.guiWidth() / 2, y + 6, 0xFFE7D4FF);
+        int width = Math.max(64, font.width(text));
+        int x = config.moodLeftOffset + 22;
+        int y = config.moodTopOffset
+                + Math.max(HudMoodRenderer.getHudBottom(), MiniGameHudRenderer.getHudBottom()) + 6;
+        int barY = y + font.lineHeight + 3;
+        int filled = Math.round(width * Math.min(1.0F, progress / (float) goal));
+
+        // 此回调只在缓存更新 tick 执行，文字和图形必须一起入缓存，不能绕到原生 GuiGraphics。
+        graphics.drawString(font, text, x, y, 0xFFE7D4FF, true);
+        graphics.fill(x, barY, x + width, barY + 1, 0x663E2F4A);
+        if (filled > 0) {
+            graphics.fill(x, barY, x + filled, barY + 1, 0xFFBA82E6);
+        }
     }
 
     private static void tickGlow(Minecraft client) {

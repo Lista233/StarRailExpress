@@ -633,7 +633,7 @@ public class ModEntities {
                     .trackedUpdateRate(2)
                     .build());
 
-    /** 命令方块投掷物：石头、火球沿抛物线飞，石枪沿视线伸出再收回。 */
+    /** 命令方块投掷物：石头、火球和石枪都沿抛物线飞。石枪命中后飞回手里。 */
     @SuppressWarnings("deprecation")
     public static final EntityType<CommandBlockThrownEntity> COMMAND_BLOCK_THROWN = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,

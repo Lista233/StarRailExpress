@@ -12,6 +12,7 @@ import org.agmas.noellesroles.game.command_block.item.GazeRays;
 import org.agmas.noellesroles.game.roles.killer.dream.DreamHealthComponent;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
+import org.agmas.noellesroles.game.command_block.DreadlordRole;
 
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.game.GameConstants;
@@ -119,6 +120,8 @@ public final class CommandBlockCombat {
     }
 
     public static boolean allowDamage(LivingEntity entity, DamageSource source, float amount) {
+        if (entity instanceof ServerPlayer target && Error404Role.isHighDimension(target)) return false;
+        if (source.getEntity() instanceof ServerPlayer actor && Error404Role.isHighDimension(actor)) return false;
         if (!(entity instanceof ServerPlayer player) || !CommandBlockDirector.isActive(player.serverLevel())) {
             return true;
         }
@@ -150,10 +153,17 @@ public final class CommandBlockCombat {
         if (source.getEntity() instanceof ServerPlayer farlands && FarlandsRole.blocksMelee(farlands)) {
             return false;
         }
+        if (amount > 0.0F && DreadlordRole.isDreadlord(player)) {
+            var data = DreadlordRole.dataOf(player);
+            if (data != null) {
+                data.onHit();
+            }
+        }
         return true;
     }
 
     public static boolean allowScriptDeath(Player player, Player killer, ResourceLocation reason, boolean forced) {
+        if (Error404Role.isHighDimension(player)) return false;
         if (!(player instanceof ServerPlayer victim) || !CommandBlockDirector.isActive(victim.serverLevel())) {
             return true;
         }
@@ -161,6 +171,9 @@ public final class CommandBlockCombat {
             return true;
         }
         SREGameWorldComponent game = SREGameWorldComponent.KEY.get(victim.level());
+        if (DreadlordRole.rejectsDeath(victim, reason, forced)) {
+            return false;
+        }
         if (game.isRole(victim, ModRoles.HIM) && isHimInvisible(victim)) {
             return false;
         }
@@ -271,6 +284,9 @@ public final class CommandBlockCombat {
             }
             UUID previous = LOOK_LOCKED.get(other.getUUID());
             ServerPlayer lock = null;
+            if (game.isRole(other, ModRoles.HIM)) {
+                continue;
+            }
             for (ServerPlayer him : hims) {
                 if (other == him) {
                     continue;

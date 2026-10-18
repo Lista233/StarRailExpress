@@ -26,8 +26,6 @@ public class ErrorCoreItem extends Item {
             return InteractionResultHolder.fail(stack);
         }
         stack.shrink(1);
-        level.playSound(null, serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ(),
-                net.minecraft.sounds.SoundEvents.GENERIC_EXPLODE, net.minecraft.sounds.SoundSource.PLAYERS, 0.45F, 1.6F);
         return InteractionResultHolder.consume(stack);
     }
 }

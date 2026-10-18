@@ -12,6 +12,7 @@ import org.agmas.noellesroles.init.ModItems;
 import io.wifi.starrailexpress.game.GameUtils;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.Mth;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -35,27 +36,30 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * 命令方块投掷物。石头和火球按抛物线飞出去，命中才结算；
- * 石枪从手里沿视线伸出、贯穿路上的人，再收回手里。
+ * 石枪蓄力投出后同样按抛物线飞，贯穿路上的人，再飞回手里。
  */
 public class CommandBlockThrownEntity extends Entity implements ItemSupplier {
     public static final byte STONE = 0;
     public static final byte FIREBALL = 1;
     public static final byte SPEAR = 2;
 
-    public static final float SPEAR_RANGE = 18.0F;
-    private static final float SPEAR_STEP = SPEAR_RANGE / 12.0F;
+    public static final float SPEAR_SPEED = 1.85F;
+    private static final float SPEAR_RETURN_SPEED = 1.35F;
+    private static final int SPEAR_LIFE = 80;
     private static final int BALLISTIC_LIFE = 50;
 
     private static final EntityDataAccessor<ItemStack> ITEM = SynchedEntityData.defineId(
             CommandBlockThrownEntity.class, EntityDataSerializers.ITEM_STACK);
     private static final EntityDataAccessor<Byte> KIND = SynchedEntityData.defineId(
             CommandBlockThrownEntity.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Float> YAW = SynchedEntityData.defineId(
+            CommandBlockThrownEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> PITCH = SynchedEntityData.defineId(
+            CommandBlockThrownEntity.class, EntityDataSerializers.FLOAT);
 
     private UUID ownerId;
     private final Set<UUID> pierced = new HashSet<>();
-    private Vec3 spearFrom = Vec3.ZERO;
-    private float spearLength;
-    private boolean retracting;
+    private boolean returning;
     private boolean blockSung;
     private int life;
 
@@ -79,20 +83,13 @@ public class CommandBlockThrownEntity extends Entity implements ItemSupplier {
         CommandBlockFeedback.play(player.level(), player, SoundEvents.GHAST_SHOOT, 0.6F, 1.3F);
     }
 
-    public static boolean thrustSpear(ServerPlayer player) {
+    public static boolean throwSpear(ServerPlayer player) {
         if (hasActiveSpear(player)) {
             return false;
         }
-        CommandBlockThrownEntity spear = new CommandBlockThrownEntity(
-                org.agmas.noellesroles.init.ModEntities.COMMAND_BLOCK_THROWN, player.level());
-        spear.ownerId = player.getUUID();
-        spear.entityData.set(KIND, SPEAR);
-        spear.setItem(new ItemStack(ModItems.STONE_SPEAR));
-        spear.spearFrom = player.getEyePosition();
-        spear.setPos(spear.spearFrom);
-        spear.setYRot(player.getYRot());
-        spear.setXRot(player.getXRot());
-        player.level().addFreshEntity(spear);
+        Vec3 look = player.getLookAngle();
+        spawn(player, SPEAR, new ItemStack(ModItems.STONE_SPEAR),
+                player.getEyePosition().add(look.scale(0.6D)), look.scale(SPEAR_SPEED));
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.TRIDENT_THROW,
                 SoundSource.PLAYERS, 0.85F, 0.75F);
         return true;
@@ -142,8 +139,11 @@ public class CommandBlockThrownEntity extends Entity implements ItemSupplier {
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
+
         builder.define(ITEM, ItemStack.EMPTY);
         builder.define(KIND, STONE);
+        builder.define(YAW, 0.0F);
+        builder.define(PITCH, 0.0F);
     }
 
     @Override
@@ -193,49 +193,78 @@ public class CommandBlockThrownEntity extends Entity implements ItemSupplier {
 
     private void tickSpear(ServerLevel level) {
         ServerPlayer owner = owner();
-        if (owner == null || !GameUtils.isPlayerAliveAndSurvival(owner)
-                || (!owner.getMainHandItem().is(ModItems.STONE_SPEAR)
-                        && !owner.getOffhandItem().is(ModItems.STONE_SPEAR))) {
+        if (owner == null || !GameUtils.isPlayerAliveAndSurvival(owner) || ++this.life > SPEAR_LIFE) {
             this.discard();
             return;
         }
-        Vec3 eye = owner.getEyePosition();
-        Vec3 look = owner.getLookAngle();
-        float next = this.retracting
-                ? Math.max(0.0F, this.spearLength - SPEAR_STEP * 1.6F)
-                : Math.min(SPEAR_RANGE, this.spearLength + SPEAR_STEP);
-        Vec3 tip = eye.add(look.scale(Math.max(0.05D, next)));
-        BlockHitResult block = level.clip(
-                new ClipContext(eye, tip, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, owner));
-        boolean stopped = block.getType() != HitResult.Type.MISS;
-        if (stopped) {
-            next = (float) eye.distanceTo(block.getLocation());
-            tip = block.getLocation();
-        }
-        if (!this.retracting) {
-            Vec3 from = this.spearLength <= 0.05F ? eye : this.spearFrom;
-            pierce(level, owner, from, tip);
-            if (stopped) {
-                this.retracting = true;
-                if (!this.blockSung) {
-                    this.blockSung = true;
-                    level.playSound(null, tip.x, tip.y, tip.z, SoundEvents.TRIDENT_HIT, SoundSource.PLAYERS, 0.7F, 0.8F);
-                }
+        if (this.returning) {
+            Vec3 home = owner.getEyePosition();
+            Vec3 from = position();
+            Vec3 delta = home.subtract(from);
+            double distance = delta.length();
+            if (distance <= SPEAR_RETURN_SPEED + 0.2D) {
+                level.playSound(null, owner.getX(), owner.getY(), owner.getZ(), SoundEvents.TRIDENT_RETURN,
+                        SoundSource.PLAYERS, 0.7F, 1.15F);
+                this.discard();
+                return;
             }
+            Vec3 step = delta.scale(SPEAR_RETURN_SPEED / distance);
+            moveAlong(level, owner, from, from.add(step), false);
+            face(step);
+            return;
         }
-        this.spearFrom = tip;
-        this.spearLength = next;
-        setPos(tip);
-        setYRot(owner.getYRot());
-        setXRot(owner.getXRot());
-        if (!this.retracting && next >= SPEAR_RANGE - 0.05F) {
-            this.retracting = true;
+        Vec3 motion = getDeltaMovement().add(0.0D, -0.03D, 0.0D);
+        setDeltaMovement(motion);
+        Vec3 from = position();
+        Vec3 to = from.add(motion);
+        BlockHitResult block = level.clip(
+                new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+        boolean blocked = block.getType() != HitResult.Type.MISS;
+        if (blocked) {
+            to = block.getLocation();
         }
-        if (this.retracting && next <= 0.08F) {
-            level.playSound(null, owner.getX(), owner.getY(), owner.getZ(), SoundEvents.TRIDENT_RETURN,
-                    SoundSource.PLAYERS, 0.7F, 1.15F);
-            this.discard();
+        moveAlong(level, owner, from, to, true);
+        face(to.subtract(from));
+        if (blocked) {
+            beginReturn(level, to);
         }
+    }
+
+    private void moveAlong(ServerLevel level, ServerPlayer owner, Vec3 from, Vec3 to, boolean pierce) {
+        if (pierce) {
+            pierce(level, owner, from, to);
+        }
+        setPos(to);
+    }
+
+    private void beginReturn(ServerLevel level, Vec3 at) {
+        this.returning = true;
+        setDeltaMovement(Vec3.ZERO);
+        if (!this.blockSung) {
+            this.blockSung = true;
+            level.playSound(null, at.x, at.y, at.z, SoundEvents.TRIDENT_HIT, SoundSource.PLAYERS, 0.7F, 0.8F);
+        }
+    }
+
+    private void face(Vec3 direction) {
+        if (direction.lengthSqr() < 1.0E-6D) {
+            return;
+        }
+        double horizontal = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+        float yaw = (float) (Mth.atan2(direction.x, direction.z) * Mth.RAD_TO_DEG);
+        float pitch = (float) (Mth.atan2(direction.y, horizontal) * Mth.RAD_TO_DEG);
+        setYRot(yaw);
+        setXRot(pitch);
+        this.entityData.set(YAW, yaw);
+        this.entityData.set(PITCH, pitch);
+    }
+
+    public float renderYaw(float partialTick) {
+        return Mth.rotLerp(partialTick, this.yRotO, this.entityData.get(YAW));
+    }
+
+    public float renderPitch(float partialTick) {
+        return Mth.rotLerp(partialTick, this.xRotO, this.entityData.get(PITCH));
     }
 
     private void pierce(ServerLevel level, ServerPlayer owner, Vec3 from, Vec3 to) {
@@ -315,7 +344,7 @@ public class CommandBlockThrownEntity extends Entity implements ItemSupplier {
 
     @Override
     public AABB getBoundingBoxForCulling() {
-        return this.getBoundingBox().inflate(SPEAR_RANGE);
+        return this.getBoundingBox().inflate(8.0D);
     }
 
     @Override
@@ -329,8 +358,7 @@ public class CommandBlockThrownEntity extends Entity implements ItemSupplier {
             this.ownerId = tag.getUUID("Owner");
         }
         this.entityData.set(KIND, tag.getByte("Kind"));
-        this.spearLength = tag.getFloat("SpearLength");
-        this.retracting = tag.getBoolean("Retracting");
+        this.returning = tag.getBoolean("Returning");
         this.life = tag.getInt("Life");
         if (tag.contains("Item", 10)) {
             ItemStack.parse(this.registryAccess(), tag.getCompound("Item")).ifPresent(this::setItem);
@@ -343,8 +371,7 @@ public class CommandBlockThrownEntity extends Entity implements ItemSupplier {
             tag.putUUID("Owner", this.ownerId);
         }
         tag.putByte("Kind", kind());
-        tag.putFloat("SpearLength", this.spearLength);
-        tag.putBoolean("Retracting", this.retracting);
+        tag.putBoolean("Returning", this.returning);
         tag.putInt("Life", this.life);
         tag.put("Item", getItem().save(this.registryAccess()));
     }

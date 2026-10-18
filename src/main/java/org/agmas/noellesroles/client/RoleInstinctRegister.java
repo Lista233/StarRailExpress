@@ -379,32 +379,20 @@ public class RoleInstinctRegister {
                     return TrueFalseAndCustomResult.pass();
                 });
 
-        // DIO
-
+        // DIO / JOJO：双方不再互相透视
         RoleInstinctEvents.OBSERVER_HIGHLIGHT_EVENT.register(ModRoles.DIO_ID,
                 (client, viewer, target, isInstinctEnabled) -> {
-                    if (target instanceof Player targetPlayer && GameUtils.isPlayerAliveAndSurvival(targetPlayer)) {
-                        if (targetPlayer.distanceTo(viewer) <= 7) {
-                            if (SREClient.gameComponent.isRole(targetPlayer, ModRoles.JOJO)) {
-                                if (viewer.hasEffect(ModEffects.SKILL_BANED) || viewer.hasEffect(ModEffects.SAFE_TIME))
-                                    return TrueFalseAndCustomResult.pass();
-                                return TrueFalseAndCustomResult.custom(ModRoles.JOJO.color());
-                            }
-                        }
+                    if (target instanceof Player targetPlayer && GameUtils.isPlayerAliveAndSurvival(targetPlayer)
+                            && SREClient.gameComponent.isRole(targetPlayer, ModRoles.JOJO)) {
+                        return TrueFalseAndCustomResult.disallow();
                     }
                     return TrueFalseAndCustomResult.pass();
                 });
-        // JOJO
         RoleInstinctEvents.OBSERVER_HIGHLIGHT_EVENT.register(ModRoles.JOJO_ID,
                 (client, viewer, target, isInstinctEnabled) -> {
-                    if (target instanceof Player targetPlayer && GameUtils.isPlayerAliveAndSurvival(targetPlayer)) {
-                        if (targetPlayer.distanceTo(viewer) <= 5) {
-                            if (SREClient.gameComponent.isRole(targetPlayer, ModRoles.DIO)) {
-                                if (viewer.hasEffect(ModEffects.SKILL_BANED) || viewer.hasEffect(ModEffects.SAFE_TIME))
-                                    return TrueFalseAndCustomResult.pass();
-                                return TrueFalseAndCustomResult.custom(ModRoles.DIO.color());
-                            }
-                        }
+                    if (target instanceof Player targetPlayer && GameUtils.isPlayerAliveAndSurvival(targetPlayer)
+                            && SREClient.gameComponent.isRole(targetPlayer, ModRoles.DIO)) {
+                        return TrueFalseAndCustomResult.disallow();
                     }
                     return TrueFalseAndCustomResult.pass();
                 });

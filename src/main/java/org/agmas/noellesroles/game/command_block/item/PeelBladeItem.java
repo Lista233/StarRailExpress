@@ -10,7 +10,6 @@ import org.agmas.noellesroles.role_data.killer.Entity303RoleData;
 import io.wifi.starrailexpress.api.data.RoleData;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.game.GameUtils;
-import io.wifi.starrailexpress.morph.MorphApi;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,7 +20,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
-/** 只能撕开偷过的脸，而且不能戴着那张脸出手。 */
+/** 只能撕开偷过的脸，伪装期间也可使用。 */
 public class PeelBladeItem extends Item {
     public static final int COOLDOWN = 20 * 20;
 
@@ -39,11 +38,6 @@ public class PeelBladeItem extends Item {
             return InteractionResultHolder.fail(stack);
         }
         if (!SREGameWorldComponent.KEY.get(level).isRole(self, ModRoles.ENTITY_303)) {
-            return InteractionResultHolder.fail(stack);
-        }
-        if (MorphApi.isMorphed(self)) {
-            self.displayClientMessage(Component.translatable("message.noellesroles.entity_303.shell")
-                    .withStyle(ChatFormatting.GRAY), true);
             return InteractionResultHolder.fail(stack);
         }
         List<ServerPlayer> hit = GazeRays.playersAlong(self, 4.0D, 0.45D);

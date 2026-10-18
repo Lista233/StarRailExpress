@@ -37,7 +37,7 @@ public class DioSwimPoseMixin {
             return;
         }
         if (SREGameWorldComponent.KEY.get(player.level()).isRole(player, ModRoles.DIO)) {
-            if (RoleData.getOptional(DIORoleData.class, player).map(d -> d.isFeeding).orElse(false)) {
+            if (RoleData.getOptional(DIORoleData.class, player).map(d -> d.isFeeding || d.roadRollerAttacking).orElse(false)) {
                 ci.cancel();
             }
         }
