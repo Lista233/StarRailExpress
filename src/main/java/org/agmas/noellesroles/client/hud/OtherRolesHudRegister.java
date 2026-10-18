@@ -86,6 +86,7 @@ public class OtherRolesHudRegister {
         SwordsmanHud.register();
         MushroomScholarHud.register();
         RavenHud.register();
+        DaywalkerHud.register();
         DoomedSinnerHud.register();
         WraithAssassinHud.register();
         org.agmas.noellesroles.client.hud.roles.AmonHud.register();

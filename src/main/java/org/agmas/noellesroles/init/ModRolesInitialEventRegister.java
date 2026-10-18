@@ -79,6 +79,7 @@ import org.agmas.noellesroles.role_data.vigilante.MagicApprenticeRoleData;
 import org.agmas.noellesroles.role_data.innocence.FortunetellerRoleData;
 import org.agmas.noellesroles.role_data.neutral.AmonRoleData;
 import org.agmas.noellesroles.role_data.neutral.CandleBearerRoleData;
+import org.agmas.noellesroles.role_data.neutral.DaywalkerRoleData;
 import org.agmas.noellesroles.role_data.neutral.CuckooRoleData;
 import org.agmas.noellesroles.role_data.neutral.EchoListenerRoleData;
 import org.agmas.noellesroles.role_data.neutral.RecorderRoleData;
@@ -1069,6 +1070,19 @@ public class ModRolesInitialEventRegister {
                         return false;
                     return comp.useAbility();
                 }).build());
+
+        // 逐日者技能注册：释放逐日时刻（消耗所有逐日时刻使局内时间快进对应数值）
+        // 冷却（150秒）与逐日时刻数值由 DaywalkerRoleData 内部管理，HUD 由 DaywalkerHud 自绘
+        RoleSkill.register(ModRoles.DAYWALKER, RoleSkill.skill(
+                SRE.id("daywalker_release_moments"),
+                "skill.noellesroles.daywalker.release_moments",
+                context -> {
+                    ServerPlayer player = context.player();
+                    var comp = RoleData.getNullable(DaywalkerRoleData.class, player);
+                    if (comp == null)
+                        return false;
+                    return comp.useSkill();
+                }).announceToSelf(false).build());
 
         // 破魔师技能注册：沉默50格外非杀手玩家，冷却130秒
         RoleSkill.register(ModRoles.SPELLBREAKER, RoleSkill.skill(

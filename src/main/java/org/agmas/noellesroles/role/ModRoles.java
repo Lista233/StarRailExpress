@@ -71,6 +71,7 @@ import org.agmas.noellesroles.game.command_block.Error404Role;
 import org.agmas.noellesroles.game.command_block.HimRole;
 import org.agmas.noellesroles.game.command_block.StoneManRole;
 import org.agmas.noellesroles.game.roles.neutral.raven.RavenRole;
+import org.agmas.noellesroles.game.roles.neutral.daywalker.DaywalkerRole;
 import org.agmas.noellesroles.game.roles.neutral.skeleton.SkeletonRole;
 import org.agmas.noellesroles.game.roles.vigilante.genshin.TartagliaRole;
 import org.agmas.noellesroles.game.roles.vigilante.magic_apprentice.MagicApprenticeRole;
@@ -346,6 +347,7 @@ public class ModRoles {
     public static final ResourceLocation SKINCRAWLER_ID = Noellesroles.id("skincrawler");
     public static final ResourceLocation CANDLE_BEARER_ID = Noellesroles.id("candlebearer");
     public static final ResourceLocation RAVEN_ID = Noellesroles.id("raven");
+    public static final ResourceLocation DAYWALKER_ID = Noellesroles.id("daywalker");
     public static final ResourceLocation REASONER_ID = Noellesroles.id("reasoner");
     public static final ResourceLocation AMON_ID = Noellesroles.id("amon");
     public static final ResourceLocation VOICE_CHANGER_ID = Noellesroles.id("voice_changer");
@@ -2983,6 +2985,36 @@ public class ModRoles {
             .setDefaultEnableNeededPlayerCount(12)
             .setBeSeenInstinctType(InstinctType.DEFAULT, InstinctType.NONE);
 
+    /**
+     * 逐日者角色 - 独立胜利中立阵营
+     * - 使用 teamtype 直接定义（NEUTRAL_INDEPENDENT_WIN 独立胜利中立）
+     * - 无限体力、假心情、可见计分板
+     * - 仅在12人及以上对局刷新，刷新概率5000/10000
+     * - 其他玩家只有处于其20格范围内时才能透视他
+     * - 需要完成「开局人数/3」个任务，且时间耗尽（winstate为time）时，代替好人获得独立胜利
+     * - 每完成1个任务：局内计时器1秒所需的现实时间减少0.075秒（至多0.6秒，即2.5倍速），并储存20秒逐日时刻（至多120秒）
+     * - 技能：消耗所有逐日时刻使局内时间快进对应数值，冷却150秒
+     * - 距胜利还剩1个任务时全程发光并播放音效，直至游戏结束；死亡返还所有逐日时刻并恢复正常流速
+     * - 商店：200金币购买「跳过任务」
+     */
+    public static SRERole DAYWALKER = TMMRoles.registerRole(new DaywalkerRole(
+            DAYWALKER_ID,
+            new Color(255, 156, 0).getRGB(), // 橙金色 - 追逐时间的终点
+            NormalRole.RoleType.INDEPENDENT_WIN_NEUTRAL, // 独立胜利中立（teamtype 直接定义）
+            SRERole.MoodType.FAKE, // 假心情
+            Integer.MAX_VALUE, // 无限体力
+            true // 可见计分板
+    )).setRoleData(DaywalkerRoleData::new)
+            .setCanSeeCoin(true)
+            .setNeutrals(true)
+            .setCanSeeTeammateKillerRole(false)
+            .setCanUseInstinctAndNightVision(false)
+            .setDefaultMax(1)
+            .setDefaultEnableChance(5000) // 刷新概率 5000/10000
+            .setDefaultEnableNeededPlayerCount(12); // 12人时才启用
+            // 被看直觉保持默认（DEFAULT）：其他玩家可透视逐日者，但仅限20格范围内
+            // （距离限制见 RoleInstinctRegister 的 ALIVE_COMMON_BEFORE_EVENT）
+
     public static SRERole RAVEN = TMMRoles.registerRole(new RavenRole(
             RAVEN_ID,
             new Color(130, 100, 160).getRGB(),
@@ -3777,6 +3809,7 @@ public class ModRoles {
         THIEF.setAddedVersion("3.2");
         MERCENARY.setAddedVersion("4.1");
         CANDLE_BEARER.setAddedVersion("4.0");
+        DAYWALKER.setAddedVersion("4.5");
         RAVEN.setAddedVersion("4.3");
         NATURE_SPIRIT.setAddedVersion("4.4");
         REASONER.setAddedVersion("4.3");
