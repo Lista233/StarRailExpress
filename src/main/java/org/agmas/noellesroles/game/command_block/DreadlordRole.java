@@ -43,8 +43,8 @@ public class DreadlordRole extends NormalRole {
     public static final int FORM_COST = 100;
     public static final int DARK_COOLDOWN = 5 * 20;
     public static final int AMBUSH_LOCK = 20;
+    public static final int EXECUTE_COOLDOWN = 110;
     public static final int HIT_STUN = 3 * 20;
-    public static final int EXECUTE_COOLDOWN = 270;
     public static final double AMBUSH_RANGE = 2.2D;
     public static final double KILL_SCALE = 1.5D;
 

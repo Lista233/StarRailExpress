@@ -265,7 +265,7 @@
   "item.noellesroles.second_needle.desc": "鐘擺的秒針。只能收剛剛被擺回去、6 秒內、3.5 格視線中的那個人。成功後冷卻 12 秒。落空不進冷卻。",
   "item.noellesroles.lamp_oil.desc": "燭影的燈油。給還亮著的燭火續 4 秒，你減速 1 秒。冷卻 8 秒。沒有燭火則不進冷卻。",
   "item.noellesroles.candle_snip.desc": "燭影的剪。只能收還亮著、而且沒看著你的人，距離 3.5 格。成功後冷卻 12 秒。落空不進冷卻。",
-  "item.noellesroles.reaper_scythe.desc": "恐懼魔王的鐮刀。只有殺戮形態能用。按住右鍵蓄滿後向前揮出，0.25 秒後處決弧線上的人。冷卻 13.5 秒。黑暗遊走、被硬直或對方離開範圍則揮空。",
+  "item.noellesroles.reaper_scythe.desc": "恐懼魔王的鐮刀。只有殺戮形態能用。按住右鍵蓄滿後向前揮出，0.25 秒後處決弧線上的人。冷卻 5.5 秒。黑暗遊走、被硬直或對方離開範圍則揮空。",
   "item.noellesroles.error_terminal.desc": "404開局自帶，遺失可免費補領。僅高維時可開啟；選擇傀儡後右鍵地圖移動、左鍵玩家追擊，可停駐、消耗引爆器遠端自爆或消耗晶片加速同化。ESC隱藏不退出高維。",
   "item.noellesroles.error_detonator.desc": "100金幣的一次性道具。高維中引爆自己的已完成傀儡；可在終端二次確認引爆，或選中目標後右鍵道具。成功消耗一枚，失敗不消耗。",
   "item.noellesroles.error_accelerator.desc": "80金幣的一次性晶片。對自己的未完成同化目標縮短5秒；終端可精確選定目標，地面右鍵優先使用已選目標，否則使用一個正在同化的目標。成功才消耗。"

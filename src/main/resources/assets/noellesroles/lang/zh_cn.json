@@ -5735,7 +5735,7 @@
   "item.noellesroles.lamp_oil": "灯油",
   "item.noellesroles.candle_snip": "烛剪",
   "item.noellesroles.reaper_scythe": "镰刀",
-  "item.noellesroles.reaper_scythe.tooltip": "按住右键蓄力后向前挥出。只有杀戮形态能用。冷却13.5秒。",
+  "item.noellesroles.reaper_scythe.tooltip": "按住右键蓄力后向前挥出。只有杀戮形态能用。冷却5.5秒。",
   "message.noellesroles.dreadlord.watched": "所有人都在看着你。",
   "message.noellesroles.dreadlord.dread": "%s陷入了惧意。",
   "message.noellesroles.dreadlord.dark": "你化成贴地的黑暗。再按一次解除。",

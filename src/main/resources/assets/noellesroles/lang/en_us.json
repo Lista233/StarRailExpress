@@ -5732,7 +5732,7 @@
     "item.noellesroles.lamp_oil": "Lamp Oil",
     "item.noellesroles.candle_snip": "Candle Snips",
     "item.noellesroles.reaper_scythe": "Scythe",
-    "item.noellesroles.reaper_scythe.tooltip": "Hold right-click to charge, then swing forward. Only the killing form can use it. 13.5s cooldown.",
+    "item.noellesroles.reaper_scythe.tooltip": "Hold right-click to charge, then swing forward. Only the killing form can use it. 5.5s cooldown.",
     "message.noellesroles.dreadlord.watched": "Everyone is looking at you.",
     "message.noellesroles.dreadlord.killing": "You lunge forward and enter Psycho. Press again to become a pool of darkness.",
     "message.noellesroles.dreadlord.dark": "You are a pool of darkness. Press again to rise.",

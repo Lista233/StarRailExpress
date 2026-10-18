@@ -102,7 +102,7 @@ public class DreadlordRoleData extends SimpleRoleData {
             }
             if (killing) {
                 setScale(self, 1.0D);
-                SREPlayerPsychoComponent.KEY.get(self).stopPsycho();
+                SREPlayerPsychoComponent.KEY.get(self).stopPsychoAndSync();
             }
             self.removeEffect(ModEffects.INVINCIBLE);
             self.removeEffect(ModEffects.DREADLORD_DREAD);
@@ -276,9 +276,7 @@ public class DreadlordRoleData extends SimpleRoleData {
         setScale(self, 1.0D);
         self.removeEffect(ModEffects.INVINCIBLE);
         self.removeEffect(MobEffects.MOVEMENT_SPEED);
-        if (SREPlayerPsychoComponent.KEY.get(self).getPsychoTicks() > 0) {
-            SREPlayerPsychoComponent.KEY.get(self).stopPsycho();
-        }
+        SREPlayerPsychoComponent.KEY.get(self).stopPsychoAndSync();
         if (wasKilling) {
             LegendFx.ring(level, self.position(), 1.6F, LegendFx.DREAD);
             self.displayClientMessage(Component.translatable("message.noellesroles.dreadlord.form_end")
