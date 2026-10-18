@@ -15,6 +15,8 @@
 
 package net.exmo.sre.repair.logic;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.network.TriggerScreenEdgeEffectPayload;
 import net.exmo.sre.repair.state.RepairModeState;
@@ -171,6 +173,7 @@ public final class RepairSanitySystem {
 
     public static void restore(ServerPlayer player, int amount) {
         setSanity(player, ModComponents.REPAIR_ROLES.get(player).sanity + amount);
+        ProgressionDataManager.onSanityRestored(player, amount);
     }
 
     private static void setSanity(ServerPlayer player, int value) {

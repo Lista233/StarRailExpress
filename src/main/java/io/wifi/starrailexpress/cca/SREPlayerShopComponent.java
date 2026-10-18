@@ -23,6 +23,7 @@ import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.game.ShopContent;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.index.TMMSounds;
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
 import io.wifi.starrailexpress.util.ShopEntry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
@@ -233,7 +234,8 @@ public class SREPlayerShopComponent implements RoleComponent, ServerTickingCompo
             if (currency == ShopEntry.Currency.MONEY) {
                 this.total_cost += price;
                 this.balance -= price;
-            } else {
+            }
+            ProgressionDataManager.onCurrencySpent(this.player.getUUID(), currency, price);
                 currency.add(this.player, -price);
             }
             // 手榴弹购买后记录购买时间

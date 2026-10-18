@@ -15,6 +15,8 @@
 
 package org.agmas.noellesroles.utils;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import io.wifi.starrailexpress.SRE;
@@ -396,6 +398,13 @@ public class RoleUtils extends MCItemsUtils {
         SREGameWorldComponent gameWorldComponent = SREGameWorldComponent.KEY.get(player.level());
         // 删除旧职业
         var oldRole = gameWorldComponent.getRole(player);
+        if (oldRole != null && role != null && player instanceof ServerPlayer sp) {
+            var oldId = oldRole.identifier();
+            var newId = role.identifier();
+            if (oldId != null && newId != null && !oldId.equals(newId)) {
+                ProgressionDataManager.onRoleChanged(sp, newId.toString());
+            }
+        }
         if (oldRole != null) {
             if (clearOldItems) {
                 var cacheItems = new ArrayList<ItemStack>();
