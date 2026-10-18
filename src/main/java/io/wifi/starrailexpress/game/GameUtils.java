@@ -483,12 +483,6 @@ public class GameUtils {
             return;
         }
         isStartingGame = true;
-        // 修机模式：跳过正常 Areas 加载，使用自动生成的庄园地图
-        if (gameMode == SREGameModes.REPAIR_ESCAPE_MODE) {
-            SRE.LOGGER.info("Repair Escape mode - skipping area loading, using auto-generated manor");
-            trueStartGame(world, gameMode, time);
-            return;
-        }
         AreasWorldComponent areas = AreasWorldComponent.KEY.get(world);
         if (areas.mapName == null) {
             MapManager.loadRandomMap(world);

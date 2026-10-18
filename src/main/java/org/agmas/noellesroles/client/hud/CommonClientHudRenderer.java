@@ -15,7 +15,6 @@
 
 package org.agmas.noellesroles.client.hud;
 
-import net.exmo.sre.repair.client.*;
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.SREClientConfig;
 import io.wifi.starrailexpress.api.SRERole;
@@ -263,7 +262,6 @@ public class CommonClientHudRenderer {
     registerFather();
     UnifiedSkillHud.register();
     MurderTimeHud.register();
-    RepairEscapeHud.register();
     io.wifi.starrailexpress.client.hud.ProgressionQuestToastHud.register();
     io.wifi.starrailexpress.client.hud.SkillCastAnnounceHud.register();
     org.agmas.noellesroles.client.hud.roles.TomatoSauceHud.register();

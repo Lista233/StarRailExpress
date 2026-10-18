@@ -15,7 +15,6 @@
 
 package org.agmas.noellesroles.client;
 
-import net.exmo.sre.repair.network.*;
 import com.google.common.collect.Maps;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.doctor4t.ratatouille.util.TextUtils;
@@ -100,8 +99,6 @@ import org.agmas.noellesroles.client.commands.SREClientCommand;
 import org.agmas.noellesroles.client.event.MutableComponentResult;
 import org.agmas.noellesroles.client.event.OnMessageBelowMoneyRenderer;
 import org.agmas.noellesroles.client.hud.CommonClientHudRenderer;
-import net.exmo.sre.repair.client.RepairEscapeHud;
-import net.exmo.sre.repair.client.HunterCageBlockEntityRenderer;
 
 import org.agmas.noellesroles.client.renderer.BreakingBridgeBlockEntityRenderer;
 import org.agmas.noellesroles.client.renderer.SREPlushBlockEntityRenderer;
@@ -145,7 +142,6 @@ public class NoellesrolesClient implements ClientModInitializer {
     public static boolean hasInitStatusBar = false;
     public static int insanityTime = 0;
     private static AtomicBoolean hasTimeStop = new AtomicBoolean(false);
-    private static BlockPos repairHeldSearchTarget = null;
     public static KeyMapping roleIntroClientBind = KeyBindingHelper
             .registerKeyBinding(new KeyMapping("key.noellesroles.role_intro",
                     InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_U, "category.starrailexpress.keybinds"));
@@ -325,10 +321,6 @@ public class NoellesrolesClient implements ClientModInitializer {
         BlockEntityRenderers.register(
                 ModBlocks.VENDING_MACHINES_BLOCK_ENTITY,
                 VendingMachinesBlockEntityRenderer::new);
-        BlockEntityRenderers.register(
-                ModBlocks.HUNTER_CAGE_BLOCK_ENTITY,
-                HunterCageBlockEntityRenderer::new);
-
         BlockEntityRenderers.register(SREFumoBlocks.PLUSH_BLOCK_ENTITY, SREPlushBlockEntityRenderer::new);
 
         // 厨师「客户端」食物盘 / 饮料盘：盘内物品居中渲染，参数与原版食物盘一致
@@ -888,13 +880,6 @@ public class NoellesrolesClient implements ClientModInitializer {
             ClientSkinCache.displayTags.clear();
             ClientSkinCache.displayTags.putAll(payload.nametags());
         });
-        ClientPlayNetworking.registerGlobalReceiver(RepairCoinRewardS2CPacket.ID, (payload, context) -> {
-            context.client().execute(() -> RepairEscapeHud.pushCoinToast(payload.amount(), payload.sourceKey()));
-        });
-        ClientPlayNetworking.registerGlobalReceiver(RepairCombatFeedbackS2CPacket.ID, (payload, context) -> {
-            context.client().execute(() -> RepairEscapeHud.pushCombatCue(payload.kind(), payload.entityId(),
-                    payload.x(), payload.y(), payload.z(), payload.weaponId()));
-        });
         ClientPlayNetworking.registerGlobalReceiver(MapStatusBarSyncS2CPacket.ID, (payload, context) -> {
             context.client().execute(() -> org.agmas.noellesroles.client.hud.MapStatusBarClientState
                     .set(payload.barType(), payload.value(), payload.maxValue()));
@@ -953,37 +938,6 @@ public class NoellesrolesClient implements ClientModInitializer {
                 }
             }
         });
-        ClientPlayNetworking.registerGlobalReceiver(OpenRepairRoleSelectionS2CPacket.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                if (context
-                        .client().screen instanceof net.exmo.sre.repair.client.screen.RepairRoleSelectionScreen) {
-                    return;
-                }
-                context.client().setScreen(new net.exmo.sre.repair.client.screen.RepairRoleSelectionScreen(
-                        payload.faction(), payload.endTick(), payload.playerNames()));
-            });
-        });
-        ClientPlayNetworking.registerGlobalReceiver(OpenRepairRoleShopS2CPacket.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                if (context
-                        .client().screen instanceof net.exmo.sre.repair.client.screen.RepairRoleShopScreen screen) {
-                    screen.updateData(payload.skinCoins(), payload.ownedRoles());
-                    screen.init(context.client(), context.client().getWindow().getGuiScaledWidth(),
-                            context.client().getWindow().getGuiScaledHeight());
-                } else {
-                    context.client().setScreen(new net.exmo.sre.repair.client.screen.RepairRoleShopScreen(
-                            payload.skinCoins(), payload.ownedRoles()));
-                }
-            });
-        });
-
-        ClientPlayNetworking.registerGlobalReceiver(OpenRepairStationScreenS2CPacket.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                context.client().setScreen(
-                        new net.exmo.sre.repair.client.screen.RepairStationScreen(payload.blockPos()));
-            });
-        });
-
         ClientPlayNetworking.registerGlobalReceiver(OpenVendingMachinesScreenS2CPacket.ID, (payload, context) -> {
             context.client().execute(() -> {
                 BlockEntity blockEntity = context.client().level.getBlockEntity(payload.blockPos());
@@ -1442,25 +1396,6 @@ public class NoellesrolesClient implements ClientModInitializer {
                 ClientAbilityHandler.selectNextSkill(client);
             }
             ClientAbilityHandler.tickContinuousInput(client);
-            var repairInputComponent = org.agmas.noellesroles.component.ModComponents.REPAIR_ROLES.get(client.player);
-            boolean repairGameRunning = SREClient.gameComponent != null
-                    && SREClient.gameComponent.isRunning()
-                    && SREClient.gameComponent
-                            .getGameMode() == io.wifi.starrailexpress.api.SREGameModes.REPAIR_ESCAPE_MODE;
-            if (client.screen == null && repairGameRunning && repairInputComponent.carriedBy != null) {
-                if (client.options.keyAttack.consumeClick()) {
-                    ClientPlayNetworking.send(new net.exmo.sre.repair.network.RepairCarryStruggleC2SPacket("left"));
-                }
-                if (client.options.keyUse.consumeClick()) {
-                    ClientPlayNetworking.send(new net.exmo.sre.repair.network.RepairCarryStruggleC2SPacket("right"));
-                }
-            }
-            if (client.screen == null && repairGameRunning && repairInputComponent.downed
-                    && repairInputComponent.carriedBy == null
-                    && client.options.keyShift.consumeClick()) {
-                ClientPlayNetworking.send(new net.exmo.sre.repair.network.RepairCarryStruggleC2SPacket("downed"));
-            }
-            handleRepairSearchInput(client);
             if (client.player.isCreative()) {
                 if (foolPrayerBind.consumeClick()) {
                     ClientPlayNetworking
@@ -1969,32 +1904,6 @@ public class NoellesrolesClient implements ClientModInitializer {
         return false;
     }
 
-    private static void handleRepairSearchInput(Minecraft client) {
-        if (client.player == null || client.level == null || client.screen != null) {
-            return;
-        }
-        boolean repairGameRunning = SREClient.gameComponent != null
-                && SREClient.gameComponent.isRunning()
-                && SREClient.gameComponent.getGameMode() == io.wifi.starrailexpress.api.SREGameModes.REPAIR_ESCAPE_MODE;
-        if (!repairGameRunning) {
-            repairHeldSearchTarget = null;
-            return;
-        }
-        if (!(client.hitResult instanceof net.minecraft.world.phys.BlockHitResult blockHit)
-                || !client.level.getBlockState(blockHit.getBlockPos()).is(ModBlocks.HOTBAR_STORAGE)
-                || !client.options.keyUse.isDown()) {
-            if (repairHeldSearchTarget != null) {
-                ClientPlayNetworking.send(new RepairSearchCancelC2SPacket());
-                repairHeldSearchTarget = null;
-            }
-            return;
-        }
-        BlockPos pos = blockHit.getBlockPos();
-        if (!pos.equals(repairHeldSearchTarget)) {
-            repairHeldSearchTarget = pos;
-            ClientPlayNetworking.send(new RepairSearchBeginC2SPacket(pos));
-        }
-    }
 
     public static void clearTimeStopCache() {
         Minecraft.getInstance().execute(() -> {

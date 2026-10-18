@@ -15,7 +15,6 @@
 
 package org.agmas.noellesroles.client;
 
-import net.exmo.sre.repair.network.*;
 import io.wifi.starrailexpress.api.RoleSkill;
 import io.wifi.starrailexpress.api.SREGameModes;
 import io.wifi.starrailexpress.api.RoleSkill.Definition;
@@ -30,9 +29,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 
-import org.agmas.noellesroles.component.ModComponents;
 import org.agmas.noellesroles.role_data.killer.ImitatorRoleData;
-import net.exmo.sre.repair.role.RepairRoleDefinition;
 import org.agmas.noellesroles.game.roles.neutral.puppeteer.PuppeteerPlayerComponent;
 import org.agmas.noellesroles.role_data.killer.ManipulatorRoleData;
 import org.agmas.noellesroles.packet.*;
@@ -141,15 +138,6 @@ public class ClientAbilityHandler {
             return;
         }
 
-        boolean repairGameRunning = gameWorldComponent.isRunning()
-                && gameWorldComponent.getGameMode() == SREGameModes.REPAIR_ESCAPE_MODE;
-        var repairComponent = ModComponents.REPAIR_ROLES.get(client.player);
-        if (repairGameRunning && (RepairRoleDefinition.byId(repairComponent.activeRole).isPresent()
-                || repairComponent.carriedBy != null
-                || repairComponent.carrying != null)) {
-            ClientPlayNetworking.send(new RepairPrimarySkillC2SPacket());
-            return;
-        }
 
         if (GKeyRoleSkill.trigger(client, gameWorldComponent, true)) {
             return;

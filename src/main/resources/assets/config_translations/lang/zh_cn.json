@@ -352,7 +352,6 @@
   "text.autoconfig.starrailexpress.option.startingMoney": "起始金钱",
   "text.autoconfig.starrailexpress.option.shortShotgunPrice": "短管霰弹枪",
   "text.autoconfig.starrailexpress.option.teamKillViolationEnabled": "队友击杀违规检测配置",
-  "text.autoconfig.starrailexpress.option.enableRepairMode": "启用修机模式",
   "text.autoconfig.starrailexpress.option.teamKillViolationThreshold": "窗口内队友击杀次数阈值",
   "text.autoconfig.starrailexpress.option.teamKillViolationWindowSeconds": "检测时间窗口（秒）",
   "text.autoconfig.starrailexpress.option.teamKillViolationMcFunction": "检测触发后执行的 mcfunction",

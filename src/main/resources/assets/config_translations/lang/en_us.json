@@ -352,7 +352,6 @@
     "text.autoconfig.starrailexpress.option.startingMoney": "Starting coins",
     "text.autoconfig.starrailexpress.option.shortShotgunPrice": "Sawed-off shotgun",
     "text.autoconfig.starrailexpress.option.teamKillViolationEnabled": "Teammate kill violation detection config",
-    "text.autoconfig.starrailexpress.option.enableRepairMode": "Enable repair mode",
     "text.autoconfig.starrailexpress.option.teamKillViolationThreshold": "Teammate kill count threshold within the window",
     "text.autoconfig.starrailexpress.option.teamKillViolationWindowSeconds": "Detection time window (seconds)",
     "text.autoconfig.starrailexpress.option.teamKillViolationMcFunction": "mcfunction executed when detection triggers",

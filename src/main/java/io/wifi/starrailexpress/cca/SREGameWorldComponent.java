@@ -886,8 +886,6 @@ public class SREGameWorldComponent implements AutoSyncedComponent, ServerTicking
         if (player.isSpectator() || player.isCreative())
             return;
         SREGameWorldComponent gameWorldComponent = SREGameWorldComponent.KEY.get(player.level());
-        if (gameWorldComponent.gameMode == SREGameModes.REPAIR_ESCAPE_MODE)
-            return;
         if (GroselleJourneyManager.isBanished(player.getUUID())) {
             return;
         }
