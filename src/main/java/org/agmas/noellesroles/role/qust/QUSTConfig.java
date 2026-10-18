@@ -1,6 +1,7 @@
 package org.agmas.noellesroles.role.qust;
 
 import io.wifi.ConfigCompact.ConfigClassHandler;
+import io.wifi.ConfigCompact.annotation.ConfigSync;
 import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.Config;
 
@@ -118,7 +119,7 @@ public class QUSTConfig implements ConfigData {
     public int minigameMasterTicketPrice = 50;
 
     /** 击退剑商店价格 */
-    public int minigameMasterKnockbackSwordPrice = 200;
+    public int minigameMasterKnockbackSwordPrice = 150;
 
     /** 完成小游戏奖励金币数 */
     public int minigameMasterCoinReward = 20;
@@ -186,13 +187,17 @@ public class QUSTConfig implements ConfigData {
     public int bettorDevilRoulettePrice = 75;
 
     // ==================== 维什戴尔 (Wisadel / 维什戴尔_星魂) ====================
+    // 以下数值会随 JOIN 同步到客户端：魂灵 HUD 的进度分母与上限必须与服务端实际口径一致
 
     /** 魂灵存储上限 */
+    @ConfigSync(shouldSync = true)
     public int wisadelMaxSouls = 7;
 
     /** 购买一次祖宗发射器所需的魂灵层数 */
+    @ConfigSync(shouldSync = true)
     public int wisadelShotgunSoulCost = 4;
 
     /** 祖宗发射器购买冷却（秒） */
+    @ConfigSync(shouldSync = true)
     public int wisadelShotgunPurchaseCooldownSeconds = 150;
 }

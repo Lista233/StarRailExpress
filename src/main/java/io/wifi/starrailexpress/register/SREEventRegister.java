@@ -128,6 +128,8 @@ public class SREEventRegister {
             SRE.LOGGER.info("[CONFIG] Sync configs to {}", handler.getPlayer().getName().getString());
             SREConfig.HANDLER.syncToClient(handler.getPlayer());
             StupidExpressConfig.HANDLER.syncToClient(handler.getPlayer());
+            // QUST 自定义职业配置也下发：如维什戴尔魂灵 HUD 的进度分母/上限需与服务端一致
+            org.agmas.noellesroles.role.qust.QUSTConfig.HANDLER.syncToClient(handler.getPlayer());
         });
         // 玩家加入时同步当前赞助者名单
         ServerPlayConnectionEvents.JOIN.register((handler, sender,

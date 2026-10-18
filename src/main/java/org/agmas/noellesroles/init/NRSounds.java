@@ -50,6 +50,11 @@ public class NRSounds {
     public static final SoundEvent MAFIA = registrar.create("noellesroles.mafia");
     public static final SoundEvent BAKA_BAKA = registrar.create("plush.baka");
     public static final SoundEvent WO_SHI_NAI_LONG = registrar.create("plush.nai_long");
+    // 独立命名空间：assets/noellesroles/sounds.json 会被 sre_resource 的同名文件覆盖，
+    // this_hacker 专属音效必须放进独有的 noellesroles_plush/sounds.json 才会被加载
+    public static final SoundEventRegistrar plushSfxRegistrar = new SoundEventRegistrar("noellesroles_plush");
+    public static final SoundEvent THIS_HACKER_HIT = plushSfxRegistrar.create("plush.this_hacker_hit");
+    public static final SoundEvent THIS_HACKER_TRAMPLED = plushSfxRegistrar.create("plush.this_hacker_trampled");
     public static final SoundEvent LEVEL = registrar.create("noellesroles.level");
     public static final SoundEvent SNOW_STORM = registrar.create("noellesroles.winter_storm");
     public static final SoundEvent SAND_STORM = registrar.create("noellesroles.dust_storm");
@@ -99,5 +104,6 @@ public class NRSounds {
 
     public static void initialize() {
         registrar.registerEntries();
+        plushSfxRegistrar.registerEntries();
     }
 }

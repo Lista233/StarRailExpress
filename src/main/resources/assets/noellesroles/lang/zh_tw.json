@@ -1152,6 +1152,7 @@
   "shop.wisadel.shotgun.need_soul": "購買祖宗發射器需要至少 %s 層魂靈",
   "shop.wisadel.shotgun.cooldown": "祖宗發射器購買冷卻中",
   "hud.wisadel.soul": "魂靈：%s/%s",
+  "hud.wisadel.hint": "右鍵屍體獲取魂靈(上限%s層)",
   "hud.wisadel.ready": "魂靈足夠 · 可購買祖宗發射器",
   "hud.wisadel.soul_gained": "已獲得 1 層魂靈",
   "message.wisadel.corpse_taken": "這具屍體的魂靈已被汲取過了",
@@ -1181,6 +1182,7 @@
   "message.noellesroles.doctor.about_to_revive": "你將在 %ss 後復活。",
   "==================== 死亡後限制 ====================": "",
   "message.noellesroles.penalty.limit.god_job_couple": "由於陰謀家存活，在陰謀家存活期間，你無法使用殺手直覺且視野受限！",
+  "message.noellesroles.penalty.limit.wanderer": "由於遊蕩者尚未徹底死亡，你無法在旁觀模式下查看職業等資訊！",
   "message.noellesroles.penalty.limit.loose_end": "由於此時為難民時刻，你可能復活，所以你無法使用殺手直覺且視野受限。",
   "message.noellesroles.penalty.limit": "你的殺手直覺受到限制！",
   "message.noellesroles.penalty.limit.role": "你無法查看它的職業！",
@@ -5542,6 +5544,7 @@
   "message.minigame_master.combo_bonus": "小遊戲完成 %s 個！額外獲得 %s 金幣",
   "item.noellesroles.hacker.blackout": "黑入電力系統",
   "item.noellesroles.hacker.lockpick": "社會工程學鑰匙(開鎖器)",
-  "message.wanderer_qust.ghost_entered_broadcast": "遊蕩者進入了幽靈狀態，在暗處支援乘客",
+  "message.wanderer_qust.start_broadcast": "遊蕩者在暗處幫助乘客",
+  "message.wanderer_qust.ghost_entered_broadcast": "遊蕩者已進入幽靈狀態",
   "message.wanderer_qust.final_death_broadcast": "遊蕩者已徹底死亡"
 }

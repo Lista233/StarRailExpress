@@ -278,7 +278,7 @@ public class ModItems {
                     new Item.Properties().stacksTo(16)),
             "minigame_ticket", ROLE_ITEMS_GROUP, ModBlocks.QUST_GROUP);
 
-    /** 击退剑 - 小游戏达人商店武器，持有左键攻击只击退，6点耐久 */
+    /** 击退剑 - 小游戏达人商店武器，持有左键攻击只击退，8点耐久 */
     public static final Item KNOCKBACK_SWORD = register(
             new org.agmas.noellesroles.role.qust.roles.minigame_master.KnockbackSwordItem(
                     new Item.Properties().stacksTo(1)

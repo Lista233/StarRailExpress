@@ -340,6 +340,7 @@ public class NRDeathEvents {
         boolean doctorAlive = false;
         boolean looseEndAlive = false;
         boolean CONSPIRATOR_alive = false;
+        boolean WANDERER_alive = false;
         boolean limitView = false;
         var refugeeComponent = RefugeeComponent.KEY.get(level);
         if (gameWorldComponent.getGameMode().identifier.equals(SREGameModes.LOOSE_ENDS_ID))
@@ -365,6 +366,21 @@ public class NRDeathEvents {
         }
         if (CONSPIRATOR_alive) {
             limitView = true;
+        }
+        // 游荡者_Lista：只要其尚未彻底死亡（存活在场，或初次死亡后处于幽灵/隐身平民状态），
+        // 旁观者就应与阴谋家在场时一样进入死亡惩罚——屏蔽旁观模式下的职业等信息显示。
+        // 不依赖存活判断，以覆盖初次死亡瞬间的旁观过渡态；彻底死亡（finalDeath）后不再命中。
+        for (Player player : level.players()) {
+            if (!gameWorldComponent.isRole(player, org.agmas.noellesroles.role.qust.QUSTRoles.WANDERER)) {
+                continue;
+            }
+            var wanderer = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.WANDERER.maybeGet(player)
+                    .orElse(null);
+            if (wanderer != null && wanderer.isFinalDeath()) {
+                continue; // 已彻底死亡，不再屏蔽
+            }
+            WANDERER_alive = true;
+            break;
         }
         for (final var victim : victims) {
             DeathPenaltyComponent deathPenaltyComponent = ModComponents.DEATH_PENALTY.get(victim);
@@ -414,6 +430,19 @@ public class NRDeathEvents {
                                 .withStyle(ChatFormatting.RED));
                 victim.displayClientMessage(
                         Component.translatable("message.noellesroles.penalty.limit.god_job_couple")
+                                .withStyle(ChatFormatting.RED),
+                        true);
+                if (victim.hasPermissions(2)) {
+                    victim.sendSystemMessage(Component.translatable("message.noellesroles.admin.free_cam_hint")
+                            .withStyle(ChatFormatting.YELLOW));
+                }
+            } else if (WANDERER_alive) {
+                deathPenaltyComponent.setPenalty(-1, true);
+                victim.sendSystemMessage(
+                        Component.translatable("message.noellesroles.penalty.limit.wanderer")
+                                .withStyle(ChatFormatting.RED));
+                victim.displayClientMessage(
+                        Component.translatable("message.noellesroles.penalty.limit.wanderer")
                                 .withStyle(ChatFormatting.RED),
                         true);
                 if (victim.hasPermissions(2)) {

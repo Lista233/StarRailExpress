@@ -128,6 +128,13 @@ public interface SREFumoBlocks {
             new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
     Block ZSHIXING_PLUSH = registerBlock("zshixing_plush",
             new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    Block STAR_SOUL_PLUSH = registerBlock("star_soul_plush",
+            new SREPlushBlock(Properties.ofFullCopy(Blocks.LIGHT_BLUE_WOOL).noOcclusion()));
+    // 这些 plush 被触摸/踩踏时固定音调 1.0（不随机、不受音符盒影响）
+    java.util.Set<Block> FIXED_PITCH_PLUSHES = java.util.Set.of(
+            THIS_HACKER_PLUSH, LISTA_PLUSH, LINRAN_PLUSH, HUAYIYAAA_PLUSH,
+            ZHUCHEN_L_PLUSH, ZSHIXING_PLUSH, NEKOVIET13_PLUSH, MX_PLUSH, AEVULE0V0_PLUSH,
+            STAR_SOUL_PLUSH, THEZHANGHUAYU_PLUSH);
     // 自定义玩家 plush：单个动态方块，按绑定的玩家名渲染该玩家皮肤
     Block CUSTOM_PLAYER_PLUSH = registerBlock("custom_player_plush",
             new org.agmas.noellesroles.content.block.CustomPlayerPlushBlock(
@@ -203,6 +210,8 @@ public interface SREFumoBlocks {
             .registerBlock(new SREPlushItem(LINRAN_PLUSH, new Item.Properties().stacksTo(64)));
     Item ZSHIXING_PLUSH_ITEM = SREItems
             .registerBlock(new SREPlushItem(ZSHIXING_PLUSH, new Item.Properties().stacksTo(64)));
+    Item STAR_SOUL_PLUSH_ITEM = SREItems
+            .registerBlock(new SREPlushItem(STAR_SOUL_PLUSH, new Item.Properties().stacksTo(64)));
     Item CUSTOM_PLAYER_PLUSH_ITEM = SREItems
             .registerBlock(new SREPlushItem(CUSTOM_PLAYER_PLUSH, new Item.Properties().stacksTo(64)));
     /**
@@ -220,7 +229,7 @@ public interface SREFumoBlocks {
                     MX_PLUSH, LISTA_PLUSH, THIS_HACKER_PLUSH,
                     AEVULE0V0_PLUSH, THEZHANGHUAYU_PLUSH,
                     NEKOVIET13_PLUSH, ZHUCHEN_L_PLUSH, HUAYIYAAA_PLUSH,
-                    LINRAN_PLUSH, ZSHIXING_PLUSH,
+                    LINRAN_PLUSH, ZSHIXING_PLUSH, STAR_SOUL_PLUSH,
                     CUSTOM_PLAYER_PLUSH }));
 
     public static Block registerBlock(String id, Block block) {
@@ -277,6 +286,7 @@ public interface SREFumoBlocks {
                     itemGroup.accept(HUAYIYAAA_PLUSH_ITEM);
                     itemGroup.accept(LINRAN_PLUSH_ITEM);
                     itemGroup.accept(ZSHIXING_PLUSH_ITEM);
+                    itemGroup.accept(STAR_SOUL_PLUSH_ITEM);
                     itemGroup.accept(CUSTOM_PLAYER_PLUSH_ITEM);
                 });
         blockEntityRegistrar.registerEntries();

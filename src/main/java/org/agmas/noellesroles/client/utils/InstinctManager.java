@@ -31,12 +31,16 @@ import org.agmas.noellesroles.utils.RoleUtils;
 import io.wifi.starrailexpress.api.InstinctType;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.TMMRoles;
+import io.wifi.starrailexpress.cca.PlayerBodyEntityComponent;
 import io.wifi.starrailexpress.cca.SREGameTimeComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.cca.SREPlayerMoodComponent;
 import io.wifi.starrailexpress.client.SREClient;
 import io.wifi.starrailexpress.content.entity.FirecrackerEntity;
 import io.wifi.starrailexpress.content.entity.NoteEntity;
+import io.wifi.starrailexpress.content.entity.PlayerBodyEntity;
+import org.agmas.noellesroles.role.qust.QUSTComponentKeys;
+import org.agmas.noellesroles.role.qust.QUSTRoles;
 import io.wifi.starrailexpress.event.client.CommonInstinctEvents;
 import io.wifi.starrailexpress.event.client.RoleInstinctEvents;
 import io.wifi.starrailexpress.event.client.RoleInstinctEvents.InnerRoleInstinctFunction;
@@ -75,6 +79,13 @@ public class InstinctManager {
         if (client == null || client.player == null || SREClient.gameComponent == null) {
             return OptionalInt.empty();
         }
+        // 游荡者_Lista：初次死亡之后（幽灵/隐身平民态）不再出现在任何本能透视中
+        if (target instanceof Player wandererTarget) {
+            var wanderer = QUSTComponentKeys.Keys.WANDERER.maybeGet(wandererTarget).orElse(null);
+            if (wanderer != null && wanderer.isGhost() && !wanderer.isFinalDeath()) {
+                return OptionalInt.empty();
+            }
+        }
         boolean instinctEnabled = SREClient.isInstinctEnabled();
         {
             int deathPenaltyType = SREClient.getDeathPenaltyType(client.player);
@@ -111,7 +122,12 @@ public class InstinctManager {
         }
         SREGameWorldComponent gameWorldComponent = (SREGameWorldComponent) SREGameWorldComponent.KEY
                 .get(Minecraft.getInstance().player.level());
-        // if (target instanceof PlayerBodyEntity) return 0x606060;
+        // 维什戴尔_星魂：20 格内的尸体在本能中可见——未汲取过的灰色，已汲取过的深红色
+        if (target instanceof PlayerBodyEntity body && gameWorldComponent.isRole(self, QUSTRoles.WISADEL)
+                && self.distanceToSqr(target) <= 20.0 * 20.0) {
+            PlayerBodyEntityComponent bodyComponent = body.getComponent();
+            return OptionalInt.of(bodyComponent.wisadelHarvested ? 0x8B0000 : 0x808080);
+        }
         if (target instanceof ItemEntity || target instanceof NoteEntity || target instanceof FirecrackerEntity)
             return OptionalInt.of(0xDB9D00);
         // 渲染傀儡高亮

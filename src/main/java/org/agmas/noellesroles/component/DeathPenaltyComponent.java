@@ -124,6 +124,43 @@ public class DeathPenaltyComponent implements RoleComponent, ServerTickingCompon
                         return;
                     }
                 }
+                // 游荡者_Lista：只要其尚未彻底死亡（存活在场，或初次死亡后处于幽灵/隐身平民状态），
+                // 就与阴谋家同样维持死亡惩罚——屏蔽旁观模式下的职业等死亡信息显示；
+                // 彻底死亡（finalDeath）进旁观后不再维持。
+                boolean WANDERER_present = false;
+                for (Player p : player.level().players()) {
+                    if (!gameWorldComponent.isRole(p, org.agmas.noellesroles.role.qust.QUSTRoles.WANDERER)) {
+                        continue;
+                    }
+                    var wanderer = org.agmas.noellesroles.role.qust.QUSTComponentKeys.Keys.WANDERER.maybeGet(p)
+                            .orElse(null);
+                    if (wanderer != null && wanderer.isFinalDeath()) {
+                        continue; // 已彻底死亡，不再维持
+                    }
+                    WANDERER_present = true;
+                    break;
+                }
+                if (WANDERER_present) {
+                    if (this.penaltyExpiry == -2) {
+                        this.penaltyExpiry = -1;
+                        this.limitCameraUUID = null;
+                        this.limitPos = null;
+                        player.sendSystemMessage(
+                                Component.translatable("message.noellesroles.penalty.limit.wanderer")
+                                        .withStyle(ChatFormatting.RED));
+                        player.displayClientMessage(
+                                Component.translatable("message.noellesroles.penalty.limit.wanderer")
+                                        .withStyle(ChatFormatting.RED),
+                                true);
+                        if (player.hasPermissions(2)) {
+                            player.sendSystemMessage(
+                                    Component.translatable("message.noellesroles.admin.free_cam_hint")
+                                            .withStyle(ChatFormatting.YELLOW));
+                        }
+                        sync();
+                    }
+                    return;
+                }
                 player.displayClientMessage(
                         Component.translatable("message.noellesroles.penalty.unlimit").withStyle(ChatFormatting.GREEN),
                         true);

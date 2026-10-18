@@ -308,6 +308,7 @@ public class NRGameStateEvents {
             boolean hasNianShou = false, hasArsonist = false, hasCuckoo = false, hasPelican = false,
                     hasGodfather = false, hasLeader = false, hasLicensedVillain = false, hasNatureSpirit = false;
             boolean hasDictator = false, hasHacker = false, hasSuperRecorder = false, hasMascot = false;
+            boolean hasWanderer = false;
             final var all_players = serverLevel.players();
 
             for (var p : all_players) {
@@ -356,6 +357,8 @@ public class NRGameStateEvents {
                     hasSuperRecorder = true;
                 } else if (gameWorldComponent.isRole(p, org.agmas.noellesroles.role.qust.QUSTRoles.MASCOT)) {
                     hasMascot = true;
+                } else if (gameWorldComponent.isRole(p, org.agmas.noellesroles.role.qust.QUSTRoles.WANDERER)) {
+                    hasWanderer = true;
                 }
             }
 
@@ -470,6 +473,15 @@ public class NRGameStateEvents {
                     if (p != null) {
                         BroadcastCommand.BroadcastMessage(p, Component
                                 .translatable("message.noellesroles.mascot.entry").withStyle(ChatFormatting.YELLOW));
+                    }
+                });
+            }
+            // 游荡者_Lista：开局全场播报（青色）
+            if (hasWanderer) {
+                all_players.forEach((p) -> {
+                    if (p != null) {
+                        BroadcastCommand.BroadcastMessage(p, Component
+                                .translatable("message.wanderer_qust.start_broadcast").withStyle(ChatFormatting.AQUA));
                     }
                 });
             }

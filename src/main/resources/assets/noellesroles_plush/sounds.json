@@ -1,0 +1,12 @@
+{
+  "plush.this_hacker_hit": {
+    "sounds": [
+      "noellesroles_plush:plush/this_hacker_hit"
+    ]
+  },
+  "plush.this_hacker_trampled": {
+    "sounds": [
+      "noellesroles_plush:plush/this_hacker_trampled"
+    ]
+  }
+}

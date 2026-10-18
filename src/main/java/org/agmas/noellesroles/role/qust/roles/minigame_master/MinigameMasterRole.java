@@ -21,7 +21,7 @@ import java.util.List;
  * 小游戏达人（Minigame Master / 这个_骇客）角色定义
  * <ul>
  *   <li>平民阵营，拥有正常平民商店 + 小游戏券</li>
- *   <li>商店可购买小游戏券（50金币）、击退剑（200金币，持有即可左键击退）</li>
+ *   <li>商店可购买小游戏券（50金币）、击退剑（150金币，持有即可左键击退）</li>
  * </ul>
  */
 public class MinigameMasterRole extends NormalRole {
@@ -38,7 +38,7 @@ public class MinigameMasterRole extends NormalRole {
         List<ShopEntry> entries = new ArrayList<>();
         // 小游戏券
         entries.add(createMinigameTicketEntry());
-        // 击退剑（200金币，持有即可左键击退）
+        // 击退剑（150金币，持有即可左键击退）
         entries.add(createKnockbackSwordEntry());
         // 华容道挑战（900金币，通关直接胜利）
         entries.add(createKlotskiChallengeEntry());
@@ -62,7 +62,7 @@ public class MinigameMasterRole extends NormalRole {
     }
 
     /**
-     * 创建击退剑商店条目（持有左键攻击只击退，200金币）
+     * 创建击退剑商店条目（持有左键攻击只击退，150金币）
      */
     public static ShopEntry createKnockbackSwordEntry() {
         ItemStack sword = createKnockbackSwordStack();

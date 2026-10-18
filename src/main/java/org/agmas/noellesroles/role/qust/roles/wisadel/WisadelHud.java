@@ -13,7 +13,8 @@ import org.agmas.noellesroles.role.qust.QUSTRoles;
 /**
  * 维什戴尔_星魂（Wisadel）HUD。
  * <p>
- * 右下角显示当前积攒的「魂灵」进度（X / 购买所需层数）；当魂灵达到购买祖宗发射器所需的
+ * 右下角显示当前积攒的「魂灵」进度（X / 购买所需层数），最上方固定一行玩法提示
+ * （右键尸体获取魂灵与魂灵上限）；当魂灵达到购买祖宗发射器所需的
  * {@link WisadelPlayerComponent#shotgunSoulCost()} 层时，数字高亮并追加一行可购买提示。
  */
 @Environment(EnvType.CLIENT)
@@ -61,6 +62,13 @@ public class WisadelHud {
                     .translatable("hud.wisadel.soul", souls, WisadelPlayerComponent.shotgunSoulCost())
                     .withStyle(enough ? ChatFormatting.GOLD : ChatFormatting.GRAY);
             guiGraphics.drawString(font, soulText, xOffset - font.width(soulText), yOffset, 0xFFFFFF);
+
+            // 最上方一行：玩法提示（获取方式与魂灵上限），上限取同步后的配置值
+            Component hintText = Component
+                    .translatable("hud.wisadel.hint", WisadelPlayerComponent.maxSouls())
+                    .withStyle(ChatFormatting.GRAY);
+            guiGraphics.drawString(font, hintText, xOffset - font.width(hintText),
+                    yOffset - (font.lineHeight + 4) * 2, 0xFFFFFF);
 
             // 达到购买门槛时提示可购买祖宗发射器
             if (enough) {

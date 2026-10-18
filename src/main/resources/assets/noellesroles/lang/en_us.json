@@ -1107,6 +1107,7 @@
   "shop.wisadel.shotgun.need_soul": "The Ancestral Launcher requires at least %s Souls",
   "shop.wisadel.shotgun.cooldown": "The Ancestral Launcher is on purchase cooldown",
   "hud.wisadel.soul": "Souls: %s/%s",
+  "hud.wisadel.hint": "Right-click corpses to harvest Souls (max %s)",
   "hud.wisadel.ready": "Souls ready \u00b7 Ancestral Launcher available",
   "hud.wisadel.soul_gained": "Gained 1 Soul",
   "message.wisadel.corpse_taken": "This corpse's soul has already been harvested",
@@ -1136,6 +1137,7 @@
   "message.noellesroles.doctor.about_to_revive": "You will revive in %ss.",
   "==================== Post-Death Restrictions ====================": "",
   "message.noellesroles.penalty.limit.god_job_couple": "Because the Conspirator is alive, you cannot use killer instinct and have limited vision while they are alive!",
+  "message.noellesroles.penalty.limit.wanderer": "Because the Wanderer is not finally dead, you cannot view roles or other information in spectator mode!",
   "message.noellesroles.penalty.limit.loose_end": "Because it's Refugee Time, you may revive, so you cannot use killer instinct and have limited vision.",
   "message.noellesroles.penalty.limit": "Your killer instinct is restricted!",
   "message.noellesroles.penalty.limit.role": "You cannot see its role!",
@@ -2348,6 +2350,7 @@
   "block.noellesroles.huayiyaaa_plush": "Huayiyaaa Fumo",
   "block.noellesroles.linran_plush": "LinRan Fumo",
   "block.noellesroles.zshixing_plush": "Zshixing Fumo",
+  "block.noellesroles.star_soul_plush": "Star Soul Fumo",
   "block.noellesroles.vending_machines": "Vending Machine",
   "block.noellesroles.lottery_machine": "Lottery Machine",
   "block.noellesroles.devil_roulette_table": "Roulette Table",
@@ -5048,6 +5051,7 @@
 
   "message.american_police.punishment_death": "You killed an innocent civilian! You died on the spot and dropped your guns",
   "message.american_police.punishment_san": "You killed an innocent civilian! Your sanity has been completely drained",
-  "message.wanderer_qust.ghost_entered_broadcast": "The Wanderer has entered ghost state, supporting passengers from the shadows",
-  "message.wanderer_qust.final_death_broadcast": "The Wanderer has been彻底 killed"
+  "message.wanderer_qust.start_broadcast": "The Wanderer is helping passengers from the shadows",
+  "message.wanderer_qust.ghost_entered_broadcast": "The Wanderer has entered ghost state",
+  "message.wanderer_qust.final_death_broadcast": "The Wanderer has been completely killed"
 }

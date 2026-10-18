@@ -73,8 +73,8 @@ public class WandererRole extends NormalRole {
                         .withStyle(ChatFormatting.GOLD),
                 true);
 
-        // 全服播报：游荡者进入幽灵状态
-        BroadcastCommand.BroadcastMessage(sp,
+        // 全服播报：游荡者进入幽灵状态（BroadcastMessage 单发，需遍历在线玩家）
+        broadcastToAll(sp,
                 Component.translatable("message.wanderer_qust.ghost_entered_broadcast")
                         .withStyle(ChatFormatting.AQUA));
 
@@ -108,14 +108,26 @@ public class WandererRole extends NormalRole {
         sp.setGameMode(GameType.SPECTATOR);
         // 与正常死亡一致：清理职业飞行技能残留，否则旁观者飞不起来
         GameUtils.normalizeSpectatorFlightAbilities(sp);
-        // 全服播报：游荡者彻底死亡
-        BroadcastCommand.BroadcastMessage(sp,
+        // 全服播报：游荡者彻底死亡（同样需要遍历在线玩家）
+        broadcastToAll(sp,
                 Component.translatable("message.wanderer_qust.final_death_broadcast")
                         .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
         sp.displayClientMessage(
                 Component.translatable("message.wanderer_qust.final_death")
                         .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD),
                 true);
+    }
+
+    /**
+     * 全服播报：{@link BroadcastCommand#BroadcastMessage} 只发给单个玩家，
+     * 这里遍历服务器在线玩家逐个发送，实现真正的全场播报。
+     */
+    private static void broadcastToAll(ServerPlayer source, Component message) {
+        var server = source.getServer();
+        if (server == null) return;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            BroadcastCommand.BroadcastMessage(player, message);
+        }
     }
 
     /**

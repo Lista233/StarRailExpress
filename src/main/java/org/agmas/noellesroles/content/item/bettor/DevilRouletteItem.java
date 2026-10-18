@@ -143,13 +143,14 @@ public class DevilRouletteItem extends Item {
                     Component.translatable("message.bettor.item_derringer")));
             return "message.bettor.result.derringer";
         } else if (result >= 40 && result <= 89) {
+            // 全服播报：必须在死亡结算前发送。死亡链会把玩家切旁观并触发结算，
+            // 放在 killPlayer 之后容易随死亡流程丢失播报（物品分支无死亡故一直正常）
+            broadcastToAll(sp, Component.translatable("message.bettor.broadcast_death")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_RED));
             // 直接死亡（赌博致死）
             io.wifi.starrailexpress.game.GameUtils.killPlayer(
                     sp, true, null,
                     io.wifi.starrailexpress.game.GameConstants.DeathReasons.GAMBLING_DEATH);
-            // 全服播报
-            broadcastToAll(sp, Component.translatable("message.bettor.broadcast_death")
-                    .withStyle(net.minecraft.ChatFormatting.DARK_RED));
             return "message.bettor.result.death";
         } else if (result >= 90 && result <= 189) {
             // 获得一层护盾

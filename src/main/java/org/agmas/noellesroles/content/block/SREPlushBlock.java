@@ -108,7 +108,7 @@ public class SREPlushBlock extends PlushBlock implements TaskInstinctShowableInt
       if (!level.isClientSide && entity instanceof Player player) {
          // 落地时 fallDistance > 0，并且玩家已经着地
          if (player.fallDistance > 0.1F) {
-            triggerPlush(state, level, pos, player);
+            triggerPlush(state, level, pos, player, true);
          }
       }
    }
@@ -139,7 +139,7 @@ public class SREPlushBlock extends PlushBlock implements TaskInstinctShowableInt
    protected InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player,
          BlockHitResult hit) {
       if (!world.isClientSide) {
-         triggerPlush(state, world, pos, player);
+         triggerPlush(state, world, pos, player, false);
          // 场景任务：击打FUMO（右键摸摸触发，左键破坏不算）
          if (player instanceof ServerPlayer sp) {
             SceneTaskManager.reportFumoHit(sp);
@@ -149,7 +149,7 @@ public class SREPlushBlock extends PlushBlock implements TaskInstinctShowableInt
       return InteractionResult.SUCCESS;
    }
 
-   public void triggerPlush(BlockState state, Level world, BlockPos pos, Player player) {
+   public void triggerPlush(BlockState state, Level world, BlockPos pos, Player player, boolean trampled) {
       Vec3 mid = Vec3.atCenterOf(pos);
       float pitch = 0.8F + world.random.nextFloat() * 0.4F;
       BlockState note = world.getBlockState(pos.below());
@@ -157,9 +157,19 @@ public class SREPlushBlock extends PlushBlock implements TaskInstinctShowableInt
          pitch = (float) Math.pow((double) 2.0F,
                (double) ((Integer) note.getValue(BlockStateProperties.NOTE) - 12) / (double) 12.0F);
       }
+      // 指定 plush：固定音调 1.0，不随机、也不受下方音符盒影响
+      if (SREFumoBlocks.FIXED_PITCH_PLUSHES.contains(state.getBlock())) {
+         pitch = 1.0F;
+      }
 
-      world.playSound((Player) null, mid.x(), mid.y(), mid.z(), getSound(world, pos, state), SoundSource.BLOCKS, 1.0F,
-            pitch);
+      SoundEvent sound = getSound(world, pos, state);
+      // this_hacker：右键用受击音效、踩踏用踩踏音效，音调在 0.9~1.1 之间随机
+      if (state.is(SREFumoBlocks.THIS_HACKER_PLUSH)) {
+         sound = trampled ? NRSounds.THIS_HACKER_TRAMPLED : NRSounds.THIS_HACKER_HIT;
+         pitch = 0.9F + world.random.nextFloat() * 0.2F;
+      }
+
+      world.playSound((Player) null, mid.x(), mid.y(), mid.z(), sound, SoundSource.BLOCKS, 1.0F, pitch);
       BlockEntity var10 = world.getBlockEntity(pos);
       if (var10 instanceof SREPlushBlockEntity) {
          SREPlushBlockEntity plushie = (SREPlushBlockEntity) var10;
