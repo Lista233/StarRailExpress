@@ -33,6 +33,7 @@ import io.wifi.starrailexpress.index.TMMSounds;
 import io.wifi.starrailexpress.network.packet.EditNewspaperPacket;
 import io.wifi.starrailexpress.util.SREItemUtils;
 import io.wifi.starrailexpress.util.ShopEntry;
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -196,6 +197,9 @@ public class ModPacketsReciever {
                 if (OnVendingMachinesBuyItems.EVENT.invoker().allowBuy(player, entry)) {
                   if (entry.onBuy(player)) {
                     entry.spendCurrency(player);
+                    String vendingItemId = BuiltInRegistries.ITEM.getKey(entry.stack().getItem()).toString();
+                    ProgressionDataManager.onVendingBuy(player, vendingItemId);
+                    ProgressionDataManager.onCurrencySpent(player, entry.currency(), entry.price());
                     player.displayClientMessage(Component.translatable("noellesroles.bought_item")
                         .withStyle(ChatFormatting.GREEN), true);
                     ServerPlayNetworking.send(player,
@@ -268,6 +272,8 @@ public class ModPacketsReciever {
         return;
       }
       lottery.spendDrawCost(player);
+      ProgressionDataManager.onLotteryDraw(player);
+      ProgressionDataManager.onCurrencySpent(player, lottery.getDrawCurrency(), lottery.getDrawCost());
       Optional<ShopEntry> result = lottery.draw(player.getRandom());
       if (result.isEmpty()) {
         ServerPlayNetworking.send(player, new LotteryMachineResultS2CPacket(

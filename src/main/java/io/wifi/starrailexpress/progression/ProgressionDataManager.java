@@ -28,6 +28,7 @@ import io.wifi.starrailexpress.backpack.BackpackManager;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.data.PlayerSkinEconomyManager;
 import io.wifi.starrailexpress.network.PlayerDataPartSyncPayload;
+import io.wifi.starrailexpress.util.ShopEntry;
 import io.wifi.starrailexpress.network.ProgressionQuestToastPayload;
 import io.wifi.starrailexpress.progression.ProgressionState.FactionCardType;
 import io.wifi.starrailexpress.progression.ProgressionState.PassQuest;
@@ -121,10 +122,25 @@ public final class ProgressionDataManager {
         }
         grantExperience(player, 15);
         increment(player, ProgressionObjectives.KILL_PLAYER, null, 1);
+        SRERole killerRole = SREGameWorldComponent.KEY.get(player.level()).getRole(player);
+        if (killerRole != null) {
+            String roleId = killerRole.identifier() == null ? null : killerRole.identifier().toString();
+            if (roleId != null) {
+                increment(player, ProgressionObjectives.KILL_AS_ROLE, roleId, 1);
+            }
+        }
         FactionCardType faction = currentFaction(player);
         if (faction != FactionCardType.NONE) {
             increment(player, ProgressionObjectives.KILL_AS_FACTION, faction.questKey, 1);
         }
+    }
+
+    /** 恋人阵营获胜时累加 LOVER_WIN 目标进度。 */
+    public static void onLoversWin(ServerPlayer player) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.LOVER_WIN, null, 1);
     }
 
     public static void onPlayerKillDifferentTeam(ServerPlayer player) {
@@ -204,6 +220,75 @@ public final class ProgressionDataManager {
             return;
         }
         increment(player, ProgressionObjectives.BUY_SHOP_ITEM, itemId, 1);
+    }
+
+    /** 消耗游戏内金币（多局累计）时累加 GOLD_SPENT 目标进度。 */
+    public static void onGoldSpent(UUID playerUuid, int amount) {
+        if (!isActive() || amount <= 0) {
+            return;
+        }
+        ServerPlayer player = onlinePlayer(playerUuid);
+        if (player != null) {
+            increment(player, ProgressionObjectives.GOLD_SPENT, null, amount);
+        }
+    }
+
+    /** 按货币类型累计"消耗金币/消耗游戏币"目标进度（商店/售货机/抽奖机通用）。 */
+    public static void onCurrencySpent(UUID playerUuid, ShopEntry.Currency currency, int amount) {
+        if (!isActive() || amount <= 0) {
+            return;
+        }
+        ServerPlayer player = onlinePlayer(playerUuid);
+        if (player != null) {
+            onCurrencySpent(player, currency, amount);
+        }
+    }
+
+    public static void onCurrencySpent(ServerPlayer player, ShopEntry.Currency currency, int amount) {
+        if (!isActive() || amount <= 0 || currency == null) {
+            return;
+        }
+        if (currency == ShopEntry.Currency.MONEY) {
+            increment(player, ProgressionObjectives.GOLD_SPENT, null, amount);
+        } else if (currency == ShopEntry.Currency.MINIGAME_TOKEN) {
+            increment(player, ProgressionObjectives.GAME_TOKEN_SPENT, null, amount);
+        }
+    }
+
+    /** 在售货机完成一次购买时累加 VENDING_PURCHASE 目标进度。 */
+    public static void onVendingBuy(UUID playerUuid, String itemId) {
+        if (!isActive()) {
+            return;
+        }
+        ServerPlayer player = onlinePlayer(playerUuid);
+        if (player != null) {
+            onVendingBuy(player, itemId);
+        }
+    }
+
+    public static void onVendingBuy(ServerPlayer player, String itemId) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.VENDING_PURCHASE, itemId, 1);
+    }
+
+    /** 在抽奖机完成一次抽奖时累加 LOTTERY_PURCHASE 目标进度。 */
+    public static void onLotteryDraw(UUID playerUuid) {
+        if (!isActive()) {
+            return;
+        }
+        ServerPlayer player = onlinePlayer(playerUuid);
+        if (player != null) {
+            onLotteryDraw(player);
+        }
+    }
+
+    public static void onLotteryDraw(ServerPlayer player) {
+        if (!isActive()) {
+            return;
+        }
+        increment(player, ProgressionObjectives.LOTTERY_PURCHASE, null, 1);
     }
 
     public static void onSkillUsed(ServerPlayer player, String skillId) {

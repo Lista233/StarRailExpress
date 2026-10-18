@@ -1270,6 +1270,7 @@ public class GameUtils {
                     if (isLoversWin && roundEnd.CustomWinnerPlayers != null
                             && roundEnd.CustomWinnerPlayers.contains(player.getUUID())) {
                         stats.incrementTotalLoversWins();
+                        ProgressionDataManager.onLoversWin(player);
                     }
                 } else {
                     stats.incrementTotalLosses();

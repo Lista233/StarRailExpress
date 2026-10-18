@@ -44,6 +44,12 @@ public final class ProgressionObjectives {
     public static final String WIN_GAME_MODE = "WIN_GAME_MODE";
     public static final String SURVIVE_AS_FACTION = "SURVIVE_AS_FACTION";
     public static final String KILL_AS_FACTION = "KILL_AS_FACTION";
+    public static final String KILL_AS_ROLE = "KILL_AS_ROLE";
+    public static final String LOVER_WIN = "LOVER_WIN";
+    public static final String GOLD_SPENT = "GOLD_SPENT";
+    public static final String GAME_TOKEN_SPENT = "GAME_TOKEN_SPENT";
+    public static final String VENDING_PURCHASE = "VENDING_PURCHASE";
+    public static final String LOTTERY_PURCHASE = "LOTTERY_PURCHASE";
     public static final String REPORT_BODY = "REPORT_BODY";
     public static final String CALL_MEETING = "CALL_MEETING";
     public static final String CAST_VOTE = "CAST_VOTE";
@@ -77,6 +83,12 @@ public final class ProgressionObjectives {
             def(WIN_GAME_MODE, "赢得指定模式", "objectiveKey 为模式 ID", true, "starrailexpress:murder"),
             def(SURVIVE_AS_FACTION, "以指定阵营存活", "objectiveKey=killer/civilian/neutral", true, "civilian"),
             def(KILL_AS_FACTION, "以指定阵营击杀", "objectiveKey=killer/civilian/neutral", true, "killer"),
+            def(KILL_AS_ROLE, "以指定职业击杀", "objectiveKey 为职业 ID", true, "noellesroles:sheriff"),
+            def(LOVER_WIN, "恋人胜利", "作为恋人阵营获胜一局", false, ""),
+            def(GOLD_SPENT, "消耗金币", "累计消耗的游戏内金币(coin)", false, ""),
+            def(GAME_TOKEN_SPENT, "消耗游戏币", "累计消耗的游戏代币(minigametoken)", false, ""),
+            def(VENDING_PURCHASE, "售货机购买", "在售货机完成一次购买", true, "minecraft:golden_apple"),
+            def(LOTTERY_PURCHASE, "抽奖机购买", "在抽奖机完成一次抽奖", false, ""),
             def(REPORT_BODY, "报告尸体", "召开尸体会议", false, ""),
             def(CALL_MEETING, "召开紧急会议", "摇铃/紧急按钮开会", false, ""),
             def(CAST_VOTE, "参与投票", "地图/模式等投票", false, ""),
