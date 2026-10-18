@@ -103,6 +103,7 @@ public final class CommandBlockDirector {
         }
         registered = true;
         HimRole.registerSkill();
+        SteveRole.registerSkill();
         Error404Role.registerSkill();
         Entity303Role.registerSkill();
         EntityNullRole.registerSkill();
@@ -362,6 +363,7 @@ public final class CommandBlockDirector {
         occupySlots = true;
         session.quota = CommandBlockRules.markedCount(session.originalKillers);
         markAbnormals(level);
+        assignSteve(level);
         scheduleNextConversion(level, level.getGameTime());
         session.nextEventAt = level.getGameTime() + EVENT_INTERVAL;
         session.pendingEvent = pickEvent(level);
@@ -393,6 +395,7 @@ public final class CommandBlockDirector {
         tickConversions(level, now);
         tickEvents(level, now);
         tickPendingKills(level, now);
+        SteveBuilder.tick(level);
         CommandBlockCombat.tick(level);
         if (session.jumpRestoreAt > 0 && now >= session.jumpRestoreAt) {
             session.jumpRestoreAt = 0;
@@ -446,6 +449,73 @@ public final class CommandBlockDirector {
             }
             session.queue.remove(0);
         }
+    }
+
+    /** 命令方块局开局把一名平民改成 Steve。已经有人是 Steve 时不重复改。 */
+    private static void assignSteve(ServerLevel level) {
+        SREGameWorldComponent game = SREGameWorldComponent.KEY.get(level);
+        List<ServerPlayer> civilians = new ArrayList<>();
+        for (ServerPlayer player : level.players()) {
+            if (!GameUtils.isPlayerAliveAndSurvival(player)) {
+                continue;
+            }
+            if (game.isRole(player, ModRoles.STEVE)) {
+                org.agmas.noellesroles.init.RoleInitialItems.addInitialItemsForRole(player, ModRoles.STEVE);
+                return;
+            }
+            SRERole role = game.getRole(player);
+            if (role != null && role.isInnocent() && !role.isVigilanteTeam()
+                    && !CommandBlockRules.isPoolRole(role) && !session.abnormals.contains(player.getUUID())) {
+                civilians.add(player);
+            }
+        }
+        if (civilians.isEmpty()) {
+            return;
+        }
+        ServerPlayer chosen = civilians.get(level.random.nextInt(civilians.size()));
+        RoleUtils.changeRoleAndSendWelcome(chosen, ModRoles.STEVE);
+    }
+
+    /** 拉杆：把下一次改写换成另一个还没变成杀手的异常，并重新抽职业。 */
+    public static boolean rerollNext(ServerLevel level) {
+        if (session == null || !session.active || session.nextConvert == null) {
+            return false;
+        }
+        List<ServerPlayer> marked = new ArrayList<>();
+        SREGameWorldComponent game = SREGameWorldComponent.KEY.get(level);
+        for (ServerPlayer player : level.players()) {
+            if (!GameUtils.isPlayerAliveAndSurvival(player) || !session.abnormals.contains(player.getUUID())) {
+                continue;
+            }
+            SRERole role = game.getRole(player);
+            if (role == null || CommandBlockRules.isPoolRole(role)) {
+                continue;
+            }
+            marked.add(player);
+        }
+        if (marked.size() < 2) {
+            return false;
+        }
+        marked.removeIf(player -> player.getUUID().equals(session.nextConvert));
+        if (marked.isEmpty()) {
+            return false;
+        }
+        ServerPlayer chosen = marked.get(level.random.nextInt(marked.size()));
+        SRERole next = CommandBlockRules.pool().get(level.random.nextInt(CommandBlockRules.pool().size()));
+        session.queue.remove(chosen.getUUID());
+        session.queue.add(0, chosen.getUUID());
+        session.nextConvert = chosen.getUUID();
+        session.nextRole = next;
+        session.previewed = true;
+        if (!game.isRole(chosen, ModRoles.ABNORMAL)) {
+            RoleUtils.changeRole(chosen, ModRoles.ABNORMAL, false, false, false, false, true);
+            RoleUtils.addModifier(chosen, NRModifiers.ABNORMAL);
+        }
+        PacketTracker.sendToClient(chosen,
+                new SubtitleS2CPayload(Component.translatable("message.noellesroles.command_block.preview",
+                        next.getName()), Component.empty(), 80, 0xFFE7D4FF, false,
+                        SubtitleS2CPayload.POS_TOP, false));
+        return true;
     }
 
     private static void beginPreview(ServerLevel level, ServerPlayer player) {
@@ -908,8 +978,12 @@ public final class CommandBlockDirector {
         discardMarkers(level);
         session = null;
         CommandBlockCombat.clear();
-        if (level != null) Error404Role.clear(level);
-        else Error404Role.clear();
+        if (level != null) {
+            Error404Role.clear(level);
+        } else {
+            Error404Role.clear();
+        }
+        SteveBuilder.clear();
     }
 
     private static boolean supports(GameMode mode) {

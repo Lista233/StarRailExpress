@@ -24,6 +24,7 @@
     "CommandBlockPlaneIntroMixin",
     "CommandBlockRolePoolMixin",
     "CommandBlockCrackGunMixin",
+    "StevePickaxeBreakMixin",
     "MagicianPlayerEntityMixin",
     "PlayerPsychoComponentCooldownMixin",
     "PlayerPsychoComponentMixin",
