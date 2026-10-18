@@ -15,7 +15,6 @@
 
 package org.agmas.noellesroles.init;
 
-import net.exmo.sre.repair.content.item.*;
 import dev.doctor4t.ratatouille.util.registrar.ItemRegistrar;
 import io.wifi.starrailexpress.api.ChargeableItemRegistry;
 import io.wifi.starrailexpress.api.impl.KnifeChargeableItem;
@@ -57,134 +56,6 @@ public class ModItems {
     public static final Item ANTIDOTE = register(new AntidoteItem((new Item.Properties()).stacksTo(1)), "antidote",
             CONSUMABLES_GROUP);
 
-    public static final Item REPAIR_TOOLBOX = register(
-            new RepairBoostItem(15, "item.noellesroles.repair_toolbox.tooltip",
-                    new Item.Properties().stacksTo(4)),
-            "repair_toolbox", REPAIR_MODE_GROUP);
-    public static final Item SPARE_PARTS = register(
-            new RepairBoostItem(8, "item.noellesroles.spare_parts.tooltip",
-                    new Item.Properties().stacksTo(16)),
-            "spare_parts", REPAIR_MODE_GROUP);
-    public static final Item RESCUE_FLARE = register(
-            new RescueFlareItem(new Item.Properties().stacksTo(4)),
-            "rescue_flare", ROLE_ITEMS_GROUP);
-    // 遗恨德林加 - 处决地点掉落的一发反抗手枪（murder 融合机制）
-    public static final Item VENGEANCE_DERRINGER = register(
-            new VengeanceDerringerItem(new Item.Properties().stacksTo(1)),
-            "vengeance_derringer", REPAIR_MODE_GROUP);
-    // 恐鬼症道具：镇静剂 / EMF 探测器 / 守护十字
-    public static final Item SANITY_MEDS = register(
-            new SanityMedsItem(new Item.Properties().stacksTo(4)),
-            "sanity_meds", REPAIR_MODE_GROUP);
-    public static final Item EMF_READER = register(
-            new EmfReaderItem(new Item.Properties().stacksTo(1)),
-            "emf_reader", REPAIR_MODE_GROUP);
-    public static final Item CRUCIFIX = register(
-            new CrucifixItem(new Item.Properties().stacksTo(2)),
-            "crucifix", REPAIR_MODE_GROUP);
-    // 推理之书 - 大侦探专属
-    public static final Item DEDUCTION_BOOK = register(
-            new DeductionBookItem(new Item.Properties().stacksTo(1)),
-            "deduction_book", ROLE_ITEMS_GROUP);
-    // 骸骨之书 - 一次性道具：对着玩家尸体蓄力 1 秒，把死亡的玩家复活成骷髅
-    public static final Item BONE_BOOK = register(
-            new BoneBookItem(new Item.Properties().stacksTo(1)),
-            "bone_book", ROLE_ITEMS_GROUP);
-    // 裁决之剑 - 独裁者专属一次性道具：右键尸体选死因与凶手，全对则闪电处决
-    public static final Item JUDGMENT_SWORD = register(
-            new JudgmentSwordItem(new Item.Properties().stacksTo(1)),
-            "judgment_sword", ROLE_ITEMS_GROUP);
-    // 独裁之书 - 独裁者专属一次性道具：猜玩家职业，猜中闪电处决
-    public static final Item DICTATOR_BOOK = register(
-            new DictatorBookItem(new Item.Properties().stacksTo(1)),
-            "dictator_book", ROLE_ITEMS_GROUP);
-    public static final Item REASONER_COMPASS = register(
-            new ReasonerCompassItem(new Item.Properties().stacksTo(1)),
-            "reasoner_compass", ROLE_ITEMS_GROUP);
-    // 区域地图 - 自动生成当前游戏区域的地图（迷宫等地图用），手持显示 HUD 小地图，右键打开全屏地图
-    public static final Item AREA_MAP = register(
-            new AreaMapItem(new Item.Properties().stacksTo(1)),
-            "area_map", TOOLS_GROUP);
-    public static final Item FLARE = register(
-            new FlareItem(new Item.Properties().stacksTo(8)),
-            "flare", ROLE_ITEMS_GROUP);
-    public static final Item REPAIR_MEDKIT = register(
-            new RepairMedkitItem(new Item.Properties().stacksTo(4)),
-            "repair_medkit", REPAIR_MODE_GROUP);
-    public static final Item HUNTER_CHAIN = register(
-            new HunterChainItem(new Item.Properties().stacksTo(1).durability(6)),
-            "hunter_chain", REPAIR_MODE_GROUP);
-    public static final Item HUNTER_WEAPON = register(
-            new HunterWeaponItem(new Item.Properties().stacksTo(1).durability(96)),
-            "hunter_weapon", REPAIR_MODE_GROUP);
-    public static final Item HUNTER_HAMMER = register(
-            new HunterWeaponItem("hammer", new Item.Properties().stacksTo(1).durability(84)),
-            "hunter_hammer", REPAIR_MODE_GROUP);
-    public static final Item HUNTER_HOOK = register(
-            new HunterWeaponItem("hook", new Item.Properties().stacksTo(1).durability(88)),
-            "hunter_hook", REPAIR_MODE_GROUP);
-    public static final Item HUNTER_PLUGIN_LACERATION = register(
-            new HunterAttackPluginItem("laceration", new Item.Properties().stacksTo(4)),
-            "hunter_plugin_laceration", REPAIR_MODE_GROUP);
-    public static final Item HUNTER_PLUGIN_CONCUSSION = register(
-            new HunterAttackPluginItem("concussion", new Item.Properties().stacksTo(4)),
-            "hunter_plugin_concussion", REPAIR_MODE_GROUP);
-    public static final Item HUNTER_PLUGIN_TRACKING = register(
-            new HunterAttackPluginItem("tracking", new Item.Properties().stacksTo(4)),
-            "hunter_plugin_tracking", REPAIR_MODE_GROUP);
-    public static final Item HUNTER_PLUGIN_SUPPRESSION = register(
-            new HunterAttackPluginItem("suppression", new Item.Properties().stacksTo(4)),
-            "hunter_plugin_suppression", REPAIR_MODE_GROUP);
-
-    public static final Item HUNTER_PULSE = register(
-            new HunterPulseItem(new Item.Properties().stacksTo(1)),
-            "hunter_pulse", REPAIR_MODE_GROUP);
-    public static final Item HUNTER_BLINK = register(
-            new HunterBlinkItem(new Item.Properties().stacksTo(1).durability(4)),
-            "hunter_blink", REPAIR_MODE_GROUP);
-    public static final Item HUNTER_JAMMER = register(
-            new HunterJammerItem(new Item.Properties().stacksTo(1).durability(3)),
-            "hunter_jammer", REPAIR_MODE_GROUP);
-
-    public static final Item SMOKE_PELLET = register(
-            new SmokePelletItem(new Item.Properties().stacksTo(8)),
-            "smoke_pellet", REPAIR_MODE_GROUP);
-    public static final Item DECOY_BEACON = register(
-            new DecoyBeaconItem(new Item.Properties().stacksTo(4)),
-            "decoy_beacon", REPAIR_MODE_GROUP);
-    public static final Item ESCAPE_GRAPPLE = register(
-            new EscapeGrappleItem(new Item.Properties().stacksTo(1).durability(3)),
-            "escape_grapple", REPAIR_MODE_GROUP);
-    public static final Item REPAIR_AREA_KEY = register(
-            new RepairRouteItem("area_key", new Item.Properties().stacksTo(8)),
-            "repair_area_key", REPAIR_MODE_GROUP);
-    public static final Item REPAIR_OLD_KEY = register(
-            new RepairRouteItem("old_key", new Item.Properties().stacksTo(4)),
-            "repair_old_key", REPAIR_MODE_GROUP);
-    public static final Item REPAIR_FUSE = register(
-            new RepairRouteItem("fuse", new Item.Properties().stacksTo(4)),
-            "repair_fuse", REPAIR_MODE_GROUP);
-    public static final Item REPAIR_GEAR_HANDLE = register(
-            new RepairRouteItem("gear_handle", new Item.Properties().stacksTo(4)),
-            "repair_gear_handle", REPAIR_MODE_GROUP);
-    public static final Item REPAIR_CROWBAR = register(
-            new RepairRouteItem("crowbar", new Item.Properties().stacksTo(1).durability(24)),
-            "repair_crowbar", REPAIR_MODE_GROUP);
-    public static final Item REPAIR_LOCKPICK = register(
-            new RepairRouteItem("lockpick", new Item.Properties().stacksTo(8)),
-            "repair_lockpick", REPAIR_MODE_GROUP);
-    public static final Item REPAIR_BATTERY = register(
-            new RepairRouteItem("battery", new Item.Properties().stacksTo(4)),
-            "repair_battery", REPAIR_MODE_GROUP);
-    public static final Item REPAIR_VALVE_HANDLE = register(
-            new RepairRouteItem("valve_handle", new Item.Properties().stacksTo(4)),
-            "repair_valve_handle", REPAIR_MODE_GROUP);
-    public static final Item REPAIR_BOLT_CUTTER = register(
-            new RepairRouteItem("bolt_cutter", new Item.Properties().stacksTo(1).durability(18)),
-            "repair_bolt_cutter", REPAIR_MODE_GROUP);
-    public static final Item REPAIR_PRESET_WAND = register(
-            new RepairPresetWandItem(new Item.Properties().stacksTo(1)),
-            "repair_preset_wand", REPAIR_MODE_GROUP);
     public static final Item PILL = register(
             new PillItem((new Item.Properties()).stacksTo(16)
                     .food((new FoodProperties.Builder()).nutrition(1).saturationModifier(0.1F)
@@ -401,7 +272,29 @@ public class ModItems {
 
     public static final Item DEFIBRILLATOR = register(
             new DefibrillatorItem(new Item.Properties().stacksTo(1)),
-            "defibrillator", REPAIR_MODE_GROUP);
+            "defibrillator", ROLE_ITEMS_GROUP);
+    public static final Item DEDUCTION_BOOK = register(
+            new DeductionBookItem(new Item.Properties().stacksTo(1)),
+            "deduction_book", ROLE_ITEMS_GROUP);
+    public static final Item BONE_BOOK = register(
+            new BoneBookItem(new Item.Properties().stacksTo(1)),
+            "bone_book", ROLE_ITEMS_GROUP);
+    public static final Item JUDGMENT_SWORD = register(
+            new JudgmentSwordItem(new Item.Properties().stacksTo(1)),
+            "judgment_sword", ROLE_ITEMS_GROUP);
+    public static final Item DICTATOR_BOOK = register(
+            new DictatorBookItem(new Item.Properties().stacksTo(1)),
+            "dictator_book", ROLE_ITEMS_GROUP);
+    public static final Item REASONER_COMPASS = register(
+            new ReasonerCompassItem(new Item.Properties().stacksTo(1)),
+            "reasoner_compass", ROLE_ITEMS_GROUP);
+    public static final Item AREA_MAP = register(
+            new AreaMapItem(new Item.Properties().stacksTo(1)),
+            "area_map", TOOLS_GROUP);
+    public static final Item FLARE = register(
+            new FlareItem(new Item.Properties().stacksTo(8)),
+            "flare", ROLE_ITEMS_GROUP);
+
 
     public static final Item BOXING_GLOVE = register(
             new BoxingGloveItem(new Item.Properties().stacksTo(1)),
@@ -1660,6 +1553,13 @@ public class ModItems {
     public static final Item REAPER_SCYTHE = register(
             new org.agmas.noellesroles.game.command_block.item.ReaperScytheItem(new Item.Properties().stacksTo(1)),
             "reaper_scythe", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item STEVE_PICKAXE = register(
+            new org.agmas.noellesroles.game.command_block.item.StevePickaxeItem(
+                    new Item.Properties().stacksTo(1).durability(org.agmas.noellesroles.game.command_block.SteveMiner.USES)),
+            "steve_pickaxe", ROLE_ITEMS_GROUP, TOOLS_GROUP);
+    public static final Item STEVE_LEVER = register(
+            new org.agmas.noellesroles.game.command_block.item.SteveLeverItem(new Item.Properties().stacksTo(16)),
+            "steve_lever", ROLE_ITEMS_GROUP);
 
     public static Item register(Item item, String id, ResourceKey<CreativeModeTab>... extraGroups) {
         ResourceKey<CreativeModeTab>[] allGroups = java.util.Arrays.copyOf(extraGroups, extraGroups.length + 1);

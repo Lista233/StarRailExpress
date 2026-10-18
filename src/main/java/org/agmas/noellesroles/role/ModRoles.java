@@ -70,6 +70,7 @@ import org.agmas.noellesroles.game.command_block.StringerRole;
 import org.agmas.noellesroles.game.command_block.Error404Role;
 import org.agmas.noellesroles.game.command_block.HimRole;
 import org.agmas.noellesroles.game.command_block.StoneManRole;
+import org.agmas.noellesroles.game.command_block.SteveRole;
 import org.agmas.noellesroles.game.roles.neutral.raven.RavenRole;
 import org.agmas.noellesroles.game.roles.neutral.daywalker.DaywalkerRole;
 import org.agmas.noellesroles.game.roles.neutral.skeleton.SkeletonRole;
@@ -374,6 +375,7 @@ public class ModRoles {
     public static final ResourceLocation CANDLE_SHADE_ID = Noellesroles.id("candle_shade");
     public static final ResourceLocation DREADLORD_ID = Noellesroles.id("dreadlord");
     public static final ResourceLocation ABNORMAL_ID = Noellesroles.id("abnormal");
+    public static final ResourceLocation STEVE_ID = Noellesroles.id("steve");
 
     // 葬仪 ID - 杀手方中立
     public static final ResourceLocation MORTICIAN_BODYMAKER_ID = Noellesroles.id("mortician_bodymaker");
@@ -2227,6 +2229,26 @@ public class ModRoles {
                     false, true, SRERole.MoodType.FAKE, Integer.MAX_VALUE, true)
                     .setRoleData(DreadlordRoleData::new))
             .setCanSeeCoin(true)
+            .setCanBeRandomedByOtherRoles(false)
+            .setCanSetSpawnInfoInConfig(false)
+            .setDefaultMax(0)
+            .setOtherModeRole(true)
+            .setHiddenForRoleRotation(true)
+            .addFlag("Command_Role")
+            .setAddedVersion("4.5");
+
+    /**
+     * Steve。命令方块局里必然出现的警长，不会自然刷新。
+     * 铁镐挖任务点换成基础掉落，商店用这些掉落购买。
+     */
+    public static final SRERole STEVE = TMMRoles.registerRole(
+            new SteveRole(STEVE_ID, new Color(80, 170, 70).getRGB(),
+                    true, false, SRERole.MoodType.REAL, TMMRoles.CIVILIAN.getMaxSprintTime(), false))
+            .setVigilanteTeam(true)
+            .setSpecialVigilante(true)
+            .setCanSeeCoin(false)
+            .setCanPickUpRevolver(false)
+            .setCanUseSpVanillaWeapon(true)
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)

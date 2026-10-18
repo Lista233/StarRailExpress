@@ -43,7 +43,8 @@ public final class CommandBlockRules {
         if (role == null || role == TMMRoles.CIVILIAN) {
             return false;
         }
-        if (role == ModRoles.COMMAND_BLOCK || role == ModRoles.ABNORMAL || isPoolRole(role)) {
+        if (role == ModRoles.COMMAND_BLOCK || role == ModRoles.ABNORMAL || role == ModRoles.STEVE
+                || isPoolRole(role)) {
             return true;
         }
         if (isKillerOccupation(role) || role.isKiller()) {
