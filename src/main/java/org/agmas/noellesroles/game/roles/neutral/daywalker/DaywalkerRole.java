@@ -76,16 +76,29 @@ public class DaywalkerRole extends CustomWinnerRole {
         shop.add(new ShopEntry(book, SKIP_TASK_PRICE, ShopEntry.Type.TOOL) {
             @Override
             public boolean canBuy(@NotNull Player player) {
-                // 未刷新任务时无法购买（客户端体验优化，服务端 onBuy 会再次校验）
-                return super.canBuy(player) && hasTask(player);
+                // 未刷新任务时无法购买：及时设置失败原因并返回 false
+                // （与网警/承太郎/林家子弟等商店的条件购买写法一致）
+                if (!DaywalkerRole.hasTask(player)) {
+                    this.setFailedMessage(
+                            Component.translatable("message.noellesroles.daywalker.no_task"));
+                    return false;
+                }
+                return super.canBuy(player);
             }
 
             @Override
             public boolean onBuy(@NotNull Player player) {
+                // 服务端二次校验：没有已刷新任务时购买失败，及时 return false
+                // （不进入扣钱/成功音效流程，由购买管线播放失败音效并展示失败文本）
+                if (!DaywalkerRole.hasTask(player)) {
+                    this.setFailedMessage(
+                            Component.translatable("message.noellesroles.daywalker.no_task"));
+                    return false;
+                }
                 if (!(player instanceof ServerPlayer serverPlayer)) {
                     return false;
                 }
-                if (!hasTask(serverPlayer) || !skipCurrentTask(serverPlayer)) {
+                if (!DaywalkerRole.skipCurrentTask(serverPlayer)) {
                     this.setFailedMessage(
                             Component.translatable("message.noellesroles.daywalker.no_task"));
                     return false;

@@ -181,9 +181,13 @@ public class DaywalkerRoleData extends SimpleRoleData {
         // 时间快进（倍速）：局内计时器 1 秒 = 现实 (1 - 速率) 秒。
         // 每个现实 tick 应额外流逝的 tick 数 = 速率 / (1 - 速率)；
         // 速率 0.6 时每 tick 共流逝 2.5 tick，即局内 1 秒 = 现实 0.4 秒。
+        // 仅在对局进行中（ACTIVE）生效：一旦进入结算（STOPPING）立即停止快进；
+        // 局内计时器由 finalizeGame 的 reset() 复位，快进速率随 RoleData 于下局重建归零
+        // （onEndGame 清空所有职业数据 + 每局 assignRole 新建 RoleData 实例）。
         // （时停/会议期间与主计时器一同暂停）
         SREGameTimeComponent timeComp = SREGameTimeComponent.KEY.get(player.level());
         if (rateEnabled && fastForwardRate > 0.0 && fastForwardRate < 1.0
+                && game.getGameStatus() == SREGameWorldComponent.GameStatus.ACTIVE
                 && !timeComp.isTimeFrozen() && timeComp.getTime() > 0) {
             fastForwardAccumulator += fastForwardRate / (1.0 - fastForwardRate);
             while (fastForwardAccumulator >= 1.0) {
