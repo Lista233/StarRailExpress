@@ -251,7 +251,7 @@ public class SREPlayerShopComponent implements RoleComponent, ServerTickingCompo
                         BuiltInRegistries.ITEM.getKey(entry.stack().getItem()), entry.stack().getCount(),
                         price);
             }
-        } else {
+         else {
             Component reason = null;
             if (isOnCooldown) {
                 reason = Component.translatable("message.tip.purchase_failed.cooldown");
