@@ -236,8 +236,7 @@ public class SREPlayerShopComponent implements RoleComponent, ServerTickingCompo
                 this.balance -= price;
             }
             ProgressionDataManager.onCurrencySpent(this.player.getUUID(), currency, price);
-                currency.add(this.player, -price);
-            }
+            currency.add(this.player, -price);
             // 手榴弹购买后记录购买时间
             if (entry.stack().is(TMMItems.GRENADE)) {
                 this.grenadeLastPurchaseTime = player.level().getGameTime();
