@@ -16,7 +16,6 @@ public final class Error404PuppetRole extends NormalRole {
         setCanBeRandomedByOtherRoles(false);
         setCanSetSpawnInfoInConfig(false);
         setDefaultMax(0);
-        setOtherModeRole(true);
         setHiddenForRoleRotation(true);
         setPassiveIncome(false);
         setCanUseInstinctAndNightVision(false);
