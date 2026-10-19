@@ -22,6 +22,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import pro.fazeclan.river.stupid_express.modifier.twin_children.TwinChildrenHandler;
 
 import java.util.Set;
@@ -46,7 +47,7 @@ public abstract class TwinChildrenTeleportMixin {
 
     @Inject(method = "teleportTo(Lnet/minecraft/server/level/ServerLevel;DDDLjava/util/Set;FF)Z", at = @At("HEAD"))
     private void stupidExpress$releaseTwinsOnFarTeleport(ServerLevel level, double x, double y, double z,
-            Set<RelativeMovement> relativeMovements, float yRot, float xRot, CallbackInfo ci) {
+            Set<RelativeMovement> relativeMovements, float yRot, float xRot, CallbackInfoReturnable<Boolean> cir) {
         TwinChildrenHandler.onTeleportStarting((ServerPlayer) (Object) this, x, y, z);
     }
 
