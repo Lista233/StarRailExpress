@@ -388,5 +388,8 @@ public class ModPackets {
 
         PayloadTypeRegistry.playC2S().register(PriestChantC2SPacket.ID, PriestChantC2SPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(PriestHeavenStateS2CPacket.ID, PriestHeavenStateS2CPacket.CODEC);
+
+        // 注册地图状态栏同步网络包（S2C，客户端接收器在 NoellesrolesClient）
+        PayloadTypeRegistry.playS2C().register(MapStatusBarSyncS2CPacket.ID, MapStatusBarSyncS2CPacket.CODEC);
     }
 }
