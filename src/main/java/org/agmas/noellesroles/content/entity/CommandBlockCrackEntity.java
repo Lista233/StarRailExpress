@@ -35,6 +35,12 @@ public class CommandBlockCrackEntity extends Entity {
         return false;
     }
 
+    /** 自定义名只是裂缝的识别标识，不要以名牌形式悬浮在实体上方。 */
+    @Override
+    public boolean shouldShowName() {
+        return false;
+    }
+
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
     }

@@ -25,6 +25,16 @@ public class CommandBlockCrackRenderer extends EntityRenderer<CommandBlockCrackE
         this.shadowRadius = 0.0F;
     }
 
+    /**
+     * 裂缝带自定义名（仅作识别用）。原版 EntityRenderer 在 customNameVisible 为 false 时，
+     * 只要准星指着该实体仍会画名牌（crosshairPickEntity 分支），而裂缝正是要靠指着来打，
+     * 所以在渲染器侧直接按掉名牌渲染，保证名字绝不悬浮在裂缝上方。
+     */
+    @Override
+    protected boolean shouldShowName(CommandBlockCrackEntity entity) {
+        return false;
+    }
+
     @Override
     public ResourceLocation getTextureLocation(CommandBlockCrackEntity entity) {
         return TEXTURE;
