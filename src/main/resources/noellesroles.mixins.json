@@ -236,7 +236,13 @@
     "client.katana.LivingEntityKatanaEventMixin",
     "client.katana.MinecraftKatanaAttackMixin",
     "client.katana.ItemInHandRendererKatanaMixin",
-    "client.katana.HumanoidModelKatanaMixin"
+    "client.katana.HumanoidModelKatanaMixin",
+    "client.echo.EchoHotbarMixin",
+    "client.echo.EchoHotbarScrollMixin",
+    "client.echo.EchoHuntFirstPersonMixin",
+    "client.echo.EchoHuntThirdPersonMixin",
+    "client.echo.EchoHuntItemPoseMixin",
+    "client.echo.EchoInterceptorScaleMixin"
   ],
   "overwrites": {
     "requireAnnotations": true

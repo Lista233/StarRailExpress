@@ -1,4 +1,10 @@
 {
+  "info.screen.roleid.echo_carrier": "回声托运站专属身份。空手按住右键采集晶体，搬至信标每次提交一枚，三枚开始自动充能。声纹钥匙可开启核心区。全部信标启动后，站在撤离区两秒即可撤离；战斗和卡牌效果仍在开发。",
+  "info.screen.roleid.echo_interceptor": "回声托运站专属身份。对充能中的信标按住右键四秒可污染，回退20个百分点并封锁20秒，同信标45秒内不能重复污染。撤离期在大门12格内按G，全队仅一次关门30秒。截流器和倒地战斗尚未接入。",
+  "info.screen.roleid.echo_broker": "回声托运站专属中立身份。私人契约在开局分配且只同步给本人；契约推进与交易尚未接入。",
+  "info.screen.roleid.echo_carrier.simple": "回声托运站开发身份",
+  "info.screen.roleid.echo_interceptor.simple": "回声托运站开发身份",
+  "info.screen.roleid.echo_broker.simple": "回声托运站开发身份",
   "info.screen.roleid.custom_pending": "请按下技能键选择你的职业",
   "info.screen.roleid.custom_pending.simple": "按技能键选择职业",
   "info.screen.roleid.hide_and_seek_seeker": "请寻找地图里的躲藏者。",

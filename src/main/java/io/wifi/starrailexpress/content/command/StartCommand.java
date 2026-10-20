@@ -73,6 +73,10 @@ public class StartCommand {
       source.sendFailure(Component.translatable("game.start_error.game_running"));
       return -1;
     }
+    if (gameMode.identifier.equals(org.agmas.noellesroles.game.modes.echo.EchoBootstrap.ID) && minutes >= 0) {
+      source.sendFailure(Component.translatable("echo.error.fixed_duration"));
+      return -1;
+    }
 
     // 检查当前地图是否支持该游戏模式
     AreasWorldComponent areas = AreasWorldComponent.KEY.get(source.getLevel());

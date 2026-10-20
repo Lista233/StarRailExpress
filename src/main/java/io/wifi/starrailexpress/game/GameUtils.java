@@ -63,6 +63,7 @@ import io.wifi.starrailexpress.api.GameMode;
 import io.wifi.starrailexpress.api.RoleMethodDispatcher;
 import io.wifi.starrailexpress.api.SREGameModes;
 import io.wifi.starrailexpress.api.SRERole;
+import io.wifi.starrailexpress.event.AllowGameInitialize;
 import io.wifi.starrailexpress.cca.AreasWorldComponent;
 import io.wifi.starrailexpress.cca.ExtraSlotComponent;
 import io.wifi.starrailexpress.cca.ParticipationComponent;
@@ -482,6 +483,10 @@ public class GameUtils {
         if (SREGameWorldComponent.KEY.get(world).isRunning()) {
             return;
         }
+        if (!AllowGameInitialize.EVENT.invoker().allow(world, gameMode, List.copyOf(getStartingPlayers(world)))) {
+            clearForcedReadyPlayers();
+            return;
+        }
         isStartingGame = true;
         AreasWorldComponent areas = AreasWorldComponent.KEY.get(world);
         if (areas.mapName == null) {
@@ -640,6 +645,23 @@ public class GameUtils {
     }
 
     public static void initializeGame(ServerLevel serverWorld) {
+        SREGameWorldComponent gameComponent = SREGameWorldComponent.KEY.get(serverWorld);
+        ArrayList<ServerPlayer> readyPlayerList = new ArrayList<>(getStartingPlayers(serverWorld));
+        if (io.wifi.starrailexpress.event.DeferGameInitialize.EVENT.invoker()
+                .defer(serverWorld, gameComponent.getGameMode(), List.copyOf(readyPlayerList))) return;
+        if (!AllowGameInitialize.EVENT.invoker().allow(serverWorld, gameComponent.getGameMode(),
+                List.copyOf(readyPlayerList))) {
+            clearForcedReadyPlayers();
+            isStartingGame = false;
+            isGameStarted = false;
+            gameComponent.setGameStatus(SREGameWorldComponent.GameStatus.INACTIVE);
+            gameComponent.setFade(0);
+            gameComponent.sync();
+            for (ServerPlayer player : serverWorld.players()) {
+                ServerPlayNetworking.send(player, new MapDepartCancelPayload());
+            }
+            return;
+        }
         OnGameInitialized.EVENT.invoker().onGameInitialized(serverWorld);
         isGameStarted = false;
         SRERole.resetStatic();
@@ -650,14 +672,12 @@ public class GameUtils {
         isStartingGame = false;
         HoanMeirinFistPunchHandler.PUNCH_RECORDS.clear();
         RadioItem.RADIO_GROUP.clear();
-        SREGameWorldComponent gameComponent = SREGameWorldComponent.KEY.get(serverWorld);
         gameComponent.clear();
         gameComponent.isSkillAvailable = true;
         // AreasWorldComponent areasWorldComponent =
         // AreasWorldComponent.KEY.get(serverWorld);
 
         RoleMethodDispatcher.onStartGame(serverWorld);
-        ArrayList<ServerPlayer> readyPlayerList = new ArrayList<>(getStartingPlayers(serverWorld));
         // 记录开局玩家数量，供基于开局人数的逻辑使用
         gameComponent.setStartingPlayerCount(readyPlayerList.size());
         clearForcedReadyPlayers();
@@ -984,6 +1004,9 @@ public class GameUtils {
         int roomNumber = 0;
         int i = 0;
         int roomCount = areas.getRoomCount(); // Get room count from config
+        // Echo 模式不使用房间钥匙与介绍信件：三格携带由模式自己发放。
+        final boolean echoMode = gameComponent.getGameMode() != null
+                && gameComponent.getGameMode().identifier.equals(org.agmas.noellesroles.game.modes.echo.EchoBootstrap.ID);
         for (ServerPlayer serverPlayerEntity : players) {
             ItemStack itemStack = new ItemStack(TMMItems.KEY);
             roomNumber = i % roomCount + 1;
@@ -991,7 +1014,7 @@ public class GameUtils {
             itemStack.update(DataComponents.LORE, ItemLore.EMPTY, component -> new ItemLore(Component
                     .nullToEmpty("Room " + finalRoomNumber)
                     .toFlatList(Style.EMPTY.withItalic(false).withColor(0xFF8C00))));
-            serverPlayerEntity.addItem(itemStack);
+            if (!echoMode) serverPlayerEntity.addItem(itemStack);
             roomToPlayer.put(serverPlayerEntity.getUUID(), finalRoomNumber);
 
             // give letter
@@ -1031,11 +1054,11 @@ public class GameUtils {
             // 若存在赞助者，把信封替换为赞助者的 plush，但多给一个（可以丢弃）
             ItemStack sponsorPlush = io.wifi.starrailexpress.sponsor.SponsorManager.decorateIntroStack(letter,
                     serverPlayerEntity);
-            if (sponsorPlush != null) {
+            if (!echoMode && sponsorPlush != null) {
                 serverPlayerEntity.addItem(sponsorPlush);
             }
 
-            serverPlayerEntity.addItem(letter);
+            if (!echoMode) serverPlayerEntity.addItem(letter);
             i++;
         }
         for (ServerPlayer player : players) {

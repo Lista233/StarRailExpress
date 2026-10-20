@@ -1,4 +1,10 @@
 {
+    "info.screen.roleid.echo_carrier": "Echo Freight only. Hold right-click empty-handed to collect crystals and submit one at a time to beacons. Three crystals start automatic charging. A sound key opens the core. After all beacons activate, remain in the evacuation zone for two seconds to escape. Combat and card effects remain in development.",
+    "info.screen.roleid.echo_interceptor": "Echo Freight only. Hold right-click on a charging beacon for four seconds to roll back 20 percentage points and lock it for 20 seconds; pollution shares a 45-second cooldown per beacon. During evacuation, press G within 12 blocks of the gate for the team's single 30-second overload. Cutter combat and downed rescue are not connected yet.",
+    "info.screen.roleid.echo_broker": "Echo Freight neutral. A private contract is assigned and synchronized only to its owner. Contract progression and trading are not connected yet.",
+    "info.screen.roleid.echo_carrier.simple": "Echo Freight development role",
+    "info.screen.roleid.echo_interceptor.simple": "Echo Freight development role",
+    "info.screen.roleid.echo_broker.simple": "Echo Freight development role",
     "info.screen.roleid.custom_pending": "Press the skill key to choose your role",
     "info.screen.roleid.custom_pending.simple": "Press the skill key to choose a role",
     "info.screen.roleid.hide_and_seek_seeker": "Find the hiders on the map.",

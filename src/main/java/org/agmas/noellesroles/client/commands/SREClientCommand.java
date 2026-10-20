@@ -45,6 +45,19 @@ public class SREClientCommand {
   public static void register() {
     ClientCommandRegistrationCallback.EVENT.register(
         (dispatcher, registryAccess) -> {
+          dispatcher.register(ClientCommandManager.literal("sre:echo_bag").executes(ctx -> {
+            var data=org.agmas.noellesroles.game.modes.echo.client.EchoBagClient.data();
+            if(data==null || data.matchId()==null) { ctx.getSource().sendError(Component.translatable("echo.error.no_active_session")); return 0; }
+            ctx.getSource().getClient().setScreen(new org.agmas.noellesroles.game.modes.echo.client.EchoInventoryScreen(null));
+            return 1;
+          }));
+          dispatcher.register(ClientCommandManager.literal("sre:echo_spec").executes(ctx -> {
+            var client=ctx.getSource().getClient();
+            if(!org.agmas.noellesroles.game.modes.echo.client.EchoSpecializationClient.openFromCommand(client)) {
+              ctx.getSource().sendError(Component.translatable("echo.error.too_late")); return 0;
+            }
+            return 1;
+          }));
           dispatcher.register(ClientCommandManager.literal("sre:client")
               .then(
                   ClientCommandManager.literal("resource")

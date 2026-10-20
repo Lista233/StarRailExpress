@@ -49,6 +49,42 @@ public class ModPackets {
     public static final CustomPacketPayload.Type<ImitatorSwitchSlotC2SPacket> IMITATOR_SWITCH_SLOT_PACKET = ImitatorSwitchSlotC2SPacket.TYPE;
 
     public static void registerPackets() {
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.objective.EchoSoundPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.objective.EchoSoundPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.specialization.EchoSpecializationPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.specialization.EchoSpecializationPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.rules.EchoRulesPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.rules.EchoRulesPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.objective.EchoPublicPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.objective.EchoPublicPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.map.EchoMapPreviewPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.map.EchoMapPreviewPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.runtime.EchoIntroPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.runtime.EchoIntroPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload.ID,
+                org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.game.modes.echo.editor.EchoEditorActionPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.editor.EchoEditorActionPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.game.modes.echo.action.EchoCancelActionPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.action.EchoCancelActionPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.game.modes.echo.inventory.EchoInventoryPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.inventory.EchoInventoryPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.game.modes.echo.specialization.EchoSpecializationSelectPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.specialization.EchoSpecializationSelectPayload.CODEC);
         org.agmas.noellesroles.game.dio.RoadRollerAttack.register();
         PayloadTypeRegistry.playS2C().register(Error404StateS2CPacket.ID, Error404StateS2CPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(Error404FeedbackS2CPacket.ID, Error404FeedbackS2CPacket.CODEC);

@@ -1,0 +1,326 @@
+package org.agmas.noellesroles.game.modes.echo.editor;
+
+import io.wifi.starrailexpress.cca.AreasWorldComponent;
+import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.level.storage.LevelResource;
+import org.agmas.noellesroles.game.modes.echo.map.*;
+import org.agmas.noellesroles.game.modes.echo.runtime.EchoPreflight;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.*;
+
+/**
+ * 回响地图编辑物品的服务端会话。
+ *
+ * <p>与 {@code /sre:echo map ...} 命令走同一套底层（{@link EchoMapEditState} / {@link EchoMapDraft} /
+ * {@link EchoMapRepository} / {@link EchoPreflight}），但入口是网络包，因此这里自己维护一份按玩家隔离的会话表：
+ * 仅 OP2、仅非对局、每人一份、全服上限 16、闲置 30 分钟或切图/换平移即失效。命令会话与物品会话互不影响，
+ * 不会出现两处同时改同一份草稿。
+ */
+public final class EchoEditorService {
+    private static final int MAX_SESSIONS = 16;
+
+    private record Session(ServerLevel level, EchoMapEditState state) { }
+
+    /** 一条回给客户端的本地化消息：[0] 是键，其余是参数。 */
+    private record Msg(String key, List<String> args) {
+        static Msg of(String key, String... args) { return new Msg(key, List.of(args)); }
+    }
+
+    private static final Map<UUID, Session> SESSIONS = new HashMap<>();
+    private static final Map<UUID, Long> HEAVY = new HashMap<>();
+    private static long tick;
+
+    private EchoEditorService() { }
+
+    public static void initialize() {
+        ServerPlayNetworking.registerGlobalReceiver(EchoEditorActionPayload.ID, (payload, context) ->
+                context.server().execute(() -> handle(context.player(), payload)));
+    }
+
+    // ==================== 入口 ====================
+
+    public static void handle(ServerPlayer player, EchoEditorActionPayload payload) {
+        if (!player.hasPermissions(2)) {
+            reply(player, EchoEditorStatePayload.empty("echo.editor.msg.no_permission"));
+            return;
+        }
+        try {
+            Msg message = switch (payload.op()) {
+                case NEW -> begin(player, payload.a(), true);
+                case EDIT -> begin(player, payload.a(), false);
+                case CANCEL -> cancel(player);
+                case MARK -> mark(player, payload.a(), payload.b(), payload.c());
+                case CORNER_A -> corner(player, true);
+                case CORNER_B -> corner(player, false);
+                case VOLUME -> volume(player, payload.a(), payload.b());
+                case REMOVE -> remove(player, payload.a(), payload.b());
+                case LIST -> Msg.of("echo.editor.msg.state");
+                case VALIDATE -> validate(player);
+                case PREVIEW -> preview(player);
+                case SAVE -> save(player, "");
+                case SAVE_CONFIRM -> save(player, payload.a());
+                case GATE_ON -> gate(player, true);
+                case GATE_OFF -> gate(player, false);
+                case RELOAD -> Msg.of("echo.editor.msg.reload");
+            };
+            reply(player, snapshot(player, message));
+        } catch (IOException | IllegalArgumentException failure) {
+            reply(player, snapshot(player, Msg.of("echo.editor.msg.failed", String.valueOf(failure.getMessage()))));
+        }
+    }
+
+    public static void tick(MinecraftServer server) {
+        tick++;
+        if (tick % 20 != 0) return;
+        SESSIONS.entrySet().removeIf(entry -> {
+            ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
+            Session session = entry.getValue();
+            if (player == null || !player.hasPermissions(2) || player.serverLevel() != session.level()) return true;
+            try {
+                idle(session.level());
+                return !session.state().valid(context(session.level()), tick);
+            } catch (IOException | IllegalArgumentException invalid) {
+                return true;
+            }
+        });
+        HEAVY.entrySet().removeIf(entry -> tick - entry.getValue() > 1200);
+    }
+
+    public static void disconnected(UUID player) { SESSIONS.remove(player); HEAVY.remove(player); }
+
+    public static void unload(ServerLevel level) {
+        SESSIONS.entrySet().removeIf(entry -> entry.getValue().level() == level);
+    }
+
+    public static void stop() { SESSIONS.clear(); HEAVY.clear(); tick = 0; }
+
+    // ==================== 操作 ====================
+
+    private static Msg begin(ServerPlayer player, String requested, boolean fresh) throws IOException {
+        ServerLevel level = player.serverLevel();
+        idle(level);
+        var areas = AreasWorldComponent.KEY.get(level);
+        EchoMapEditState.Context context = context(level);
+        String mapId = requested == null || requested.isBlank() ? context.mapId() : requested.trim();
+        EchoMapRepository.requireMapId(mapId);
+        if (!mapId.equals(context.mapId())) throw new IOException("编辑mapId必须与当前Areas地图一致");
+        if (SESSIONS.containsKey(player.getUUID())) throw new IOException("已有草稿，请先保存或取消；不会自动覆盖内存编辑");
+        if (SESSIONS.size() >= MAX_SESSIONS) throw new IOException("全服编辑会话已达上限");
+        var draft = fresh ? EchoMapDraft.empty(mapId) : new EchoMapDraft(EchoMapRepository.load(world(level), mapId));
+        SESSIONS.put(player.getUUID(), new Session(level, new EchoMapEditState(context, draft, tick)));
+        return Msg.of(fresh ? "echo.editor.msg.new" : "echo.editor.msg.edit", mapId,
+                areas.mapName == null ? "" : areas.mapName);
+    }
+
+    private static Msg cancel(ServerPlayer player) throws IOException {
+        edit(player);
+        SESSIONS.remove(player.getUUID());
+        return Msg.of("echo.editor.msg.cancelled");
+    }
+
+    private static Msg mark(ServerPlayer player, String kind, String id, String minPlayers) throws IOException {
+        EchoMapEditState state = edit(player);
+        int threshold = 6;
+        if (minPlayers != null && !minPlayers.isBlank()) {
+            try { threshold = Integer.parseInt(minPlayers.trim()); }
+            catch (NumberFormatException invalid) { throw new IOException("minPlayers必须是6–12的整数"); }
+        }
+        EchoMapConfig.Vec point;
+        if (kind.endsWith("_spawn") || Set.of("spectator", "free_safe", "evacuation_safe", "drop_anchor").contains(kind)) {
+            point = new EchoMapConfig.Vec(player.getX(), player.getY(), player.getZ());
+        } else {
+            BlockPos pos = ray(player);
+            point = new EchoMapConfig.Vec(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        }
+        state.draft().mark(kind, id, state.template(point), player.getYRot(), player.getXRot(), threshold);
+        return Msg.of("echo.editor.msg.changed", kind, id, Long.toString(state.draft().revision()));
+    }
+
+    private static Msg corner(ServerPlayer player, boolean first) throws IOException {
+        EchoMapEditState state = edit(player);
+        BlockPos pos = ray(player);
+        state.corner(first, new EchoMapConfig.Vec(pos.getX(), pos.getY(), pos.getZ()));
+        return Msg.of("echo.editor.msg.corner", first ? "a" : "b", pos.toShortString());
+    }
+
+    private static Msg volume(ServerPlayer player, String kind, String id) throws IOException {
+        EchoMapEditState state = edit(player);
+        state.draft().volume(kind, id, state.selection());
+        return Msg.of("echo.editor.msg.changed", kind, id, Long.toString(state.draft().revision()));
+    }
+
+    private static Msg remove(ServerPlayer player, String field, String id) throws IOException {
+        EchoMapEditState state = edit(player);
+        state.draft().remove(field, id);
+        return Msg.of("echo.editor.msg.changed", field, id, Long.toString(state.draft().revision()));
+    }
+
+    private static Msg validate(ServerPlayer player) throws IOException {
+        EchoMapEditState state = edit(player);
+        heavy(player);
+        List<String> issues = validateWorld(player.serverLevel(), state.draft().snapshot());
+        if (issues.isEmpty()) return Msg.of("echo.editor.msg.valid");
+        return Msg.of("echo.editor.msg.invalid", Integer.toString(issues.size()), issues.getFirst());
+    }
+
+    private static Msg preview(ServerPlayer player) throws IOException {
+        EchoMapEditState state = edit(player);
+        heavy(player);
+        var areas = AreasWorldComponent.KEY.get(player.serverLevel());
+        var map = state.draft().snapshot().translated(EchoPreflight.offset(areas));
+        var payload = EchoMapPreviewPayload.from(player.serverLevel().dimension().location(), map);
+        ServerPlayNetworking.send(player, payload);
+        return Msg.of("echo.editor.msg.preview", Integer.toString(payload.entries().size()));
+    }
+
+    private static Msg save(ServerPlayer player, String nonce) throws IOException {
+        EchoMapEditState state = edit(player);
+        heavy(player);
+        String mapId = state.context().mapId();
+        var map = state.draft().exported(mapId);
+        List<String> issues = validateWorld(player.serverLevel(), map);
+        if (!issues.isEmpty()) return Msg.of("echo.editor.msg.invalid", Integer.toString(issues.size()), issues.getFirst());
+        Path root = world(player.serverLevel());
+        String digest = EchoMapRepository.digest(root, mapId);
+        if (nonce != null && !nonce.isBlank()) {
+            digest = state.consume(UUID.fromString(nonce.trim()), mapId, digest, tick);
+        } else if (!digest.isEmpty()) {
+            // 已有同名文件：先发一次性令牌，由界面上的「确认覆盖」再提交一次。
+            var token = state.confirm(mapId, digest, tick);
+            return Msg.of("echo.editor.msg.save_confirm", token.nonce().toString());
+        }
+        EchoMapRepository.save(root, map, digest);
+        state.saved();
+        return Msg.of("echo.editor.msg.saved", mapId);
+    }
+
+    /** 用 AreasWorldComponent.gameModes 声明/取消声明本模式，并写回地图配置。 */
+    private static Msg gate(ServerPlayer player, boolean declared) throws IOException {
+        ServerLevel level = player.serverLevel();
+        idle(level);
+        var areas = AreasWorldComponent.KEY.get(level);
+        if (areas.mapName == null || areas.mapName.isBlank()) throw new IOException("当前没有加载任何Areas地图");
+        boolean changed = EchoMapGate.setSupported(areas, declared);
+        if (changed) areas.sync();
+        boolean saved = io.wifi.starrailexpress.game.MapManager.saveCurrentMap(level, areas.mapName, true);
+        if (!saved) throw new IOException("地图配置写回失败：" + areas.mapName);
+        return Msg.of(declared ? "echo.editor.msg.gate_on" : "echo.editor.msg.gate_off", areas.mapName);
+    }
+
+    // ==================== 快照 ====================
+
+    private static EchoEditorStatePayload snapshot(ServerPlayer player, Msg message) {
+        ServerLevel level = player.serverLevel();
+        var areas = AreasWorldComponent.KEY.get(level);
+        String mapName = areas.mapName == null ? "" : areas.mapName;
+        Session session = SESSIONS.get(player.getUUID());
+        if (session == null) {
+            return new EchoEditorStatePayload(false, "", mapName, 0L, EchoMapGate.supported(areas), false, false,
+                    List.of(), List.of(), message.key(), message.args());
+        }
+        EchoMapEditState state = session.state();
+        try {
+            var map = state.draft().snapshot();
+            List<EchoEditorStatePayload.Section> sections = List.of(
+                    section("carrierSpawns", map.carrierSpawns().size(), spawnIds(map.carrierSpawns().size())),
+                    section("interceptorSpawns", map.interceptorSpawns().size(), spawnIds(map.interceptorSpawns().size())),
+                    section("brokerSpawns", map.brokerSpawns().size(), spawnIds(map.brokerSpawns().size())),
+                    section("beacons", map.beacons().size(), map.beacons().stream().map(EchoMapConfig.Beacon::id).toList()),
+                    section("crystalNodes", map.crystalNodes().size(), map.crystalNodes().stream().map(EchoMapConfig.Node::id).toList()),
+                    section("altars", map.altars().size(), map.altars().stream().map(EchoMapConfig.Point::id).toList()),
+                    section("supplyCrates", map.supplyCrates().size(), map.supplyCrates().stream().map(EchoMapConfig.Crate::id).toList()),
+                    section("blackCrystalNodes", map.blackCrystalNodes().size(), map.blackCrystalNodes().stream().map(EchoMapConfig.Point::id).toList()),
+                    section("blackDropoffs", map.blackDropoffs().size(), map.blackDropoffs().stream().map(EchoMapConfig.Point::id).toList()),
+                    section("doors", map.coreGate().doors().size(), map.coreGate().doors().stream().map(EchoMapConfig.Door::id).toList()));
+            return new EchoEditorStatePayload(true, state.context().mapId(), mapName, state.draft().revision(),
+                    EchoMapGate.supported(areas), state.hasCornerA(), state.hasCornerB(), sections, List.of(),
+                    message.key(), message.args());
+        } catch (IOException | RuntimeException failure) {
+            return new EchoEditorStatePayload(true, state.context().mapId(), mapName, state.draft().revision(),
+                    EchoMapGate.supported(areas), state.hasCornerA(), state.hasCornerB(), List.of(),
+                    List.of(String.valueOf(failure.getMessage())), message.key(), message.args());
+        }
+    }
+
+    private static EchoEditorStatePayload.Section section(String field, int count, List<String> ids) {
+        return new EchoEditorStatePayload.Section(field, count, ids.stream().limit(EchoEditorStatePayload.MAX_IDS).toList());
+    }
+
+    private static List<String> spawnIds(int count) {
+        List<String> ids = new ArrayList<>();
+        for (int n = 0; n < Math.min(count, EchoEditorStatePayload.MAX_IDS); n++) ids.add(Integer.toString(n));
+        return ids;
+    }
+
+    private static void reply(ServerPlayer player, EchoEditorStatePayload state) {
+        ServerPlayNetworking.send(player, state);
+    }
+
+    // ==================== 公共检查 ====================
+
+    private static void idle(ServerLevel level) throws IOException {
+        if (SREGameWorldComponent.KEY.get(level).getGameStatus() != SREGameWorldComponent.GameStatus.INACTIVE)
+            throw new IOException("仅允许在非对局、非准备阶段使用地图工具");
+    }
+
+    private static EchoMapEditState.Context context(ServerLevel level) throws IOException {
+        var areas = AreasWorldComponent.KEY.get(level);
+        if (areas.mapName == null || areas.mapName.isBlank())
+            throw new IOException("请先用现有Areas工具加载实战地图（当前未选择地图）");
+        try {
+            EchoMapRepository.requireMapId(areas.mapName);
+        } catch (IOException invalid) {
+            throw new IOException("当前Areas地图名不是合法mapId: " + areas.mapName);
+        }
+        return new EchoMapEditState.Context(level.dimension().location().toString(), areas.mapName,
+                EchoPreflight.offset(areas));
+    }
+
+    private static Path world(ServerLevel level) { return level.getServer().getWorldPath(LevelResource.ROOT); }
+
+    private static EchoMapEditState edit(ServerPlayer player) throws IOException {
+        idle(player.serverLevel());
+        Session session = SESSIONS.get(player.getUUID());
+        if (session == null) throw new IOException("没有编辑会话；先在界面里新建或读取草稿");
+        if (session.level() != player.serverLevel() || !session.state().valid(context(player.serverLevel()), tick)) {
+            SESSIONS.remove(player.getUUID());
+            throw new IOException("编辑会话因切图、平移变化或超时失效");
+        }
+        session.state().touch(tick);
+        return session.state();
+    }
+
+    private static void heavy(ServerPlayer player) throws IOException {
+        Long previous = HEAVY.get(player.getUUID());
+        if (previous != null && tick - previous < 20) throw new IOException("请间隔1秒再执行地图检查/预览/保存");
+        HEAVY.put(player.getUUID(), tick);
+    }
+
+    private static BlockPos ray(ServerPlayer player) throws IOException {
+        var hit = player.pick(16, 0, false);
+        if (!(hit instanceof BlockHitResult block) || hit.getType() != HitResult.Type.BLOCK
+                || !player.serverLevel().hasChunkAt(block.getBlockPos()))
+            throw new IOException("请瞄准16格内已加载的方块");
+        return block.getBlockPos();
+    }
+
+    /** 6–12 人全部档位的结构与世界校验；返回前若干条问题。 */
+    private static List<String> validateWorld(ServerLevel level, EchoMapConfig map) {
+        List<String> issues = new ArrayList<>();
+        for (int count = 6; count <= 12 && issues.isEmpty(); count++) {
+            var check = EchoPreflight.check(level, count, false, map);
+            if (!check.valid()) check.errors().stream().limit(8).map(Component::getString).forEach(issues::add);
+        }
+        return issues;
+    }
+}

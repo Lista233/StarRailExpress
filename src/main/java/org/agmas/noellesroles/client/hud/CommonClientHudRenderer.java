@@ -113,6 +113,7 @@ public class CommonClientHudRenderer {
    */
   public static int renderMessagesBelowMoney(Minecraft client, FakeGuiGraphics guiGraphics,
       DeltaTracker deltaTracker, boolean inventory) {
+    if(client.level!=null && io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(client.level).getGameMode() instanceof org.agmas.noellesroles.game.modes.echo.EchoGameMode) return INFO_LINES_TOP_Y;
     MutableComponentResult texts = OnMessageBelowMoneyRenderer.EVENT.invoker().onRenderer(client, guiGraphics,
         deltaTracker);
     java.util.List<MessageDetail> infoLines = texts.mutipleContent;
@@ -165,27 +166,30 @@ public class CommonClientHudRenderer {
         return;
       }
       final LocalPlayer player = client.player;
+      final boolean echoMode=SREClient.gameComponent.getGameMode() instanceof org.agmas.noellesroles.game.modes.echo.EchoGameMode;
       {
-        RoleNameRenderer.renderHud(font, player, guiGraphics, deltaTracker);
+        if(!echoMode) RoleNameRenderer.renderHud(font, player, guiGraphics, deltaTracker);
         LobbyPlayersRenderer.renderHud(font, player, guiGraphics);
       }
       {
-        RoundTextRenderer.renderHud(font, client, player, guiGraphics, deltaTracker.getRealtimeDeltaTicks());
+        if(!echoMode) RoundTextRenderer.renderHud(font, client, player, guiGraphics, deltaTracker.getRealtimeDeltaTicks());
       }
       {
-        TimeRenderer.renderHud(font, player, guiGraphics, deltaTracker.getGameTimeDeltaPartialTick(true));
+        if(!echoMode) TimeRenderer.renderHud(font, player, guiGraphics, deltaTracker.getGameTimeDeltaPartialTick(true));
       }
       {
-        if (Minecraft.getInstance().screen == null)
+        if (!echoMode && Minecraft.getInstance().screen == null)
           HudStoreRenderer.renderHud(font, player, guiGraphics, deltaTracker.getGameTimeDeltaPartialTick(true));
       }
       {
         guiGraphics.pose().pushPose();
         guiGraphics.pose().translate(SREClientConfig.instance().moodLeftOffset,
             SREClientConfig.instance().moodTopOffset, 0);
-        HudMoodRenderer.renderHud(player, font, guiGraphics, deltaTracker);
-        MiniGameHudRenderer.render(player, font, guiGraphics, trueDeltaTracker);
-        MobRiotHudRenderer.render(font, guiGraphics);
+        if(!echoMode) {
+          HudMoodRenderer.renderHud(player, font, guiGraphics, deltaTracker);
+          MiniGameHudRenderer.render(player, font, guiGraphics, trueDeltaTracker);
+          MobRiotHudRenderer.render(font, guiGraphics);
+        }
         guiGraphics.pose().popPose();
       }
       {
@@ -205,7 +209,7 @@ public class CommonClientHudRenderer {
         }
       }
       {
-        if (SREClient.gameComponent.isRunning()) {
+        if (!echoMode && SREClient.gameComponent.isRunning()) {
           if (client.player.hasEffect(ModEffects.SAFE_TIME)) {
             var effect = client.player.getEffect(ModEffects.SAFE_TIME);
             Component message = Component.translatable("hud.noellesroles.safe_time", effect.getDuration() / 20)
