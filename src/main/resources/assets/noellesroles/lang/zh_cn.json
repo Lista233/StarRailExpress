@@ -5537,7 +5537,7 @@
   "message.noellesroles.command_block.preview": "即将变成 %s",
   "message.noellesroles.command_block.born": "%s已出现",
   "message.noellesroles.command_block.crack_hit": "裂缝碎了，破坏进度加快。",
-  "hud.noellesroles.command_block.progress": "破坏 %s/%s",
+  "hud.noellesroles.command_block.progress": "破坏 %s%%",
   "announcement.star.modifier.abnormal": "异常",
   "announcement.star.modifier.noellesroles.abnormal": "异常",
   "message.noellesroles.command_block.converted": "你已成为 %s",

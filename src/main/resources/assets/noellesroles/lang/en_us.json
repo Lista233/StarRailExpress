@@ -5537,7 +5537,7 @@
   "message.noellesroles.command_block.preview": "You will become %s",
   "message.noellesroles.command_block.born": "%s has appeared",
   "message.noellesroles.command_block.crack_hit": "The crack shattered. Destruction sped up.",
-  "hud.noellesroles.command_block.progress": "Damage %s/%s",
+  "hud.noellesroles.command_block.progress": "Damage %s%%",
   "announcement.star.modifier.abnormal": "Abnormal",
   "announcement.star.modifier.noellesroles.abnormal": "Abnormal",
   "message.noellesroles.command_block.converted": "You have become %s",

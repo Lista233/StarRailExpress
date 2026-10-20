@@ -49,6 +49,7 @@ import io.wifi.starrailexpress.game.modes.funny.SRERoleRotationGameMode;
 import io.wifi.starrailexpress.game.modes.funny.SRERoleRotationSingleSelectGameMode;
 import io.wifi.starrailexpress.game.modes.funny.SREVolunteerOpenSelectGameMode;
 import io.wifi.starrailexpress.event.OnKillPlayerTriggered;
+import io.wifi.starrailexpress.event.OnPlayerDeathWithKiller;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.util.SRENetworkMessageUtils;
@@ -144,11 +145,16 @@ public final class CommandBlockDirector {
                     && CommandBlockRules.isPoolRole(SREGameWorldComponent.KEY.get(attacker.level()).getRole(attacker))) {
                 CommandBlockCombat.onKillerDeath(attacker, dead);
             }
+            return TrueFalseResult.PASS;
+        });
+        // 破坏进度只在真正死亡时结算：OnKillPlayerTriggered 早于护盾、闪避、石头人无敌的否决，
+        // 被挡下的命中也会走到那里，所以改听死亡通知。只认命令方块杀手（异常改写池）的死亡，
+        // 异常、平民和中立死亡不扣血。
+        OnPlayerDeathWithKiller.EVENT.register((victim, killer, reason) -> {
             if (victim instanceof ServerPlayer dead && CommandBlockRules.isPoolRole(
                     SREGameWorldComponent.KEY.get(dead.level()).getRole(dead))) {
                 addDestruction(dead.serverLevel());
             }
-            return TrueFalseResult.PASS;
         });
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(CommandBlockCombat::allowDamage);
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
@@ -361,7 +367,7 @@ public final class CommandBlockDirector {
         }
         session.active = true;
         occupySlots = true;
-        session.quota = CommandBlockRules.markedCount(session.originalKillers);
+        session.quota = CommandBlockRules.destructionQuota(session.originalKillers);
         markAbnormals(level);
         assignSteve(level);
         scheduleNextConversion(level, level.getGameTime());
@@ -581,6 +587,8 @@ public final class CommandBlockDirector {
         fire(level, session.pendingEvent);
         session.pendingEvent = pickEvent(level);
         session.nextEventAt = now + EVENT_INTERVAL;
+        // 事件刚触发，倒计时立刻回满，不等下一次 40 tick 的例行同步。
+        syncProgress(level);
         armRewind(now);
         tellAbnormals(level, Component.translatable("message.noellesroles.command_block.event_soon",
                 Component.translatable(session.pendingEvent.key())));
@@ -785,7 +793,8 @@ public final class CommandBlockDirector {
             }
         }
         Collections.shuffle(civilians, new java.util.Random(level.getGameTime()));
-        int n = Math.min(session.quota, civilians.size());
+        // 血量（破坏配额）比异常人数多 2，标记异常的人数仍按原杀手数量的 1.5 倍算。
+        int n = Math.min(CommandBlockRules.markedCount(session.originalKillers), civilians.size());
         for (int i = 0; i < n; i++) {
             session.abnormals.add(civilians.get(i).getUUID());
             session.queue.add(civilians.get(i).getUUID());
@@ -822,7 +831,15 @@ public final class CommandBlockDirector {
                 && (session.active || session.introPlayed);
         int progress = session == null ? 0 : session.killerDeaths;
         int goal = show ? Math.max(1, session.quota) : 0;
-        CommandBlockProgressS2CPacket packet = new CommandBlockProgressS2CPacket(progress, goal);
+        int eventRemaining = 0;
+        int eventTotal = 0;
+        if (show && session.nextEventAt > 0L) {
+            long left = session.nextEventAt - level.getGameTime();
+            eventRemaining = (int) Math.max(0L, Math.min(EVENT_INTERVAL, left));
+            eventTotal = EVENT_INTERVAL;
+        }
+        CommandBlockProgressS2CPacket packet = new CommandBlockProgressS2CPacket(progress, goal, eventRemaining,
+                eventTotal);
         for (ServerPlayer player : level.players()) {
             ServerPlayNetworking.send(player, packet);
         }
@@ -967,7 +984,7 @@ public final class CommandBlockDirector {
                 RoleUtils.removeModifier(player, NRModifiers.ABNORMAL, true, true);
             }
             CommandBlockCracks.discard(level);
-            CommandBlockProgressS2CPacket hide = new CommandBlockProgressS2CPacket(0, 0);
+            CommandBlockProgressS2CPacket hide = new CommandBlockProgressS2CPacket(0, 0, 0, 0);
             for (ServerPlayer player : level.players()) {
                 ServerPlayNetworking.send(player, hide);
             }

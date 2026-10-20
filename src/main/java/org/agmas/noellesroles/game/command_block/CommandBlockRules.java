@@ -20,6 +20,11 @@ public final class CommandBlockRules {
         return (int) Math.ceil(killers * 1.5D);
     }
 
+    /** 破坏配额（命令方块血量）= ceil(原杀手数量 * 1.5) + 2。异常人数仍只按 markedCount 算。 */
+    public static int destructionQuota(int originalKillerCount) {
+        return markedCount(originalKillerCount) + 2;
+    }
+
     public static int destructionStage(int killerDeaths, int quota) {
         if (quota <= 0 || killerDeaths <= 0) {
             return 0;

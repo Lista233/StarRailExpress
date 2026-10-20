@@ -14,17 +14,23 @@ import io.wifi.starrailexpress.client.gui.HudMoodRenderer;
 import io.wifi.starrailexpress.client.gui.MiniGameHudRenderer;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.client.SREClient;
+import io.wifi.utils.client.betterrender.FakeGuiGraphics;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 
-/** 屏幕左侧的破坏进度，以及只给杀手看的裂缝发光。 */
+/** 屏幕左侧的破坏进度（百分比）、下个事件的倒计时条，以及只给杀手看的裂缝发光。 */
 public final class CommandBlockProgressClient {
     private static int progress;
     private static int goal;
+    /** 下个事件还剩多少 tick；服务端每 40 tick 纠偏一次，其余由客户端自行倒数。 */
+    private static int eventRemaining;
+    /** 事件间隔总 tick；为 0 表示不画倒计时条。 */
+    private static int eventTotal;
     private static final Set<Integer> GLOWING = new HashSet<>();
 
     private CommandBlockProgressClient() {
@@ -35,12 +41,14 @@ public final class CommandBlockProgressClient {
                 (packet, context) -> context.client().execute(() -> {
                     progress = Math.max(0, packet.progress());
                     goal = Math.max(0, packet.goal());
+                    eventRemaining = Math.max(0, packet.eventRemaining());
+                    eventTotal = Math.max(0, packet.eventTotal());
                     if (goal > 0) {
                         io.wifi.starrailexpress.client.gui.MapRuleIntroHud.clear();
                     }
                 }));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clear());
-        ClientTickEvents.END_CLIENT_TICK.register(CommandBlockProgressClient::tickGlow);
+        ClientTickEvents.END_CLIENT_TICK.register(CommandBlockProgressClient::tick);
         CommonHudRenderCallback.EVENT.register((graphics, delta) -> render(graphics));
     }
 
@@ -51,10 +59,12 @@ public final class CommandBlockProgressClient {
     private static void clear() {
         progress = 0;
         goal = 0;
+        eventRemaining = 0;
+        eventTotal = 0;
         GLOWING.clear();
     }
 
-    private static void render(io.wifi.utils.client.betterrender.FakeGuiGraphics graphics) {
+    private static void render(FakeGuiGraphics graphics) {
         if (goal <= 0) {
             return;
         }
@@ -64,13 +74,15 @@ public final class CommandBlockProgressClient {
         }
         var font = client.font;
         var config = SREClientConfig.instance();
-        Component text = Component.translatable("hud.noellesroles.command_block.progress", progress, goal);
+        float ratio = Mth.clamp(progress / (float) goal, 0.0F, 1.0F);
+        int percent = Math.round(100.0F * ratio);
+        Component text = Component.translatable("hud.noellesroles.command_block.progress", percent);
         int width = Math.max(64, font.width(text));
         int x = config.moodLeftOffset + 22;
         int y = config.moodTopOffset
                 + Math.max(HudMoodRenderer.getHudBottom(), MiniGameHudRenderer.getHudBottom()) + 6;
         int barY = y + font.lineHeight + 3;
-        int filled = Math.round(width * Math.min(1.0F, progress / (float) goal));
+        int filled = Math.round(width * ratio);
 
         // 此回调只在缓存更新 tick 执行，文字和图形必须一起入缓存，不能绕到原生 GuiGraphics。
         graphics.drawString(font, text, x, y, 0xFFE7D4FF, true);
@@ -78,6 +90,28 @@ public final class CommandBlockProgressClient {
         if (filled > 0) {
             graphics.fill(x, barY, x + filled, barY + 1, 0xFFBA82E6);
         }
+        renderEventTimer(graphics, client, x, width, barY + 4);
+    }
+
+    /** 下个事件的倒计时条，紧贴在血量条下方。只给杀手看，不写事件名也不写秒数。 */
+    private static void renderEventTimer(FakeGuiGraphics graphics, Minecraft client, int x, int width, int y) {
+        if (eventTotal <= 0 || !isKiller(client)) {
+            return;
+        }
+        int remaining = Mth.clamp(eventRemaining, 0, eventTotal);
+        // 越接近下一次事件，条越满。
+        int filled = Math.round(width * Mth.clamp((eventTotal - remaining) / (float) eventTotal, 0.0F, 1.0F));
+        graphics.fill(x, y, x + width, y + 1, 0x663E2F4A);
+        if (filled > 0) {
+            graphics.fill(x, y, x + filled, y + 1, 0xFF8C6BC8);
+        }
+    }
+
+    private static void tick(Minecraft client) {
+        if (eventRemaining > 0) {
+            eventRemaining--;
+        }
+        tickGlow(client);
     }
 
     private static void tickGlow(Minecraft client) {

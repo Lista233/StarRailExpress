@@ -5440,7 +5440,7 @@
   "message.noellesroles.command_block.preview": "即將變成 %s",
   "message.noellesroles.command_block.born": "%s已出現",
   "message.noellesroles.command_block.crack_hit": "裂縫碎了，破壞進度加快。",
-  "hud.noellesroles.command_block.progress": "破壞 %s/%s",
+  "hud.noellesroles.command_block.progress": "破壞 %s%%",
   "announcement.star.modifier.abnormal": "異常",
   "announcement.star.modifier.noellesroles.abnormal": "異常",
   "message.noellesroles.command_block.converted": "你已成為 %s",
