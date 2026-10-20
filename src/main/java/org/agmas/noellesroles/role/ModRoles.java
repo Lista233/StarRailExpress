@@ -2042,7 +2042,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .setEventEnableChance(CommandBlockDirector::onEventRollResult,
                     CommandBlockDirector::onEventRoundEnd,
@@ -2059,7 +2058,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2073,7 +2071,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2086,7 +2083,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2106,7 +2102,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2120,7 +2115,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2134,7 +2128,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2148,7 +2141,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2162,7 +2154,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2176,7 +2167,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2190,7 +2180,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2204,7 +2193,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2218,7 +2206,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2232,7 +2219,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2252,7 +2238,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
@@ -2269,7 +2254,6 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setCanSetSpawnInfoInConfig(false)
             .setDefaultMax(0)
-            .setOtherModeRole(true)
             .setHiddenForRoleRotation(true)
             .setSpecialNeutral(true)
             .addFlag("Command_Role")

@@ -26,10 +26,15 @@ public class SteveRole extends NormalRole {
     }
 
     public static void registerSkill() {
+        // cooldownTicks 必须与 SteveBuilder.COOLDOWN 一致：
+        // 统一技能系统靠它在 markSkillUsed 时把冷却写进 SkillState 并同步客户端，
+        // 默认技能 HUD（UnifiedSkillHud）只读 SkillState.cooldown，
+        // 缺了它 HUD 永远显示“就绪”，看不到 45 秒冷却。
         RoleSkill.register(ModRoles.STEVE, RoleSkill.skill(
                 SRE.id("steve_build"),
                 "skill.noellesroles.steve.build",
                 context -> SteveBuilder.use(context.player()))
+                .cooldownTicks(SteveBuilder.COOLDOWN)
                 .announceToSelf().showOnHud(true).build());
     }
 

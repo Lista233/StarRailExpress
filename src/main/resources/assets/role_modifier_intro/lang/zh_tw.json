@@ -530,7 +530,6 @@
   "info.screen.roleid.abnormal": "中立陣營\n不會自然刷新。\n沒有任何能力。\n只會在命令方塊事件裏，成為殺手前的一分鐘內暫時替換你的職業。",
   "info.screen.roleid.abnormal.simple": "中立陣營\n不會自然刷新。\n沒有任何能力。",
   "==================== 修飾符 ====================": "",
-  "info.screen.modifier.sunward": "修飾符\n你無法得知自己擁有此修飾符。\n僅為鐘錶匠刷新\n第三次成功加速不會推進世界時間，而會使你變為逐日者。你同時擁有工作狂修飾符的效果。",
   "info.screen.modifier.gods_mission": "修飾符\n你無法得知自己擁有此修飾符。\n神說要有光：僅鐘錶匠刷新，默認30%%概率。\n當對局只剩你與一名平民時，你將轉變為神父，隨平民獲勝。",
   "info.screen.modifier.gods_mission.simple": "修飾符\n僅為鐘錶匠刷新（30%%）。\n只剩自己與一名平民時變為神父。",
   "info.screen.modifier.frail": "修飾符\n你的跑步任務將會自動完成。你的體力上限減少20%。",
