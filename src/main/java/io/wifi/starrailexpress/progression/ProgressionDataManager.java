@@ -447,12 +447,20 @@ public final class ProgressionDataManager {
         increment(player, ProgressionObjectives.WATER_DISPENSER_USED, null, 1);
     }
 
-    /** 游玩指定地图时累加 PLAY_SPECIFIC_MAP（key=地图 ID）。 */
+    /**
+     * 游玩指定地图时累加 PLAY_SPECIFIC_MAP（key=地图 ID），
+     * 并把当前周期内该地图的游玩局数记入 progression 分区（随每日任务一同刷新重置，供网站读取）。
+     */
     public static void onPlayMap(ServerPlayer player, String mapId) {
-        if (!isActive() || mapId == null || mapId.isEmpty()) {
+        if (!isActive() || mapId == null || mapId.isBlank()) {
             return;
         }
+        // 先累加任务进度：increment 内部的 ensureQuests 可能触发每日刷新并清空 mapPlayCounts，
+        // 之后再记本次局数，保证刷新跨天时计数从新周期开始。
         increment(player, ProgressionObjectives.PLAY_SPECIFIC_MAP, mapId, 1);
+        Entry entry = getEntry(player.getUUID());
+        entry.state.mapPlayCounts.merge(mapId, 1, Integer::sum);
+        markDirty(player, entry);
     }
 
     public static void addFactionCard(ServerPlayer player, ProgressionState.FactionCardType type, int count) {
@@ -620,6 +628,8 @@ public final class ProgressionDataManager {
         entry.state.activeQuests.addAll(ProgressionQuestCatalog.rollDaily(
                 entry.state.level, entry.playerUuid, window, SREConfig.instance().dailyTaskCount));
         entry.state.lastQuestRefreshTime = now;
+        // 与每日任务一同重置：地图游玩局数按日归零，由网站展示当前周期数据
+        entry.state.mapPlayCounts.clear();
         return true;
     }
 
