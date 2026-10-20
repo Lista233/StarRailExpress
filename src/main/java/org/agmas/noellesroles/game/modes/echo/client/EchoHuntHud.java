@@ -85,7 +85,15 @@ public final class EchoHuntHud {
             g.drawCenteredString(client.font, net.minecraft.network.chat.Component.translatable("echo.hunt.instinct",
                     String.format(Locale.ROOT, "%.1f", remain / 20D)), cx, lineY, 0xFF7FD8C4);
         }
-    }
+        // 职业名：两个追猎者的打法差别很大，必须让本人随时确认自己拿的是哪一套。
+        var hunterClass = data.hunterClass();
+        if (hunterClass != null) {
+            int color = hunterClass == org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass.WEAVER
+                    ? 0xFF9FD8F0 : 0xFFFFB4A8;
+            g.drawCenteredString(client.font, net.minecraft.network.chat.Component.translatable(hunterClass.nameKey()),
+                    cx, cy + RADIUS + 16, color);
+        }
+        }
 
     private static EchoHuntLoop.Phase phaseOf(String name) {
         if (name == null) return EchoHuntLoop.Phase.STALK;

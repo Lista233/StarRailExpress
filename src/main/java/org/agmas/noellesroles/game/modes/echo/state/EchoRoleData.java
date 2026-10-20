@@ -9,6 +9,7 @@ import org.agmas.noellesroles.game.modes.echo.cards.EchoCardDefinition;
 import org.agmas.noellesroles.game.modes.echo.cards.EchoCardRegistry;
 import org.agmas.noellesroles.game.modes.echo.combat.EchoCombatState;
 import org.agmas.noellesroles.game.modes.echo.inventory.*;
+import org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass;
 import java.util.*;
 
 /** 在线时挂载会话库存/货槽；clear只撤销投影引用，不删除会话资源或隐藏候选。 */
@@ -50,10 +51,19 @@ public final class EchoRoleData extends SimpleRoleData {
     private EchoSpecialization specialization;
     private long specializationDeadline;
     private boolean specializationLocked;
+    private EchoHunterClass hunterClass;
     /** 未选择时回退本阵营默认项；faction 为空时给托运者默认，避免空指针。 */
     public EchoSpecialization specialization() { return specialization!=null?specialization:EchoSpecialization.starter(faction); }
+    /**
+     * 追猎者职业：只在专长接受职业分支（HUNTER）时生效，其余情况返回 {@code null}，
+     * 让战斗服务走原版割刀分支，SABOTEUR 与其它阵营的手感完全不变。
+     */
+    public EchoHunterClass hunterClass() {
+        if(!EchoHunterClass.accepts(specialization())) return null;
+        return hunterClass!=null?hunterClass:EchoHunterClass.defaultFor(0);
+    }
     private long skillReadyAt, skillBuffUntil, skillPendingUntil;
-    public EchoSkill skill() { return EchoSkill.of(specialization()); }
+    public EchoSkill skill() { return EchoSkill.of(specialization(),hunterClass()); }
     public long skillReadyAt() { return skillReadyAt; }
     public long skillBuffUntil() { return skillBuffUntil; }
     public long skillPendingUntil() { return skillPendingUntil; }
@@ -87,6 +97,11 @@ public final class EchoRoleData extends SimpleRoleData {
     public void projectSpecialization(EchoSpecialization next) {
         if(next==null || next.faction()!=faction) return;
         if(!Objects.equals(specialization,next)) { specialization=next; sync(); }
+    }
+    /** 切换职业只改打法，不改专长数值；由会话在 SAFE 内调用，锁定后不再接受。 */
+    public void projectHunterClass(EchoHunterClass next) {
+        if(!EchoHunterClass.accepts(specialization())) return;
+        if(!Objects.equals(hunterClass,next)) { hunterClass=next; sync(); }
     }
     public void projectSpecializationWindow(long deadline,boolean locked) {
         if(specializationDeadline==deadline && specializationLocked==locked) return;
@@ -205,6 +220,7 @@ public final class EchoRoleData extends SimpleRoleData {
         tag.putInt("echoBaseCapacity",baseCapacity); tag.putDouble("echoBaseCargoPenalty",baseCargoPenalty);
         tag.putInt("echoCutterChargeTicks",cutterChargeTicks);
         if(specialization!=null) tag.putString("echoSpecialization",specialization.name());
+        if(hunterClass!=null) tag.putString("echoHunterClass",hunterClass.name());
         tag.putLong("echoSpecDeadline",specializationDeadline); tag.putBoolean("echoSpecLocked",specializationLocked);
         if(contract!=null) tag.putString("echoContract",contract.name());
         tag.putLong("echoSkillReady",skillReadyAt); tag.putLong("echoSkillBuff",skillBuffUntil); tag.putLong("echoSkillPending",skillPendingUntil);
@@ -252,6 +268,7 @@ public final class EchoRoleData extends SimpleRoleData {
         baseCargoPenalty=Double.isFinite(penalty)?Math.max(0,Math.min(1,penalty)):0.10;
         cutterChargeTicks=tag.contains("echoCutterChargeTicks")?Math.max(1,Math.min(72000,tag.getInt("echoCutterChargeTicks"))):12;
         specialization=tag.contains("echoSpecialization")?EchoSpecialization.byId(tag.getString("echoSpecialization").toLowerCase(java.util.Locale.ROOT)).filter(s -> s.faction()==faction).orElse(null):null;
+        hunterClass=tag.contains("echoHunterClass")?EchoHunterClass.byId(tag.getString("echoHunterClass")).orElse(null):null;
         specializationDeadline=Math.max(0,tag.getLong("echoSpecDeadline")); specializationLocked=tag.getBoolean("echoSpecLocked");
         phase=parse(EchoPhase.class,tag.getString("echoPhase"),EchoPhase.SAFE); contract=parse(EchoContract.class,tag.getString("echoContract"),null);
         skillReadyAt=Math.max(0,tag.getLong("echoSkillReady")); skillBuffUntil=Math.max(0,tag.getLong("echoSkillBuff")); skillPendingUntil=Math.max(0,tag.getLong("echoSkillPending"));
@@ -299,7 +316,7 @@ public final class EchoRoleData extends SimpleRoleData {
         actionView=null; keyPulseAt=0; interactionUntil=0; interactionError="";
         cutterChargeTicks=12;
         tradeRange=3;
-        specialization=null; specializationDeadline=0; specializationLocked=false;
+        specialization=null; specializationDeadline=0; specializationLocked=false; hunterClass=null;
         rules=org.agmas.noellesroles.game.modes.echo.rules.EchoRuleConfig.DEFAULT; rulesReady=false;
         matchId=null; epoch=null; contract=null; faction=null; phase=EchoPhase.FINISHED; cargo.clear(); actionId=null;
         skillReadyAt=0; skillBuffUntil=0; skillPendingUntil=0;

@@ -24,6 +24,8 @@ import org.agmas.noellesroles.game.modes.echo.EchoGameMode;
 import org.agmas.noellesroles.game.modes.echo.cards.EchoDraftService.PackQuality;
 import org.agmas.noellesroles.game.modes.echo.content.EchoContent;
 import org.agmas.noellesroles.game.modes.echo.objective.EchoDropService;
+import org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass;
+import org.agmas.noellesroles.game.modes.echo.hunter.EchoRendCombo;
 import org.agmas.noellesroles.game.modes.echo.runtime.EchoMatch;
 import org.agmas.noellesroles.game.modes.echo.state.*;
 
@@ -34,6 +36,13 @@ import java.util.function.Predicate;
 public final class EchoCombatService {
     private static final ResourceLocation IMMOBILIZED=ResourceLocation.fromNamespaceAndPath("noellesroles","echo_immobilized");
     private static final ResourceLocation HUNT_SPEED=ResourceLocation.fromNamespaceAndPath("noellesroles","echo_hunt_speed");
+    private static final ResourceLocation WEB_SLOW=ResourceLocation.fromNamespaceAndPath("noellesroles","echo_web_slow");
+    /** 织网贴脸横甩的半径（格）：近距离不做抛物线，避免「明明贴脸却因为弹道而失手」。 */
+    private static final double WEB_SWEEP_RANGE=2.5D;
+    /** 横甩扇形的半角余弦（60°，即 120° 扇形）。 */
+    private static final double WEB_SWEEP_COS=0.5D;
+    /** 裂爪突进距离（格）与撞墙前留出的余量。 */
+    private static final double REND_DASH_RANGE=4.0D, REND_DASH_PADDING=0.4D;
     /** 每个追捕者的受害者心跳节流：只按锁定值决定间隔，不额外发提醒文本。 */
     private final Map<UUID,Long> nextHeartbeat=new HashMap<>();
     private final EchoMatch match;
@@ -41,6 +50,11 @@ public final class EchoCombatService {
     private final Map<UUID,Vec3> anchors=new HashMap<>();
     private final Map<UUID,UUID> downedBy=new HashMap<>();
     private final Set<UUID> prone=new HashSet<>();
+    /** 同一追猎者最多同时保留的黏网块数；超出时先丢最早的一块。 */
+    private static final int MAX_FIELDS=4;
+    /** 织网被动「丝线感知」用的静止追踪：上一 tick 位置与连续静止 tick 数。 */
+    private final Map<UUID,Vec3> lastPositions=new HashMap<>();
+    private final Map<UUID,Integer> stillTicks=new HashMap<>();
     public EchoCombatService(EchoMatch match,ServerLevel level) { this.match=match; this.level=level; }
 
     /** 起手蓄力：必须先回到 STALK 相（后摇中不能连点），并扣掉本次蓄力的起始 tick。 */
@@ -62,6 +76,9 @@ public final class EchoCombatService {
     /**
      * 松手结算：锁定满则本次出击升级为「扑击」（判定距离 +2 格、倒地时间 +10 秒），
      * 命中进入短后摇、挥空进入长后摇；扑击命中与狩猎本能期间免后摇。
+     *
+     * <p>职业分支只改「怎么打」：裂爪走三段连击，织网走蛛丝弹；SABOTEUR 与其它情况
+     * 保持原版一刀，判定距离、后摇与表现都与加入职业之前完全一致。
      */
     public void releaseCutter(ServerPlayer player) {
         if(!match.standing(player) || !player.getMainHandItem().is(EchoContent.CUTTER) || player.getInventory().selected!=0
@@ -75,40 +92,35 @@ public final class EchoCombatService {
         match.objectives().cancelActor(player);
         for(ServerPlayer nearby:match.onlinePlayers()) if(nearby.distanceToSqr(player)<=16*16)
             nearby.playNotifySound(SoundEvents.PLAYER_ATTACK_SWEEP,SoundSource.PLAYERS,1,strike.empowered()?0.8F:1);
-        double range=match.rules().combat().cutterRange()+strike.rangeBonus();
-        // 刀光：从眼睛前方开始，沿视线方向铺开；参数只有 yaw/pitch/强度，不含实体位置。
+        var hunter=match.hunterState(player.getUUID());
+        var hunterClass=match.hunterClass(player.getUUID());
         Vec3 look=player.getLookAngle();
         float yaw=(float)(Math.toDegrees(Math.atan2(-look.x,look.z)));
         float pitch=(float)Math.toDegrees(Math.asin(-Math.max(-1,Math.min(1,look.y))));
-        float slashStrength=strike.empowered()?1.7F:1F;
-        io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
-                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.SLASH,
-                player.getEyePosition().add(look.scale(0.6)),0,yaw,pitch,slashStrength);
-        var target=firstPlayer(player,range).filter(p -> match.faction(p.getUUID())!=EchoFaction.INTERCEPTOR);
-        boolean connected=false;
-        if(target.isPresent()) {
-            ServerPlayer victim=target.get();
-            connected=lethal(victim,player,GameConstants.DeathReasons.KNIFE,false,false)!=EchoCombatState.Hit.IGNORED;
-            if(connected) {
-                if(strike.bleedBonus()>0) match.state(victim.getUUID()).extendBleed(now,strike.bleedBonus());
-                // 血花打在受害者胸口高度，而不是脚下：命中反馈要落在看得见的位置。
-                io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
-                        org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.BLOOD,
-                        victim.getEyePosition().add(0,-0.35,0),0,yaw,slashStrength);
-                if(strike.empowered()) io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
-                        org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.IMPACT,
-                        new Vec3(victim.getX(),victim.getY()+0.05,victim.getZ()),0,1.4F);
-            }
+        // 连段参数必须在结算之前取：命中会推进段数。
+        var swing=hunterClass==EchoHunterClass.REND && hunter!=null?hunter.combo().swing(now):null;
+        boolean connected, deferred=false;
+        if(hunterClass==EchoHunterClass.WEAVER) {
+            var thrown=weaverRelease(player,now,hunter,yaw,pitch);
+            connected=thrown.hit(); deferred=thrown.deferred();
+        } else connected=meleeRelease(player,now,strike,swing,yaw,pitch);
+        if(hunter!=null && hunterClass==EchoHunterClass.REND) {
+            if(connected) hunter.combo().onHit(now,swing); else hunter.combo().onMiss(now);
         }
         if(loop!=null) {
-            if(connected) { loop.onHit(now,strike.empowered()); org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFx.strike(match,player,strike.empowered()); }
-            else { loop.onMiss(now); org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFx.miss(match,player); }
+            if(deferred) loop.onHit(now,true,EchoHuntLoop.RECOVER_HIT_TICKS);
+            else if(connected) loop.onHit(now,strike.empowered(),swing==null?EchoHuntLoop.RECOVER_HIT_TICKS:swing.recoverTicks());
+            else loop.onMiss(now);
+            if(connected) org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFx.strike(match,player,strike.empowered());
+            else if(!deferred) org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFx.miss(match,player);
         }
-        // 擦刀：命中后甩血横抹，挥空只做收刀；两者都在出击结束后接管 0.9 秒。
-        org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFx.wipe(match,player,connected);
-        if(connected) io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
-                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.WIPE,
-                player.getEyePosition().add(look.scale(0.9)),0,yaw);
+        // 擦刀：命中后甩血横抹，挥空只做收刀；织网没有刀可擦，改由蛛丝弹的落点反馈承担。
+        if(hunterClass!=EchoHunterClass.WEAVER) {
+            org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFx.wipe(match,player,connected);
+            if(connected) io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                    org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.WIPE,
+                    player.getEyePosition().add(look.scale(0.9)),0,yaw);
+        }
         if(connected) {
             player.playNotifySound(SoundEvents.PLAYER_ATTACK_CRIT,SoundSource.PLAYERS,0.9F,strike.empowered()?0.7F:1.1F);
             // 擦刀音：布料摩擦 + 轻微金属，复用原版声音，不新增资源。
@@ -116,8 +128,245 @@ public final class EchoCombatService {
             for(ServerPlayer nearby:match.onlinePlayers()) if(nearby!=player && nearby.distanceToSqr(player)<=12*12)
                 nearby.playNotifySound(SoundEvents.PLAYER_ATTACK_SWEEP,SoundSource.PLAYERS,0.7F,1.25F);
             if(strike.empowered()) player.displayClientMessage(Component.translatable("echo.hunt.strike_empowered"),true);
-        } else player.playNotifySound(SoundEvents.PLAYER_ATTACK_NODAMAGE,SoundSource.PLAYERS,0.8F,0.9F);
+        } else if(!deferred) player.playNotifySound(SoundEvents.PLAYER_ATTACK_NODAMAGE,SoundSource.PLAYERS,0.8F,0.9F);
         publishHunt(player);
+    }
+
+    // ───────────────────────── 追猎者职业：裂爪 / 织网 ─────────────────────────
+
+    /** 一次织网松手的结果：{@code hit} 表示当场命中，{@code deferred} 表示弹道已出手、结果稍后结算。 */
+    private record ThrowResult(boolean hit, boolean deferred) { }
+
+    /**
+     * 裂爪近战结算：与原来的一刀完全一致，额外把连段的判定距离与出血层数叠加上去。
+     *
+     * @param swing 连段参数；{@code null} 表示不参与连段（SABOTEUR / 未分配职业）
+     */
+    private boolean meleeRelease(ServerPlayer player,long now,EchoHuntLoop.Strike strike,
+                                 EchoRendCombo.Swing swing,float yaw,float pitch) {
+        double range=match.rules().combat().cutterRange()+strike.rangeBonus()+(swing==null?0D:swing.reachBonus());
+        float slashStrength=strike.empowered()?1.7F:1F;
+        // 刀光：从眼睛前方开始，沿视线方向铺开；参数只有 yaw/pitch/强度，不含实体位置。
+        Vec3 look=player.getLookAngle();
+        io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.SLASH,
+                player.getEyePosition().add(look.scale(0.6)),0,yaw,pitch,slashStrength);
+        // 第二、三段额外补一层爪痕，让「连到了第几下」在画面上一眼可辨。
+        if(swing!=null && swing.stage()>1) io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.REND_CLAW,
+                player.getEyePosition().add(look.scale(0.5)),0,yaw,pitch,swing.stage());
+        var target=firstPlayer(player,range).filter(p -> match.faction(p.getUUID())!=EchoFaction.INTERCEPTOR);
+        if(target.isEmpty()) return false;
+        ServerPlayer victim=target.get();
+        boolean connected=lethal(victim,player,GameConstants.DeathReasons.KNIFE,false,false)!=EchoCombatState.Hit.IGNORED;
+        if(!connected) return false;
+        int bleed=strike.bleedBonus()+(swing==null?0:swing.bleedTicks());
+        if(bleed>0) match.state(victim.getUUID()).extendBleed(now,bleed);
+        // 血花打在受害者胸口高度，而不是脚下：命中反馈要落在看得见的位置。
+        io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.BLOOD,
+                victim.getEyePosition().add(0,-0.35,0),0,yaw,slashStrength);
+        if(strike.empowered()) io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.IMPACT,
+                new Vec3(victim.getX(),victim.getY()+0.05,victim.getZ()),0,1.4F);
+        return true;
+    }
+
+    /**
+     * 织网松手：贴脸改横甩一片黏网，远距抛出蛛丝弹。
+     *
+     * <p>与裂爪的关键差别是「脱靶也有收益」——弹道落地会留下一块黏网，
+     * 所以织网的惩罚是位移压力而不是空白后摇。
+     */
+    private ThrowResult weaverRelease(ServerPlayer player,long now,
+                                      org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterState hunter,
+                                      float yaw,float pitch) {
+        Vec3 look=player.getLookAngle();
+        if(firstPlayer(player,WEB_SWEEP_RANGE).filter(p -> match.faction(p.getUUID())!=EchoFaction.INTERCEPTOR).isPresent()) {
+            boolean hit=false;
+            for(ServerPlayer victim:match.onlinePlayers()) {
+                if(victim==player || match.faction(victim.getUUID())==EchoFaction.INTERCEPTOR) continue;
+                if(!match.life(victim.getUUID()).standing()) continue;
+                Vec3 to=victim.position().subtract(player.position());
+                double distance=to.length();
+                if(distance>WEB_SWEEP_RANGE+0.6D) continue;
+                if(distance>1.0E-3D && to.normalize().dot(look)<WEB_SWEEP_COS) continue;
+                if(lethal(victim,player,GameConstants.DeathReasons.KNIFE,false,false)==EchoCombatState.Hit.IGNORED) continue;
+                hit=true;
+                io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                        org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.WEB_SPLAT,
+                        victim.getEyePosition().add(0,-0.4,0),0,0F,0F);
+            }
+            splat(player.getUUID(),new Vec3(player.getX(),player.getY()+0.1D,player.getZ()),now);
+            io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                    org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.WEB_CAST,
+                    player.getEyePosition().add(look.scale(0.5)),0,yaw,pitch);
+            return new ThrowResult(hit,false);
+        }
+        if(hunter==null || !hunter.canThrow()) return new ThrowResult(false,false);
+        Vec3 eye=player.getEyePosition();
+        hunter.addBolt(org.agmas.noellesroles.game.modes.echo.hunter.EchoWebBolt.aim(player.getUUID(),
+                eye.x,eye.y,eye.z,look.x,look.y,look.z));
+        io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.WEB_CAST,
+                eye.add(look.scale(0.5)),0,yaw,pitch);
+        player.playNotifySound(SoundEvents.ARROW_SHOOT,SoundSource.PLAYERS,0.7F,1.45F);
+        return new ThrowResult(false,true);
+    }
+
+    /** 每 tick 推进所有在飞的蛛丝弹、清掉过期场地，并重算黏网减速。 */
+    private void tickHunterProjectiles(long now) {
+        for(UUID owner:match.participants()) {
+            var hunter=match.hunterState(owner);
+            if(hunter==null) continue;
+            if(!hunter.bolts().isEmpty()) {
+                var iterator=hunter.bolts().iterator();
+                while(iterator.hasNext()) {
+                    var bolt=iterator.next();
+                    resolveBolt(owner,bolt,now);
+                    if(bolt.finished() || bolt.expired()) iterator.remove();
+                }
+            }
+            hunter.fields().removeIf(field -> field.expired(now));
+        }
+        applyWebSlow(now);
+    }
+
+    /** 逐子步推进一颗弹：先判人再判墙，避免擦着墙角的命中被方块吃掉。 */
+    private void resolveBolt(UUID owner,org.agmas.noellesroles.game.modes.echo.hunter.EchoWebBolt bolt,long now) {
+        for(int step=0;step<org.agmas.noellesroles.game.modes.echo.hunter.EchoWebBolt.SUBSTEPS && !bolt.finished();step++) {
+            var point=bolt.step();
+            for(ServerPlayer candidate:match.onlinePlayers()) {
+                if(candidate.getUUID().equals(owner)) continue;
+                if(match.faction(candidate.getUUID())==EchoFaction.INTERCEPTOR) continue;
+                if(!match.life(candidate.getUUID()).standing()) continue;
+                if(!bolt.reaches(candidate.getX(),candidate.getY()+candidate.getBbHeight()*0.5D,
+                        candidate.getZ(),candidate.getBbWidth()*0.5D)) continue;
+                webHit(owner,candidate,now);
+                bolt.finish();
+                return;
+            }
+            Vec3 at=new Vec3(point.x(),point.y(),point.z());
+            if(solidAt(at)) { splat(owner,at,now); bolt.finish(); return; }
+        }
+        // 服务端自己走子步，必须显式记账；否则弹永远不会过期。
+        bolt.countTick();
+        if(bolt.expired()) splat(owner,new Vec3(bolt.x(),bolt.y(),bolt.z()),now);
+    }
+
+    /** 蛛丝弹命中：照常走机会数结算，并在目标脚下留一块黏网。 */
+    private void webHit(UUID owner,ServerPlayer victim,long now) {
+        ServerPlayer shooter=level.getServer().getPlayerList().getPlayer(owner);
+        var hit=lethal(victim,shooter,GameConstants.DeathReasons.KNIFE,false,false);
+        if(hit!=EchoCombatState.Hit.IGNORED) {
+            var hunter=match.hunterState(owner);
+            boolean inWeb=hunter!=null && hunter.bindTicksAt(now,victim.getX(),victim.getZ())>0;
+            int extra=org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterState.boundBleed(inWeb);
+            if(extra>0) match.state(victim.getUUID()).extendBleed(now,extra);
+            io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                    org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.WEB_SPLAT,
+                    victim.getEyePosition().add(0,-0.35,0),0,0F,0F);
+            if(shooter!=null) shooter.playNotifySound(SoundEvents.PLAYER_ATTACK_CRIT,SoundSource.PLAYERS,0.8F,1.3F);
+        }
+        splat(owner,new Vec3(victim.getX(),victim.getY()+0.1D,victim.getZ()),now);
+    }
+
+    /** 在落点铺一块黏网；同一追猎者最多保留 {@code MAX_FIELDS} 块，避免长期堆积。 */
+    private void splat(UUID owner,Vec3 at,long now) {
+        var hunter=match.hunterState(owner);
+        if(hunter!=null) {
+            while(hunter.fields().size()>=MAX_FIELDS) hunter.fields().remove(0);
+            hunter.addField(new org.agmas.noellesroles.game.modes.echo.hunter.EchoWebField(owner,
+                    org.agmas.noellesroles.game.modes.echo.hunter.EchoWebField.Kind.SPLAT,at.x,at.y,at.z,now));
+        }
+        io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.WEB_SPLAT,at,0,0F,0F);
+    }
+
+    /** 黏网只困猎物：追猎者自己踩进阵里不受影响。 */
+    private void applyWebSlow(long now) {
+        for(ServerPlayer player:match.onlinePlayers()) {
+            if(match.faction(player.getUUID())==EchoFaction.INTERCEPTOR) { applyWebSlow(player,1.0D); continue; }
+            double factor=1.0D;
+            for(UUID owner:match.participants()) {
+                var hunter=match.hunterState(owner);
+                if(hunter==null) continue;
+                for(var field:hunter.fields()) if(field.covers(now,player.getX(),player.getZ())) factor=Math.min(factor,field.slow());
+            }
+            applyWebSlow(player,factor);
+        }
+    }
+    private void applyWebSlow(ServerPlayer player,double factor) {
+        var speed=player.getAttribute(Attributes.MOVEMENT_SPEED); if(speed==null) return;
+        var existing=speed.getModifier(WEB_SLOW);
+        if(Math.abs(factor-1.0D)<0.005D) { if(existing!=null) speed.removeModifier(WEB_SLOW); return; }
+        double amount=factor-1.0D;
+        if(existing!=null && Math.abs(existing.amount()-amount)<0.002D) return;
+        if(existing!=null) speed.removeModifier(WEB_SLOW);
+        speed.addTransientModifier(new AttributeModifier(WEB_SLOW,amount,AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+    }
+
+    /** 裂爪主动技能「撕裂突进」：沿视线突进一小段，并把连击直接推到终结技。 */
+    public void rendDash(ServerPlayer player) {
+        var hunter=match.hunterState(player.getUUID());
+        if(hunter==null) return;
+        Vec3 look=player.getLookAngle();
+        Vec3 eye=player.getEyePosition();
+        var block=level.clip(new ClipContext(eye,eye.add(look.scale(REND_DASH_RANGE+REND_DASH_PADDING)),
+                ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,player));
+        double allowed=REND_DASH_RANGE;
+        if(block.getType()!=HitResult.Type.MISS)
+            allowed=Math.max(0.5D,Math.sqrt(eye.distanceToSqr(block.getLocation()))-REND_DASH_PADDING);
+        Vec3 flat=new Vec3(look.x,0,look.z);
+        flat=flat.lengthSqr()<1.0E-4D?new Vec3(0,0,1):flat.normalize().scale(allowed);
+        if(level.noCollision(player,player.getBoundingBox().move(flat)))
+            player.teleportTo(level,player.getX()+flat.x,player.getY(),player.getZ()+flat.z,player.getYRot(),player.getXRot());
+        hunter.combo().forceFinisher(match.matchTick());
+        player.playNotifySound(SoundEvents.PLAYER_ATTACK_SWEEP,SoundSource.PLAYERS,0.9F,0.75F);
+        io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.REND_CLAW,
+                player.getEyePosition(),0,(float)(Math.toDegrees(Math.atan2(-look.x,look.z))),
+                (float)Math.toDegrees(Math.asin(-Math.max(-1,Math.min(1,look.y)))),3F);
+    }
+
+    /** 织网主动技能「蛛网阵」：在脚下布下一片黏网，阵内锁定值不衰减。 */
+    public void placeWebNest(ServerPlayer player) {
+        var hunter=match.hunterState(player.getUUID());
+        if(hunter==null) return;
+        long now=match.matchTick();
+        while(hunter.fields().size()>=MAX_FIELDS) hunter.fields().remove(0);
+        hunter.addField(new org.agmas.noellesroles.game.modes.echo.hunter.EchoWebField(player.getUUID(),
+                org.agmas.noellesroles.game.modes.echo.hunter.EchoWebField.Kind.NEST,
+                player.getX(),player.getY(),player.getZ(),now));
+        io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
+                org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.WEB_FIELD,
+                new Vec3(player.getX(),player.getY()+0.1D,player.getZ()),0,
+                (float)org.agmas.noellesroles.game.modes.echo.hunter.EchoWebField.NEST_RADIUS);
+        player.playNotifySound(SoundEvents.AMETHYST_BLOCK_CHIME,SoundSource.PLAYERS,0.8F,0.7F);
+    }
+
+    /** 裂爪被动「血腥味」：{@link EchoHuntLoop#FOCUS_RANGE} 内是否有正在流血的猎物。 */
+    private boolean bleedingNearby(ServerPlayer hunter,long now) {
+        for(ServerPlayer other:match.onlinePlayers()) {
+            if(other==hunter || match.faction(other.getUUID())==EchoFaction.INTERCEPTOR) continue;
+            if(other.distanceToSqr(hunter)>EchoHuntLoop.FOCUS_RANGE*EchoHuntLoop.FOCUS_RANGE) continue;
+            var state=match.state(other.getUUID());
+            if(state!=null && state.life()==EchoLifeState.DOWNED && now<state.bleedUntil()) return true;
+        }
+        return false;
+    }
+
+    /** 织网被动「丝线感知」：目标连续静止的 tick 数。 */
+    private int stillTicks(ServerPlayer player) { return stillTicks.getOrDefault(player.getUUID(),0); }
+    private void trackStillness(ServerPlayer player) {
+        Vec3 previous=lastPositions.put(player.getUUID(),player.position());
+        if(previous!=null && previous.distanceToSqr(player.position())<0.0025D) stillTicks.merge(player.getUUID(),1,Integer::sum);
+        else stillTicks.put(player.getUUID(),0);
+    }
+    private boolean solidAt(Vec3 at) {
+        BlockPos pos=BlockPos.containing(at);
+        var state=level.getBlockState(pos);
+        return !state.getCollisionShape(level,pos).isEmpty();
     }
     public boolean shove(ServerPlayer player) {
         if(!match.standing(player) || match.faction(player.getUUID())!=EchoFaction.CARRIER
@@ -212,6 +461,8 @@ public final class EchoCombatService {
     public void tick() {
         long now=match.matchTick();
         for(UUID owner:match.participants()) if(match.connectedPlayer(owner)==null && match.life(owner)==EchoLifeState.DOWNED && now>=match.state(owner).bleedUntil()) match.exit(owner);
+        // 蛛丝弹与黏网先推进：本 tick 的命中要在移动限制之前生效，否则目标会先被钉在原地再挨打。
+        tickHunterProjectiles(now);
         for(ServerPlayer player:match.onlinePlayers()) {
             EchoCombatState state=match.state(player.getUUID());
             if(state.expireBleed(now)) {
@@ -219,6 +470,7 @@ public final class EchoCombatService {
                 ServerPlayer killer=killerId==null?null:level.getServer().getPlayerList().getPlayer(killerId);
                 finishElimination(player,killer,GameConstants.DeathReasons.KNIFE);
             }
+            trackStillness(player);
             restrict(player,state);
             if(now%5==0) enforceTool(player,state);
             project(player,false);
@@ -252,7 +504,17 @@ public final class EchoCombatService {
             double gain=EchoHuntLoop.gain(distance,velocity.horizontalDistanceSqr(),other.isSprinting());
             if(gain>bestGain) { bestGain=gain; loudest=other; }
         }
-        loop.tick(now,bestGain);
+        var hunterClass=match.hunterClass(player.getUUID());
+        var hunterState=match.hunterState(player.getUUID());
+        if(bestGain>0) {
+            if(hunterClass==EchoHunterClass.REND) bestGain=org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterState.rendGain(
+                    bestGain,bleedingNearby(player,now));
+            else if(hunterClass==EchoHunterClass.WEAVER && loudest!=null) bestGain=org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterState.weaverGain(
+                    bestGain,stillTicks(loudest),Math.sqrt(player.distanceToSqr(loudest)));
+        }
+        // 站在自己的蛛网阵里锁定不衰减：这是织网唯一能「蹲点」的收益。
+        boolean holdFocus=hunterState!=null && hunterState.holdsFocusAt(now,player.getX(),player.getZ());
+        loop.tick(now,bestGain,holdFocus);
         applyHuntSpeed(player,loop,now);
         if(loop.consumeLockAnnouncement(now)) player.playNotifySound(SoundEvents.AMETHYST_BLOCK_CHIME,SoundSource.PLAYERS,0.7F,1.6F);
         int focus=loop.focus();
@@ -350,7 +612,11 @@ public final class EchoCombatService {
             player.inventoryMenu.broadcastChanges();
         }
         anchors.clear(); downedBy.clear(); prone.clear();
-        nextHeartbeat.clear();
+        nextHeartbeat.clear(); lastPositions.clear(); stillTicks.clear();
+        for(UUID owner:match.participants()) {
+            var hunter=match.hunterState(owner);
+            if(hunter!=null) hunter.clear();
+        }
         org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFx.clearAll();
     }
 }

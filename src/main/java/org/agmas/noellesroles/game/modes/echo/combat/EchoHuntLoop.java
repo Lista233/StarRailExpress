@@ -92,9 +92,18 @@ public final class EchoHuntLoop {
 
     /** 命中：扑击与本能期间免后摇，其余进入短后摇。 */
     public void onHit(long now, boolean empoweredStrike) {
+        onHit(now, empoweredStrike, RECOVER_HIT_TICKS);
+    }
+
+    /**
+     * 命中并指定后摇长度：裂爪的终结技收益最大，因此后摇也比普通命中更长。
+     *
+     * @param recoverTicks 非免后摇情况下应进入的后摇长度
+     */
+    public void onHit(long now, boolean empoweredStrike, int recoverTicks) {
         if (empoweredStrike || instinct(now)) { phase = Phase.STALK; phaseUntil = now; return; }
         phase = Phase.RECOVER;
-        phaseUntil = now + RECOVER_HIT_TICKS;
+        phaseUntil = now + Math.max(1, recoverTicks);
     }
 
     /** 挥空：固定长后摇，给目标真正的逃脱窗口。 */
@@ -129,11 +138,19 @@ public final class EchoHuntLoop {
 
     /** 由调用方给出「本 tick 最值得锁定的目标」的距离与移动状态；无目标传 0。 */
     public void tick(long now, double gain) {
+        tick(now, gain, false);
+    }
+
+    /**
+     * @param holdFocus true 表示本 tick 锁定值不衰减（织网的蛛网阵内）；蓄力相仍然照常消耗，
+     *                  否则阵内蹲守会变成无限满锁定
+     */
+    public void tick(long now, double gain, boolean holdFocus) {
         advance(now);
         switch (phase) {
             case STALK -> {
                 if (gain > 0) focus = Math.min(FOCUS_MAX, focus + gain);
-                else focus = Math.max(0, focus - FOCUS_DECAY);
+                else if (!holdFocus) focus = Math.max(0, focus - FOCUS_DECAY);
             }
             case CHARGE -> focus = Math.max(0, focus - CHARGE_DRAIN);
             default -> { }

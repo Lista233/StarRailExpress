@@ -82,7 +82,21 @@ class EchoSkillStateTest {
             assertTrue(skill.descriptionKey().startsWith("echo.skill."));
         }
         assertEquals(EchoSpecialization.values().length, skills.size());
-        assertEquals(EchoSpecialization.values().length, EchoSkill.values().length);
+        // 追猎者职业各带一个技能；它们不绑定专长，因此单独校验，并且仍然要求 id/图标唯一。
+        for (org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass hunter
+                : org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass.values()) {
+            EchoSkill skill = hunter.skill();
+            assertNull(skill.specialization(), "职业技能不应绑定专长");
+            assertEquals(skill, EchoSkill.of(EchoSpecialization.HUNTER, hunter));
+            assertTrue(skills.add(skill), "职业与技能必须一一对应");
+            assertTrue(ids.add(skill.id()));
+            assertTrue(icons.add(skill.icon()));
+            assertTrue(skill.cooldownTicks() > 0 && skill.windowTicks() >= 0);
+        }
+        long classBound = java.util.Arrays.stream(EchoSkill.values()).filter(skill -> skill.specialization() == null).count();
+        assertEquals(org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass.values().length, classBound);
+        assertEquals(EchoSpecialization.values().length + org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass.values().length,
+                EchoSkill.values().length);
     }
 
     @Test void skillHearingAndIntroKeysExistInThreeLanguages() throws Exception {

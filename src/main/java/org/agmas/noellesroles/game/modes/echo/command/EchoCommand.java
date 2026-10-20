@@ -29,6 +29,18 @@ public final class EchoCommand {
                 Commands.literal("sre:echo_drop").requires(source -> source.getEntity() instanceof net.minecraft.server.level.ServerPlayer)
                         .then(Commands.literal("cargo").executes(ctx -> drop(ctx.getSource(),false)))
                         .then(Commands.literal("key").executes(ctx -> drop(ctx.getSource(),true)))));
+        // 追猎者职业切换：只改打法，不改专长；SAFE 之外一律拒绝并说明原因。
+        CommandRegistrationCallback.EVENT.register((dispatcher,registry,environment) -> {
+            var hunter=org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass.values();
+            var root=Commands.literal("sre:echo_hunter")
+                    .requires(source -> source.getEntity() instanceof net.minecraft.server.level.ServerPlayer)
+                    .executes(ctx -> currentHunter(ctx.getSource()));
+            for(int n=0;n<hunter.length;n++) {
+                final int option=n;
+                root.then(Commands.literal(hunter[n].id()).executes(ctx -> selectHunter(ctx.getSource(),option)));
+            }
+            dispatcher.register(root);
+        });
     }
 
     private static int status(CommandSourceStack source) {
@@ -52,6 +64,32 @@ public final class EchoCommand {
         var match = EchoSessions.get(source.getLevel());
         if (match == null || !match.requestDevelopmentEvacuation()) return missing(source);
         source.sendSuccess(() -> Component.translatable("echo.command.completed"), false);
+        return 1;
+    }
+
+    /** 切换追猎者职业；无参数形式回显当前职业，方便确认默认分配。 */
+    private static int selectHunter(CommandSourceStack source,int option) {
+        if(!(source.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)) return missing(source);
+        var match=EchoSessions.get(source.getLevel());
+        if(match==null || !match.selectHunterClass(player,option)) {
+            source.sendFailure(Component.translatable("echo.hunter.locked"));
+            return 0;
+        }
+        var values=org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass.values();
+        var next=values[Math.max(0,Math.min(values.length-1,option))];
+        source.sendSuccess(() -> Component.translatable("echo.hunter.selected",Component.translatable(next.nameKey())),false);
+        return 1;
+    }
+
+    private static int currentHunter(CommandSourceStack source) {
+        if(!(source.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)) return missing(source);
+        var match=EchoSessions.get(source.getLevel());
+        var current=match==null?null:match.hunterClass(player.getUUID());
+        if(current==null) {
+            source.sendFailure(Component.translatable("echo.hunter.none"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.translatable("echo.hunter.selected",Component.translatable(current.nameKey())),false);
         return 1;
     }
 

@@ -23,7 +23,7 @@ public final class EchoSkillCastAnim {
     /** 施法动作时长（tick），与网络包共用。 */
     public static final int CAST_TICKS = 16;
 
-    public enum Style { PRESS, SNATCH, SCAN, SLAM, CONCEAL, OFFER }
+    public enum Style { PRESS, SNATCH, SCAN, SLAM, CONCEAL, OFFER, CLAW, WEAVE }
 
     /** 一组姿态增量：位移（格）+ 旋转（角度）。 */
     public record Pose(float tx, float ty, float tz, float rx, float ry, float rz) {
@@ -41,6 +41,8 @@ public final class EchoSkillCastAnim {
             case SURGE -> Style.SLAM;
             case DARK_CACHE -> Style.CONCEAL;
             case BROKER_DEAL -> Style.OFFER;
+            case REND_DASH -> Style.CLAW;
+            case WEB_NEST -> Style.WEAVE;
         };
     }
 
@@ -53,6 +55,8 @@ public final class EchoSkillCastAnim {
             case SLAM -> 0xFFFF8A3D;
             case CONCEAL -> 0xFF9B7BD4;
             case OFFER -> 0xFFFFE8C0;
+            case CLAW -> 0xFFFFB4A8;
+            case WEAVE -> 0xFF9FD8F0;
         };
     }
 
@@ -127,6 +131,17 @@ public final class EchoSkillCastAnim {
                     new Pose(0.05F, 0.06F, -0.42F, -2F, 12F, 18F),
                     new Pose(0F, 0.04F, -0.30F, -4F, 20F, 8F),
                     Pose.NONE});
+            case CLAW -> sample(t, new float[]{0F, 0.22F, 0.46F, 0.74F, 1F}, new Pose[]{
+                    Pose.NONE,
+                    new Pose(0F, 0.10F, 0.06F, 24F, 30F, 26F),
+                    new Pose(0.06F, 0.02F, -0.30F, -34F, -40F, -34F),
+                    new Pose(0.02F, -0.04F, -0.18F, -12F, -16F, -12F),
+                    Pose.NONE});
+            case WEAVE -> sample(t, new float[]{0F, 0.30F, 0.58F, 1F}, new Pose[]{
+                    Pose.NONE,
+                    new Pose(0F, 0.28F, -0.05F, -30F, 0F, 0F),
+                    new Pose(0F, -0.22F, -0.24F, 52F, 0F, 0F),
+                    Pose.NONE});
         };
         return pose.mirror(side);
     }
@@ -169,6 +184,17 @@ public final class EchoSkillCastAnim {
                     new Pose(0F, 0F, 0F, -1.36F, 0.30F, 0.15F),
                     new Pose(0F, 0F, 0F, -1.10F, 0.42F, 0.05F),
                     Pose.NONE});
+            case CLAW -> sample(t, new float[]{0F, 0.22F, 0.46F, 0.74F, 1F}, new Pose[]{
+                    Pose.NONE,
+                    new Pose(0F, 0F, 0F, -0.90F, 0.55F, 0.35F),
+                    new Pose(0F, 0F, 0F, 0.85F, -0.70F, -0.50F),
+                    new Pose(0F, 0F, 0F, 0.35F, -0.30F, -0.20F),
+                    Pose.NONE});
+            case WEAVE -> sample(t, new float[]{0F, 0.30F, 0.58F, 1F}, new Pose[]{
+                    Pose.NONE,
+                    new Pose(0F, 0F, 0F, -1.20F, 0F, 0.15F),
+                    new Pose(0F, 0F, 0F, 0.95F, 0F, -0.10F),
+                    Pose.NONE});
         };
         return new float[]{pose.rx(), pose.ry() * side, pose.rz() * side};
     }
@@ -208,6 +234,17 @@ public final class EchoSkillCastAnim {
                     new Pose(0F, 0F, 0F, 62F, 24F, 30F),
                     new Pose(0F, 0F, 0F, 68F, -20F, -18F),
                     new Pose(0F, 0F, 0F, 54F, -28F, -6F),
+                    Pose.NONE});
+            case CLAW -> sample(t, new float[]{0F, 0.22F, 0.46F, 0.74F, 1F}, new Pose[]{
+                    Pose.NONE,
+                    new Pose(0F, 0F, 0F, -40F, 34F, 30F),
+                    new Pose(0F, 0F, 0F, 62F, -40F, -34F),
+                    new Pose(0F, 0F, 0F, 24F, -16F, -12F),
+                    Pose.NONE});
+            case WEAVE -> sample(t, new float[]{0F, 0.30F, 0.58F, 1F}, new Pose[]{
+                    Pose.NONE,
+                    new Pose(0F, 0F, 0F, -46F, 0F, 18F),
+                    new Pose(0F, 0F, 0F, 74F, 0F, -10F),
                     Pose.NONE});
         };
         return new Pose(pose.tx(), pose.ty(), pose.tz(), pose.rx(), pose.ry() * side, pose.rz() * side);
