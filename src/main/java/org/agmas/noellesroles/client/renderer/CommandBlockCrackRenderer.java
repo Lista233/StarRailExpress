@@ -51,6 +51,11 @@ public class CommandBlockCrackRenderer extends EntityRenderer<CommandBlockCrackE
         matrices.translate(0.0F, 0.15F, 0.0F);
         PoseStack.Pose pose = matrices.last();
         VertexConsumer consumer = buffers.getBuffer(RenderType.entityTranslucent(TEXTURE));
+        if (entity.isHighlighted()) {
+            // 刚刷出来的十秒高亮：外扩一圈白光，让全场都能看到裂缝出现的位置。
+            drawJagged(consumer, pose, seed - 7, 1.9F, 0.34F, 255, 245, 255, (int) (110 * pulse), 0x00F000F0);
+            drawJagged(consumer, pose, seed - 7, 2.15F, 0.18F, 220, 190, 255, (int) (70 * pulse), 0x00F000F0);
+        }
         drawJagged(consumer, pose, seed, 1.55F, 0.16F, 28, 8, 48, (int) (170 * pulse), light);
         drawJagged(consumer, pose, seed + 3, 1.35F, 0.05F, 180, 70, 255, (int) (220 * pulse), 0x00F000F0);
         matrices.popPose();
