@@ -19,6 +19,7 @@ import io.wifi.starrailexpress.api.SRERole;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +33,8 @@ public final class ProgressionState {
     public long lastWeeklyRefreshTime;
     public Map<FactionCardType, Integer> factionCards = new EnumMap<>(FactionCardType.class);
     public List<PassQuest> activeQuests = new ArrayList<>();
+    /** 当前周期内各地图游玩局数（key=地图 ID），随每日任务刷新重置，供网站读取。 */
+    public Map<String, Integer> mapPlayCounts = new HashMap<>();
     public long version;
 
     public static ProgressionState createDefault() {
@@ -58,6 +61,9 @@ public final class ProgressionState {
         }
         if (activeQuests == null) {
             activeQuests = new ArrayList<>();
+        }
+        if (mapPlayCounts == null) {
+            mapPlayCounts = new HashMap<>();
         }
         return this;
     }
