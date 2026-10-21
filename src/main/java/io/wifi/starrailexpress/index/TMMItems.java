@@ -25,6 +25,7 @@ import io.wifi.starrailexpress.content.item.*;
 import io.wifi.starrailexpress.game.roles.SpecialGameModeRoles;
 import io.wifi.starrailexpress.index.wathe_bridge.WatheBridgerItems;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
+import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -34,6 +35,7 @@ import net.minecraft.world.food.Foods;
 import net.minecraft.world.item.*;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.content.item.LetterItem;
+import org.agmas.noellesroles.game.modes.echo.content.EchoContent;
 import org.agmas.noellesroles.init.FunnyItems;
 import org.agmas.noellesroles.init.ModItems;
 
@@ -74,6 +76,10 @@ public interface TMMItems {
             SRE.id("funny_item"));
     ResourceKey<CreativeModeTab> MISC_ITEMS_GROUP = ResourceKey.create(Registries.CREATIVE_MODE_TAB,
             SRE.id("misc_items"));
+
+    /** 回声托运站模式专属物品（物品本体由 EchoContent 直接注册，未走 registrar）。 */
+    ResourceKey<CreativeModeTab> ECHO_FREIGHT_GROUP = ResourceKey.create(Registries.CREATIVE_MODE_TAB,
+            SRE.id("echo_freight"));
 
     // === 特殊分类/汇总标签页 ===
     ResourceKey<CreativeModeTab> SEALED_ARTIFACTS_GROUP = ResourceKey.create(Registries.CREATIVE_MODE_TAB,
@@ -261,6 +267,24 @@ public interface TMMItems {
                 .title(Component.translatable("itemGroup.starrailexpress.misc_items"))
                 .icon(() -> new ItemStack(BLACKOUT))
                 .build());
+
+        // 回声托运站模式：物品未走 registrar，手动注册标签页并收录全部模式物品
+        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, ECHO_FREIGHT_GROUP, FabricItemGroup.builder()
+                .title(Component.translatable("itemGroup.starrailexpress.echo_freight"))
+                .icon(() -> new ItemStack(EchoContent.CARD_PROXY))
+                .build());
+        ItemGroupEvents.modifyEntriesEvent(ECHO_FREIGHT_GROUP).register(entries -> {
+            entries.accept(EchoContent.CUTTER);
+            entries.accept(EchoContent.CARD_PROXY);
+            entries.accept(EchoContent.SKILL_TOKEN);
+            entries.accept(EchoContent.EDITOR);
+        });
+        // 局内道具同步收录进 NoellesRoles 汇总标签页（与 ModItems 的约定一致）
+        ItemGroupEvents.modifyEntriesEvent(NOELLESROLES_ALL_GROUP).register(entries -> {
+            entries.accept(EchoContent.CUTTER);
+            entries.accept(EchoContent.CARD_PROXY);
+            entries.accept(EchoContent.SKILL_TOKEN);
+        });
 
         Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, FUNNY_ITEMS_GROUP, FabricItemGroup.builder()
                 .title(Component.translatable("itemGroup.starrailexpress.funny_items"))
