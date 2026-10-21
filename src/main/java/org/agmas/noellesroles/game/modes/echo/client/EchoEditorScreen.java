@@ -400,7 +400,7 @@ public final class EchoEditorScreen extends Screen {
                     dragStartScroll + (int) ((mouseY - dragStartY) / track * maxScroll()), maxScroll()));
             return true;
         }
-        return super.mouseDragged(mouseX, mouseY, dx, dy);
+        return super.mouseDragged(mouseX, mouseY, button, dx, dy);
     }
 
     @Override public void tick() {
