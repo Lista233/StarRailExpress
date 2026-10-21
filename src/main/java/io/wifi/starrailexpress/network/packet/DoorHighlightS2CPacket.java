@@ -69,7 +69,7 @@ public record DoorHighlightS2CPacket(boolean enabled, List<Entry> doors) impleme
 
     /**
      * @param pos      门下半格坐标
-     * @param bound    扫描时是否已绑定钥匙
+     * @param bound    是否需要钥匙/开锁器（扫描时的快照）
      * @param roomName 去掉 locked/alarmed/reinforced 前缀后的房间名
      */
     public record Entry(BlockPos pos, boolean bound, String roomName) {

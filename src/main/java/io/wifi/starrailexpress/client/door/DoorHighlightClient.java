@@ -34,8 +34,10 @@ import java.util.List;
  * 指令门高亮的客户端状态：只保存服务端发给自己的那批门，不写入地图任务点。
  */
 public final class DoorHighlightClient {
-    private static final Color BOUND_COLOR = new Color(0x3FA9F5);
-    private static final Color UNBOUND_COLOR = new Color(0xFFD700);
+    /** 需要钥匙或开锁器才能打开。 */
+    private static final Color BOUND_COLOR = new Color(0xFF0000);
+    /** 无需开锁器，空手即可打开。 */
+    private static final Color UNBOUND_COLOR = new Color(0x00FF00);
     /** 未加载区块时无法读方块形状，用普通门 1x2 的外框兜底。 */
     private static final AABB DOOR_FALLBACK = new AABB(0.0D, 0.0D, 0.0D, 1.0D, 2.0D, 1.0D);
 

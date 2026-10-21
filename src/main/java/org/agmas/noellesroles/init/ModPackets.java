@@ -20,6 +20,7 @@ import io.wifi.starrailexpress.network.packet.EditNewspaperPacket;
 import io.wifi.starrailexpress.network.packet.DoorHighlightS2CPacket;
 import io.wifi.starrailexpress.network.packet.EnableTaskHighlightPacket;
 import io.wifi.starrailexpress.network.packet.ShowCustomNewspaperPacket;
+import io.wifi.starrailexpress.network.packet.TaskHighlightS2CPacket;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -120,6 +121,7 @@ public class ModPackets {
         PayloadTypeRegistry.playC2S().register(ScanAllTaskPointsPayload.ID, ScanAllTaskPointsPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ScanAllTaskPointsPayload.ID, ScanAllTaskPointsPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DoorHighlightS2CPacket.ID, DoorHighlightS2CPacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(TaskHighlightS2CPacket.ID, TaskHighlightS2CPacket.CODEC);
 
         PayloadTypeRegistry.playS2C().register(OpenScreenPayload.ID, OpenScreenPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(LoanContractOpenS2CPacket.ID, LoanContractOpenS2CPacket.CODEC);

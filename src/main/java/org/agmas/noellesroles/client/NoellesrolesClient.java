@@ -532,6 +532,7 @@ public class NoellesrolesClient implements ClientModInitializer {
         WorldRenderEvents.AFTER_TRANSLUCENT.register((renderContext) -> {
             TaskBlockOverlayRenderer.render(renderContext);
             io.wifi.starrailexpress.client.door.DoorHighlightClient.render(renderContext);
+            io.wifi.starrailexpress.client.task.TaskHighlightClient.render(renderContext);
             TwoDimensionalTaskArrowRenderer.render(renderContext);
             PointerGuidanceRenderer.render(renderContext);
             org.agmas.noellesroles.gunfx.GunTracerRenderer.render(renderContext);
@@ -718,6 +719,10 @@ public class NoellesrolesClient implements ClientModInitializer {
                 io.wifi.starrailexpress.network.packet.DoorHighlightS2CPacket.ID,
                 (payload, context) -> context.client().execute(
                         () -> io.wifi.starrailexpress.client.door.DoorHighlightClient.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(
+                io.wifi.starrailexpress.network.packet.TaskHighlightS2CPacket.ID,
+                (payload, context) -> context.client().execute(
+                        () -> io.wifi.starrailexpress.client.task.TaskHighlightClient.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(EnableTaskHighlightPacket.ID, (payload, context) -> {
             final var client = context.client();
             client.execute(() -> {
@@ -1187,6 +1192,7 @@ public class NoellesrolesClient implements ClientModInitializer {
             currentBroadcastMessage.clear();
             ClientVoteCache.clear();
             io.wifi.starrailexpress.client.door.DoorHighlightClient.clear();
+            io.wifi.starrailexpress.client.task.TaskHighlightClient.clear();
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((a, client) -> {
@@ -1205,6 +1211,7 @@ public class NoellesrolesClient implements ClientModInitializer {
             io.wifi.starrailexpress.custommodifier.CustomModifierLoader.removeClientCache();
             org.agmas.noellesroles.client.sound.SpeakerClientSounds.clear();
             io.wifi.starrailexpress.client.door.DoorHighlightClient.clear();
+            io.wifi.starrailexpress.client.task.TaskHighlightClient.clear();
             // 在断开连接时，强制清理所有玩家的渲染缓存
 
         });

@@ -60,6 +60,7 @@ public class SRECommandRegister {
             NarratorCommand.register(dispatcher, registryAccess);
             GiveRoomKeyCommand.register(dispatcher);
             HighlightDoorsCommand.register(dispatcher);
+            HighlightTasksCommand.register(dispatcher);
             ListRoleInRoundCommand.register(dispatcher);
             NonOPKickCommand.register(dispatcher, registryAccess);
             SetVisualCommand.register(dispatcher);

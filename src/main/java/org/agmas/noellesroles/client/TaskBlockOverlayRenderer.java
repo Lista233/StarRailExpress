@@ -32,6 +32,7 @@ import io.wifi.starrailexpress.client.util.TaskInstinctManager;
 import io.wifi.starrailexpress.client.SecurityCameraClientState;
 import io.wifi.starrailexpress.content.block.api.TaskInstinctShowableInterface;
 import io.wifi.starrailexpress.content.block_entity.SmallDoorBlockEntity;
+import io.wifi.starrailexpress.content.task.TaskPointColors;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.utils.client.betterrender.TextBatchingBuffer;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -455,32 +456,32 @@ public class TaskBlockOverlayRenderer {
             switch (type) { // 1: 食物 2: 水 3: 洗澡 4: 床 5: 跑步机 6: 讲台
                 case 1:
                     if (shouldDisplay[type])
-                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos, Color.GREEN, 1f, true, 0f);
+                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos, taskTypeColor(type), 1f, true, 0f);
                     break;
                 case 2:
                     if (shouldDisplay[type])
-                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos, new Color(234, 88, 88), 1f,
+                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos, taskTypeColor(type), 1f,
                                 true, 0f);
                     break;
                 case 3:
                     if (shouldDisplay[type])
-                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos, new Color(141, 234, 189), 1f,
+                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos, taskTypeColor(type), 1f,
                                 true, 0f);
                     break;
                 case 4:
                     if (shouldDisplay[type])
-                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos, new Color(0, 255, 220), 1f,
+                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos, taskTypeColor(type), 1f,
                                 true, 0f);
                     break;
                 case 5:
                     if (shouldDisplay[type])
-                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos, new Color(255, 242, 0), 1f,
+                        TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos, taskTypeColor(type), 1f,
                                 true, 0f);
                     break;
                 case 6:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(255, 127, 39), 1f,
+                                taskTypeColor(type), 1f,
                                 true, 0f);
                     break;
                 case 7:
@@ -488,77 +489,77 @@ public class TaskBlockOverlayRenderer {
                 case 8:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(255, 174, 201), 1f,
+                                taskTypeColor(type), 1f,
                                 true, 0f);
                     break;
                 case 9:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(126, 255, 228), 1f,
+                                taskTypeColor(type), 1f,
                                 true, 0f);
                     break;
                 case 10:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(121, 148, 255), 1f,
+                                taskTypeColor(type), 1f,
                                 true, 0f);
                     break;
                 case 11:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(255, 174, 201), 1f,
+                                taskTypeColor(type), 1f,
                                 true, 0f);
                     break;
                 case 16:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(255, 165, 0), 1f, true, 0f);
+                                taskTypeColor(type), 1f, true, 0f);
                     break;
                 case 17:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(192, 192, 192), 1f, true, 0f);
+                                taskTypeColor(type), 1f, true, 0f);
                     break;
                 case 18:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(0, 150, 50), 1f, true, 0f);
+                                taskTypeColor(type), 1f, true, 0f);
                     break;
                 case 19:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(180, 40, 40), 1f, true, 0f);
+                                taskTypeColor(type), 1f, true, 0f);
                     break;
                 case 20:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(255, 255, 180), 1f, true, 0f);
+                                taskTypeColor(type), 1f, true, 0f);
                     break;
                 case 21:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(173, 255, 47), 1f, true, 0f);
+                                taskTypeColor(type), 1f, true, 0f);
                     break;
                 case 22:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(218, 165, 32), 1f, true, 0f);
+                                taskTypeColor(type), 1f, true, 0f);
                     break;
                 case 24:
                     if (isBellMeetingEnabled(renderContext)) {
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(255, 215, 0), 1f, true, 0f);
+                                taskTypeColor(type), 1f, true, 0f);
                     }
                     break;
                 case 25:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(135, 206, 235), 1f, true, 0f); // 天蓝色 — 射击练习
+                                taskTypeColor(type), 1f, true, 0f); // 天蓝色 — 射击练习
                     break;
                 case 28:
                     if (shouldDisplay[type])
                         TaskBlockOverlayRenderer.renderBlockOverlay(renderContext, pos,
-                                new Color(255, 105, 180), 1f, true, 0f);
+                                taskTypeColor(type), 1f, true, 0f);
                     break;
                 default:
                     if (TaskInstinctManager.isTaskInstinctTypeShowable(type)) {
@@ -579,6 +580,20 @@ public class TaskBlockOverlayRenderer {
         // 恢复渲染状态
         // 统一提交线框和文字的批次
         // Minecraft.getInstance().renderBuffers().bufferSource().endBatch();
+    }
+
+    /**
+     * 任务点类型 → 透视颜色。
+     *
+     * <p>颜色定义在 {@link TaskPointColors}，服务端指令 {@code /tmm:highlightTasks}
+     * 也读同一份表，避免两边颜色漂移。
+     *
+     * @param type 任务点类型（{@code MapScanner} 写入 {@code GameUtils.taskBlocks} 的整数）
+     * @return 对应颜色；未定义的类型返回 {@code null}
+     */
+    public static Color taskTypeColor(int type) {
+        int rgb = TaskPointColors.rgb(type);
+        return rgb == TaskPointColors.UNDEFINED ? null : new Color(rgb);
     }
 
     private static boolean isActiveSabotageRepairBlock(BlockState state) {

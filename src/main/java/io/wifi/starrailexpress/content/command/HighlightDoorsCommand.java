@@ -44,14 +44,18 @@ import java.util.Locale;
 
 /**
  * /tmm:highlightDoors &lt;from&gt; &lt;to&gt; [room|all]
- * 只把扫描结果发给执行者，默认只找普通住宿门（小玻璃门/小木门）。
+ * 只把扫描结果发给执行者：默认只找住宿用小木门，{@code all} 才包含玻璃门等其他门。
+ *
+ * <p>颜色按开门条件区分：需要钥匙/开锁器的门为红色，无需开锁器的门为绿色。
  */
 public class HighlightDoorsCommand {
     private static final int MAX_VOLUME = 2_000_000;
     private static final int MAX_PACKET_DOORS = 1024;
     private static final int MAX_CHAT_LINES = 50;
-    private static final int BOUND_COLOR = 0x3FA9F5;
-    private static final int UNBOUND_COLOR = 0xFFD700;
+    /** 需要钥匙或开锁器才能打开。 */
+    private static final int BOUND_COLOR = 0xFF0000;
+    /** 无需开锁器，空手即可打开。 */
+    private static final int UNBOUND_COLOR = 0x00FF00;
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
@@ -224,8 +228,9 @@ public class HighlightDoorsCommand {
         return Component.literal(pos.getX() + ", " + pos.getY() + ", " + pos.getZ());
     }
 
+    /** 默认只找住宿用小木门；玻璃门等其他门需要显式加 {@code all}。 */
     private static boolean isRoomDoor(BlockState state) {
-        return state.is(TMMBlocks.SMALL_GLASS_DOOR) || state.is(TMMBlocks.SMALL_WOOD_DOOR);
+        return state.is(TMMBlocks.SMALL_WOOD_DOOR);
     }
 
     private record FoundDoor(DoorHighlightS2CPacket.Entry entry, String blockId) {
