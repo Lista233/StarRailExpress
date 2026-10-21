@@ -19,6 +19,8 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 
 import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.cca.AreasWorldComponent;
@@ -42,7 +44,9 @@ import org.agmas.noellesroles.utils.MapScannerManager;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class SwitchMapCommand {
   public static LiteralArgumentBuilder<CommandSourceStack> node = Commands.literal("tmm:switchmap")
@@ -50,6 +54,15 @@ public class SwitchMapCommand {
       .then(Commands.literal("reset_and_scan_all")
           .requires(source -> source.hasPermission(3))
           .executes(SwitchMapCommand::executeScanWithReset))
+      .then(Commands.literal("reset_and_scan")
+          .requires(source -> source.hasPermission(3))
+          .then(Commands.argument("mapName",
+              MapLoadArgumentType.string())
+              .suggests(SwitchMapCommand::suggestMapNames)
+              .executes(context -> executeScanWithReset(
+                  context,
+                  MapLoadArgumentType
+                      .getString(context, "mapName")))))
       .then(Commands.literal("scan_all")
           .requires(source -> source.hasPermission(3))
           .executes(SwitchMapCommand::executeScanWithoutReset))
@@ -115,6 +128,42 @@ public class SwitchMapCommand {
   }
 
   private static int executeScanWithoutReset(CommandContext<CommandSourceStack> context) {
+    return scanMaps(context, false, null);
+  }
+
+  private static int executeScanWithReset(CommandContext<CommandSourceStack> context) {
+    return scanMaps(context, true, null);
+  }
+
+  private static int executeScanWithReset(CommandContext<CommandSourceStack> context, String mapName) {
+    return scanMaps(context, true, mapName);
+  }
+
+  /**
+   * 将玩家输入的地图 ID 与可用地图列表对齐（忽略大小写，允许带 .json 后缀和反斜杠）。
+   *
+   * @return 列表中的真实 ID，找不到时返回 null
+   */
+  private static String resolveMapId(List<String> availableMaps, String input) {
+    String target = input.trim().replace('\\', '/');
+    if (target.length() > 5 && target.substring(target.length() - 5).equalsIgnoreCase(".json")) {
+      target = target.substring(0, target.length() - 5);
+    }
+    for (String mapId : availableMaps) {
+      if (mapId.equalsIgnoreCase(target)) {
+        return mapId;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 扫描地图（可只扫描指定的一个地图）。
+   *
+   * @param reset     是否同时重置地图
+   * @param mapFilter 只扫描的地图 ID，为 null 时扫描全部
+   */
+  private static int scanMaps(CommandContext<CommandSourceStack> context, boolean reset, String mapFilter) {
     try {
       CommandSourceStack source = context.getSource();
       ServerLevel serverWorld = source.getLevel();
@@ -128,6 +177,14 @@ public class SwitchMapCommand {
       ServerLevel serverLevel = context.getSource().getLevel();
       // 子文件夹里的地图也要扫描（id 形如 "文件夹名/地图配置名"）
       List<String> availableMaps = MapManager.getAvailableMaps(serverLevel, true);
+      if (mapFilter != null) {
+        String mapId = resolveMapId(availableMaps, mapFilter);
+        if (mapId == null) {
+          source.sendFailure(Component.translatable("commands.sre.switchmap.error.invalid_map", mapFilter));
+          return -1;
+        }
+        availableMaps = List.of(mapId);
+      }
       int idx = 0;
       final int total = availableMaps.size();
       final AreasWorldComponent areas = AreasWorldComponent.KEY.get(serverWorld);
@@ -138,7 +195,9 @@ public class SwitchMapCommand {
           if (MapManager.loadMap(serverWorld, mapName)) {
             playerList.broadcastSystemMessage(
                 Component.translatable(
-                    "Loading maps...\nNow: %s [%s / %s]",
+                    reset
+                        ? "Loading maps...\nNow: %s [%s / %s]\nReseting maps..."
+                        : "Loading maps...\nNow: %s [%s / %s]",
                     mapName,
                     now, total)
                     .withStyle(ChatFormatting.AQUA),
@@ -176,6 +235,12 @@ public class SwitchMapCommand {
                           .withStyle(ChatFormatting.GRAY),
                       false);
                 }));
+            if (reset) {
+              GameUtils.serverTaskQueue
+                  .addFirst(new ServerTaskInfoClasses.FullTrainResetTask(
+                      areas, serverWorld, null, 0,
+                      false));
+            }
           } else {
             playerList.broadcastSystemMessage(
                 Component.translatable(
@@ -189,18 +254,15 @@ public class SwitchMapCommand {
       }
       GameUtils.serverTaskQueue.add(new ServerTaskInfoClasses.SchedulerTask(10, () -> {
         playerList.broadcastSystemMessage(
-            Component.translatable("\n\nAll scan have finished!")
+            Component.translatable(reset
+                ? "\n\nAll scan and resets have finished!"
+                : "\n\nAll scan have finished!")
                 .withStyle(ChatFormatting.GREEN),
             false);
       }));
-      source.sendSuccess(() -> Component.literal("Successfully add scan tasks."), true);
-      // AreasWorldComponent areas = AreasWorldComponent.KEY.get(serverLevel);
-      // MapResetManager.scanArea(serverLevel, areas);
-      // MapResetManager.saveArea(serverLevel);
-      // context.getSource().sendSuccess(() -> Component.literal(
-      // "Scanned Successfully! Found " + GameUtils.resetPoints.size() + " blocks
-      // should be reseted!"),
-      // true);
+      source.sendSuccess(() -> Component.literal(reset
+          ? "Successfully add scan and reset tasks."
+          : "Successfully add scan tasks."), true);
     } catch (Exception e) {
       e.printStackTrace();
       context.getSource().sendSuccess(() -> Component.literal(
@@ -210,104 +272,21 @@ public class SwitchMapCommand {
     return 1;
   }
 
-  private static int executeScanWithReset(CommandContext<CommandSourceStack> context) {
+  private static CompletableFuture<Suggestions> suggestMapNames(
+      CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
     try {
-      CommandSourceStack source = context.getSource();
-      ServerLevel serverWorld = source.getLevel();
-      final PlayerList playerList = serverWorld.getServer().getPlayerList();
-      // 检查游戏是否正在运行
-      SREGameWorldComponent gameComponent = SREGameWorldComponent.KEY.get(serverWorld);
-      if (gameComponent.isRunning()) {
-        source.sendFailure(Component.translatable("commands.sre.switchmap.error.game_running"));
-        return -1;
+      String remaining = builder.getRemaining();
+      String prefix = (remaining.startsWith("\"") ? remaining.substring(1) : remaining)
+          .toLowerCase(Locale.ROOT);
+      for (String mapId : MapManager.getAvailableMaps(context.getSource().getLevel(), true)) {
+        if (mapId.toLowerCase(Locale.ROOT).startsWith(prefix)) {
+          // 含斜杠等字符的 ID 需要引号才能被指令解析
+          builder.suggest(MapLoadArgumentType.escapeIfRequired(mapId));
+        }
       }
-      ServerLevel serverLevel = context.getSource().getLevel();
-      // 子文件夹里的地图也要扫描（id 形如 "文件夹名/地图配置名"）
-      List<String> availableMaps = MapManager.getAvailableMaps(serverLevel, true);
-      int idx = 0;
-      final int total = availableMaps.size();
-      final AreasWorldComponent areas = AreasWorldComponent.KEY.get(serverWorld);
-      for (final String mapName : availableMaps) {
-        idx++;
-        final int now = idx;
-        GameUtils.serverTaskQueue.add(new ServerTaskInfoClasses.SchedulerTask(20, () -> {
-          if (MapManager.loadMap(serverWorld, mapName)) {
-            playerList.broadcastSystemMessage(
-                Component.translatable(
-                    "Loading maps...\nNow: %s [%s / %s]\nReseting maps...",
-                    mapName,
-                    now, total)
-                    .withStyle(ChatFormatting.AQUA),
-                false);
-            GameUtils.serverTaskQueue.addFirst(
-                new ServerTaskInfoClasses.SchedulerTask(20, () -> {
-                  playerList.broadcastSystemMessage(
-                      Component.translatable(
-                          "Scanning points...")
-                          .withStyle(ChatFormatting.YELLOW),
-                      false);
-                  MapResetManager.scanArea(serverWorld, areas);
-                  MapResetManager.saveArea(serverWorld);
-                  playerList.broadcastSystemMessage(
-                      Component
-                          .translatable(
-                              "Scanned and saved reset points for map %s ! Total %s blocks!",
-                              Component.nullToEmpty(
-                                  areas.mapName),
-                              GameUtils.resetPoints
-                                  .size())
-                          .withStyle(ChatFormatting.GRAY),
-                      false);
-                  MapScannerManager.scanAndSaveScannerArea(
-                      serverWorld, areas);
-                  HashMap<Integer, Boolean> map = new HashMap<>();
-                  for (Map.Entry<BlockPos, Integer> entry : GameUtils.taskBlocks
-                      .entrySet()) {
-                    map.putIfAbsent(entry.getValue(), true);
-                  }
-                  playerList.broadcastSystemMessage(
-                      Component.translatable(
-                          "Scanned Task points! Total %s types!",
-                          map.size())
-                          .withStyle(ChatFormatting.GRAY),
-                      false);
-                }));
-            GameUtils.serverTaskQueue
-                .addFirst(new ServerTaskInfoClasses.FullTrainResetTask(
-                    areas, serverWorld, null, 0,
-                    false));
-          } else {
-            playerList.broadcastSystemMessage(
-                Component.translatable(
-                    "Reseting and scaning map %s failed. [%s / %s]",
-                    mapName, now,
-                    total).withStyle(ChatFormatting.RED),
-                false);
-          }
-        }));
-
-      }
-      GameUtils.serverTaskQueue.add(new ServerTaskInfoClasses.SchedulerTask(10, () -> {
-        playerList.broadcastSystemMessage(
-            Component.translatable("\n\nAll scan and resets have finished!")
-                .withStyle(ChatFormatting.GREEN),
-            false);
-      }));
-      source.sendSuccess(() -> Component.literal("Successfully add scan and reset tasks."), true);
-      // AreasWorldComponent areas = AreasWorldComponent.KEY.get(serverLevel);
-      // MapResetManager.scanArea(serverLevel, areas);
-      // MapResetManager.saveArea(serverLevel);
-      // context.getSource().sendSuccess(() -> Component.literal(
-      // "Scanned Successfully! Found " + GameUtils.resetPoints.size() + " blocks
-      // should be reseted!"),
-      // true);
-    } catch (Exception e) {
-      e.printStackTrace();
-      context.getSource().sendSuccess(() -> Component.literal(
-          "Scanned Failed! " + e.getMessage()), true);
-      return 0;
+    } catch (Exception ignored) {
     }
-    return 1;
+    return builder.buildFuture();
   }
 
   private static int executeLoad(CommandSourceStack source, String mapName) {

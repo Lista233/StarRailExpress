@@ -531,6 +531,7 @@ public class NoellesrolesClient implements ClientModInitializer {
         CommonClientHudRenderer.registerRenderersEvent();
         WorldRenderEvents.AFTER_TRANSLUCENT.register((renderContext) -> {
             TaskBlockOverlayRenderer.render(renderContext);
+            io.wifi.starrailexpress.client.door.DoorHighlightClient.render(renderContext);
             TwoDimensionalTaskArrowRenderer.render(renderContext);
             PointerGuidanceRenderer.render(renderContext);
             org.agmas.noellesroles.gunfx.GunTracerRenderer.render(renderContext);
@@ -713,6 +714,10 @@ public class NoellesrolesClient implements ClientModInitializer {
                 }
             }
         });
+        ClientPlayNetworking.registerGlobalReceiver(
+                io.wifi.starrailexpress.network.packet.DoorHighlightS2CPacket.ID,
+                (payload, context) -> context.client().execute(
+                        () -> io.wifi.starrailexpress.client.door.DoorHighlightClient.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(EnableTaskHighlightPacket.ID, (payload, context) -> {
             final var client = context.client();
             client.execute(() -> {
@@ -1181,6 +1186,7 @@ public class NoellesrolesClient implements ClientModInitializer {
             // 加入游戏清空信息
             currentBroadcastMessage.clear();
             ClientVoteCache.clear();
+            io.wifi.starrailexpress.client.door.DoorHighlightClient.clear();
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((a, client) -> {
@@ -1198,6 +1204,7 @@ public class NoellesrolesClient implements ClientModInitializer {
             CustomRoleLoader.removeClientCache();
             io.wifi.starrailexpress.custommodifier.CustomModifierLoader.removeClientCache();
             org.agmas.noellesroles.client.sound.SpeakerClientSounds.clear();
+            io.wifi.starrailexpress.client.door.DoorHighlightClient.clear();
             // 在断开连接时，强制清理所有玩家的渲染缓存
 
         });

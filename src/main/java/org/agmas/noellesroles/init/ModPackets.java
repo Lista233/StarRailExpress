@@ -17,6 +17,7 @@ package org.agmas.noellesroles.init;
 
 import net.exmo.sre.repair.network.*;
 import io.wifi.starrailexpress.network.packet.EditNewspaperPacket;
+import io.wifi.starrailexpress.network.packet.DoorHighlightS2CPacket;
 import io.wifi.starrailexpress.network.packet.EnableTaskHighlightPacket;
 import io.wifi.starrailexpress.network.packet.ShowCustomNewspaperPacket;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -118,6 +119,7 @@ public class ModPackets {
         PayloadTypeRegistry.playS2C().register(CanMoveInTimeStopS2CPacket.ID, CanMoveInTimeStopS2CPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(ScanAllTaskPointsPayload.ID, ScanAllTaskPointsPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ScanAllTaskPointsPayload.ID, ScanAllTaskPointsPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(DoorHighlightS2CPacket.ID, DoorHighlightS2CPacket.CODEC);
 
         PayloadTypeRegistry.playS2C().register(OpenScreenPayload.ID, OpenScreenPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(LoanContractOpenS2CPacket.ID, LoanContractOpenS2CPacket.CODEC);

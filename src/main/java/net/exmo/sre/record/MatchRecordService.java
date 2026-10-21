@@ -170,7 +170,8 @@ public final class MatchRecordService {
      * <ul>
      * <li>1 误杀：好人侧（平民/义警）互杀；杀手侧（杀手/中立偏杀手）互杀；</li>
      * <li>2 正义击杀：好人侧击杀非好人（杀手/中立偏杀手/纯中立）；</li>
-     * <li>3 邪恶击杀：杀手侧击杀好人侧或纯中立；纯中立击杀任何阵营（含纯中立）；</li>
+     * <li>3 邪恶击杀：杀手侧击杀好人侧或纯中立；</li>
+     * <li>4 中立击杀：纯中立击杀任何阵营（含纯中立）；</li>
      * <li>0 未分类：非击杀事件、无击杀者（环境死亡等），或阵营信息缺失无法判定。</li>
      * </ul>
      */
@@ -190,20 +191,17 @@ public final class MatchRecordService {
         boolean killerSide = killerType == 3 || killerType == 4;
         boolean victimSide = victimType == 3 || victimType == 4;
 
-        if (killerGood && victimGood) {
-            return 1; // 好人侧互杀
-        }
-        if (killerSide && victimSide) {
-            return 1; // 杀手侧互杀（含中立偏杀手）
-        }
         if (killerGood) {
-            return 2; // 好人侧击杀非好人
+            // 好人侧互杀是误杀，击杀非好人算正义击杀
+            return victimGood ? 1 : 2;
         }
         if (killerSide) {
-            return 3; // 杀手侧击杀好人侧或纯中立
+            // 杀手/亲杀中立内讧算误杀，其余算邪恶击杀
+            return victimSide ? 1 : 3;
         }
         if (killerType == 2) {
-            return 3; // 纯中立击杀任何阵营（含纯中立）都算邪恶击杀
+            // 纯中立击杀（含中立互杀）单列一类
+            return 4;
         }
         return 0; // 未知阵营兜底
     }

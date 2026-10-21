@@ -127,10 +127,40 @@ public class TaskBlockOverlayRenderer {
             BlockPos blockPos, Color color, float alpha, boolean colorize, float textScale) {
         Minecraft client = Minecraft.getInstance();
         Level world = client.level;
-        if (world == null)
+        if (world == null || !isWithinRenderDistance(context, blockPos))
             return;
 
-        // 距离裁剪：太远的方块跳过，避免逐帧做 AABB 与顶点计算
+        BlockState state = world.getBlockState(blockPos);
+        AABB localAABB = getCombinedAABB(world, blockPos, state);
+        renderBlockOverlayInternal(context, blockPos, localAABB, color, alpha);
+    }
+
+    /**
+     * 带兜底 AABB 的重载：门所在区块未加载时仍能按固定外框绘制。
+     * fallbackAABB 的坐标相对于 blockPos。
+     */
+    public static void renderBlockOverlay(WorldRenderContext context,
+            BlockPos blockPos, AABB fallbackAABB, Color color, float alpha) {
+        renderBlockOverlay(context, blockPos, fallbackAABB, color, alpha, false);
+    }
+
+    /**
+     * ignoreDistance 为 true 时不按 128 格裁剪，用于指令圈选区域后的整片门高亮。
+     */
+    public static void renderBlockOverlay(WorldRenderContext context,
+            BlockPos blockPos, AABB fallbackAABB, Color color, float alpha, boolean ignoreDistance) {
+        Minecraft client = Minecraft.getInstance();
+        Level world = client.level;
+        if (world == null || (!ignoreDistance && !isWithinRenderDistance(context, blockPos)))
+            return;
+
+        AABB localAABB = world.isLoaded(blockPos)
+                ? getCombinedAABB(world, blockPos, world.getBlockState(blockPos))
+                : fallbackAABB;
+        renderBlockOverlayInternal(context, blockPos, localAABB, color, alpha);
+    }
+
+    private static boolean isWithinRenderDistance(WorldRenderContext context, BlockPos blockPos) {
         Vec3 cameraPos = context.camera().getPosition();
         double dx = blockPos.getX() + 0.5 - cameraPos.x;
         double dy = blockPos.getY() + 0.5 - cameraPos.y;
@@ -139,12 +169,12 @@ public class TaskBlockOverlayRenderer {
         if (SREClientConfig.instance().isUltraPerfMode()) {
             maxRenderDistance = MAX_OVERLAY_DISTANCE_ULTRA_SQ;
         }
-        if (dx * dx + dy * dy + dz * dz > maxRenderDistance) {
-            return;
-        }
+        return dx * dx + dy * dy + dz * dz <= maxRenderDistance;
+    }
 
-        BlockState state = world.getBlockState(blockPos);
-        AABB localAABB = getCombinedAABB(world, blockPos, state);
+    private static void renderBlockOverlayInternal(WorldRenderContext context,
+            BlockPos blockPos, AABB localAABB, Color color, float alpha) {
+        Vec3 cameraPos = context.camera().getPosition();
 
         PoseStack matrices = context.matrixStack();
         matrices.pushPose();
