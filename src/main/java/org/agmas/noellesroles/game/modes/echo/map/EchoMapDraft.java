@@ -41,15 +41,23 @@ public final class EchoMapDraft {
         var next=new JsonObject(); next.addProperty("id",id); array.add(next); return next;
     }
     private static void putSpawn(JsonObject tree,String field,String id,JsonObject value) {
-        int index;
-        try { index=Integer.parseInt(id); } catch(NumberFormatException invalid) { throw new IllegalArgumentException("出生点id必须是0起的连续下标"); }
         var array=tree.getAsJsonArray(field);
-        if(index<0 || index>array.size() || index>=128) throw new IllegalArgumentException("出生点下标越界；新点使用当前数组长度");
+        int index;
+        if(id==null || id.isBlank()) {
+            // 留空 = 追加到队尾（界面提示「下一个下标」就是当前长度）
+            index=array.size();
+        } else {
+            try { index=Integer.parseInt(id.trim()); } catch(NumberFormatException invalid) { throw new IllegalArgumentException("出生点id必须是0起的连续下标"); }
+        }
+        if(index<0 || index>array.size() || index>=128)
+            throw new IllegalArgumentException("出生点下标越界：当前已有"+array.size()+"个，新点请填"+array.size()+"或留空追加");
         if(index==array.size()) array.add(value); else array.set(index,value);
     }
     public void mark(String kind,String id,EchoMapConfig.Vec point,float yaw,float pitch,int minPlayers) throws IOException {
         if(!KINDS.contains(kind)) throw new IllegalArgumentException("未知点位kind: "+kind);
-        id(id); if(minPlayers<6 || minPlayers>12) throw new IllegalArgumentException("minPlayers必须为6–12");
+        if(minPlayers<6 || minPlayers>12) throw new IllegalArgumentException("minPlayers必须为6–12");
+        // 出生点允许留空（自动追加）；其余类型必须给 id
+        if(!kind.endsWith("_spawn")) id(id);
         update(tree -> {
             JsonObject gate=tree.getAsJsonObject("coreGate"),evacuation=tree.getAsJsonObject("evacuation");
             switch(kind) {
@@ -175,10 +183,10 @@ public final class EchoMapDraft {
     }
 
     /**
-     * 就地修改点位的 id / 人数档（坐标不动）：出生点与单例类型不支持改名（重新标记即覆盖）；
-     * 人数档只对信标 / 晶簇 / 物资箱有效。newId 为空表示不改，minPlayers 为 null 表示不改。
+     * 就地修改点位：id / 人数档 / 坐标都可以改（{@code move} 为模板坐标，null 表示不改）。
+     * 出生点不能改名（id 是下标）；人数档只对信标 / 晶簇 / 物资箱有效。
      */
-    public void meta(String kind,String oldId,String newId,Integer minPlayers) throws IOException {
+    public void meta(String kind,String oldId,String newId,Integer minPlayers,EchoMapConfig.Vec move) throws IOException {
         if(!KINDS.contains(kind)) throw new IllegalArgumentException("未知点位kind: "+kind);
         id(oldId);
         String target=newId==null||newId.isBlank()?oldId:newId.trim();
@@ -189,13 +197,31 @@ public final class EchoMapDraft {
             if(minPlayers!=null) throw new IllegalArgumentException("出生点没有人数档");
         }
         update(tree -> {
-            JsonObject gate=tree.getAsJsonObject("coreGate");
+            JsonObject gate=tree.getAsJsonObject("coreGate"),evacuation=tree.getAsJsonObject("evacuation");
             switch(kind) {
-                case "free_control" -> gate.getAsJsonObject("freeExit").addProperty("id",target);
-                case "broker_exit" -> tree.getAsJsonObject("brokerExit").addProperty("id",target);
-                case "carrier_spawn","interceptor_spawn","broker_spawn","spectator","free_safe",
-                     "evacuation_control","evacuation_safe","drop_anchor" ->
-                        throw new IllegalArgumentException("该类型没有可改的id/人数档；重新标记即可覆盖坐标");
+                case "free_control" -> {
+                    var free=gate.getAsJsonObject("freeExit");
+                    free.addProperty("id",target);
+                    if(move!=null) setPos(free.getAsJsonObject("controlPos"),move);
+                }
+                case "broker_exit" -> {
+                    var e=tree.getAsJsonObject("brokerExit");
+                    e.addProperty("id",target);
+                    if(move!=null) setPos(e.getAsJsonObject("pos"),move);
+                }
+                case "spectator" -> { if(move!=null) setPos(tree.getAsJsonObject("spectatorPos"),move); }
+                case "free_safe" -> { if(move!=null) setPos(gate.getAsJsonObject("freeExit").getAsJsonObject("outsideSafe"),move); }
+                case "evacuation_control" -> { if(move!=null) setPos(evacuation.getAsJsonObject("controlPos"),move); }
+                case "evacuation_safe" -> { if(move!=null) setPos(evacuation.getAsJsonObject("outsideSafe"),move); }
+                case "drop_anchor" -> { if(move!=null) setPos(evacuation.getAsJsonObject("exitDropAnchor"),move); }
+                case "carrier_spawn","interceptor_spawn","broker_spawn" -> {
+                    if(move==null) throw new IllegalArgumentException("出生点只能改坐标：请填写X/Y/Z");
+                    var array=tree.getAsJsonArray(fieldOf(kind));
+                    int index=Integer.parseInt(oldId);
+                    if(index<0 || index>=array.size()) throw new IllegalArgumentException("不存在该出生点");
+                    var element=array.get(index).getAsJsonObject();
+                    array.set(index,spawn(move,element.get("yaw").getAsFloat(),element.get("pitch").getAsFloat()));
+                }
                 default -> {
                     String field=fieldOf(kind);
                     var array=field.equals("doors")?gate.getAsJsonArray(field):tree.getAsJsonArray(field);
@@ -212,8 +238,14 @@ public final class EchoMapDraft {
                         if(minPlayers<6 || minPlayers>12) throw new IllegalArgumentException("minPlayers必须为6–12");
                         found.addProperty("minPlayers",minPlayers);
                     }
+                    if(move!=null) setPos(found.has("controlPos")?found.getAsJsonObject("controlPos"):found.getAsJsonObject("pos"),move);
                 }
             }
         });
+    }
+
+    /** 只改坐标三兄弟，保留同一对象里的 yaw/pitch 等字段。 */
+    private static void setPos(JsonObject target,EchoMapConfig.Vec p) {
+        target.addProperty("x",p.x()); target.addProperty("y",p.y()); target.addProperty("z",p.z());
     }
 }

@@ -515,6 +515,7 @@
   "echo.editor.button.save_confirm": "Confirm Overwrite",
   "echo.editor.hint.map_id": "Map id (blank auto-names it, e.g. echo_map)",
   "echo.editor.hint.id": "Point id (lowercase letters/digits/_-)",
+  "echo.editor.hint.spawn_index": "Spawn index (blank = append #%s)",
   "echo.editor.hint.volume_id": "Gate id (same as its core_control)",
   "echo.editor.hint.min": "players",
   "echo.editor.hint.corner": "x y z (integer block coords)",

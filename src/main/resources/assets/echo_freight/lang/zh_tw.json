@@ -515,6 +515,7 @@
   "echo.editor.button.save_confirm": "確認覆蓋",
   "echo.editor.hint.map_id": "地圖ID（留空自動取名，如 echo_map）",
   "echo.editor.hint.id": "點位ID（小寫字母/數字/_-）",
+  "echo.editor.hint.spawn_index": "出生點下標（留空=追加第 %s 個）",
   "echo.editor.hint.volume_id": "門體ID（與core_control同id）",
   "echo.editor.hint.min": "人數",
   "echo.editor.hint.corner": "x y z（整數方塊座標）",

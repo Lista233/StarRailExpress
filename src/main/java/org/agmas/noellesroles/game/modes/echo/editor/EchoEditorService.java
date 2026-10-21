@@ -236,11 +236,12 @@ public final class EchoEditorService {
                 Integer.toString(session.state.draft().points(kind).size()));
     }
 
-    /** 就地改点位的 id / 人数档：{@code spec} 形如 "newId|minPlayers"，任一侧留空表示不改（坐标不变）。 */
+    /** 就地改点位：{@code spec} 形如 "newId|minPlayers|x y z"（世界坐标，允许小数），任一部分留空表示不改。 */
     private static Msg pointMeta(ServerPlayer player, String kind, String oldId, String spec) throws IOException {
         EchoMapEditState state = edit(player);
         String newId = null;
         Integer players = null;
+        String coords = null;
         if (spec != null && !spec.isBlank()) {
             String[] parts = spec.split("\\|", -1);
             if (parts.length > 0 && !parts[0].isBlank()) newId = parts[0].trim();
@@ -248,10 +249,25 @@ public final class EchoEditorService {
                 try { players = Integer.parseInt(parts[1].trim()); }
                 catch (NumberFormatException invalid) { throw new IOException("人数档必须是6–12的整数"); }
             }
+            if (parts.length > 2 && !parts[2].isBlank()) coords = parts[2].trim();
         }
+        // 输入框里编辑的是世界坐标：与「取自准星」走同一条模板换算，不会二次平移
+        EchoMapConfig.Vec move = coords == null ? null : state.template(parsePoint(coords));
         String target = newId == null ? oldId : newId;
-        state.draft().meta(kind, oldId, target, players);
+        state.draft().meta(kind, oldId, target, players, move);
         return Msg.of("echo.editor.msg.changed", kind, target, Long.toString(state.draft().revision()));
+    }
+
+    /** 解析点位坐标 "x y z"（空格/逗号分隔，允许小数：出生点是精确落点）。 */
+    private static EchoMapConfig.Vec parsePoint(String coords) throws IOException {
+        if (coords == null || coords.isBlank()) throw new IOException("坐标不能为空，格式：x y z");
+        String[] parts = coords.trim().split("[\\s,]+");
+        if (parts.length != 3) throw new IOException("坐标需要三个数（x y z）");
+        try {
+            return new EchoMapConfig.Vec(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));
+        } catch (NumberFormatException invalid) {
+            throw new IOException("坐标必须是数字，格式：x y z");
+        }
     }
 
     private static Msg validate(ServerPlayer player) throws IOException {
@@ -336,7 +352,9 @@ public final class EchoEditorService {
                 var ids = new ArrayList<String>();
                 for (var point : state.draft().points(session.kind)) {
                     if (entries.size() >= EchoEditorStatePayload.MAX_ENTRIES) break;
-                    entries.add(new EchoEditorStatePayload.Entry(point.id(), point.players(), point.x(), point.y(), point.z()));
+                    // 回显世界坐标（模板+偏移）：输入框里编辑的就是世界坐标，应用时再走同一条换算
+                    entries.add(new EchoEditorStatePayload.Entry(point.id(), point.players(),
+                            point.x() + offset.x(), point.y() + offset.y(), point.z() + offset.z()));
                     if (ids.size() < EchoEditorStatePayload.MAX_IDS) ids.add(point.id());
                 }
                 detail = new EchoEditorStatePayload.Section(session.kind, entries.size(), ids, entries);
