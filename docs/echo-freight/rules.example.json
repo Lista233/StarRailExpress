@@ -1,0 +1,129 @@
+{
+  "logistics": {
+    "capacity": 2,
+    "cargoPenalty": 0.1,
+    "collectSeconds": 4,
+    "nodeRecoverySeconds": 2E+1,
+    "submitSeconds": 1,
+    "altarSeconds": 1,
+    "keySupplySeconds": 6E+1,
+    "crateSearchSeconds": 2,
+    "blackMarketSearchSeconds": 3,
+    "crateRecoverySeconds": 9E+1,
+    "crystalGroundSeconds": 6E+1,
+    "keyGroundSeconds": 45,
+    "resourceGroundSeconds": 1.2E+2,
+    "blackCollectSeconds": 4,
+    "blackDeliverSeconds": 2,
+    "blackRecoverySeconds": 6E+1,
+    "blackGroundSeconds": 3E+1,
+    "bonusPackChance": 0.1
+  },
+  "beacon": {
+    "requiredCrystals": 3,
+    "chargeSeconds": 6E+1,
+    "escortBonus": 0.2,
+    "maxEscorts": 3,
+    "escortRange": 6,
+    "pollutionChannelSeconds": 4,
+    "fastPollutionSeconds": 2,
+    "pollutionLockSeconds": 2E+1,
+    "pollutionIntervalSeconds": 45,
+    "rollback": 0.2,
+    "strongRollback": 0.4,
+    "pulsePauseSeconds": 5
+  },
+  "gate": {
+    "coreOpenSeconds": 15,
+    "wedgeExtraSeconds": 5,
+    "wedgeMaxSeconds": 25,
+    "masterOpenSeconds": 2E+1,
+    "evacuationDwellSeconds": 2,
+    "overloadSeconds": 3E+1,
+    "overloadRange": 12
+  },
+  "combat": {
+    "cutterChargeSeconds": 0.6,
+    "cutterCooldownSeconds": 2.5,
+    "cutterRange": 2.75,
+    "shoveCooldownSeconds": 25,
+    "shoveControlSeconds": 1.25,
+    "controlImmunitySeconds": 8,
+    "bleedSeconds": 45,
+    "rescueSeconds": 5,
+    "rescueProtectionSeconds": 6,
+    "environmentControlSeconds": 3,
+    "environmentProtectionSeconds": 1E+1,
+    "rescueRange": 2.5,
+    "shoveRange": 2.5
+  },
+  "draft": {
+    "channelSeconds": 1.5,
+    "cancelCooldownSeconds": 1E+1,
+    "choiceSeconds": 2E+1,
+    "openingSpeed": 0.5,
+    "common": {
+      "common": 0.85,
+      "rare": 0.15,
+      "epic": 0
+    },
+    "rareFirst": {
+      "common": 0,
+      "rare": 1,
+      "epic": 0
+    },
+    "rareOther": {
+      "common": 0.7,
+      "rare": 0.3,
+      "epic": 0
+    },
+    "blackFirst": {
+      "common": 0,
+      "rare": 0.7,
+      "epic": 0.3
+    },
+    "blackOther": {
+      "common": 0.5,
+      "rare": 0.4,
+      "epic": 0.1
+    }
+  },
+  "signals": {
+    "cargoIntervalSeconds": 2E+1,
+    "keyIntervalSeconds": 15,
+    "directionRange": 48,
+    "packSoundRange": 16
+  },
+  "trade": {
+    "range": 3,
+    "offerSeconds": 2E+1,
+    "proposalCooldownSeconds": 15
+  },
+  "cards": {},
+  "specialization": {
+    "porter": {
+      "cargoCapacityBonus": 1,
+      "cargoPenaltyDelta": -0.03
+    },
+    "scout": {
+      "cargoCapacityBonus": -1,
+      "collectSpeed": 0.8
+    },
+    "hunter": {
+      "cutterChargeSpeed": 0.85,
+      "cutterCooldownSpeed": 0.9
+    },
+    "saboteur": {
+      "pollutionSpeed": 0.75,
+      "cutterCooldownSpeed": 1.2
+    },
+    "smuggler": {
+      "blackCollectSpeed": 0.8
+    },
+    "fixer": {
+      "tradeRangeBonus": 2,
+      "proposalCooldownSpeed": 0.6
+    }
+  },
+  "schemaVersion": 1
+}
