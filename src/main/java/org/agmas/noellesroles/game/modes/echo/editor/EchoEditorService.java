@@ -88,7 +88,7 @@ public final class EchoEditorService {
             if (player == null || !player.hasPermissions(2) || player.serverLevel() != session.level()) return true;
             try {
                 idle(session.level());
-                return !session.state().valid(context(session.level()), tick);
+                return !session.state().valid(context(session.level(), session.state().context().mapId()), tick);
             } catch (IOException | IllegalArgumentException invalid) {
                 return true;
             }
@@ -110,14 +110,13 @@ public final class EchoEditorService {
         ServerLevel level = player.serverLevel();
         idle(level);
         var areas = AreasWorldComponent.KEY.get(level);
-        EchoMapEditState.Context context = context(level);
-        String mapId = requested == null || requested.isBlank() ? context.mapId() : requested.trim();
+        // 不给 mapId 时用当前生效地图（switchmap 绑定或 Areas 同名）；允许编辑任意侧文件。
+        String mapId = requested == null || requested.isBlank() ? effectiveMapId(level) : requested.trim();
         EchoMapRepository.requireMapId(mapId);
-        if (!mapId.equals(context.mapId())) throw new IOException("编辑mapId必须与当前Areas地图一致");
         if (SESSIONS.containsKey(player.getUUID())) throw new IOException("已有草稿，请先保存或取消；不会自动覆盖内存编辑");
         if (SESSIONS.size() >= MAX_SESSIONS) throw new IOException("全服编辑会话已达上限");
         var draft = fresh ? EchoMapDraft.empty(mapId) : new EchoMapDraft(EchoMapRepository.load(world(level), mapId));
-        SESSIONS.put(player.getUUID(), new Session(level, new EchoMapEditState(context, draft, tick)));
+        SESSIONS.put(player.getUUID(), new Session(level, new EchoMapEditState(context(level, mapId), draft, tick)));
         return Msg.of(fresh ? "echo.editor.msg.new" : "echo.editor.msg.edit", mapId,
                 areas.mapName == null ? "" : areas.mapName);
     }
@@ -273,26 +272,43 @@ public final class EchoEditorService {
             throw new IOException("仅允许在非对局、非准备阶段使用地图工具");
     }
 
-    private static EchoMapEditState.Context context(ServerLevel level) throws IOException {
+    private static Path world(ServerLevel level) { return level.getServer().getWorldPath(LevelResource.ROOT); }
+
+    private static EchoMapEditState.Context context(ServerLevel level, String mapId) throws IOException {
+        requireAreasMap(level);
+        try {
+            EchoMapRepository.requireMapId(mapId);
+        } catch (IOException invalid) {
+            throw new IOException("非法的回声地图ID: " + mapId);
+        }
+        return new EchoMapEditState.Context(level.dimension().location().toString(), mapId,
+                EchoPreflight.offset(AreasWorldComponent.KEY.get(level)));
+    }
+
+    /** 当前生效的回声地图：switchmap 绑定优先，没有绑定按 Areas 地图名。 */
+    private static String effectiveMapId(ServerLevel level) throws IOException {
+        requireAreasMap(level);
+        String mapId = EchoActiveMap.effective(world(level), AreasWorldComponent.KEY.get(level).mapName);
+        try {
+            EchoMapRepository.requireMapId(mapId);
+        } catch (IOException invalid) {
+            throw new IOException("当前回声地图名不是合法mapId: " + mapId);
+        }
+        return mapId;
+    }
+
+    private static void requireAreasMap(ServerLevel level) throws IOException {
         var areas = AreasWorldComponent.KEY.get(level);
         if (areas.mapName == null || areas.mapName.isBlank())
             throw new IOException("请先用现有Areas工具加载实战地图（当前未选择地图）");
-        try {
-            EchoMapRepository.requireMapId(areas.mapName);
-        } catch (IOException invalid) {
-            throw new IOException("当前Areas地图名不是合法mapId: " + areas.mapName);
-        }
-        return new EchoMapEditState.Context(level.dimension().location().toString(), areas.mapName,
-                EchoPreflight.offset(areas));
     }
-
-    private static Path world(ServerLevel level) { return level.getServer().getWorldPath(LevelResource.ROOT); }
 
     private static EchoMapEditState edit(ServerPlayer player) throws IOException {
         idle(player.serverLevel());
         Session session = SESSIONS.get(player.getUUID());
         if (session == null) throw new IOException("没有编辑会话；先在界面里新建或读取草稿");
-        if (session.level() != player.serverLevel() || !session.state().valid(context(player.serverLevel()), tick)) {
+        // 会话维度/偏移用草稿自己的 mapId 比对：切换绑定不应误杀在途编辑。
+        if (session.level() != player.serverLevel() || !session.state().valid(context(player.serverLevel(), session.state().context().mapId()), tick)) {
             SESSIONS.remove(player.getUUID());
             throw new IOException("编辑会话因切图、平移变化或超时失效");
         }

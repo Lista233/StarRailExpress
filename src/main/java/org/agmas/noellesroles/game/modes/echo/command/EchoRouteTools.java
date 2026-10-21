@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.storage.LevelResource;
 import org.agmas.noellesroles.game.modes.echo.map.*;
 import org.agmas.noellesroles.game.modes.echo.runtime.EchoPreflight;
 import java.io.IOException;
@@ -18,9 +19,12 @@ public final class EchoRouteTools {
     private static final Map<UUID,Job> JOBS=new LinkedHashMap<>();
     private static long tick,rotation;
     private EchoRouteTools() { }
-    private static EchoMapEditState.Context context(ServerLevel level) {
+    private static EchoMapEditState.Context context(ServerLevel level) throws IOException {
         var areas=AreasWorldComponent.KEY.get(level);
-        return new EchoMapEditState.Context(level.dimension().location().toString(),areas.mapName,EchoPreflight.offset(areas));
+        if(areas.mapName==null||areas.mapName.isBlank()) throw new IOException("请先用现有Areas工具加载实战地图（当前未选择地图）");
+        // 与开局预检一致：绑定优先，没有绑定按 Areas 地图名；绑定变化会让在途任务失效。
+        String mapId=EchoActiveMap.effective(level.getServer().getWorldPath(LevelResource.ROOT),areas.mapName);
+        return new EchoMapEditState.Context(level.dimension().location().toString(),mapId,EchoPreflight.offset(areas));
     }
     public static int start(CommandSourceStack source,String id) throws IOException {
         EchoMapTools.heavy(source);

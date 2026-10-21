@@ -35,9 +35,11 @@ public final class EchoRouteAdmission {
         var game=SREGameWorldComponent.KEY.get(level);
         return game.getGameStatus()==SREGameWorldComponent.GameStatus.STARTING && game.getGameMode().identifier.equals(EchoBootstrap.ID);
     }
-    private static Context context(ServerLevel level,Set<UUID> roster) {
+    private static Context context(ServerLevel level,Set<UUID> roster) throws IOException {
         var areas=AreasWorldComponent.KEY.get(level); var a=areas.getPlayArea(); var border=level.getWorldBorder();
-        return new Context(areas.mapName,EchoPreflight.offset(areas),new EchoMapConfig.Box(a.minX,a.minY,a.minZ,a.maxX,a.maxY,a.maxZ),areas.areasSettings.canJump,
+        // 与开局预检同一套生效地图：绑定优先，没有绑定按 Areas 地图名。
+        String mapId=EchoActiveMap.effective(level.getServer().getWorldPath(LevelResource.ROOT),areas.mapName);
+        return new Context(mapId,EchoPreflight.offset(areas),new EchoMapConfig.Box(a.minX,a.minY,a.minZ,a.maxX,a.maxY,a.maxZ),areas.areasSettings.canJump,
                 border.getMinX(),border.getMaxX(),border.getMinZ(),border.getMaxZ(),roster);
     }
     private static String files(ServerLevel level,String mapId) throws IOException {

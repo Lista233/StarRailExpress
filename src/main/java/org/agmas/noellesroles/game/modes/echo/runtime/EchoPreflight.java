@@ -6,6 +6,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.LevelResource;
 import org.agmas.noellesroles.Noellesroles;
+import org.agmas.noellesroles.game.modes.echo.map.EchoActiveMap;
 import org.agmas.noellesroles.game.modes.echo.map.EchoMapConfig;
 import org.agmas.noellesroles.game.modes.echo.map.EchoMapGate;
 import org.agmas.noellesroles.game.modes.echo.map.EchoMapRepository;
@@ -59,9 +60,12 @@ public final class EchoPreflight {
             errors.add(Component.translatable("echo.error.map_settings"));
         }
         try {
-            var rules=org.agmas.noellesroles.game.modes.echo.rules.EchoRuleRepository.load(level.getServer().getWorldPath(LevelResource.ROOT));
-            EchoMapConfig source = override!=null?override:EchoMapRepository.load(level.getServer().getWorldPath(LevelResource.ROOT), areas.mapName);
-            if(!source.mapId().equals(areas.mapName) || !source.coordinateSpace().equals("template")) throw new IOException("侧文件必须对应当前Areas地图并使用模板坐标");
+            var worldRoot=level.getServer().getWorldPath(LevelResource.ROOT);
+            var rules=org.agmas.noellesroles.game.modes.echo.rules.EchoRuleRepository.load(worldRoot);
+            // 生效地图：switchmap 绑定优先，没有绑定才按 Areas 地图名自动匹配侧文件。
+            String mapId=override!=null?override.mapId():EchoActiveMap.effective(worldRoot,areas.mapName);
+            EchoMapConfig source = override!=null?override:EchoMapRepository.load(worldRoot, mapId);
+            if(!source.mapId().equals(mapId) || !source.coordinateSpace().equals("template")) throw new IOException("侧文件必须对应当前回声地图并使用模板坐标");
             List<String> structural = EchoMapValidator.validate(source, playerCount);
             for (String issue : structural) errors.add(Component.translatable("echo.error.map_detail", issue));
             if(!structural.isEmpty()) return new Check(null,errors);
@@ -80,7 +84,7 @@ public final class EchoPreflight {
             }
             validateObjectives(level,areas,map,playerCount,errors);
             if(org.agmas.noellesroles.game.modes.echo.objective.EchoGateJournal.pending(
-                    level.getServer().getWorldPath(LevelResource.ROOT),level.dimension().location().toString(),areas.mapName)) {
+                    worldRoot,level.dimension().location().toString(),mapId)) {
                 errors.add(Component.translatable("echo.error.recovery_pending"));
             }
             return new Check(errors.isEmpty() ? new Prepared(map,profile,rules) : null, errors);

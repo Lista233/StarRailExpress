@@ -15,11 +15,13 @@ public final class EchoCommand {
 
     public static void register() {
         EchoMapCommand.initialize();
+        EchoSwitchMapCommand.initialize();
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("sre:echo").requires(source -> source.hasPermission(2))
                         .then(Commands.literal("status").executes(ctx -> status(ctx.getSource())))
                         .then(Commands.literal("abort").executes(ctx -> finish(ctx.getSource(), EchoResultSnapshot.Outcome.VOID)))
                         .then(EchoMapCommand.tree())
+                        .then(EchoSwitchMapCommand.tree())
                         .then(Commands.literal("reload").executes(ctx -> EchoMapTools.reload(ctx.getSource())))
                         .then(Commands.literal("debug").requires(source -> Boolean.getBoolean("sre.echo.development"))
                                 .then(Commands.literal("evacuation").executes(ctx -> evacuation(ctx.getSource())))

@@ -39,18 +39,32 @@ public final class EchoMapTools {
     private static void idle(ServerLevel level) throws IOException {
         if(SREGameWorldComponent.KEY.get(level).getGameStatus()!=SREGameWorldComponent.GameStatus.INACTIVE) throw new IOException("仅允许在非对局、非准备阶段使用地图工具");
     }
-    private static EchoMapEditState.Context context(ServerLevel level) throws IOException {
+    private static EchoMapEditState.Context context(ServerLevel level,String mapId) throws IOException {
+        requireAreasMap(level);
+        try { EchoMapRepository.requireMapId(mapId); }
+        catch(IOException invalid) { throw new IOException("非法的回声地图ID: "+mapId); }
+        return new EchoMapEditState.Context(level.dimension().location().toString(),mapId,EchoPreflight.offset(AreasWorldComponent.KEY.get(level)));
+    }
+
+    /** 当前生效的回声地图：switchmap 绑定优先，没有绑定按 Areas 地图名。 */
+    private static String effectiveMapId(ServerLevel level) throws IOException {
+        requireAreasMap(level);
+        String mapId=EchoActiveMap.effective(world(level),AreasWorldComponent.KEY.get(level).mapName);
+        try { EchoMapRepository.requireMapId(mapId); }
+        catch(IOException invalid) { throw new IOException("当前回声地图名不是合法mapId: "+mapId); }
+        return mapId;
+    }
+
+    private static void requireAreasMap(ServerLevel level) throws IOException {
         var areas=AreasWorldComponent.KEY.get(level);
         if(areas.mapName==null || areas.mapName.isBlank()) throw new IOException("请先用现有Areas工具加载实战地图（当前未选择地图）");
-        try { EchoMapRepository.requireMapId(areas.mapName); }
-        catch(IOException invalid) { throw new IOException("当前Areas地图名不是合法mapId: "+areas.mapName); }
-        return new EchoMapEditState.Context(level.dimension().location().toString(),areas.mapName,EchoPreflight.offset(areas));
     }
     private static Path world(ServerLevel level) { return level.getServer().getWorldPath(LevelResource.ROOT); }
     private static EchoMapEditState edit(CommandSourceStack source) throws IOException {
         var p=player(source); idle(p.serverLevel()); var s=SESSIONS.get(p.getUUID());
         if(s==null) throw new IOException("没有编辑会话；先执行 map new 或 map edit");
-        if(s.level()!=p.serverLevel() || !s.state().valid(context(p.serverLevel()),tick)) {
+        // 会话维度/偏移用草稿自己的 mapId 比对：切换绑定不应误杀在途编辑。
+        if(s.level()!=p.serverLevel() || !s.state().valid(context(p.serverLevel(),s.state().context().mapId()),tick)) {
             SESSIONS.remove(p.getUUID()); throw new IOException("编辑会话因切图、偏移变化或超时失效");
         }
         s.state().touch(tick); return s.state();
@@ -61,14 +75,16 @@ public final class EchoMapTools {
         HEAVY.put(p.getUUID(),tick);
     }
     public static int begin(CommandSourceStack source,String id,boolean fresh) throws IOException {
-        var p=player(source); idle(p.serverLevel()); var context=context(p.serverLevel());
-        EchoMapRepository.requireMapId(id);
-        if(!id.equals(context.mapId())) throw new IOException("请先用现有Areas工具切换到同mapId的实战地图");
+        var p=player(source); idle(p.serverLevel()); EchoMapRepository.requireMapId(id);
+        var context=context(p.serverLevel(),id);
         if(SESSIONS.containsKey(p.getUUID())) throw new IOException("已有草稿，请先保存或 map cancel；不会自动覆盖内存编辑");
         if(SESSIONS.size()>=16) throw new IOException("全服编辑会话已达16个");
         var draft=fresh?EchoMapDraft.empty(id):new EchoMapDraft(EchoMapRepository.load(world(p.serverLevel()),id));
         SESSIONS.put(p.getUUID(),new Session(p.serverLevel(),new EchoMapEditState(context,draft,tick)));
-        source.sendSuccess(() -> Component.translatable("echo.map.editing",id,fresh?"new":"edit"),false); return 1;
+        source.sendSuccess(() -> Component.translatable("echo.map.editing",id,fresh?"new":"edit"),false);
+        if(!id.equals(AreasWorldComponent.KEY.get(p.serverLevel()).mapName))
+            source.sendSuccess(() -> Component.translatable("echo.switchmap.load.template_warning",id,AreasWorldComponent.KEY.get(p.serverLevel()).mapName),false);
+        return 1;
     }
     public static int cancel(CommandSourceStack source) throws IOException {
         SESSIONS.remove(player(source).getUUID()); source.sendSuccess(() -> Component.translatable("echo.map.cancelled"),false); return 1;
@@ -112,16 +128,21 @@ public final class EchoMapTools {
         source.sendSuccess(() -> Component.translatable("echo.map.list",field,ids.size(),String.join(", ",ids.stream().limit(24).toList())+(ids.size()>24?" …":"")),false);
     }
     public static EchoMapConfig selected(CommandSourceStack source,String id) throws IOException {
-        idle(source.getLevel()); var context=context(source.getLevel());
+        idle(source.getLevel());
         if(id==null && source.getEntity() instanceof ServerPlayer p && SESSIONS.containsKey(p.getUUID())) return edit(source).draft().snapshot();
-        String selected=id==null?context.mapId():id; EchoMapRepository.requireMapId(selected);
-        if(!selected.equals(context.mapId())) throw new IOException("实际世界检查/预览只允许当前Areas地图");
+        // 世界检查按偏移平移，与侧文件名解耦；不给 id 时用当前生效（绑定或 Areas 同名）地图。
+        String selected=id==null?effectiveMapId(source.getLevel()):id; EchoMapRepository.requireMapId(selected);
         return EchoMapRepository.load(world(source.getLevel()),selected);
     }
-    public static boolean validateWorld(CommandSourceStack source,EchoMapConfig map) {
+    public static boolean validateWorld(CommandSourceStack source,EchoMapConfig map) { return validateWorld(source,map,false); }
+    /** quiet 用于 random 之类的静默重试：失败只返回值，不刷屏。 */
+    public static boolean validateWorld(CommandSourceStack source,EchoMapConfig map,boolean quiet) {
         for(int count=6;count<=12;count++) {
             var check=EchoPreflight.check(source.getLevel(),count,false,map);
-            if(!check.valid()) { check.errors().stream().limit(12).forEach(source::sendFailure); return false; }
+            if(!check.valid()) {
+                if(!quiet) check.errors().stream().limit(12).forEach(source::sendFailure);
+                return false;
+            }
         }
         return true;
     }
@@ -177,7 +198,7 @@ public final class EchoMapTools {
         SESSIONS.entrySet().removeIf(entry -> {
             var p=server.getPlayerList().getPlayer(entry.getKey()); var session=entry.getValue();
             if(p==null || !p.hasPermissions(2) || p.serverLevel()!=session.level()) return true;
-            try { idle(session.level()); return !session.state().valid(context(session.level()),tick); }
+            try { idle(session.level()); return !session.state().valid(context(session.level(),session.state().context().mapId()),tick); }
             catch(IOException | IllegalArgumentException invalid) { return true; }
         });
         HEAVY.entrySet().removeIf(e -> tick-e.getValue()>1200);
