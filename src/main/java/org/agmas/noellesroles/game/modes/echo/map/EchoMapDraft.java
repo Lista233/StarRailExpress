@@ -112,4 +112,108 @@ public final class EchoMapDraft {
             if(!found) throw new IllegalArgumentException("不存在该点位");
         });
     }
+
+    // ==================== 点位查询与就地修改（编辑器列表用） ====================
+
+    /** 一个点位的摘要（模板坐标）：id / 人数档（0 = 该类型没有人数档）/ 坐标。 */
+    public record PointInfo(String id,int players,double x,double y,double z) { }
+
+    private static String fieldOf(String kind) {
+        return switch(kind) {
+            case "beacon_open","beacon_core" -> "beacons"; case "crystal" -> "crystalNodes"; case "altar" -> "altars";
+            case "supply","black_market" -> "supplyCrates"; case "black_node" -> "blackCrystalNodes"; case "black_dropoff" -> "blackDropoffs";
+            case "core_control" -> "doors";
+            case "carrier_spawn" -> "carrierSpawns"; case "interceptor_spawn" -> "interceptorSpawns"; case "broker_spawn" -> "brokerSpawns";
+            default -> throw new IllegalArgumentException("未知点位kind");
+        };
+    }
+
+    /** 该 kind 是否带人数档（minPlayers）：信标 / 晶簇 / 物资箱（含黑市箱）。 */
+    private static boolean hasPlayers(String kind) {
+        return kind.startsWith("beacon_") || kind.equals("crystal") || kind.equals("supply") || kind.equals("black_market");
+    }
+
+    /** 某 kind 的全部点位（模板坐标，文件顺序）；单例类型最多一条。 */
+    public List<PointInfo> points(String kind) {
+        if(!KINDS.contains(kind)) throw new IllegalArgumentException("未知点位kind: "+kind);
+        var out=new ArrayList<PointInfo>();
+        var gate=root.getAsJsonObject("coreGate"); var evacuation=root.getAsJsonObject("evacuation");
+        switch(kind) {
+            case "carrier_spawn" -> spawns(out,root.getAsJsonArray("carrierSpawns"));
+            case "interceptor_spawn" -> spawns(out,root.getAsJsonArray("interceptorSpawns"));
+            case "broker_spawn" -> spawns(out,root.getAsJsonArray("brokerSpawns"));
+            case "spectator" -> { if(root.has("spectatorPos")) single(out,"",root.getAsJsonObject("spectatorPos")); }
+            case "free_control" -> {
+                if(gate.has("freeExit")) { var e=gate.getAsJsonObject("freeExit"); if(e.has("controlPos")) single(out,e.get("id").getAsString(),e.getAsJsonObject("controlPos")); }
+            }
+            case "free_safe" -> {
+                if(gate.has("freeExit") && gate.getAsJsonObject("freeExit").has("outsideSafe")) single(out,"",gate.getAsJsonObject("freeExit").getAsJsonObject("outsideSafe"));
+            }
+            case "evacuation_control" -> { if(evacuation.has("controlPos")) single(out,"",evacuation.getAsJsonObject("controlPos")); }
+            case "evacuation_safe" -> { if(evacuation.has("outsideSafe")) single(out,"",evacuation.getAsJsonObject("outsideSafe")); }
+            case "drop_anchor" -> { if(evacuation.has("exitDropAnchor")) single(out,"",evacuation.getAsJsonObject("exitDropAnchor")); }
+            case "broker_exit" -> { if(root.has("brokerExit")) { var e=root.getAsJsonObject("brokerExit"); single(out,e.get("id").getAsString(),e.getAsJsonObject("pos")); } }
+            case "core_control" -> entries(out,gate.getAsJsonArray("doors"),true);
+            default -> entries(out,root.getAsJsonArray(fieldOf(kind)),false);
+        }
+        return List.copyOf(out);
+    }
+
+    private static void single(List<PointInfo> out,String id,JsonObject pos) {
+        out.add(new PointInfo(id,0,pos.get("x").getAsDouble(),pos.get("y").getAsDouble(),pos.get("z").getAsDouble()));
+    }
+    private static void spawns(List<PointInfo> out,JsonArray array) {
+        for(int i=0;i<array.size();i++) single(out,Integer.toString(i),array.get(i).getAsJsonObject());
+    }
+    private static void entries(List<PointInfo> out,JsonArray array,boolean controlPos) {
+        for(var element:array) {
+            var e=element.getAsJsonObject();
+            var pos=controlPos?e.getAsJsonObject("controlPos"):e.getAsJsonObject("pos");
+            out.add(new PointInfo(e.get("id").getAsString(),e.has("minPlayers")?e.get("minPlayers").getAsInt():0,
+                    pos.get("x").getAsDouble(),pos.get("y").getAsDouble(),pos.get("z").getAsDouble()));
+        }
+    }
+
+    /**
+     * 就地修改点位的 id / 人数档（坐标不动）：出生点与单例类型不支持改名（重新标记即覆盖）；
+     * 人数档只对信标 / 晶簇 / 物资箱有效。newId 为空表示不改，minPlayers 为 null 表示不改。
+     */
+    public void meta(String kind,String oldId,String newId,Integer minPlayers) throws IOException {
+        if(!KINDS.contains(kind)) throw new IllegalArgumentException("未知点位kind: "+kind);
+        id(oldId);
+        String target=newId==null||newId.isBlank()?oldId:newId.trim();
+        if(!target.equals(oldId)) id(target);
+        boolean spawn=kind.endsWith("_spawn");
+        if(spawn) {
+            if(!target.equals(oldId)) throw new IllegalArgumentException("出生点id是下标，不能改名；删除后重新标记即可");
+            if(minPlayers!=null) throw new IllegalArgumentException("出生点没有人数档");
+        }
+        update(tree -> {
+            JsonObject gate=tree.getAsJsonObject("coreGate");
+            switch(kind) {
+                case "free_control" -> gate.getAsJsonObject("freeExit").addProperty("id",target);
+                case "broker_exit" -> tree.getAsJsonObject("brokerExit").addProperty("id",target);
+                case "carrier_spawn","interceptor_spawn","broker_spawn","spectator","free_safe",
+                     "evacuation_control","evacuation_safe","drop_anchor" ->
+                        throw new IllegalArgumentException("该类型没有可改的id/人数档；重新标记即可覆盖坐标");
+                default -> {
+                    String field=fieldOf(kind);
+                    var array=field.equals("doors")?gate.getAsJsonArray(field):tree.getAsJsonArray(field);
+                    JsonObject found=null;
+                    for(var element:array) { var e=element.getAsJsonObject(); if(e.get("id").getAsString().equals(oldId)) found=e; }
+                    if(found==null) throw new IllegalArgumentException("不存在该点位");
+                    if(!target.equals(oldId)) {
+                        for(var element:array) if(element.getAsJsonObject().get("id").getAsString().equals(target))
+                            throw new IllegalArgumentException("目标id已存在");
+                        found.addProperty("id",target);
+                    }
+                    if(minPlayers!=null) {
+                        if(!hasPlayers(kind)) throw new IllegalArgumentException("该类型没有人数档");
+                        if(minPlayers<6 || minPlayers>12) throw new IllegalArgumentException("minPlayers必须为6–12");
+                        found.addProperty("minPlayers",minPlayers);
+                    }
+                }
+            }
+        });
+    }
 }

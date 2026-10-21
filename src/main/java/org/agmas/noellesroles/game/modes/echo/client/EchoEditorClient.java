@@ -40,6 +40,11 @@ public final class EchoEditorClient {
 
     public static EchoEditorStatePayload state() { return state; }
 
+    /** 当前选中点位类型的逐条列表（id / 人数档 / 模板坐标）；没选或没有会话时为 null。 */
+    public static EchoEditorStatePayload.Section detail() {
+        return state == null ? null : state.detail();
+    }
+
     /** 发一条操作请求；返回 false 表示手上没有编辑工具。 */
     public static boolean send(EchoEditorActionPayload.Op op, String a, String b, String c) {
         Minecraft client = Minecraft.getInstance();

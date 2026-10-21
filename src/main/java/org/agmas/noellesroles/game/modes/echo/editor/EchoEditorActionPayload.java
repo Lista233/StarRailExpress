@@ -15,6 +15,8 @@ import java.util.Objects;
  *   MARK           a=kind  b=id  c=minPlayers
  *   CORNER_A/B     —（取玩家准星对着的方块）
  *   CORNER_INPUT   a=a|b  b="x y z"（输入框手动设入的角点坐标）
+ *   POINTS         a=kind（列出该类型全部点位：id/人数档/坐标）
+ *   POINT_META     a=kind  b=oldId  c="newId|minPlayers"（就地改 id/人数档，坐标不变；任一侧可留空=不改）
  *   VOLUME         a=kind  b=id
  *   REMOVE         a=field b=id
  *   SAVE           a=mapId
@@ -28,7 +30,7 @@ public record EchoEditorActionPayload(int sequence, Op op, String a, String b, S
     public static final int MAX_ARG = 64;
 
     public enum Op {
-        NEW, EDIT, CANCEL, MARK, CORNER_A, CORNER_B, CORNER_INPUT, VOLUME, REMOVE, LIST, VALIDATE, PREVIEW,
+        NEW, EDIT, CANCEL, MARK, CORNER_A, CORNER_B, CORNER_INPUT, POINTS, POINT_META, VOLUME, REMOVE, LIST, VALIDATE, PREVIEW,
         SAVE, SAVE_CONFIRM, GATE_ON, GATE_OFF, RELOAD
     }
 

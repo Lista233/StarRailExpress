@@ -42,12 +42,10 @@ public final class EchoEditorScreen extends Screen {
     private static final int ROW = 24;
     private static final int LIST_ROW_H = 12;
 
-    /** 删除点位时可选的字段（与 state 快照的 section 字段一致）。 */
-    private static final List<String> FIELDS = List.of("carrierSpawns", "interceptorSpawns", "brokerSpawns",
-            "beacons", "crystalNodes", "altars", "supplyCrates", "blackCrystalNodes", "blackDropoffs", "doors");
-
     /** 一行静态说明文字（相对内容区 Y + 翻译键）。 */
     private record TextRow(int y, String key) { }
+    /** 一行运行期文字（相对内容区 Y + 已本地化内容：坐标、列表小标题等）。 */
+    private record LiteralRow(int y, Component text) { }
     /** 一行可点击选择的条目：id 与中文名（翻译键）分列绘制，中文名列位置统一。 */
     private record ListRow(int y, String id, String nameKey) { }
 
@@ -56,8 +54,11 @@ public final class EchoEditorScreen extends Screen {
     private final List<AbstractWidget> fixedWidgets = new ArrayList<>();
     private final List<WidgetPlacement> placements = new ArrayList<>();
     private final List<TextRow> textRows = new ArrayList<>();
+    private final List<LiteralRow> literalRows = new ArrayList<>();
     private final List<ListRow> listRows = new ArrayList<>();
     private int contentHeight, scrollOffset, countsY, issuesY;
+    /** 点位页逐条列表的签名（选中类型 + 条目数 + 修订号）：变了就重建，行内控件才能对上。 */
+    private String lastPointSignature = "";
     private boolean isDraggingScroll;
     private double dragStartY;
     private int dragStartScroll;
@@ -68,7 +69,7 @@ public final class EchoEditorScreen extends Screen {
     // 输入框内容跨重建保留（与服务端状态无关的纯本地文本）
     private EditBox mapField, idField, playersField, cornerAField, cornerBField, nonceField;
     private String mapText = "", idText = "", playersText = "6", cornerAText = "", cornerBText = "", nonceText = "";
-    private int kindIndex, fieldIndex, volumeIndex;
+    private int kindIndex, volumeIndex;
 
     public EchoEditorScreen(Screen parent) {
         super(Component.translatable("echo.editor.title"));
@@ -96,6 +97,7 @@ public final class EchoEditorScreen extends Screen {
         fixedWidgets.clear();
         placements.clear();
         textRows.clear();
+        literalRows.clear();
         listRows.clear();
         scrollOffset = 0;
         isDraggingScroll = false;
@@ -163,15 +165,19 @@ public final class EchoEditorScreen extends Screen {
         return y + 4;
     }
 
-    /** 点位坐标：类型列表（带中文名）→ 标记；字段列表（带中文名）→ 删除；统计。 */
+    /**
+     * 点位坐标：类型列表（带中文名）→ 标记；选中类型的已有点位逐条列出（id / 人数 / 坐标），
+     * 行内可直接改（应用）或删除——原来的独立「删除点位」区合并到这里。
+     */
     private int buildPoint() {
         int x = left(), w = width(), y = 0;
+        String kind = EchoMapDraft.KINDS.get(kindIndex);
         textRows.add(new TextRow(y, "echo.editor.tip.point"));
         y += 2 * EditorLayout.LINE_H;
         textRows.add(new TextRow(y, "echo.editor.label.kinds"));
         y += EditorLayout.LINE_H + 2;
-        for (String kind : EchoMapDraft.KINDS) {
-            listRows.add(new ListRow(y, kind, "echo.editor.kind." + kind));
+        for (String entry : EchoMapDraft.KINDS) {
+            listRows.add(new ListRow(y, entry, "echo.editor.kind." + entry));
             y += LIST_ROW_H;
         }
         y += 6;
@@ -180,22 +186,101 @@ public final class EchoEditorScreen extends Screen {
         idField = field(idText, x, y, idW, "echo.editor.hint.id", text -> idText = text);
         playersField = field(playersText, x + idW + EditorLayout.GAP, y, minW, "echo.editor.hint.min", text -> playersText = text);
         button("echo.editor.button.mark", x + idW + minW + 2 * EditorLayout.GAP, y, btnW,
-                () -> send(EchoEditorActionPayload.Op.MARK, EchoMapDraft.KINDS.get(kindIndex), idText, playersText));
-        y += ROW;
-        textRows.add(new TextRow(y, "echo.editor.label.remove"));
-        y += EditorLayout.LINE_H + 2;
-        for (String field : FIELDS) {
-            listRows.add(new ListRow(y, field, "echo.editor.field." + field));
-            y += LIST_ROW_H;
+                () -> send(EchoEditorActionPayload.Op.MARK, kind, idText, playersText));
+        y += ROW + 4;
+
+        // 已有点位：逐条列出，行内改 / 删
+        var detail = EchoEditorClient.detail();
+        boolean loaded = detail != null && detail.field().equals(kind);
+        if (EchoEditorClient.state() == null || !EchoEditorClient.state().session()) {
+            textRows.add(new TextRow(y, "echo.editor.note.no_session"));
+            return y + 2 * EditorLayout.LINE_H + 4;
         }
-        y += 4;
-        button("echo.editor.button.remove", x + w - 90, y, 90,
-                () -> send(EchoEditorActionPayload.Op.REMOVE, FIELDS.get(fieldIndex), idText));
-        y += ROW;
+        literalRows.add(new LiteralRow(y, Component.translatable("echo.editor.label.existing",
+                Component.translatable("echo.editor.kind." + kind),
+                loaded ? detail.entries().size() : 0)));
+        y += EditorLayout.LINE_H + 2;
+        if (loaded) {
+            for (var entry : detail.entries()) y = detailRow(y, entry, kind);
+        } else if (spawnKind(kind) || listKind(kind) || idOnlyKind(kind)) {
+            textRows.add(new TextRow(y, "echo.editor.note.empty_kind"));
+            y += EditorLayout.LINE_H + 2;
+        } else {
+            textRows.add(new TextRow(y, "echo.editor.note.singleton"));
+            y += EditorLayout.LINE_H + 2;
+        }
+        y += 6;
         textRows.add(new TextRow(y, "echo.editor.label.counts"));
         y += EditorLayout.LINE_H + 2;
         countsY = y;
         return y + EchoEditorStatePayload.MAX_SECTIONS * 11 + 4;
+    }
+
+    /** 一行已有点位：列表类型给 id/人数输入框 + 应用 + 删除；单例类型只显示坐标。 */
+    private int detailRow(int y, EchoEditorStatePayload.Entry entry, String kind) {
+        int x = left(), w = width();
+        boolean spawn = spawnKind(kind), list = listKind(kind), idOnly = idOnlyKind(kind);
+        int applyW = 52, delW = 52, boxW = 84, playersW = 30;
+        int cx = x;
+        if (spawn) literalRows.add(new LiteralRow(y, Component.literal("#" + entry.id())));
+        EditBox idBox = null, playersBox = null;
+        if (list || idOnly) {
+            idBox = field(entry.id(), cx, y, boxW, "echo.editor.hint.id", text -> { });
+            cx += boxW + EditorLayout.GAP;
+        }
+        if (list) {
+            playersBox = field(entry.players() <= 0 ? "" : Integer.toString(entry.players()),
+                    cx, y, playersW, "echo.editor.hint.min", text -> { });
+            cx += playersW + EditorLayout.GAP;
+        }
+        // 右侧按钮：应用（改 id/人数）与删除；坐标文字夹在中间
+        int right = x + w, applyX = -1, deleteX = -1;
+        if (list || spawn) { deleteX = right - delW; right = deleteX - EditorLayout.GAP; }
+        if (list || idOnly) { applyX = right - applyW; right = applyX - EditorLayout.GAP; }
+        if (list || idOnly) {
+            EditBox finalId = idBox;
+            EditBox finalPlayers = playersBox;
+            button("echo.editor.button.apply", applyX, y, applyW, () -> send(EchoEditorActionPayload.Op.POINT_META,
+                    kind, entry.id(),
+                    (finalId == null ? "" : finalId.getValue()) + "|" + (finalPlayers == null ? "" : finalPlayers.getValue())));
+        }
+        if (list || spawn) {
+            button("echo.editor.button.remove", deleteX, y, delW,
+                    () -> send(EchoEditorActionPayload.Op.REMOVE, fieldOfKind(kind), entry.id()));
+        }
+        literalRows.add(new LiteralRow(y, Component.literal(formatCoords(entry))));
+        return y + (list || idOnly || spawn ? ROW : EditorLayout.LINE_H + 2);
+    }
+
+    private static String formatCoords(EchoEditorStatePayload.Entry entry) {
+        return String.format(java.util.Locale.ROOT, "%d %d %d", (long) entry.x(), (long) entry.y(), (long) entry.z());
+    }
+
+    private static boolean spawnKind(String kind) { return kind.endsWith("_spawn"); }
+
+    private static boolean listKind(String kind) {
+        return Set.of("beacon_open", "beacon_core", "crystal", "altar", "supply", "black_market",
+                "black_node", "black_dropoff", "core_control").contains(kind);
+    }
+
+    /** 只改 id、不删也不改人数的类型（单例，但 id 有意义）。 */
+    private static boolean idOnlyKind(String kind) { return Set.of("free_control", "broker_exit").contains(kind); }
+
+    /** kind → 删除用的字段名；单例类型返回 null（不提供删除，重新标记即覆盖）。 */
+    private static String fieldOfKind(String kind) {
+        return switch (kind) {
+            case "carrier_spawn" -> "carrierSpawns";
+            case "interceptor_spawn" -> "interceptorSpawns";
+            case "broker_spawn" -> "brokerSpawns";
+            case "beacon_open", "beacon_core" -> "beacons";
+            case "crystal" -> "crystalNodes";
+            case "altar" -> "altars";
+            case "supply", "black_market" -> "supplyCrates";
+            case "black_node" -> "blackCrystalNodes";
+            case "black_dropoff" -> "blackDropoffs";
+            case "core_control" -> "doors";
+            default -> null;
+        };
     }
 
     /** 区域体积：类型列表（带中文名）→ 写入；角点 A/B 输入框（取自准星 / 应用输入）。 */
@@ -363,6 +448,11 @@ public final class EchoEditorScreen extends Screen {
             if (y < layout.contentY() - EditorLayout.LINE_H || y > layout.contentBottom()) continue;
             g.drawString(font, Component.translatable(row.key()), left(), y, SREPanelStyle.MUTED, false);
         }
+        for (var row : literalRows) {
+            int y = layout.contentY() + row.y() - scrollOffset;
+            if (y < layout.contentY() - EditorLayout.LINE_H || y > layout.contentBottom()) continue;
+            g.drawString(font, row.text(), left(), y, SREPanelStyle.BODY, false);
+        }
     }
 
     /** 可点击条目：id 一列、中文名一列（统一位置），选中/悬停高亮。 */
@@ -372,11 +462,7 @@ public final class EchoEditorScreen extends Screen {
             var row = listRows.get(n);
             int y = layout.contentY() + row.y() - scrollOffset;
             if (y < layout.contentY() - LIST_ROW_H || y > layout.contentBottom()) continue;
-            boolean selected = switch (tab) {
-                case 1 -> n < EchoMapDraft.KINDS.size() ? n == kindIndex : (n - EchoMapDraft.KINDS.size()) == fieldIndex;
-                case 2 -> n == volumeIndex;
-                default -> false;
-            };
+            boolean selected = tab == 1 ? n == kindIndex : tab == 2 && n == volumeIndex;
             boolean hover = mouseX >= x && mouseX < x + width() && mouseY >= y && mouseY < y + LIST_ROW_H - 1;
             if (selected) g.fill(x - 2, y - 1, x + width(), y + LIST_ROW_H - 2, SREPanelStyle.SELECTED_TOP);
             else if (hover) g.fill(x - 2, y - 1, x + width(), y + LIST_ROW_H - 2, SREPanelStyle.ROW_HOVER);
@@ -462,8 +548,10 @@ public final class EchoEditorScreen extends Screen {
             int y = layout.contentY() + listRows.get(n).y() - scrollOffset;
             if (mouseY >= y && mouseY < y + LIST_ROW_H - 1) {
                 if (tab == 1) {
-                    if (n < EchoMapDraft.KINDS.size()) kindIndex = n;
-                    else fieldIndex = n - EchoMapDraft.KINDS.size();
+                    if (n == kindIndex) return true;
+                    kindIndex = n;
+                    // 选中类型变了：让服务端记住并回传该类型的逐条列表
+                    EchoEditorClient.send(EchoEditorActionPayload.Op.POINTS, EchoMapDraft.KINDS.get(kindIndex), "", "");
                 } else {
                     volumeIndex = n;
                 }
@@ -496,9 +584,30 @@ public final class EchoEditorScreen extends Screen {
             build();
         }
         syncCornerBoxes();
-        if (EchoEditorClient.state() != null) return;
-        // 没有快照时先拉一次，避免刚打开就是空界面。
-        EchoEditorClient.send(EchoEditorActionPayload.Op.LIST, "", "", "");
+        var state = EchoEditorClient.state();
+        if (state == null) {
+            // 没有快照时先拉一次，避免刚打开就是空界面。
+            EchoEditorClient.send(EchoEditorActionPayload.Op.LIST, "", "", "");
+            return;
+        }
+        if (tab == 1 && state.session()) {
+            // 保证逐条列表与选中类型一致（刚进页签或切换了类型就拉一次）
+            var detail = state.detail();
+            if (detail == null || !detail.field().equals(EchoMapDraft.KINDS.get(kindIndex)))
+                EchoEditorClient.send(EchoEditorActionPayload.Op.POINTS, EchoMapDraft.KINDS.get(kindIndex), "", "");
+        }
+        // 逐条列表内容变了（增/删/改）就重建：行内输入框与按钮要跟着新数据走
+        String signature = pointSignature(state);
+        if (!signature.equals(lastPointSignature)) {
+            lastPointSignature = signature;
+            rebuildPending = true;
+        }
+    }
+
+    private String pointSignature(EchoEditorStatePayload state) {
+        var detail = state.detail();
+        return state.session() + "/" + kindIndex + "/" + state.revision() + "/"
+                + (detail == null ? "-" : detail.field() + ":" + detail.entries().size());
     }
 
     /** 角点输入框回显服务端坐标（准星取自或应用输入后）；正在编辑的框不抢。 */

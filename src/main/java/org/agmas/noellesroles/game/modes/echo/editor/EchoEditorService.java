@@ -30,7 +30,13 @@ import java.util.*;
 public final class EchoEditorService {
     private static final int MAX_SESSIONS = 16;
 
-    private record Session(ServerLevel level, EchoMapEditState state) { }
+    /** 一个玩家的编辑会话；kind 是界面当前选中的点位类型（逐条列表用），随选择变化。 */
+    private static final class Session {
+        private final ServerLevel level;
+        private final EchoMapEditState state;
+        private String kind;
+        private Session(ServerLevel level, EchoMapEditState state) { this.level = level; this.state = state; }
+    }
 
     /** 一条回给客户端的本地化消息：[0] 是键，其余是参数。 */
     private record Msg(String key, List<String> args) {
@@ -64,6 +70,8 @@ public final class EchoEditorService {
                 case CORNER_A -> corner(player, true);
                 case CORNER_B -> corner(player, false);
                 case CORNER_INPUT -> cornerInput(player, payload.a(), payload.b());
+                case POINTS -> points(player, payload.a());
+                case POINT_META -> pointMeta(player, payload.a(), payload.b(), payload.c());
                 case VOLUME -> volume(player, payload.a(), payload.b());
                 case REMOVE -> remove(player, payload.a(), payload.b());
                 case LIST -> Msg.of("echo.editor.msg.state");
@@ -87,10 +95,10 @@ public final class EchoEditorService {
         SESSIONS.entrySet().removeIf(entry -> {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             Session session = entry.getValue();
-            if (player == null || !player.hasPermissions(2) || player.serverLevel() != session.level()) return true;
+            if (player == null || !player.hasPermissions(2) || player.serverLevel() != session.level) return true;
             try {
-                idle(session.level());
-                return !session.state().valid(context(session.level(), session.state().context().mapId()), tick);
+                idle(session.level);
+                return !session.state.valid(context(session.level, session.state.context().mapId()), tick);
             } catch (IOException | IllegalArgumentException invalid) {
                 return true;
             }
@@ -101,7 +109,7 @@ public final class EchoEditorService {
     public static void disconnected(UUID player) { SESSIONS.remove(player); HEAVY.remove(player); }
 
     public static void unload(ServerLevel level) {
-        SESSIONS.entrySet().removeIf(entry -> entry.getValue().level() == level);
+        SESSIONS.entrySet().removeIf(entry -> entry.getValue().level == level);
     }
 
     public static void stop() { SESSIONS.clear(); HEAVY.clear(); tick = 0; }
@@ -112,15 +120,34 @@ public final class EchoEditorService {
         ServerLevel level = player.serverLevel();
         idle(level);
         var areas = AreasWorldComponent.KEY.get(level);
-        // 不给 mapId 时用当前生效地图（switchmap 绑定或 Areas 同名）；允许编辑任意侧文件。
-        String mapId = requested == null || requested.isBlank() ? effectiveMapId(level) : requested.trim();
+        boolean hasAreas = areas.mapName != null && !areas.mapName.isBlank();
+        // 留空时按「switchmap 绑定 → Areas 地图名 → 自动命名」取名；工具自包含，不要求先加载 Areas 地图。
+        String mapId = requested == null || requested.isBlank() ? suggestedMapId(level) : requested.trim();
         EchoMapRepository.requireMapId(mapId);
         if (SESSIONS.containsKey(player.getUUID())) throw new IOException("已有草稿，请先保存或取消；不会自动覆盖内存编辑");
         if (SESSIONS.size() >= MAX_SESSIONS) throw new IOException("全服编辑会话已达上限");
         var draft = fresh ? EchoMapDraft.empty(mapId) : new EchoMapDraft(EchoMapRepository.load(world(level), mapId));
         SESSIONS.put(player.getUUID(), new Session(level, new EchoMapEditState(context(level, mapId), draft, tick)));
-        return Msg.of(fresh ? "echo.editor.msg.new" : "echo.editor.msg.edit", mapId,
-                areas.mapName == null ? "" : areas.mapName);
+        // 没加载 Areas 地图也能建档：偏移记 0、坐标按世界原样记录，但要明确告知风险
+        if (!hasAreas) return Msg.of(fresh ? "echo.editor.msg.new_no_areas" : "echo.editor.msg.edit_no_areas", mapId);
+        return Msg.of(fresh ? "echo.editor.msg.new" : "echo.editor.msg.edit", mapId, areas.mapName);
+    }
+
+    /** 新建时留空用的建议名：switchmap 绑定 → Areas 地图名 → 自动命名（echo_map、echo_map_2……避开已存在文件）。 */
+    private static String suggestedMapId(ServerLevel level) throws IOException {
+        try {
+            String bound = EchoActiveMap.effective(world(level), null);
+            if (bound != null && !bound.isBlank()) return bound;
+        } catch (IOException ignored) {
+            // 绑定文件损坏不影响新建：继续按 Areas 同名 / 自动命名走
+        }
+        var areas = AreasWorldComponent.KEY.get(level);
+        if (areas.mapName != null && !areas.mapName.isBlank()) return areas.mapName;
+        for (int n = 1; n <= 99; n++) {
+            String candidate = n == 1 ? "echo_map" : "echo_map_" + n;
+            if (!fileExists(level, candidate)) return candidate;
+        }
+        throw new IOException("自动命名失败：请手动填写地图ID");
     }
 
     private static Msg cancel(ServerPlayer player) throws IOException {
@@ -199,6 +226,34 @@ public final class EchoEditorService {
         return Msg.of("echo.editor.msg.changed", field, id, Long.toString(state.draft().revision()));
     }
 
+    /** 列出某类型全部点位（id / 人数档 / 坐标）：记下选中类型，之后每次快照都带该类型的逐条列表。 */
+    private static Msg points(ServerPlayer player, String kind) throws IOException {
+        edit(player);
+        if (kind == null || !EchoMapDraft.KINDS.contains(kind)) throw new IOException("未知点位类型: " + kind);
+        Session session = SESSIONS.get(player.getUUID());
+        session.kind = kind;
+        return Msg.of("echo.editor.msg.points", kind,
+                Integer.toString(session.state.draft().points(kind).size()));
+    }
+
+    /** 就地改点位的 id / 人数档：{@code spec} 形如 "newId|minPlayers"，任一侧留空表示不改（坐标不变）。 */
+    private static Msg pointMeta(ServerPlayer player, String kind, String oldId, String spec) throws IOException {
+        EchoMapEditState state = edit(player);
+        String newId = null;
+        Integer players = null;
+        if (spec != null && !spec.isBlank()) {
+            String[] parts = spec.split("\\|", -1);
+            if (parts.length > 0 && !parts[0].isBlank()) newId = parts[0].trim();
+            if (parts.length > 1 && !parts[1].isBlank()) {
+                try { players = Integer.parseInt(parts[1].trim()); }
+                catch (NumberFormatException invalid) { throw new IOException("人数档必须是6–12的整数"); }
+            }
+        }
+        String target = newId == null ? oldId : newId;
+        state.draft().meta(kind, oldId, target, players);
+        return Msg.of("echo.editor.msg.changed", kind, target, Long.toString(state.draft().revision()));
+    }
+
     private static Msg validate(ServerPlayer player) throws IOException {
         EchoMapEditState state = edit(player);
         heavy(player);
@@ -210,8 +265,8 @@ public final class EchoEditorService {
     private static Msg preview(ServerPlayer player) throws IOException {
         EchoMapEditState state = edit(player);
         heavy(player);
-        var areas = AreasWorldComponent.KEY.get(player.serverLevel());
-        var map = state.draft().snapshot().translated(EchoPreflight.offset(areas));
+        // 平移用会话自己的偏移（没加载 Areas 地图时为 0），与草稿记录坐标用的是同一套
+        var map = state.draft().snapshot().translated(state.context().offset());
         var payload = EchoMapPreviewPayload.from(player.serverLevel().dimension().location(), map);
         ServerPlayNetworking.send(player, payload);
         return Msg.of("echo.editor.msg.preview", Integer.toString(payload.entries().size()));
@@ -261,9 +316,9 @@ public final class EchoEditorService {
         Session session = SESSIONS.get(player.getUUID());
         if (session == null) {
             return new EchoEditorStatePayload(false, "", mapName, 0L, declared, false, false,
-                    false, false, 0, 0, 0, 0, 0, 0, List.of(), List.of(), message.key(), message.args());
+                    false, false, 0, 0, 0, 0, 0, 0, List.of(), null, List.of(), message.key(), message.args());
         }
-        EchoMapEditState state = session.state();
+        EchoMapEditState state = session.state;
         String mapId = state.context().mapId();
         boolean fileExists = fileExists(level, mapId);
         boolean bound = isActiveMap(level, mapId);
@@ -273,6 +328,22 @@ public final class EchoEditorService {
         var cb = state.cornerB();
         double ax = ca == null ? 0 : ca.x() + offset.x(), ay = ca == null ? 0 : ca.y() + offset.y(), az = ca == null ? 0 : ca.z() + offset.z();
         double bx = cb == null ? 0 : cb.x() + offset.x(), by = cb == null ? 0 : cb.y() + offset.y(), bz = cb == null ? 0 : cb.z() + offset.z();
+        // 选中点位类型的逐条列表（直接读草稿 JSON，不整份解析；失败就退回没有列表）
+        EchoEditorStatePayload.Section detail = null;
+        if (session.kind != null) {
+            try {
+                var entries = new ArrayList<EchoEditorStatePayload.Entry>();
+                var ids = new ArrayList<String>();
+                for (var point : state.draft().points(session.kind)) {
+                    if (entries.size() >= EchoEditorStatePayload.MAX_ENTRIES) break;
+                    entries.add(new EchoEditorStatePayload.Entry(point.id(), point.players(), point.x(), point.y(), point.z()));
+                    if (ids.size() < EchoEditorStatePayload.MAX_IDS) ids.add(point.id());
+                }
+                detail = new EchoEditorStatePayload.Section(session.kind, entries.size(), ids, entries);
+            } catch (RuntimeException ignored) {
+                detail = null;
+            }
+        }
         try {
             var map = state.draft().snapshot();
             List<EchoEditorStatePayload.Section> sections = List.of(
@@ -288,11 +359,11 @@ public final class EchoEditorService {
                     section("doors", map.coreGate().doors().size(), map.coreGate().doors().stream().map(EchoMapConfig.Door::id).toList()));
             return new EchoEditorStatePayload(true, mapId, mapName, state.draft().revision(),
                     declared, fileExists, bound, ca != null, cb != null, ax, ay, az, bx, by, bz,
-                    sections, List.of(), message.key(), message.args());
+                    sections, detail, List.of(), message.key(), message.args());
         } catch (IOException | RuntimeException failure) {
             return new EchoEditorStatePayload(true, mapId, mapName, state.draft().revision(),
                     declared, fileExists, bound, ca != null, cb != null, ax, ay, az, bx, by, bz,
-                    List.of(), List.of(String.valueOf(failure.getMessage())), message.key(), message.args());
+                    List.of(), detail, List.of(String.valueOf(failure.getMessage())), message.key(), message.args());
         }
     }
 
@@ -317,7 +388,8 @@ public final class EchoEditorService {
     }
 
     private static EchoEditorStatePayload.Section section(String field, int count, List<String> ids) {
-        return new EchoEditorStatePayload.Section(field, count, ids.stream().limit(EchoEditorStatePayload.MAX_IDS).toList());
+        return new EchoEditorStatePayload.Section(field, count,
+                ids.stream().limit(EchoEditorStatePayload.MAX_IDS).toList(), List.of());
     }
 
     private static List<String> spawnIds(int count) {
@@ -340,14 +412,17 @@ public final class EchoEditorService {
     private static Path world(ServerLevel level) { return level.getServer().getWorldPath(LevelResource.ROOT); }
 
     private static EchoMapEditState.Context context(ServerLevel level, String mapId) throws IOException {
-        requireAreasMap(level);
         try {
             EchoMapRepository.requireMapId(mapId);
         } catch (IOException invalid) {
             throw new IOException("非法的回声地图ID: " + mapId);
         }
-        return new EchoMapEditState.Context(level.dimension().location().toString(), mapId,
-                EchoPreflight.offset(AreasWorldComponent.KEY.get(level)));
+        // 偏移取自当前 Areas 地图的模板/粘贴区；没加载地图时记 0（坐标按世界原样记录，界面上会提示）
+        var areas = AreasWorldComponent.KEY.get(level);
+        var offset = areas.mapName == null || areas.mapName.isBlank()
+                ? new EchoMapConfig.Vec(0, 0, 0)
+                : EchoPreflight.offset(areas);
+        return new EchoMapEditState.Context(level.dimension().location().toString(), mapId, offset);
     }
 
     /** 当前生效的回声地图：switchmap 绑定优先，没有绑定按 Areas 地图名。 */
@@ -365,7 +440,7 @@ public final class EchoEditorService {
     private static void requireAreasMap(ServerLevel level) throws IOException {
         var areas = AreasWorldComponent.KEY.get(level);
         if (areas.mapName == null || areas.mapName.isBlank())
-            throw new IOException("请先用现有Areas工具加载实战地图（当前未选择地图）");
+            throw new IOException("当前未加载Areas地图：请在地图ID框里填写地图ID，或先用 /tmm:switchmap load <地图> 加载实战地图");
     }
 
     private static EchoMapEditState edit(ServerPlayer player) throws IOException {
@@ -373,12 +448,12 @@ public final class EchoEditorService {
         Session session = SESSIONS.get(player.getUUID());
         if (session == null) throw new IOException("没有编辑会话；先在界面里新建或读取草稿");
         // 会话维度/偏移用草稿自己的 mapId 比对：切换绑定不应误杀在途编辑。
-        if (session.level() != player.serverLevel() || !session.state().valid(context(player.serverLevel(), session.state().context().mapId()), tick)) {
+        if (session.level != player.serverLevel() || !session.state.valid(context(player.serverLevel(), session.state.context().mapId()), tick)) {
             SESSIONS.remove(player.getUUID());
             throw new IOException("编辑会话因切图、平移变化或超时失效");
         }
-        session.state().touch(tick);
-        return session.state();
+        session.state.touch(tick);
+        return session.state;
     }
 
     private static void heavy(ServerPlayer player) throws IOException {
@@ -395,12 +470,24 @@ public final class EchoEditorService {
         return block.getBlockPos();
     }
 
-    /** 6–12 人全部档位的结构与世界校验；返回前若干条问题。 */
+    /**
+     * 6–12 人全部档位的校验；返回前若干条问题。
+     *
+     * <p>已加载 Areas 地图时跑完整预检（结构 + 世界安全 + 地图设置）；没加载时只跑纯结构校验——
+     * 世界安全检查留到开局预检做，这样不加载地图也能在工具里把配置建完、存完。
+     */
     private static List<String> validateWorld(ServerLevel level, EchoMapConfig map) {
+        var areas = AreasWorldComponent.KEY.get(level);
+        boolean hasAreas = areas.mapName != null && !areas.mapName.isBlank();
         List<String> issues = new ArrayList<>();
         for (int count = 6; count <= 12 && issues.isEmpty(); count++) {
-            var check = EchoPreflight.check(level, count, false, map);
-            if (!check.valid()) check.errors().stream().limit(8).map(Component::getString).forEach(issues::add);
+            if (hasAreas) {
+                var check = EchoPreflight.check(level, count, false, map);
+                if (!check.valid()) check.errors().stream().limit(8).map(Component::getString).forEach(issues::add);
+            } else {
+                var structural = EchoMapValidator.validate(map, count);
+                structural.stream().limit(8).forEach(issues::add);
+            }
         }
         return issues;
     }
