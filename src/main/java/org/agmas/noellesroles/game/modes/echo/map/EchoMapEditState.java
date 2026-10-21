@@ -37,6 +37,9 @@ public final class EchoMapEditState {
     }
     public boolean hasCornerA() { return cornerA != null; }
     public boolean hasCornerB() { return cornerB != null; }
+    /** 角点坐标（模板坐标系）；没设过返回 null。 */
+    public EchoMapConfig.Vec cornerA() { return cornerA; }
+    public EchoMapConfig.Vec cornerB() { return cornerB; }
     public Confirmation confirm(String mapId,String digest,long now) throws IOException {
         EchoMapRepository.requireMapId(mapId);
         if(digest==null || !digest.matches("[0-9a-f]{64}")) throw new IOException("覆盖摘要无效");

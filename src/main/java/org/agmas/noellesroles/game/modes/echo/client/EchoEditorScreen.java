@@ -2,48 +2,73 @@ package org.agmas.noellesroles.game.modes.echo.client;
 
 import io.wifi.starrailexpress.client.gui.SREPanelStyle;
 import io.wifi.starrailexpress.client.gui.screen.EditorLayout;
+import io.wifi.starrailexpress.client.gui.screen.map_dev.WidgetPlacement;
 import io.wifi.starrailexpress.client.gui.widget.SreButton;
+import io.wifi.starrailexpress.client.gui.widget.SreTabButton;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.agmas.noellesroles.game.modes.echo.editor.EchoEditorActionPayload;
+import org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload;
 import org.agmas.noellesroles.game.modes.echo.map.EchoMapDraft;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * 回响地图编辑工具的界面：会话 / 点位 / 体积 / 校验四个页签。
+ * 回声托运站地图编辑器：页面结构完全对齐地图搭建助手（{@code MapBuildHelperScreen}）——
+ * {@link EditorLayout} 算面板/页签/滚动几何，{@link SreTabButton} 页签，{@link WidgetPlacement} 放可滚动控件，
+ * 滚轮 + 滚动条（含拖拽）+ 裁剪同一套写法；颜色一律取 {@link SREPanelStyle} 色板（docs/ui_style.md）。
  *
- * <p>界面本身不读文件也不写世界，每个按钮只发一条 {@link EchoEditorActionPayload}；
- * 服务端回的快照是唯一事实来源，所以关掉界面再打开不会出现「本地以为改了」的错觉。
- * 遵循 {@code docs/ui_style.md} 的暗金面板与 SreButton。
+ * <p>四个页签：地图配置（新建/载入/放弃/声明）、点位坐标（标记/删除，带中文名）、
+ * 区域体积（角点输入框 + 取自准星 + 写入）、保存检查（预览/保存/确认覆盖 + 问题列表）。
+ * 保存即校验：不再有独立「校验」按钮，保存前服务端自动跑 6–12 人全人数档检查。
+ *
+ * <p>界面不读文件也不写世界：每个按钮只发一条 {@link EchoEditorActionPayload}，
+ * 服务端回的 {@link EchoEditorStatePayload} 是唯一事实来源（角点坐标也由它回显到输入框）。
  */
 public final class EchoEditorScreen extends Screen {
-    private static final String[] TAB_KEYS = {"session", "point", "volume", "check"};
+    private static final String[] TAB_KEYS = {"config", "point", "volume", "save"};
+    /** 滚轮一格滚动的像素（与地图搭建助手一致）。 */
+    private static final int WHEEL_STEP = 26;
+    private static final int SCROLL_W = SREPanelStyle.SCROLL_WIDTH;
+    /** 标题条下方自绘头部高度：放「当前配置状态」一行。 */
+    private static final int HEADER_H = 22;
+    private static final int FIELD_H = 20;
+    private static final int BTN_H = 20;
+    private static final int ROW = 24;
+    private static final int LIST_ROW_H = 12;
+
     /** 删除点位时可选的字段（与 state 快照的 section 字段一致）。 */
     private static final List<String> FIELDS = List.of("carrierSpawns", "interceptorSpawns", "brokerSpawns",
             "beacons", "crystalNodes", "altars", "supplyCrates", "blackCrystalNodes", "blackDropoffs", "doors");
 
-    private final Screen parent;
-    private int x, y, w, h, tab;
-    private long openedAt;
-    private EditBox mapField, idField, thresholdField, nonceField;
-    private String mapText = "", idText = "", thresholdText = "6", nonceText = "";
-    private int kindIndex, volumeIndex, fieldIndex;
-    /** 换页只登记，真正重建放到 tick：按钮回调里改控件列表会打乱 Screen 的点击遍历。 */
-    private boolean rebuildPending;
+    /** 一行静态说明文字（相对内容区 Y + 翻译键）。 */
+    private record TextRow(int y, String key) { }
+    /** 一行可点击选择的条目：id 与中文名（翻译键）分列绘制，中文名列位置统一。 */
+    private record ListRow(int y, String id, String nameKey) { }
 
-    // ==================== 滚轮滚动（与地图搭建助手 MapBuildHelperScreen 同一套几何） ====================
-    /** 滚轮一格滚动的像素、滚动条宽度。 */
-    private static final int WHEEL_STEP = 26;
-    private static final int SCROLL_W = SREPanelStyle.SCROLL_WIDTH;
-    /** 列表滚动偏移 + 滚动条拖拽状态。 */
-    private int scrollOffset;
+    private final Screen parent;
+    private EditorLayout layout;
+    private final List<AbstractWidget> fixedWidgets = new ArrayList<>();
+    private final List<WidgetPlacement> placements = new ArrayList<>();
+    private final List<TextRow> textRows = new ArrayList<>();
+    private final List<ListRow> listRows = new ArrayList<>();
+    private int contentHeight, scrollOffset, countsY, issuesY;
     private boolean isDraggingScroll;
     private double dragStartY;
     private int dragStartScroll;
+    private int tab;
+    private long openedAt;
+    private boolean rebuildPending;
+
+    // 输入框内容跨重建保留（与服务端状态无关的纯本地文本）
+    private EditBox mapField, idField, playersField, cornerAField, cornerBField, nonceField;
+    private String mapText = "", idText = "", playersText = "6", cornerAText = "", cornerBText = "", nonceText = "";
+    private int kindIndex, fieldIndex, volumeIndex;
 
     public EchoEditorScreen(Screen parent) {
         super(Component.translatable("echo.editor.title"));
@@ -51,110 +76,209 @@ public final class EchoEditorScreen extends Screen {
     }
 
     @Override protected void init() {
-        w = Math.min(600, width - 16);
-        h = Math.min(320, height - 16);
-        x = (width - w) / 2;
-        y = (height - h) / 2;
-        if (openedAt == 0) {
-            openedAt = System.currentTimeMillis();
-            if (minecraft != null) minecraft.getSoundManager().play(
-                    net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1F));
-        }
+        layout = EditorLayout.of(width, height, EditorLayout.Config.defaults().headerExtra(HEADER_H),
+                tabWidths(), 0);
         build();
+    }
+
+    private int[] tabWidths() {
+        int[] widths = new int[TAB_KEYS.length];
+        for (int n = 0; n < TAB_KEYS.length; n++) {
+            Component title = Component.translatable("echo.editor.tab." + TAB_KEYS[n]);
+            widths[n] = Math.max(48, Math.min(font.width(title) + 20, 120));
+        }
+        return widths;
     }
 
     /** 每次换页都重建控件；输入内容保存在本对象的字符串里，不会因为重建丢失。 */
     private void build() {
         clearWidgets();
-        // 换页签回到列表顶部，滚动条拖拽也一并复位
+        fixedWidgets.clear();
+        placements.clear();
+        textRows.clear();
+        listRows.clear();
         scrollOffset = 0;
         isDraggingScroll = false;
-        int tabW = Math.max(48, (w - 16 - 12) / 4);
-        for (int n = 0; n < TAB_KEYS.length; n++) {
+        countsY = 0;
+        issuesY = 0;
+
+        var slots = layout.tabs();
+        for (int n = 0; n < slots.size() && n < TAB_KEYS.length; n++) {
+            var slot = slots.get(n);
             int index = n;
-            var button = new SreButton(Component.translatable("echo.editor.tab." + TAB_KEYS[n]),
-                    ignored -> { tab = index; rebuildPending = true; });
-            place(button, x + 8 + n * (tabW + 4), y + 6, tabW, 16);
+            fixedWidgets.add(new SreTabButton(font, slot.x(), slot.y(), slot.w(),
+                    Component.translatable("echo.editor.tab." + TAB_KEYS[index]), index == tab,
+                    () -> {
+                        if (index != tab) {
+                            tab = index;
+                            rebuildPending = true;
+                        }
+                    }));
         }
-        switch (tab) {
-            case 0 -> buildSession();
+        fixedWidgets.forEach(this::addRenderableWidget);
+
+        int y = switch (tab) {
+            case 0 -> buildConfig();
             case 1 -> buildPoint();
             case 2 -> buildVolume();
-            default -> buildCheck();
-        }
-        var back = new SreButton(Component.translatable("echo.ui.back"), ignored -> onClose());
-        place(back, x + w - 72, y + h - 22, 64, 16);
+            default -> buildSave();
+        };
+        contentHeight = y;
+        clampScroll();
+
+        // 页脚：返回（EditorLayout 默认预留了 FOOTER_H 的页脚带）
+        var back = SreButton.create(Component.translatable("echo.ui.back"), b -> onClose())
+                .bounds(layout.panelX() + layout.panelW() - 72, layout.panelY() + layout.panelH() - EditorLayout.FOOTER_H + 6,
+                        64, BTN_H).build();
+        fixedWidgets.add(back);
+        addRenderableWidget(back);
     }
 
-    private void buildSession() {
-        mapField = field(mapText, x + 8, y + 30, w - 16, "echo.editor.hint.map_id");
-        mapField.setResponder(text -> mapText = text);
-        addRenderableWidget(mapField);
-        int by = y + 54, bw = Math.max(64, (w - 16 - 9) / 4);
-        action("echo.editor.button.new", by, 0, bw, () -> EchoEditorActionPayload.Op.NEW, () -> mapText);
-        action("echo.editor.button.edit", by, 1, bw, () -> EchoEditorActionPayload.Op.EDIT, () -> mapText);
-        button("echo.editor.button.cancel_session", x + 8 + 2 * (bw + 3), by, bw,
+    // ==================== 页签内容 ====================
+
+    /** 地图配置：新建 / 载入 / 放弃 / 刷新 + 声明（把此图标记为回声模式地图）。 */
+    private int buildConfig() {
+        int x = left(), w = width(), y = 0;
+        mapField = field(mapText, x, y, w, "echo.editor.hint.map_id", text -> mapText = text);
+        y += ROW;
+        int bw = (w - 3 * EditorLayout.GAP) / 4;
+        button("echo.editor.button.new", x, y, bw, () -> send(EchoEditorActionPayload.Op.NEW, mapText));
+        button("echo.editor.button.edit", x + (bw + EditorLayout.GAP), y, bw, () -> send(EchoEditorActionPayload.Op.EDIT, mapText));
+        button("echo.editor.button.cancel_session", x + 2 * (bw + EditorLayout.GAP), y, bw,
                 () -> send(EchoEditorActionPayload.Op.CANCEL));
-        button("echo.editor.button.refresh", x + 8 + 3 * (bw + 3), by, bw,
+        button("echo.editor.button.refresh", x + 3 * (bw + EditorLayout.GAP), y, bw,
                 () -> send(EchoEditorActionPayload.Op.LIST));
-        int gy = y + 78, gw = Math.max(88, (w - 16 - 3) / 2);
-        button("echo.editor.button.gate_on", x + 8, gy, gw, () -> send(EchoEditorActionPayload.Op.GATE_ON));
-        button("echo.editor.button.gate_off", x + 11 + gw, gy, gw, () -> send(EchoEditorActionPayload.Op.GATE_OFF));
+        y += ROW;
+        int gw = (w - EditorLayout.GAP) / 2;
+        button("echo.editor.button.gate_on", x, y, gw, () -> send(EchoEditorActionPayload.Op.GATE_ON));
+        button("echo.editor.button.gate_off", x + gw + EditorLayout.GAP, y, gw, () -> send(EchoEditorActionPayload.Op.GATE_OFF));
+        y += ROW + 4;
+        for (String key : new String[] {"echo.editor.note.config1", "echo.editor.note.config2", "echo.editor.note.config3"}) {
+            textRows.add(new TextRow(y, key));
+            y += EditorLayout.LINE_H;
+        }
+        return y + 4;
     }
 
-    private void buildPoint() {
-        int half = (w - 16 - 6) / 2;
-        idField = field(idText, x + 8, y + 30, half - 40, "echo.editor.hint.id");
-        idField.setResponder(text -> idText = text);
-        addRenderableWidget(idField);
-        // 人数档输入框：与 ID 框同行右侧，只对信标/晶簇/物资箱类点位生效。
-        thresholdField = field(thresholdText, x + 12 + (half - 40), y + 30, 36, "echo.editor.hint.min");
-        thresholdField.setResponder(text -> thresholdText = text);
-        addRenderableWidget(thresholdField);
-        button("echo.editor.button.mark", x + 14 + half, y + 30, half, () ->
-                send(EchoEditorActionPayload.Op.MARK, EchoMapDraft.KINDS.get(kindIndex), idText, thresholdText));
-        button("echo.editor.button.remove", x + 14 + half, y + 52, half, () ->
-                send(EchoEditorActionPayload.Op.REMOVE, FIELDS.get(fieldIndex), idText));
+    /** 点位坐标：类型列表（带中文名）→ 标记；字段列表（带中文名）→ 删除；统计。 */
+    private int buildPoint() {
+        int x = left(), w = width(), y = 0;
+        textRows.add(new TextRow(y, "echo.editor.tip.point"));
+        y += 2 * EditorLayout.LINE_H;
+        textRows.add(new TextRow(y, "echo.editor.label.kinds"));
+        y += EditorLayout.LINE_H + 2;
+        for (String kind : EchoMapDraft.KINDS) {
+            listRows.add(new ListRow(y, kind, "echo.editor.kind." + kind));
+            y += LIST_ROW_H;
+        }
+        y += 6;
+        int minW = 36, btnW = 96;
+        int idW = Math.max(60, w - minW - btnW - 2 * EditorLayout.GAP);
+        idField = field(idText, x, y, idW, "echo.editor.hint.id", text -> idText = text);
+        playersField = field(playersText, x + idW + EditorLayout.GAP, y, minW, "echo.editor.hint.min", text -> playersText = text);
+        button("echo.editor.button.mark", x + idW + minW + 2 * EditorLayout.GAP, y, btnW,
+                () -> send(EchoEditorActionPayload.Op.MARK, EchoMapDraft.KINDS.get(kindIndex), idText, playersText));
+        y += ROW;
+        textRows.add(new TextRow(y, "echo.editor.label.remove"));
+        y += EditorLayout.LINE_H + 2;
+        for (String field : FIELDS) {
+            listRows.add(new ListRow(y, field, "echo.editor.field." + field));
+            y += LIST_ROW_H;
+        }
+        y += 4;
+        button("echo.editor.button.remove", x + w - 90, y, 90,
+                () -> send(EchoEditorActionPayload.Op.REMOVE, FIELDS.get(fieldIndex), idText));
+        y += ROW;
+        textRows.add(new TextRow(y, "echo.editor.label.counts"));
+        y += EditorLayout.LINE_H + 2;
+        countsY = y;
+        return y + EchoEditorStatePayload.MAX_SECTIONS * 11 + 4;
     }
 
-    private void buildVolume() {
-        idField = field(idText, x + 8, y + 30, (w - 16 - 6) / 2, "echo.editor.hint.id");
-        idField.setResponder(text -> idText = text);
-        addRenderableWidget(idField);
-        int bx = x + 14 + (w - 16 - 6) / 2, bw = Math.max(56, (w - 16 - 6) / 4);
-        button("echo.editor.button.corner_a", bx, y + 30, bw, () -> send(EchoEditorActionPayload.Op.CORNER_A));
-        button("echo.editor.button.corner_b", bx + bw + 3, y + 30, bw, () -> send(EchoEditorActionPayload.Op.CORNER_B));
-        button("echo.editor.button.volume", bx + 2 * (bw + 3), y + 30, Math.max(64, bw + 24), () ->
-                send(EchoEditorActionPayload.Op.VOLUME, EchoMapDraft.VOLUMES.get(volumeIndex), idText));
+    /** 区域体积：类型列表（带中文名）→ 写入；角点 A/B 输入框（取自准星 / 应用输入）。 */
+    private int buildVolume() {
+        int x = left(), w = width(), y = 0;
+        textRows.add(new TextRow(y, "echo.editor.tip.volume"));
+        y += 2 * EditorLayout.LINE_H;
+        textRows.add(new TextRow(y, "echo.editor.label.volumes"));
+        y += EditorLayout.LINE_H + 2;
+        for (String volume : EchoMapDraft.VOLUMES) {
+            listRows.add(new ListRow(y, volume, "echo.editor.volume." + volume));
+            y += LIST_ROW_H;
+        }
+        y += 6;
+        int btnW = 96;
+        int idW = Math.max(60, w - btnW - EditorLayout.GAP);
+        idField = field(idText, x, y, idW, "echo.editor.hint.volume_id", text -> idText = text);
+        button("echo.editor.button.volume", x + idW + EditorLayout.GAP, y, btnW,
+                () -> send(EchoEditorActionPayload.Op.VOLUME, EchoMapDraft.VOLUMES.get(volumeIndex), idText));
+        y += ROW + 4;
+        y = cornerRow(y, true);
+        y = cornerRow(y, false);
+        textRows.add(new TextRow(y, "echo.editor.note.volume"));
+        return y + 2 * EditorLayout.LINE_H + 4;
     }
 
-    private void buildCheck() {
-        nonceField = field(nonceText, x + 8, y + 30, w - 16, "echo.editor.hint.nonce");
-        nonceField.setResponder(text -> nonceText = text);
-        addRenderableWidget(nonceField);
-        int by = y + 54, bw = Math.max(64, (w - 16 - 9) / 4);
-        button("echo.editor.button.validate", x + 8, by, bw, () -> send(EchoEditorActionPayload.Op.VALIDATE));
-        button("echo.editor.button.preview", x + 8 + bw + 3, by, bw, () -> send(EchoEditorActionPayload.Op.PREVIEW));
-        button("echo.editor.button.save", x + 8 + 2 * (bw + 3), by, bw, () -> send(EchoEditorActionPayload.Op.SAVE));
-        button("echo.editor.button.save_confirm", x + 8 + 3 * (bw + 3), by, bw,
+    /** 一角点一行：中文名标签 → 输入框 + 取自准星 + 应用输入。 */
+    private int cornerRow(int y, boolean first) {
+        int x = left(), w = width();
+        textRows.add(new TextRow(y, first ? "echo.editor.label.corner_a" : "echo.editor.label.corner_b"));
+        y += EditorLayout.LINE_H + 2;
+        int pickW = 72, applyW = 72;
+        int boxW = Math.max(60, w - pickW - applyW - 2 * EditorLayout.GAP);
+        EditBox box = field(first ? cornerAText : cornerBText, x, y, boxW, "echo.editor.hint.corner",
+                text -> {
+                    if (first) cornerAText = text;
+                    else cornerBText = text;
+                });
+        if (first) cornerAField = box;
+        else cornerBField = box;
+        button("echo.editor.button.corner_pick", x + boxW + EditorLayout.GAP, y, pickW,
+                () -> send(first ? EchoEditorActionPayload.Op.CORNER_A : EchoEditorActionPayload.Op.CORNER_B));
+        button("echo.editor.button.corner_apply", x + boxW + pickW + 2 * EditorLayout.GAP, y, applyW,
+                () -> send(EchoEditorActionPayload.Op.CORNER_INPUT, first ? "a" : "b",
+                        first ? cornerAText : cornerBText));
+        return y + ROW;
+    }
+
+    /** 保存检查：预览 / 保存 / 确认覆盖 + 问题列表（保存前自动校验，无独立校验按钮）。 */
+    private int buildSave() {
+        int x = left(), w = width(), y = 0;
+        textRows.add(new TextRow(y, "echo.editor.tip.save"));
+        y += 2 * EditorLayout.LINE_H;
+        int pw = (w - EditorLayout.GAP) / 2;
+        button("echo.editor.button.preview", x, y, pw, () -> send(EchoEditorActionPayload.Op.PREVIEW));
+        button("echo.editor.button.save", x + pw + EditorLayout.GAP, y, pw, () -> send(EchoEditorActionPayload.Op.SAVE));
+        y += ROW;
+        int btnW = 96;
+        int nonceW = Math.max(60, w - btnW - EditorLayout.GAP);
+        nonceField = field(nonceText, x, y, nonceW, "echo.editor.hint.nonce", text -> nonceText = text);
+        button("echo.editor.button.save_confirm", x + nonceW + EditorLayout.GAP, y, btnW,
                 () -> send(EchoEditorActionPayload.Op.SAVE_CONFIRM, nonceText));
+        y += ROW + 4;
+        textRows.add(new TextRow(y, "echo.editor.label.issues"));
+        y += EditorLayout.LINE_H + 2;
+        issuesY = y;
+        return y + EchoEditorStatePayload.MAX_ISSUES * 11 + 4;
     }
 
     // ==================== 控件工具 ====================
 
-    private void place(SreButton button, int bx, int by, int bw, int bh) {
-        button.setX(bx); button.setY(by); button.setWidth(bw); button.setHeight(bh);
-        addRenderableWidget(button);
+    private EditBox field(String value, int x, int y, int w, String hintKey, java.util.function.Consumer<String> responder) {
+        EditBox box = new EditBox(font, x, y, Math.max(40, w), FIELD_H, Component.empty());
+        box.setMaxLength(64);
+        box.setValue(value);
+        box.setHint(SREPanelStyle.hint(Component.translatable(hintKey)));
+        box.setResponder(responder);
+        placements.add(new WidgetPlacement(box, y));
+        return box;
     }
 
-    private void button(String key, int bx, int by, int bw, Runnable action) {
-        place(new SreButton(Component.translatable(key), ignored -> action.run()), bx, by, bw, 16);
-    }
-
-    private void action(String key, int by, int column, int bw,
-                        java.util.function.Supplier<EchoEditorActionPayload.Op> op,
-                        java.util.function.Supplier<String> arg) {
-        button(key, x + 8 + column * (bw + 3), by, bw, () -> send(op.get(), arg.get()));
+    private void button(String key, int x, int y, int w, Runnable action) {
+        placements.add(new WidgetPlacement(
+                SreButton.create(Component.translatable(key), ignored -> action.run())
+                        .bounds(x, y, Math.max(24, w), BTN_H).build(),
+                y));
     }
 
     private void send(EchoEditorActionPayload.Op op) { send(op, "", "", ""); }
@@ -167,130 +291,142 @@ public final class EchoEditorScreen extends Screen {
         EchoEditorClient.send(op, a == null ? "" : a, b == null ? "" : b, c == null ? "" : c);
     }
 
-    private EditBox field(String value, int fx, int fy, int fw, String hintKey) {
-        EditBox box = new EditBox(font, fx, fy, Math.max(40, fw), 16, Component.empty());
-        box.setMaxLength(64);
-        box.setValue(value);
-        box.setHint(io.wifi.starrailexpress.client.gui.SREPanelStyle.hint(Component.translatable(hintKey)));
-        return box;
-    }
+    // ==================== 滚动几何（与地图搭建助手同一套） ====================
 
-    // ==================== 绘制 ====================
+    private int left() { return layout.panelX() + EditorLayout.PAD; }
+    private int width() { return Math.max(1, layout.sbX() - EditorLayout.GUTTER_GAP - left()); }
+    private int idColumnW() { return Math.max(72, Math.min(132, width() / 3)); }
 
-    @Override public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        float p = EchoAnim.openProgress(openedAt, 180);
-        g.fillGradient(0, 0, width, height, EchoAnim.fade(0xF018120A, p), EchoAnim.fade(0xF0061018, p));
-        g.fill(x, y, x + w, y + h, EchoAnim.fade(0xF01A1008, p));
-        g.renderOutline(x, y, w, h, EchoAnim.fade(0xFF8B6914, p));
-        g.fill(x + 1, y + 1, x + w - 1, y + 3, EchoAnim.fade(0x33FFE8C0, p));
-    }
+    private int maxScroll() { return EditorLayout.maxScroll(contentHeight, layout.contentH()); }
+
+    private void clampScroll() { scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll())); }
+
+    private int thumbHeight() { return EditorLayout.thumbHeight(layout.sbH(), maxScroll()); }
+
+    // ==================== 渲染 ====================
 
     @Override public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        super.render(g, mouseX, mouseY, partialTick);
-        clampScroll();
-        var state = EchoEditorClient.state();
-        int y2 = y + 24;
-        g.drawString(font, title, x + 8, y2, 0xFFD4AF37, false);
-        // 标题行右侧：当前页签的一句话说明；超出面板宽度的部分裁掉，不遮挡其它内容。
-        Component tip = Component.translatable("echo.editor.tip." + TAB_KEYS[tab]);
-        int tipX = x + 8 + font.width(title) + 8;
-        g.enableScissor(tipX, y + 22, Math.max(tipX + 1, x + w - 8), y + 34);
-        g.drawString(font, tip, tipX, y + 24, 0xFF9E8B6E, false);
+        // 重建放在这一帧最前面：按钮回调里直接重建会撞上控件列表的并发修改
+        if (rebuildPending) {
+            rebuildPending = false;
+            build();
+        }
+        SREPanelStyle.drawPanel(g, layout.panelX(), layout.panelY(), layout.panelW(), layout.panelH());
+        for (AbstractWidget widget : fixedWidgets) widget.render(g, mouseX, mouseY, partialTick);
+
+        // 可滚动控件：Y 按滚动偏移换算后裁剪绘制
+        for (var placement : placements) placement.widget.setY(layout.contentY() + placement.relativeY - scrollOffset);
+        g.enableScissor(layout.contentX(), layout.contentY(), layout.contentX() + layout.contentW(), layout.contentBottom());
+        for (var placement : placements) placement.widget.render(g, mouseX, mouseY, partialTick);
+        renderTextRows(g, mouseX, mouseY);
+        renderListRows(g, mouseX, mouseY);
+        renderDynamic(g, mouseX, mouseY);
         g.disableScissor();
-        if (state == null) {
-            g.drawString(font, Component.translatable("echo.ui.waiting"), x + 8, y + 48, 0xFF9E8B6E, false);
-            return;
-        }
-        // 顶栏状态：地图 / 草稿 / revision / 模式声明
-        Component line = Component.translatable("echo.editor.status",
-                state.mapName().isEmpty() ? Component.translatable("echo.editor.none") : Component.literal(state.mapName()),
-                state.mapId().isEmpty() ? Component.translatable("echo.editor.none") : Component.literal(state.mapId()),
-                state.revision(),
-                state.declared() ? Component.translatable("echo.editor.hud.gate_on") : Component.translatable("echo.editor.hud.gate_off"));
-        g.drawString(font, line, x + 8, y + h - 40, state.declared() ? 0xFF72C17B : 0xFFE0AD5B, false);
-        Component message = EchoEditorClient.message();
-        if (!message.getString().isEmpty()) g.drawString(font, message, x + 8, y + h - 30, 0xFFFFA080, false);
-        // 点位/校验页的列表区可滚轮滚动：固定标签画在裁剪区外，列表整体裁剪 + 平移。
-        switch (tab) {
-            case 0 -> renderSession(g);
-            case 1 -> {
-                g.drawString(font, Component.translatable("echo.editor.label.fields"), fieldsX(), contentTop() - 10, 0xFF8B6914, false);
-                g.enableScissor(x + 4, contentTop(), x + w - 6 - SCROLL_W, contentBottom());
-                renderPoint(g, state, mouseX, mouseY);
-                g.disableScissor();
-            }
-            case 2 -> renderVolume(g, state);
-            default -> {
-                g.enableScissor(x + 4, contentTop(), x + w - 6 - SCROLL_W, contentBottom());
-                renderIssues(g, state);
-                g.disableScissor();
-            }
-        }
+
+        drawHeader(g);
+        drawMessage(g);
         drawScrollbar(g, mouseX, mouseY);
     }
 
-    /** 会话页空档：制图三步流程，让第一次用的管理员知道顺序。 */
-    private void renderSession(GuiGraphics g) {
-        int fy = y + 100;
-        g.drawString(font, Component.translatable("echo.editor.tip.flow1"), x + 8, fy, 0xFF9E8B6E, false);
-        g.drawString(font, Component.translatable("echo.editor.tip.flow2"), x + 8, fy + 10, 0xFF9E8B6E, false);
-        g.drawString(font, Component.translatable("echo.editor.tip.flow3"), x + 8, fy + 20, 0xFF9E8B6E, false);
+    /** 标题 + 头部状态行（当前配置 / 修订 / 文件 / 生效 / 声明）。 */
+    private void drawHeader(GuiGraphics g) {
+        g.drawString(font, title, layout.titleX(), layout.titleY(), SREPanelStyle.GOLD, false);
+        var state = EchoEditorClient.state();
+        int y = layout.headerTop();
+        if (state == null) {
+            g.drawString(font, Component.translatable("echo.ui.waiting"), left(), y, SREPanelStyle.MUTED, false);
+            return;
+        }
+        Component line = Component.translatable("echo.editor.header",
+                state.mapId().isEmpty() ? Component.translatable("echo.editor.none") : Component.literal(state.mapId()),
+                state.revision(),
+                state.fileExists() ? Component.translatable("echo.editor.file.saved") : Component.translatable("echo.editor.file.unsaved"),
+                state.bound() ? Component.translatable("echo.editor.file.active") : Component.translatable("echo.editor.file.inactive"),
+                state.declared() ? Component.translatable("echo.editor.hud.gate_on") : Component.translatable("echo.editor.hud.gate_off"));
+        g.drawString(font, line, left(), y, SREPanelStyle.BODY, false);
     }
 
-    /** 校验/保存反馈的问题列表单独一块：只在校验页绘制，避免盖住其它页签的列表。 */
-    private void renderIssues(GuiGraphics g, org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload state) {
-        int issueY = contentTop() - scrollOffset;
-        for (var issue : state.issues()) {
-            if (issueY > contentBottom()) break;
-            g.drawString(font, Component.literal(issue), x + 8, issueY, 0xFFE06B65, false);
-            issueY += 10;
+    /** 服务端最近一条反馈（已本地化），画在页脚带左侧。 */
+    private void drawMessage(GuiGraphics g) {
+        Component message = EchoEditorClient.message();
+        if (message.getString().isEmpty()) return;
+        g.drawString(font, message, left(), layout.panelY() + layout.panelH() - EditorLayout.FOOTER_H + 10,
+                SREPanelStyle.GOLD, false);
+    }
+
+    private void renderTextRows(GuiGraphics g, int mouseX, int mouseY) {
+        for (var row : textRows) {
+            int y = layout.contentY() + row.y() - scrollOffset;
+            if (y < layout.contentY() - EditorLayout.LINE_H || y > layout.contentBottom()) continue;
+            g.drawString(font, Component.translatable(row.key()), left(), y, SREPanelStyle.MUTED, false);
         }
     }
 
-    // ==================== 滚动几何与输入 ====================
-
-    /** 可滚动内容顶端：点位/校验页的列表区。 */
-    private int contentTop() { return y + 78; }
-    /** 可滚动内容底端：给底部状态行、消息行留位。 */
-    private int contentBottom() { return y + h - 48; }
-    private int scrollbarX() { return x + w - 6 - SCROLL_W; }
-    private int scrollbarTrackH() { return Math.max(1, contentBottom() - contentTop()); }
-
-    /** 当前页签可滚动内容高度；0 表示整页放得下，不出现滚动条。 */
-    private int contentHeight(org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload state) {
-        return switch (tab) {
-            case 1 -> {
-                int kinds = Math.min(10, EchoMapDraft.KINDS.size()) * 11;
-                int right = FIELDS.size() * 11 + 4 + 10 + state.sections().size() * 10;
-                yield Math.max(kinds, right);
-            }
-            case 3 -> state.issues().size() * 10;
-            default -> 0;
-        };
+    /** 可点击条目：id 一列、中文名一列（统一位置），选中/悬停高亮。 */
+    private void renderListRows(GuiGraphics g, int mouseX, int mouseY) {
+        int x = left(), idW = idColumnW();
+        for (int n = 0; n < listRows.size(); n++) {
+            var row = listRows.get(n);
+            int y = layout.contentY() + row.y() - scrollOffset;
+            if (y < layout.contentY() - LIST_ROW_H || y > layout.contentBottom()) continue;
+            boolean selected = switch (tab) {
+                case 1 -> n < EchoMapDraft.KINDS.size() ? n == kindIndex : (n - EchoMapDraft.KINDS.size()) == fieldIndex;
+                case 2 -> n == volumeIndex;
+                default -> false;
+            };
+            boolean hover = mouseX >= x && mouseX < x + width() && mouseY >= y && mouseY < y + LIST_ROW_H - 1;
+            if (selected) g.fill(x - 2, y - 1, x + width(), y + LIST_ROW_H - 2, SREPanelStyle.SELECTED_TOP);
+            else if (hover) g.fill(x - 2, y - 1, x + width(), y + LIST_ROW_H - 2, SREPanelStyle.ROW_HOVER);
+            g.drawString(font, Component.literal(row.id()), x, y, selected ? SREPanelStyle.GOLD : SREPanelStyle.TEXT, false);
+            g.drawString(font, Component.translatable(row.nameKey()), x + idW, y,
+                    selected ? SREPanelStyle.GOLD : SREPanelStyle.BODY, false);
+        }
     }
 
-    private int maxScroll() {
+    /** 动态列表：点位页的字段统计、保存页的检查问题。 */
+    private void renderDynamic(GuiGraphics g, int mouseX, int mouseY) {
         var state = EchoEditorClient.state();
-        if (state == null) return 0;
-        return Math.max(0, contentHeight(state) - Math.max(1, contentBottom() - contentTop()));
+        if (state == null) return;
+        int x = left(), idW = idColumnW();
+        if (tab == 1 && countsY > 0) {
+            int y = layout.contentY() + countsY - scrollOffset;
+            for (var section : state.sections()) {
+                if (y > layout.contentBottom()) break;
+                if (y >= layout.contentY()) {
+                    g.drawString(font, Component.literal(section.field()), x, y, SREPanelStyle.TEXT, false);
+                    g.drawString(font, Component.translatable("echo.editor.field." + section.field()), x + idW, y,
+                            SREPanelStyle.BODY, false);
+                    g.drawString(font, Component.literal(section.count() + "  " + String.join(",", section.ids())),
+                            x + idW + 104, y, SREPanelStyle.MUTED, false);
+                }
+                y += 11;
+            }
+        } else if (tab == 3 && issuesY > 0) {
+            int y = layout.contentY() + issuesY - scrollOffset;
+            for (var issue : state.issues()) {
+                if (y > layout.contentBottom()) break;
+                if (y >= layout.contentY()) g.drawString(font, Component.literal(issue), x, y, SREPanelStyle.RED, false);
+                y += 11;
+            }
+        }
     }
-
-    private void clampScroll() { scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll())); }
 
     private void drawScrollbar(GuiGraphics g, int mouseX, int mouseY) {
         int max = maxScroll();
         if (max <= 0) return;
-        int trackY = contentTop(), trackH = scrollbarTrackH();
-        int thumbH = EditorLayout.thumbHeight(trackH, max);
-        int thumbY = EditorLayout.thumbY(trackY, trackH, thumbH, scrollOffset, max);
+        int thumbH = thumbHeight();
+        int thumbY = EditorLayout.thumbY(layout.sbTop(), layout.sbH(), thumbH, scrollOffset, max);
         boolean hover = isDraggingScroll
-                || (mouseX >= scrollbarX() - 1 && mouseX < scrollbarX() + SCROLL_W + 1 && mouseY >= thumbY && mouseY < thumbY + thumbH);
-        SREPanelStyle.drawScrollbar(g, scrollbarX(), trackY, trackH, thumbY, thumbH, hover);
+                || (mouseX >= layout.sbX() - 1 && mouseX < layout.sbX() + SCROLL_W + 1 && mouseY >= thumbY && mouseY < thumbY + thumbH);
+        SREPanelStyle.drawScrollbar(g, layout.sbX(), layout.sbTop(), layout.sbH(), thumbY, thumbH, hover);
     }
+
+    // ==================== 交互 ====================
 
     @Override public boolean mouseScrolled(double mx, double my, double horiz, double vert) {
         // 只在面板内容区内滚动（与地图搭建助手一致）：鼠标在面板外时不抢滚轮
-        if (maxScroll() > 0 && mx >= x + 4 && mx < x + w - 8 && my >= contentTop() && my < contentBottom()) {
+        if (maxScroll() > 0 && mx >= layout.contentX() && mx < layout.contentX() + layout.contentW()
+                && my >= layout.contentY() && my < layout.contentBottom()) {
             // Math.round(float) 返回 int；用 double 重载会得到 long，赋值给 int 编译不过
             scrollOffset = Math.max(0, Math.min(scrollOffset + Math.round((float) (-vert * WHEEL_STEP)), maxScroll()));
             return true;
@@ -298,93 +434,40 @@ public final class EchoEditorScreen extends Screen {
         return super.mouseScrolled(mx, my, horiz, vert);
     }
 
-    /** 点位页几何：kind 两列收在左半区，字段/计数在右半区；渲染与点击共用同一套算式。 */
-    private int kindColumnWidth() { return Math.max(56, ((w - 16) / 2 - 12) / 2); }
-    private int fieldsX() { return x + 8 + (w - 16) / 2 + 8; }
-
-    private void renderPoint(GuiGraphics g, org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload state,
-                             int mouseX, int mouseY) {
-        // 「字段」标签由 render() 固定在裁剪区上沿；这里整块列表按 scrollOffset 平移。
-        int startY = contentTop() - scrollOffset, columnWidth = kindColumnWidth();
-        for (int n = 0; n < EchoMapDraft.KINDS.size(); n++) {
-            int column = n / 10, row = n % 10;
-            int rx = x + 8 + column * (columnWidth + 4);
-            int ry = startY + row * 11;
-            boolean active = n == kindIndex;
-            boolean hover = mouseX >= rx && mouseX < rx + columnWidth && mouseY >= ry && mouseY < ry + 10;
-            g.drawString(font, Component.literal(EchoMapDraft.KINDS.get(n)), rx, ry,
-                    active ? 0xFFD4AF37 : hover ? 0xFFFFF4DC : 0xFF9E8B6E, false);
-        }
-        int fx = fieldsX();
-        for (int n = 0; n < FIELDS.size(); n++) {
-            int ry = startY + n * 11;
-            boolean active = n == fieldIndex;
-            g.drawString(font, Component.literal(FIELDS.get(n)), fx, ry,
-                    active ? 0xFFD4AF37 : 0xFF9E8B6E, false);
-        }
-        int listY = startY + FIELDS.size() * 11 + 4;
-        g.drawString(font, Component.translatable("echo.editor.label.counts"), fx, listY, 0xFF8B6914, false);
-        int ly = listY + 10;
-        for (var section : state.sections()) {
-            if (ly > contentBottom()) break;
-            g.drawString(font, Component.literal(String.format(Locale.ROOT, "%s %d %s", section.field(), section.count(),
-                    String.join(",", section.ids()))), fx, ly, 0xFFC8B898, false);
-            ly += 10;
-        }
-    }
-
-    private void renderVolume(GuiGraphics g, org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload state) {
-        int startY = y + 60;
-        for (int n = 0; n < EchoMapDraft.VOLUMES.size(); n++) {
-            int ry = startY + n * 12;
-            g.drawString(font, Component.literal(EchoMapDraft.VOLUMES.get(n)), x + 8, ry,
-                    n == volumeIndex ? 0xFFD4AF37 : 0xFF9E8B6E, false);
-        }
-        g.drawString(font, Component.translatable("echo.editor.label.corners",
-                state.cornerA() ? "A" : "-", state.cornerB() ? "B" : "-"), x + w / 2, startY, 0xFFC8B898, false);
-        g.drawString(font, Component.translatable("echo.editor.hint.volume"), x + w / 2, startY + 14, 0xFF9E8B6E, false);
-    }
-
-    // ==================== 交互 ====================
-
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
         // 滚动条：点 thumb 开始拖拽；点轨道直接把 thumb 中心挪到鼠标处
-        if (button == 0 && maxScroll() > 0 && mouseX >= scrollbarX() - 1 && mouseX < scrollbarX() + SCROLL_W + 1
-                && mouseY >= contentTop() && mouseY < contentBottom()) {
+        if (button == 0 && maxScroll() > 0 && mouseX >= layout.sbX() - 1 && mouseX < layout.sbX() + SCROLL_W + 1
+                && mouseY >= layout.sbTop() && mouseY < layout.sbTop() + layout.sbH()) {
             isDraggingScroll = true;
             dragStartY = mouseY;
             dragStartScroll = scrollOffset;
-            int thumbH = EditorLayout.thumbHeight(scrollbarTrackH(), maxScroll());
-            double track = Math.max(1, scrollbarTrackH() - thumbH);
+            int thumbH = thumbHeight();
+            double track = Math.max(1, layout.sbH() - thumbH);
             scrollOffset = Math.max(0, Math.min(
-                    (int) ((mouseY - contentTop() - thumbH / 2.0D) / track * maxScroll()), maxScroll()));
+                    (int) ((mouseY - layout.sbTop() - thumbH / 2.0D) / track * maxScroll()), maxScroll()));
             return true;
         }
-        if (tab == 1) {
-            int startY = contentTop() - scrollOffset, columnWidth = kindColumnWidth();
-            for (int n = 0; n < EchoMapDraft.KINDS.size(); n++) {
-                int rx = x + 8 + (n / 10) * (columnWidth + 4), ry = startY + (n % 10) * 11;
-                if (mouseX >= rx && mouseX < rx + columnWidth && mouseY >= ry && mouseY < ry + 10) {
-                    kindIndex = n; return true;
+        // 控件（按钮 / 输入框）优先，其次才是自绘的可选条目列表
+        if (super.mouseClicked(mouseX, mouseY, button)) return true;
+        return (tab == 1 || tab == 2) && listHit(mouseX, mouseY);
+    }
+
+    private boolean listHit(double mouseX, double mouseY) {
+        int x = left();
+        if (mouseX < x || mouseX >= x + width() || mouseY < layout.contentY() || mouseY >= layout.contentBottom()) return false;
+        for (int n = 0; n < listRows.size(); n++) {
+            int y = layout.contentY() + listRows.get(n).y() - scrollOffset;
+            if (mouseY >= y && mouseY < y + LIST_ROW_H - 1) {
+                if (tab == 1) {
+                    if (n < EchoMapDraft.KINDS.size()) kindIndex = n;
+                    else fieldIndex = n - EchoMapDraft.KINDS.size();
+                } else {
+                    volumeIndex = n;
                 }
-            }
-            int fx = fieldsX();
-            for (int n = 0; n < FIELDS.size(); n++) {
-                int ry = startY + n * 11;
-                if (mouseX >= fx && mouseX < x + w - 8 && mouseY >= ry && mouseY < ry + 10) {
-                    fieldIndex = n; return true;
-                }
-            }
-        } else if (tab == 2) {
-            int startY = y + 60;
-            for (int n = 0; n < EchoMapDraft.VOLUMES.size(); n++) {
-                int ry = startY + n * 12;
-                if (mouseX >= x + 8 && mouseX < x + w / 2 && mouseY >= ry && mouseY < ry + 11) {
-                    volumeIndex = n; return true;
-                }
+                return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return false;
     }
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
@@ -395,7 +478,7 @@ public final class EchoEditorScreen extends Screen {
     @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
         if (isDraggingScroll && maxScroll() > 0) {
             // 用真实 thumb 高度算比例：滑块才会跟着鼠标走
-            double track = Math.max(1, scrollbarTrackH() - EditorLayout.thumbHeight(scrollbarTrackH(), maxScroll()));
+            double track = Math.max(1, layout.sbH() - thumbHeight());
             scrollOffset = Math.max(0, Math.min(
                     dragStartScroll + (int) ((mouseY - dragStartY) / track * maxScroll()), maxScroll()));
             return true;
@@ -409,9 +492,24 @@ public final class EchoEditorScreen extends Screen {
             rebuildPending = false;
             build();
         }
+        syncCornerBoxes();
         if (EchoEditorClient.state() != null) return;
         // 没有快照时先拉一次，避免刚打开就是空界面。
         EchoEditorClient.send(EchoEditorActionPayload.Op.LIST, "", "", "");
+    }
+
+    /** 角点输入框回显服务端坐标（准星取自或应用输入后）；正在编辑的框不抢。 */
+    private void syncCornerBoxes() {
+        var state = EchoEditorClient.state();
+        if (state == null) return;
+        syncBox(cornerAField, state.cornerA(), state.cornerAX(), state.cornerAY(), state.cornerAZ());
+        syncBox(cornerBField, state.cornerB(), state.cornerBX(), state.cornerBY(), state.cornerBZ());
+    }
+
+    private void syncBox(EditBox box, boolean has, double x, double y, double z) {
+        if (box == null || !has || box.isFocused()) return;
+        String value = String.format(Locale.ROOT, "%d %d %d", (long) x, (long) y, (long) z);
+        if (!box.getValue().equals(value)) box.setValue(value);
     }
 
     @Override public boolean isPauseScreen() { return false; }

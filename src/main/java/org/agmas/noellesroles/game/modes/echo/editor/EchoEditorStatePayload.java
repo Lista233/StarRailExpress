@@ -12,11 +12,14 @@ import java.util.Objects;
 /**
  * 编辑工具物品的状态快照（只发回操作者本人）。
  *
- * <p>只含地图 id / 草稿 revision / 点位 id 列表 / 一条本地化消息，不含坐标、文件路径或其它玩家数据；
- * 所有列表都有硬上限，避免把超大地图整份推给客户端。
+ * <p>只含地图 id / 草稿 revision / 点位 id 列表 / 角点坐标 / 一条本地化消息，不含文件路径或其它玩家数据；
+ * 所有列表都有硬上限，避免把超大地图整份推给客户端。角点坐标同时供「取自准星」回显与输入框手动编辑使用。
  */
 public record EchoEditorStatePayload(boolean session, String mapId, String mapName, long revision,
-                                     boolean declared, boolean cornerA, boolean cornerB,
+                                     boolean declared, boolean fileExists, boolean bound,
+                                     boolean cornerA, boolean cornerB,
+                                     double cornerAX, double cornerAY, double cornerAZ,
+                                     double cornerBX, double cornerBY, double cornerBZ,
                                      List<Section> sections, List<String> issues,
                                      String messageKey, List<String> messageArgs) implements CustomPacketPayload {
     public static final int MAX_SECTIONS = 12, MAX_IDS = 8, MAX_ISSUES = 8, MAX_ARGS = 3;
@@ -36,7 +39,10 @@ public record EchoEditorStatePayload(boolean session, String mapId, String mapNa
     public static final StreamCodec<RegistryFriendlyByteBuf, EchoEditorStatePayload> CODEC = StreamCodec.of((buf, p) -> {
         buf.writeBoolean(p.session()); buf.writeUtf(p.mapId(), 128); buf.writeUtf(p.mapName(), 128);
         buf.writeVarLong(p.revision()); buf.writeBoolean(p.declared());
+        buf.writeBoolean(p.fileExists()); buf.writeBoolean(p.bound());
         buf.writeBoolean(p.cornerA()); buf.writeBoolean(p.cornerB());
+        buf.writeDouble(p.cornerAX()); buf.writeDouble(p.cornerAY()); buf.writeDouble(p.cornerAZ());
+        buf.writeDouble(p.cornerBX()); buf.writeDouble(p.cornerBY()); buf.writeDouble(p.cornerBZ());
         buf.writeVarInt(p.sections().size());
         for (var section : p.sections()) {
             buf.writeUtf(section.field(), MAX_KEY); buf.writeVarInt(section.count()); buf.writeVarInt(section.ids().size());
@@ -49,7 +55,10 @@ public record EchoEditorStatePayload(boolean session, String mapId, String mapNa
     }, buf -> {
         boolean session = buf.readBoolean(); String mapId = buf.readUtf(128), mapName = buf.readUtf(128);
         long revision = buf.readVarLong(); boolean declared = buf.readBoolean();
+        boolean fileExists = buf.readBoolean(), bound = buf.readBoolean();
         boolean cornerA = buf.readBoolean(), cornerB = buf.readBoolean();
+        double cornerAX = buf.readDouble(), cornerAY = buf.readDouble(), cornerAZ = buf.readDouble();
+        double cornerBX = buf.readDouble(), cornerBY = buf.readDouble(), cornerBZ = buf.readDouble();
         int sectionCount = buf.readVarInt();
         if (sectionCount < 0 || sectionCount > MAX_SECTIONS) throw new IllegalArgumentException("编辑摘要字段过多");
         var sections = new ArrayList<Section>(sectionCount);
@@ -68,7 +77,8 @@ public record EchoEditorStatePayload(boolean session, String mapId, String mapNa
         if (argCount < 0 || argCount > MAX_ARGS) throw new IllegalArgumentException("消息参数过多");
         var args = new ArrayList<String>(argCount);
         for (int n = 0; n < argCount; n++) args.add(buf.readUtf(MAX_TEXT));
-        return new EchoEditorStatePayload(session, mapId, mapName, revision, declared, cornerA, cornerB,
+        return new EchoEditorStatePayload(session, mapId, mapName, revision, declared, fileExists, bound,
+                cornerA, cornerB, cornerAX, cornerAY, cornerAZ, cornerBX, cornerBY, cornerBZ,
                 sections, issues, messageKey, args);
     });
 
@@ -82,8 +92,8 @@ public record EchoEditorStatePayload(boolean session, String mapId, String mapNa
 
     /** 空状态（未开启会话 / 无权限时回给客户端）。 */
     public static EchoEditorStatePayload empty(String messageKey, String... args) {
-        return new EchoEditorStatePayload(false, "", "", 0L, false, false, false, List.of(), List.of(),
-                messageKey, List.of(args));
+        return new EchoEditorStatePayload(false, "", "", 0L, false, false, false, false, false,
+                0, 0, 0, 0, 0, 0, List.of(), List.of(), messageKey, List.of(args));
     }
 
     @Override public Type<? extends CustomPacketPayload> type() { return ID; }

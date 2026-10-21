@@ -15,6 +15,7 @@ import org.agmas.noellesroles.game.modes.echo.map.*;
 import org.agmas.noellesroles.game.modes.echo.runtime.EchoPreflight;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
@@ -62,6 +63,7 @@ public final class EchoEditorService {
                 case MARK -> mark(player, payload.a(), payload.b(), payload.c());
                 case CORNER_A -> corner(player, true);
                 case CORNER_B -> corner(player, false);
+                case CORNER_INPUT -> cornerInput(player, payload.a(), payload.b());
                 case VOLUME -> volume(player, payload.a(), payload.b());
                 case REMOVE -> remove(player, payload.a(), payload.b());
                 case LIST -> Msg.of("echo.editor.msg.state");
@@ -152,6 +154,39 @@ public final class EchoEditorService {
         return Msg.of("echo.editor.msg.corner", first ? "a" : "b", pos.toShortString());
     }
 
+    /**
+     * 输入框手动设入角点：{@code which} 为 a/b，{@code coords} 为 "x y z"（世界坐标，整数方块）。
+     *
+     * <p>与「取自准星」走同一条落库路径（{@link EchoMapEditState#corner} 内部做世界→模板换算），
+     * 所以输入框里回显的坐标与准星取来的是同一套，改完再应用不会出现二次平移。
+     */
+    private static Msg cornerInput(ServerPlayer player, String which, String coords) throws IOException {
+        EchoMapEditState state = edit(player);
+        boolean first = !"b".equalsIgnoreCase(which == null ? "" : which.trim());
+        EchoMapConfig.Vec point = parseVec(coords);
+        state.corner(first, point);
+        return Msg.of("echo.editor.msg.corner_input", first ? "a" : "b", formatVec(point));
+    }
+
+    /** 解析 "x y z"（空格/逗号分隔）；角点必须是整数方块，与 EditorLayout 的整数 AABB 要求一致。 */
+    private static EchoMapConfig.Vec parseVec(String coords) throws IOException {
+        if (coords == null || coords.isBlank()) throw new IOException("坐标不能为空，格式：x y z");
+        String[] parts = coords.trim().split("[\\s,]+");
+        if (parts.length != 3) throw new IOException("坐标需要三个数（x y z）");
+        try {
+            double x = Double.parseDouble(parts[0]), y = Double.parseDouble(parts[1]), z = Double.parseDouble(parts[2]);
+            if (x != Math.rint(x) || y != Math.rint(y) || z != Math.rint(z))
+                throw new IOException("角点坐标必须是整数方块坐标");
+            return new EchoMapConfig.Vec(x, y, z);
+        } catch (NumberFormatException invalid) {
+            throw new IOException("坐标必须是数字，格式：x y z");
+        }
+    }
+
+    private static String formatVec(EchoMapConfig.Vec p) {
+        return (long) p.x() + " " + (long) p.y() + " " + (long) p.z();
+    }
+
     private static Msg volume(ServerPlayer player, String kind, String id) throws IOException {
         EchoMapEditState state = edit(player);
         state.draft().volume(kind, id, state.selection());
@@ -222,12 +257,22 @@ public final class EchoEditorService {
         ServerLevel level = player.serverLevel();
         var areas = AreasWorldComponent.KEY.get(level);
         String mapName = areas.mapName == null ? "" : areas.mapName;
+        boolean declared = EchoMapGate.supported(areas);
         Session session = SESSIONS.get(player.getUUID());
         if (session == null) {
-            return new EchoEditorStatePayload(false, "", mapName, 0L, EchoMapGate.supported(areas), false, false,
-                    List.of(), List.of(), message.key(), message.args());
+            return new EchoEditorStatePayload(false, "", mapName, 0L, declared, false, false,
+                    false, false, 0, 0, 0, 0, 0, 0, List.of(), List.of(), message.key(), message.args());
         }
         EchoMapEditState state = session.state();
+        String mapId = state.context().mapId();
+        boolean fileExists = fileExists(level, mapId);
+        boolean bound = isActiveMap(level, mapId);
+        // 角点按世界坐标回显：输入框里编辑的就是世界坐标，应用时再走同一条模板换算
+        var offset = state.context().offset();
+        var ca = state.cornerA();
+        var cb = state.cornerB();
+        double ax = ca == null ? 0 : ca.x() + offset.x(), ay = ca == null ? 0 : ca.y() + offset.y(), az = ca == null ? 0 : ca.z() + offset.z();
+        double bx = cb == null ? 0 : cb.x() + offset.x(), by = cb == null ? 0 : cb.y() + offset.y(), bz = cb == null ? 0 : cb.z() + offset.z();
         try {
             var map = state.draft().snapshot();
             List<EchoEditorStatePayload.Section> sections = List.of(
@@ -241,13 +286,33 @@ public final class EchoEditorService {
                     section("blackCrystalNodes", map.blackCrystalNodes().size(), map.blackCrystalNodes().stream().map(EchoMapConfig.Point::id).toList()),
                     section("blackDropoffs", map.blackDropoffs().size(), map.blackDropoffs().stream().map(EchoMapConfig.Point::id).toList()),
                     section("doors", map.coreGate().doors().size(), map.coreGate().doors().stream().map(EchoMapConfig.Door::id).toList()));
-            return new EchoEditorStatePayload(true, state.context().mapId(), mapName, state.draft().revision(),
-                    EchoMapGate.supported(areas), state.hasCornerA(), state.hasCornerB(), sections, List.of(),
-                    message.key(), message.args());
+            return new EchoEditorStatePayload(true, mapId, mapName, state.draft().revision(),
+                    declared, fileExists, bound, ca != null, cb != null, ax, ay, az, bx, by, bz,
+                    sections, List.of(), message.key(), message.args());
         } catch (IOException | RuntimeException failure) {
-            return new EchoEditorStatePayload(true, state.context().mapId(), mapName, state.draft().revision(),
-                    EchoMapGate.supported(areas), state.hasCornerA(), state.hasCornerB(), List.of(),
-                    List.of(String.valueOf(failure.getMessage())), message.key(), message.args());
+            return new EchoEditorStatePayload(true, mapId, mapName, state.draft().revision(),
+                    declared, fileExists, bound, ca != null, cb != null, ax, ay, az, bx, by, bz,
+                    List.of(), List.of(String.valueOf(failure.getMessage())), message.key(), message.args());
+        }
+    }
+
+    /** 侧文件是否已存在（保存时新建 / 覆盖的提示用）。 */
+    private static boolean fileExists(ServerLevel level, String mapId) {
+        if (mapId == null || mapId.isBlank()) return false;
+        try {
+            // getWorldPath / Files.isRegularFile 均不抛受检异常；只防御非法路径导致的运行期异常
+            return Files.isRegularFile(world(level).resolve("echo_freight/maps").resolve(mapId + ".json"));
+        } catch (RuntimeException failure) {
+            return false;
+        }
+    }
+
+    /** 该配置是否是当前生效地图（switchmap 绑定或 Areas 同名）；取不到一律算未生效，不溢出封包处理。 */
+    private static boolean isActiveMap(ServerLevel level, String mapId) {
+        try {
+            return mapId.equals(effectiveMapId(level));
+        } catch (IOException | RuntimeException failure) {
+            return false;
         }
     }
 
