@@ -34,7 +34,12 @@ public class StopCommand {
                 .requires(source -> Harpymodloader.officialVerify
                         && source.hasPermission(SREConfig.instance().stopGameRequiredPermission))
                 .then(Commands.literal("force").executes(context -> {
-                    GameUtils.finalizeGame(context.getSource().getLevel());
+                    // 强制结束：跳过胜负结算与全局战绩，并回滚本局已写入的统计数据。
+                    GameUtils.finalizeGame(context.getSource().getLevel(), true);
+                    context.getSource().sendSuccess(
+                            () -> Component.translatable("commands.sre.stop.force")
+                                    .withStyle(style -> style.withColor(0x00FF00)),
+                            true);
                     return 1;
                 }))
                 .executes(context -> {

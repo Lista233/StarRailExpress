@@ -824,6 +824,7 @@
   "commands.sre.start.error.map_not_supported": "§cCurrent map %s does not support game mode: %s",
   "commands.sre.start.error.mob_riot_map": "§cCurrent map %s does not have both meetings and minigame quests, cannot start %s",
   "commands.sre.stop": "Game stopped successfully!",
+  "commands.sre.stop.force": "Game force-stopped. This round will not be counted in statistics.",
   "commands.sre.switchmap.current_map_info": "Current map info:",
   "commands.sre.switchmap.error.game_running": "Cannot switch map: game is in progress",
   "commands.sre.switchmap.error.invalid_map": "Invalid map: %s",

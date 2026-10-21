@@ -89,6 +89,7 @@ import io.wifi.starrailexpress.event.OnGameInitialized;
 import io.wifi.starrailexpress.event.OnGameStarted;
 import io.wifi.starrailexpress.event.OnTrainAreaHaveReseted;
 import io.wifi.starrailexpress.event.ShouldDropOnDeath;
+import io.wifi.starrailexpress.game.data.PlayerStatsData;
 import io.wifi.starrailexpress.index.SREDataComponentTypes;
 import io.wifi.starrailexpress.index.TMMBlocks;
 import io.wifi.starrailexpress.index.TMMEntities;
@@ -100,6 +101,7 @@ import io.wifi.starrailexpress.network.original.AnnounceEndingPayload;
 import io.wifi.starrailexpress.progression.ProgressionDataManager;
 import io.wifi.starrailexpress.stats.PlayerStats;
 import io.wifi.starrailexpress.stats.PlayerStatsManager;
+import io.wifi.starrailexpress.util.PlayerStatsSerializer;
 import io.wifi.starrailexpress.util.SREItemUtils;
 import io.wifi.starrailexpress.util.SRENetworkMessageUtils;
 import net.exmo.sre.meeting.MeetingManager;
@@ -159,6 +161,14 @@ public class GameUtils {
     private static Set<UUID> forcedReadyPlayers;
     public static boolean isStartingGame = false;
     public static boolean isGameStarted = false;
+
+    /**
+     * 开局前的对局统计快照（玩家 UUID → 统计副本）。
+     * <p>
+     * {@link #recordPlayerStats} 会在累加本局数据前抓取快照；正常结束时直接丢弃，
+     * {@code /tmm:stop force} 强制结束时用它对整局统计做回滚，使这局不进入对局统计。
+     */
+    private static final Map<UUID, PlayerStatsData> preGameStatsSnapshots = new HashMap<>();
 
     /**
      * 服务端侧记录
@@ -383,8 +393,12 @@ public class GameUtils {
 
     public static void recordPlayerStats(ServerLevel serverWorld, SREGameWorldComponent gameComponent,
             ArrayList<ServerPlayer> readyPlayerList) {
+        // 快照只对当前这一局有效；上一局若因异常没走到 finalize，也不会污染本局的回滚目标。
+        preGameStatsSnapshots.clear();
         for (ServerPlayer player : readyPlayerList) {
             PlayerStats stats = PlayerStatsManager.get(player);
+            // 先抓开局前的统计副本，再累加本局数据，强制结束对局时按它整体回滚。
+            preGameStatsSnapshots.put(player.getUUID(), PlayerStatsSerializer.toData(stats, 0L));
             stats.incrementTotalGamesPlayed();
             SRERole playerRole = gameComponent.getRole(player);
             if (playerRole != null) {
@@ -1126,6 +1140,16 @@ public class GameUtils {
     public static long chunksToClearEntitiesDeadline = 0;
 
     public static void finalizeGame(ServerLevel world) {
+        finalizeGame(world, false);
+    }
+
+    /**
+     * 结束对局。
+     *
+     * @param skipStats true 表示强制结束（{@code /tmm:stop force}）：不写入胜负统计、不生成全局战绩，
+     *                  并把本局已记录的场次/击杀/死亡/游玩时长回滚到开局前的快照，让这局不进入对局统计。
+     */
+    public static void finalizeGame(ServerLevel world, boolean skipStats) {
         SREGameWorldComponent.getInstance(world).playerBannedBlockTime.clear();
 
         SRE.LOGGER.info("-".repeat(20));
@@ -1155,12 +1179,20 @@ public class GameUtils {
 
         isGameStarted = false;
 
-        gameComponent.getGameMode().recordWinStats(world, roundEnd, gameComponent);
-        // --- 结束新增统计数据更新逻辑 (胜利/失败) ---
-        // 对局结束后把完整回放时间线作为全局战绩异步保存到远端数据库（未开启 MySQL 同步时自动跳过）。
-        // 必须放在 recordWinStats 之后：落库时需要读取 roundEnd 中刚写入的每玩家胜负标记。
-        net.exmo.sre.record.MatchRecordService.recordFinishedMatch(world);
-        // roundEnd.sync();
+        if (skipStats) {
+            // 强制结束：本局不计入任何对局统计。回放仍照常保存，便于事后排查，
+            // 但胜负结算与全局战绩落库完全跳过。
+            restorePreGameStats();
+        } else {
+            gameComponent.getGameMode().recordWinStats(world, roundEnd, gameComponent);
+            // --- 结束新增统计数据更新逻辑 (胜利/失败) ---
+            // 对局结束后把完整回放时间线作为全局战绩异步保存到远端数据库（未开启 MySQL 同步时自动跳过）。
+            // 必须放在 recordWinStats 之后：落库时需要读取 roundEnd 中刚写入的每玩家胜负标记。
+            net.exmo.sre.record.MatchRecordService.recordFinishedMatch(world);
+            // roundEnd.sync();
+        }
+        // 快照只对当前这一局有效，无论正常结束还是强制结束都在这里清理。
+        preGameStatsSnapshots.clear();
         // Show replay to all players
         gameComponent.getGameMode().showReplay(world, roundEnd, gameComponent);
         if (SREConfig.instance().logGameEvent) {
@@ -1218,6 +1250,30 @@ public class GameUtils {
         worldModifierComponent.clearAll();
         worldModifierComponent.sync();
         serverCacheKillState.clear();
+    }
+
+    /**
+     * 强制结束对局时回滚本局写入的统计：用开局快照覆盖内存中的 PlayerStats。
+     * <p>
+     * 只回滚 {@link #recordPlayerStats} 抓过快照的开局玩家；中途加入的玩家不在快照内，
+     * 其统计保持现状。玩家若在局中已断线，条目已落盘并移除，这里跳过并记录日志，
+     * 避免用重建的空条目覆盖历史数据。
+     */
+    private static void restorePreGameStats() {
+        if (preGameStatsSnapshots.isEmpty()) {
+            return;
+        }
+        int restored = 0;
+        for (Map.Entry<UUID, PlayerStatsData> snapshot : preGameStatsSnapshots.entrySet()) {
+            if (PlayerStatsManager.restoreSnapshot(snapshot.getKey(), snapshot.getValue())) {
+                restored++;
+            } else {
+                SRE.LOGGER.warn("Skip restoring pre-game stats for {}: player stats entry is not online",
+                        snapshot.getKey());
+            }
+        }
+        SRE.LOGGER.info("Force stopped game: restored pre-game stats for {} player(s), skipped {}",
+                restored, preGameStatsSnapshots.size() - restored);
     }
 
     public static void recordWinStats(ServerLevel world, GameMode gameMode, SREGameRoundEndComponent roundEnd,

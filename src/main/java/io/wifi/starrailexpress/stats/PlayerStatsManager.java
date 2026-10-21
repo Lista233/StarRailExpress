@@ -75,6 +75,28 @@ public final class PlayerStatsManager {
         return STATS.computeIfAbsent(playerUuid, PlayerStatsManager::newEntry).stats;
     }
 
+    /**
+     * 用开局前的快照整体覆盖内存中的统计数据并标记为脏（用于强制结束对局时回滚本局统计）。
+     * <p>
+     * 只对在线条目生效：玩家断线时条目已落盘并从内存移除，此处重建的条目尚未加载
+     * 磁盘/数据库数据，直接覆盖会丢失历史统计，因此跳过并由调用方记录日志。
+     *
+     * @return 是否实际回滚了该玩家的统计
+     */
+    public static boolean restoreSnapshot(UUID playerUuid, PlayerStatsData snapshot) {
+        if (playerUuid == null || snapshot == null) {
+            return false;
+        }
+        Entry entry = STATS.get(playerUuid);
+        if (!isOnlineEntry(entry)) {
+            return false;
+        }
+        entry.stats.replaceWith(snapshot);
+        // replaceWith 不触发 dirtyListener，这里显式标记，保证回滚结果落盘并同步给客户端。
+        markDirty(entry);
+        return true;
+    }
+
     public static void syncTo(ServerPlayer viewer, UUID targetUuid) {
         Entry entry = STATS.get(targetUuid);
         if (entry == null) {

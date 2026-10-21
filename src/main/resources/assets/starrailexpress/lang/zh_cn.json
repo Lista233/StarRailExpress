@@ -843,6 +843,7 @@
   "commands.sre.start.error.map_not_supported": "§c当前地图 %s 不支持游戏模式：%s",
   "commands.sre.start.error.mob_riot_map": "§c当前地图 %s 未同时开启会议与小游戏任务，无法开始%s",
   "commands.sre.stop": "游戏已成功停止！",
+  "commands.sre.stop.force": "已强制结束游戏，本局不会计入对局统计！",
   "commands.sre.switchmap.current_map_info": "当前地图信息：",
   "commands.sre.switchmap.error.game_running": "无法切换地图：游戏正在进行中",
   "commands.sre.switchmap.error.invalid_map": "无效的地图: %s",
