@@ -1,5 +1,7 @@
 package org.agmas.noellesroles.game.modes.echo.client;
 
+import io.wifi.starrailexpress.client.gui.SREPanelStyle;
+import io.wifi.starrailexpress.client.gui.screen.EditorLayout;
 import io.wifi.starrailexpress.client.gui.widget.SreButton;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -33,6 +35,16 @@ public final class EchoEditorScreen extends Screen {
     /** 换页只登记，真正重建放到 tick：按钮回调里改控件列表会打乱 Screen 的点击遍历。 */
     private boolean rebuildPending;
 
+    // ==================== 滚轮滚动（与地图搭建助手 MapBuildHelperScreen 同一套几何） ====================
+    /** 滚轮一格滚动的像素、滚动条宽度。 */
+    private static final int WHEEL_STEP = 26;
+    private static final int SCROLL_W = SREPanelStyle.SCROLL_WIDTH;
+    /** 列表滚动偏移 + 滚动条拖拽状态。 */
+    private int scrollOffset;
+    private boolean isDraggingScroll;
+    private double dragStartY;
+    private int dragStartScroll;
+
     public EchoEditorScreen(Screen parent) {
         super(Component.translatable("echo.editor.title"));
         this.parent = parent;
@@ -54,6 +66,9 @@ public final class EchoEditorScreen extends Screen {
     /** 每次换页都重建控件；输入内容保存在本对象的字符串里，不会因为重建丢失。 */
     private void build() {
         clearWidgets();
+        // 换页签回到列表顶部，滚动条拖拽也一并复位
+        scrollOffset = 0;
+        isDraggingScroll = false;
         int tabW = Math.max(48, (w - 16 - 12) / 4);
         for (int n = 0; n < TAB_KEYS.length; n++) {
             int index = n;
@@ -92,6 +107,8 @@ public final class EchoEditorScreen extends Screen {
         idField = field(idText, x + 8, y + 30, half - 40, "echo.editor.hint.id");
         idField.setResponder(text -> idText = text);
         addRenderableWidget(idField);
+        // 人数档输入框：与 ID 框同行右侧，只对信标/晶簇/物资箱类点位生效。
+        thresholdField = field(thresholdText, x + 12 + (half - 40), y + 30, 36, "echo.editor.hint.min");
         thresholdField.setResponder(text -> thresholdText = text);
         addRenderableWidget(thresholdField);
         button("echo.editor.button.mark", x + 14 + half, y + 30, half, () ->
@@ -170,9 +187,16 @@ public final class EchoEditorScreen extends Screen {
 
     @Override public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
+        clampScroll();
         var state = EchoEditorClient.state();
         int y2 = y + 24;
         g.drawString(font, title, x + 8, y2, 0xFFD4AF37, false);
+        // 标题行右侧：当前页签的一句话说明；超出面板宽度的部分裁掉，不遮挡其它内容。
+        Component tip = Component.translatable("echo.editor.tip." + TAB_KEYS[tab]);
+        int tipX = x + 8 + font.width(title) + 8;
+        g.enableScissor(tipX, y + 22, Math.max(tipX + 1, x + w - 8), y + 34);
+        g.drawString(font, tip, tipX, y + 24, 0xFF9E8B6E, false);
+        g.disableScissor();
         if (state == null) {
             g.drawString(font, Component.translatable("echo.ui.waiting"), x + 8, y + 48, 0xFF9E8B6E, false);
             return;
@@ -186,34 +210,112 @@ public final class EchoEditorScreen extends Screen {
         g.drawString(font, line, x + 8, y + h - 40, state.declared() ? 0xFF72C17B : 0xFFE0AD5B, false);
         Component message = EchoEditorClient.message();
         if (!message.getString().isEmpty()) g.drawString(font, message, x + 8, y + h - 30, 0xFFFFA080, false);
+        // 点位/校验页的列表区可滚轮滚动：固定标签画在裁剪区外，列表整体裁剪 + 平移。
         switch (tab) {
-            case 1 -> renderPoint(g, state, mouseX, mouseY);
+            case 0 -> renderSession(g);
+            case 1 -> {
+                g.drawString(font, Component.translatable("echo.editor.label.fields"), fieldsX(), contentTop() - 10, 0xFF8B6914, false);
+                g.enableScissor(x + 4, contentTop(), x + w - 6 - SCROLL_W, contentBottom());
+                renderPoint(g, state, mouseX, mouseY);
+                g.disableScissor();
+            }
             case 2 -> renderVolume(g, state);
-            default -> { }
+            default -> {
+                g.enableScissor(x + 4, contentTop(), x + w - 6 - SCROLL_W, contentBottom());
+                renderIssues(g, state);
+                g.disableScissor();
+            }
         }
-        // 校验/保存反馈的问题列表单独一块，不与标题、状态行重叠。
-        int issueY = y + 78;
+        drawScrollbar(g, mouseX, mouseY);
+    }
+
+    /** 会话页空档：制图三步流程，让第一次用的管理员知道顺序。 */
+    private void renderSession(GuiGraphics g) {
+        int fy = y + 100;
+        g.drawString(font, Component.translatable("echo.editor.tip.flow1"), x + 8, fy, 0xFF9E8B6E, false);
+        g.drawString(font, Component.translatable("echo.editor.tip.flow2"), x + 8, fy + 10, 0xFF9E8B6E, false);
+        g.drawString(font, Component.translatable("echo.editor.tip.flow3"), x + 8, fy + 20, 0xFF9E8B6E, false);
+    }
+
+    /** 校验/保存反馈的问题列表单独一块：只在校验页绘制，避免盖住其它页签的列表。 */
+    private void renderIssues(GuiGraphics g, org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload state) {
+        int issueY = contentTop() - scrollOffset;
         for (var issue : state.issues()) {
-            if (issueY > y + h - 52) break;
+            if (issueY > contentBottom()) break;
             g.drawString(font, Component.literal(issue), x + 8, issueY, 0xFFE06B65, false);
             issueY += 10;
         }
     }
 
+    // ==================== 滚动几何与输入 ====================
+
+    /** 可滚动内容顶端：点位/校验页的列表区。 */
+    private int contentTop() { return y + 78; }
+    /** 可滚动内容底端：给底部状态行、消息行留位。 */
+    private int contentBottom() { return y + h - 48; }
+    private int scrollbarX() { return x + w - 6 - SCROLL_W; }
+    private int scrollbarTrackH() { return Math.max(1, contentBottom() - contentTop()); }
+
+    /** 当前页签可滚动内容高度；0 表示整页放得下，不出现滚动条。 */
+    private int contentHeight(org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload state) {
+        return switch (tab) {
+            case 1 -> {
+                int kinds = Math.min(10, EchoMapDraft.KINDS.size()) * 11;
+                int right = FIELDS.size() * 11 + 4 + 10 + state.sections().size() * 10;
+                yield Math.max(kinds, right);
+            }
+            case 3 -> state.issues().size() * 10;
+            default -> 0;
+        };
+    }
+
+    private int maxScroll() {
+        var state = EchoEditorClient.state();
+        if (state == null) return 0;
+        return Math.max(0, contentHeight(state) - Math.max(1, contentBottom() - contentTop()));
+    }
+
+    private void clampScroll() { scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll())); }
+
+    private void drawScrollbar(GuiGraphics g, int mouseX, int mouseY) {
+        int max = maxScroll();
+        if (max <= 0) return;
+        int trackY = contentTop(), trackH = scrollbarTrackH();
+        int thumbH = EditorLayout.thumbHeight(trackH, max);
+        int thumbY = EditorLayout.thumbY(trackY, trackH, thumbH, scrollOffset, max);
+        boolean hover = isDraggingScroll
+                || (mouseX >= scrollbarX() - 1 && mouseX < scrollbarX() + SCROLL_W + 1 && mouseY >= thumbY && mouseY < thumbY + thumbH);
+        SREPanelStyle.drawScrollbar(g, scrollbarX(), trackY, trackH, thumbY, thumbH, hover);
+    }
+
+    @Override public boolean mouseScrolled(double mx, double my, double horiz, double vert) {
+        // 只在面板内容区内滚动（与地图搭建助手一致）：鼠标在面板外时不抢滚轮
+        if (maxScroll() > 0 && mx >= x + 4 && mx < x + w - 8 && my >= contentTop() && my < contentBottom()) {
+            // Math.round(float) 返回 int；用 double 重载会得到 long，赋值给 int 编译不过
+            scrollOffset = Math.max(0, Math.min(scrollOffset + Math.round((float) (-vert * WHEEL_STEP)), maxScroll()));
+            return true;
+        }
+        return super.mouseScrolled(mx, my, horiz, vert);
+    }
+
+    /** 点位页几何：kind 两列收在左半区，字段/计数在右半区；渲染与点击共用同一套算式。 */
+    private int kindColumnWidth() { return Math.max(56, ((w - 16) / 2 - 12) / 2); }
+    private int fieldsX() { return x + 8 + (w - 16) / 2 + 8; }
+
     private void renderPoint(GuiGraphics g, org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload state,
                              int mouseX, int mouseY) {
-        int startY = y + 78;
+        // 「字段」标签由 render() 固定在裁剪区上沿；这里整块列表按 scrollOffset 平移。
+        int startY = contentTop() - scrollOffset, columnWidth = kindColumnWidth();
         for (int n = 0; n < EchoMapDraft.KINDS.size(); n++) {
             int column = n / 10, row = n % 10;
-            int rx = x + 8 + column * ((w - 16) / 2);
+            int rx = x + 8 + column * (columnWidth + 4);
             int ry = startY + row * 11;
             boolean active = n == kindIndex;
-            boolean hover = mouseX >= rx && mouseX < rx + (w - 16) / 2 - 4 && mouseY >= ry && mouseY < ry + 10;
+            boolean hover = mouseX >= rx && mouseX < rx + columnWidth && mouseY >= ry && mouseY < ry + 10;
             g.drawString(font, Component.literal(EchoMapDraft.KINDS.get(n)), rx, ry,
                     active ? 0xFFD4AF37 : hover ? 0xFFFFF4DC : 0xFF9E8B6E, false);
         }
-        int fx = x + w / 2 + 4;
-        g.drawString(font, Component.translatable("echo.editor.label.fields"), fx, startY - 10, 0xFF8B6914, false);
+        int fx = fieldsX();
         for (int n = 0; n < FIELDS.size(); n++) {
             int ry = startY + n * 11;
             boolean active = n == fieldIndex;
@@ -224,7 +326,7 @@ public final class EchoEditorScreen extends Screen {
         g.drawString(font, Component.translatable("echo.editor.label.counts"), fx, listY, 0xFF8B6914, false);
         int ly = listY + 10;
         for (var section : state.sections()) {
-            if (ly > y + h - 48) break;
+            if (ly > contentBottom()) break;
             g.drawString(font, Component.literal(String.format(Locale.ROOT, "%s %d %s", section.field(), section.count(),
                     String.join(",", section.ids()))), fx, ly, 0xFFC8B898, false);
             ly += 10;
@@ -246,15 +348,27 @@ public final class EchoEditorScreen extends Screen {
     // ==================== 交互 ====================
 
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // 滚动条：点 thumb 开始拖拽；点轨道直接把 thumb 中心挪到鼠标处
+        if (button == 0 && maxScroll() > 0 && mouseX >= scrollbarX() - 1 && mouseX < scrollbarX() + SCROLL_W + 1
+                && mouseY >= contentTop() && mouseY < contentBottom()) {
+            isDraggingScroll = true;
+            dragStartY = mouseY;
+            dragStartScroll = scrollOffset;
+            int thumbH = EditorLayout.thumbHeight(scrollbarTrackH(), maxScroll());
+            double track = Math.max(1, scrollbarTrackH() - thumbH);
+            scrollOffset = Math.max(0, Math.min(
+                    (int) ((mouseY - contentTop() - thumbH / 2.0D) / track * maxScroll()), maxScroll()));
+            return true;
+        }
         if (tab == 1) {
-            int startY = y + 78, columnWidth = (w - 16) / 2;
+            int startY = contentTop() - scrollOffset, columnWidth = kindColumnWidth();
             for (int n = 0; n < EchoMapDraft.KINDS.size(); n++) {
-                int rx = x + 8 + (n / 10) * columnWidth, ry = startY + (n % 10) * 11;
-                if (mouseX >= rx && mouseX < rx + columnWidth - 4 && mouseY >= ry && mouseY < ry + 10) {
+                int rx = x + 8 + (n / 10) * (columnWidth + 4), ry = startY + (n % 10) * 11;
+                if (mouseX >= rx && mouseX < rx + columnWidth && mouseY >= ry && mouseY < ry + 10) {
                     kindIndex = n; return true;
                 }
             }
-            int fx = x + w / 2 + 4;
+            int fx = fieldsX();
             for (int n = 0; n < FIELDS.size(); n++) {
                 int ry = startY + n * 11;
                 if (mouseX >= fx && mouseX < x + w - 8 && mouseY >= ry && mouseY < ry + 10) {
@@ -271,6 +385,22 @@ public final class EchoEditorScreen extends Screen {
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        isDraggingScroll = false;
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+        if (isDraggingScroll && maxScroll() > 0) {
+            // 用真实 thumb 高度算比例：滑块才会跟着鼠标走
+            double track = Math.max(1, scrollbarTrackH() - EditorLayout.thumbHeight(scrollbarTrackH(), maxScroll()));
+            scrollOffset = Math.max(0, Math.min(
+                    dragStartScroll + (int) ((mouseY - dragStartY) / track * maxScroll()), maxScroll()));
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, dx, dy);
     }
 
     @Override public void tick() {
