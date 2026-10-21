@@ -123,6 +123,9 @@ public final class EchoEditorScreen extends Screen {
             case 2 -> buildVolume();
             default -> buildSave();
         };
+        // 可滚动控件也必须注册为屏幕子控件：render() 里是手动定位+裁剪绘制的，
+        // 但点击/焦点/键盘分发只遍历已注册的子控件，漏注册就会「看得见点不了」。
+        placements.forEach(p -> addRenderableWidget(p.widget));
         contentHeight = y;
         clampScroll();
 
