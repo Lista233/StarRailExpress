@@ -229,7 +229,6 @@ public class NRModifiers {
             .setHidden(true)
             .setDefaultMax(0)
             .setDefaultEnableChance(0)
-            .setOtherModeRole(true)
             .setAddedVersion("4.4");
 
     /** 瘦子修饰符：模型左右压扁变瘦，并被周围玩家挤压移动 */

@@ -23,6 +23,11 @@ public final class EchoRoles {
     /** 回声模式自己的命名空间。 */
     public static final String NAMESPACE = "echo";
 
+    /**
+     * 回响托运站模式标签。所有回声身份统一挂上，介绍页「回响托运站」筛选与旗标筛选都按它归类。
+     */
+    public static final String ECHO_MODE_FLAG = "echo_freight";
+
     private static final Map<EchoFaction, SRERole> ROLES = new EnumMap<>(EchoFaction.class);
 
     private EchoRoles() { }
@@ -54,6 +59,8 @@ public final class EchoRoles {
                     .setCanSeeCoin(false).setCanAutoAddMoney(false).setCanAutoAddMiniGameToken(false)
                     .setPassiveIncome(false).setInitialCoinCount(0).setKillExtraCoinAwards(0)
                     .setCanUseInstinctAndNightVision(false).setCanPickUpRevolver(false);
+            // 统一挂上回响托运站模式标签，介绍页按此自动归类
+            role.getFlags().add(ECHO_MODE_FLAG);
             ROLES.put(faction, TMMRoles.registerRole(role));
         }
     }
