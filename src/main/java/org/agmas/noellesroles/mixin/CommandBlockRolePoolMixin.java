@@ -21,7 +21,7 @@ import io.wifi.starrailexpress.game.utils.RoleInstance;
  */
 @Mixin(SREMurderGameMode.class)
 public class CommandBlockRolePoolMixin {
-    @Inject(method = "getAllRoles(IIIILorg/agmas/harpymodloader/modded_murder/RoleAssignmentPool;Lorg/agmas/harpymodloader/modded_murder/RoleAssignmentPool;Lorg/agmas/harpymodloader/modded_murder/RoleAssignmentPool;Lorg/agmas/harpymodloader/modded_murder/RoleAssignmentPool;ZLjava/util/List;I)Ljava/util/List;",
+    @Inject(method = "getAllRoles(IIIIILorg/agmas/harpymodloader/modded_murder/RoleAssignmentPool;Lorg/agmas/harpymodloader/modded_murder/RoleAssignmentPool;Lorg/agmas/harpymodloader/modded_murder/RoleAssignmentPool;Lorg/agmas/harpymodloader/modded_murder/RoleAssignmentPool;ZLjava/util/List;I)Ljava/util/List;",
             at = @At("RETURN"), cancellable = true)
     private static void replaceExcludedRoles(CallbackInfoReturnable<List<RoleInstance>> cir) {
         if (!CommandBlockDirector.occupiesKillerSlots()) {
