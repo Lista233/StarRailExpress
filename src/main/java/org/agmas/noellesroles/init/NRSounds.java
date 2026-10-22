@@ -93,6 +93,11 @@ public class NRSounds {
     public static final SoundEvent ROLES_FURANDORU_FINAL = registrar.create("roles.furandoru.final");
     public static final SoundEvent ROLES_REMILIA = registrar.create("roles.remilia");
 
+    // 逐日者终末追逐音乐 / 音响曲目「心情」/ 命令方块事件环境音效
+    public static final SoundEvent DAYWALKER = registrar.create("noellesroles.daywalker");
+    public static final SoundEvent MOOD = registrar.create("noellesroles.mood");
+    public static final SoundEvent COMMAND_BLOCK = registrar.create("noellesroles.command_block");
+
 
     // ==================== 常量定义 ====================
     public static final SoundEvent MUSIC_DISC_LAVA_CHICKEN_CUT = registrar.create("music_disc.lava_chicken_cut");

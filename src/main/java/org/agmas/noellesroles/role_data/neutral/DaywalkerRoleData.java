@@ -6,6 +6,7 @@ import io.wifi.starrailexpress.cca.SREGameTimeComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.util.SRENetworkMessageUtils;
+import io.wifi.starrailexpress.util.Scheduler;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -16,6 +17,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import org.agmas.noellesroles.init.NRSounds;
 import org.agmas.noellesroles.role.ModRoles;
 import org.jetbrains.annotations.NotNull;
 
@@ -206,17 +208,27 @@ public class DaywalkerRoleData extends SimpleRoleData {
         }
 
         // 终末追逐：距胜利目标任务数还剩 1 个任务时全程发光，直至游戏结束；
-        // 入场时全场播放一次音效（master 类型，不循环播放）并向全场广播
+        // 入场时全场先播一次提示音效，再开始播放逐日者音乐（均为 master 类型）并向全场广播
         if (finalChaseActive || (requiredTasks - completedTasks) == 1) {
             if (!finalChaseActive) {
                 finalChaseActive = true;
                 changed = true;
-                // 全场播放一次音效（master 类型）
+                // 全场先播放一次提示音效（master 类型）
                 if (player.level() instanceof ServerLevel serverLevel) {
                     serverLevel.playSound(null,
                             player.getX(), player.getY(), player.getZ(),
                             SoundEvents.ILLUSIONER_PREPARE_BLINDNESS,
                             SoundSource.MASTER, 1.0F, 1.0F);
+                    // 提示音效结束后，再开始播放逐日者音乐（master 类型）
+                    Scheduler.schedule(() -> {
+                        if (player.level() instanceof ServerLevel sl
+                                && GameUtils.isPlayerAliveAndSurvival(player)) {
+                            sl.playSound(null,
+                                    player.getX(), player.getY(), player.getZ(),
+                                    NRSounds.DAYWALKER,
+                                    SoundSource.MASTER, 1.0F, 1.0F);
+                        }
+                    }, 30);
                     // 全场广播：终末追逐已经开始（不透露逐日者身份）
                     Component broadcast = Component
                             .translatable("message.noellesroles.daywalker.final_chase_broadcast")

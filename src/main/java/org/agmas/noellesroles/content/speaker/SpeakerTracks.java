@@ -122,6 +122,10 @@ public final class SpeakerTracks {
         mod(tracks, StupidExpress.SOUND_REGUGEE, "refugee_music");
         mod(tracks, NRSounds.GONGXI_FACAI, "gongxifacai");
         mod(tracks, NRSounds.LEVEL, "level");
+        // 逐日者终末追逐音乐 / 心情 / 命令方块事件环境音
+        mod(tracks, NRSounds.DAYWALKER, "daywalker");
+        mod(tracks, NRSounds.MOOD, "mood");
+        mod(tracks, NRSounds.COMMAND_BLOCK, "command_block");
         return List.copyOf(tracks);
     }
 

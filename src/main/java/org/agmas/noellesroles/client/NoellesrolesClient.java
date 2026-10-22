@@ -316,6 +316,7 @@ public class NoellesrolesClient implements ClientModInitializer {
         org.agmas.noellesroles.client.HamoonClientFx.register();
         org.agmas.noellesroles.client.RoadRollerClient.register();
         org.agmas.noellesroles.client.CommandBlockProgressClient.register();
+        org.agmas.noellesroles.client.CommandBlockAmbientSound.register();
         org.agmas.noellesroles.content.item.LetterItem.clientReplacementOpener =
                 org.agmas.noellesroles.client.CommandBlockLetter::tryOpen;
         LimitedInventoryScreen.NotAllowItemTakePredicates.add(stack -> stack.is(ModItems.BOMB));
