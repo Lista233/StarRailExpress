@@ -230,10 +230,9 @@ public class SREPlayerShopComponent implements RoleComponent, ServerTickingCompo
         if (haveEnoughBalance && !isOnCooldown
                 && entry.canDisplay(this.player) && entry.canBuy(this.player) && !entry.isSafeTime(this.player)
                 && entry.onBuy(this.player)) {
-            // 金币消费才计入 total_cost（金币消费统计）；代币消费只扣对应货币余额
+            // 金币消费才计入 total_cost（金币消费统计）；实际扣款统一走 currency.add，避免重复扣费
             if (currency == ShopEntry.Currency.MONEY) {
                 this.total_cost += price;
-                this.balance -= price;
             }
             ProgressionDataManager.onCurrencySpent(this.player.getUUID(), currency, price);
             currency.add(this.player, -price);
