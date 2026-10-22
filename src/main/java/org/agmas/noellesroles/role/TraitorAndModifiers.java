@@ -16,6 +16,7 @@
 package org.agmas.noellesroles.role;
 
 import io.wifi.starrailexpress.SRE;
+import io.wifi.starrailexpress.api.RoleTeam;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.api.replay.GameReplayUtils;
@@ -33,6 +34,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -336,10 +338,9 @@ public class TraitorAndModifiers {
             if (modifier.equals(REBEL)) {
                 SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(player.level());
                 if (gameWorld != null && gameWorld.isRunning()) {
-                    // 巫毒师不获得起义军修饰符
-                    if (gameWorld.getRole(player) == ModRoles.VOODOO) {
-                        worldModifierComponent.removeModifier(player.getUUID(), REBEL);
-                    } else if (!gameWorld.isInnocent(player)) {
+                    // 巫毒师不获得起义军修饰符；起义军只对平民阵营生效（RoleTeam 权威判定）
+                    if (gameWorld.getRole(player) == ModRoles.VOODOO
+                            || !isCivilianTeam(gameWorld, player)) {
                         worldModifierComponent.removeModifier(player.getUUID(), REBEL);
                     }
                 }
@@ -479,15 +480,15 @@ public class TraitorAndModifiers {
 
             WorldModifierComponent modifiers = WorldModifierComponent.KEY.get(player.level());
             if (modifiers.isModifier(player.getUUID(), REBEL)) {
-                // 起义军修饰符仅在平民阵营生效
-                if (!gameWorld.isInnocent(player))
+                // 起义军修饰符仅在平民阵营生效（以 RoleTeam 权威判定，而非宽松的 isInnocent）
+                if (!isCivilianTeam(gameWorld, player))
                     return true;
                 // 如果是殉情（恋人修饰符），不触发起义军
                 if (LoversComponent.KEY.get(player).isLover())
                     return true;
 
                 // 检查杀手是否是平民阵营（误杀）
-                if (gameWorld.isInnocent(killer)) {
+                if (isCivilianTeam(gameWorld, killer)) {
                     // 标记为已触发
                     REBEL_TRIGGERED.add(player.getUUID());
 
@@ -606,15 +607,15 @@ public class TraitorAndModifiers {
             // 检查被击杀者是否是起义军玩家
             WorldModifierComponent modifiers = WorldModifierComponent.KEY.get(victim.level());
             if (modifiers != null && modifiers.isModifier(victim.getUUID(), REBEL)) {
-                // 起义军修饰符仅在平民阵营生效
-                if (!gameWorld.isInnocent(victim))
+                // 起义军修饰符仅在平民阵营生效（以 RoleTeam 权威判定，而非宽松的 isInnocent）
+                if (!isCivilianTeam(gameWorld, victim))
                     return;
                 // 如果是殉情（恋人修饰符），不起义军惩罚
                 if (LoversComponent.KEY.get(victim).isLover())
                     return;
 
                 // 检查击杀者是否是平民阵营
-                if (gameWorld.isInnocent(killer)) {
+                if (isCivilianTeam(gameWorld, killer)) {
                     // 标记killer正在接受惩罚，防止递归
                     REBEL_PUNISHING.add(killer.getUUID());
                     try {
@@ -661,6 +662,21 @@ public class TraitorAndModifiers {
     }
 
     // ==================== 工具方法 ====================
+
+    /**
+     * 起义军逻辑专用的「平民阵营」判定：以权威阵营枚举 {@link RoleTeam} 为准，
+     * 平民阵营 = {@link RoleTeam#CIVILIAN}（平民）+ {@link RoleTeam#SHERIFF}（警长）。
+     * <p>
+     * 不能改用宽松的 {@code isInnocent()}：玩家中途转变职业后，其当前职业可能仍满足
+     * {@code isInnocent()} 但已不属于平民阵营，此时不应再触发起义军效果
+     * （变为叛徒 / 惩罚击杀者）。
+     */
+    private static boolean isCivilianTeam(SREGameWorldComponent gameWorld, Player player) {
+        if (gameWorld == null || player == null)
+            return false;
+        var role = gameWorld.getRole(player);
+        return role != null && (RoleTeam.CIVILIAN.matches(role) || RoleTeam.SHERIFF.matches(role));
+    }
 
     /**
      * 检查食物是否为肉类
