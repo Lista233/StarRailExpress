@@ -11,6 +11,7 @@ import io.wifi.starrailexpress.api.hit.HitPriority;
 import io.wifi.starrailexpress.api.hit.HitType;
 import io.wifi.starrailexpress.api.hit.SREHitManager;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import io.wifi.starrailexpress.cca.SREPlayerTaskComponent;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.index.tag.TMMItemTags;
 import io.wifi.starrailexpress.util.SRENetworkMessageUtils;
@@ -194,7 +195,16 @@ public final class CommandBlockCracks {
                 occupied.add(entity.position());
             }
         }
-        List<BlockPos> points = new ArrayList<>(GameUtils.taskBlocks.keySet());
+        // 「坐下」任务的座椅周围不刷裂缝，别挡住玩家做坐下任务
+        int chairType = SREPlayerTaskComponent.Task.CHAIR.ordinal();
+        List<BlockPos> points = new ArrayList<>();
+        for (BlockPos point : GameUtils.taskBlocks.keySet()) {
+            Integer type = GameUtils.taskBlocks.get(point);
+            if (type != null && type == chairType) {
+                continue;
+            }
+            points.add(point);
+        }
         Collections.shuffle(points, new java.util.Random(level.random.nextLong()));
         List<Vec3> found = new ArrayList<>();
         for (BlockPos point : points) {

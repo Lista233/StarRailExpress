@@ -5,6 +5,7 @@ import io.wifi.starrailexpress.api.impl.SimpleRoleData;
 import io.wifi.starrailexpress.cca.SREGameTimeComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.game.GameUtils;
+import io.wifi.starrailexpress.util.SRENetworkMessageUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -205,7 +206,7 @@ public class DaywalkerRoleData extends SimpleRoleData {
         }
 
         // 终末追逐：距胜利目标任务数还剩 1 个任务时全程发光，直至游戏结束；
-        // 入场时全场播放一次音效（master 类型，不循环播放）
+        // 入场时全场播放一次音效（master 类型，不循环播放）并向全场广播
         if (finalChaseActive || (requiredTasks - completedTasks) == 1) {
             if (!finalChaseActive) {
                 finalChaseActive = true;
@@ -216,6 +217,13 @@ public class DaywalkerRoleData extends SimpleRoleData {
                             player.getX(), player.getY(), player.getZ(),
                             SoundEvents.ILLUSIONER_PREPARE_BLINDNESS,
                             SoundSource.MASTER, 1.0F, 1.0F);
+                    // 全场广播：终末追逐已经开始（不透露逐日者身份）
+                    Component broadcast = Component
+                            .translatable("message.noellesroles.daywalker.final_chase_broadcast")
+                            .withStyle(ChatFormatting.GOLD);
+                    for (ServerPlayer other : serverLevel.players()) {
+                        SRENetworkMessageUtils.sendBroadcast(other, broadcast);
+                    }
                 }
                 serverPlayer.displayClientMessage(
                         Component.translatable("message.noellesroles.daywalker.final_chase")

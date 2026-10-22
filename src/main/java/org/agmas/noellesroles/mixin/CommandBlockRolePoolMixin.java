@@ -14,10 +14,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.game.modes.SREMurderGameMode;
 import io.wifi.starrailexpress.game.utils.RoleInstance;
+import org.agmas.noellesroles.role.ModRoles;
 
 /**
  * 轮抽和志愿会用 Math.max(1, 杀手数) 保底抽一个杀手。
  * 命令方块在场时把杀手和绑定职业换成平民，池子人数不变。
+ * 魔术师与命令方块事件互斥：事件局不刷新魔术师。
  */
 @Mixin(SREMurderGameMode.class)
 public class CommandBlockRolePoolMixin {
@@ -34,7 +36,8 @@ public class CommandBlockRolePoolMixin {
         List<RoleInstance> replaced = new ArrayList<>(original.size());
         boolean changed = false;
         for (RoleInstance instance : original) {
-            if (instance != null && CommandBlockRules.isExcluded(instance.role())) {
+            if (instance != null && (CommandBlockRules.isExcluded(instance.role())
+                    || instance.role() == ModRoles.MAGICIAN)) {
                 replaced.add(new RoleInstance(UUID.randomUUID(), TMMRoles.CIVILIAN));
                 changed = true;
             } else {

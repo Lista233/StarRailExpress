@@ -10,6 +10,7 @@ import org.agmas.noellesroles.game.command_block.CommandBlockRules;
 import org.agmas.noellesroles.packet.CommandBlockProgressS2CPacket;
 
 import io.wifi.starrailexpress.SREClientConfig;
+import io.wifi.starrailexpress.cca.SREGameTimeComponent;
 import io.wifi.starrailexpress.client.gui.HudMoodRenderer;
 import io.wifi.starrailexpress.client.gui.MiniGameHudRenderer;
 import io.wifi.starrailexpress.api.SRERole;
@@ -108,7 +109,9 @@ public final class CommandBlockProgressClient {
     }
 
     private static void tick(Minecraft client) {
-        if (eventRemaining > 0) {
+        // 会议(时间冻结)期间倒计时条与服务端一同停表，解冻后继续
+        if (eventRemaining > 0 && client.level != null
+                && !SREGameTimeComponent.KEY.get(client.level).isTimeFrozen()) {
             eventRemaining--;
         }
         tickGlow(client);
