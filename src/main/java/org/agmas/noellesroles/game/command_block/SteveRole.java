@@ -10,7 +10,6 @@ import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.NormalRole;
 import io.wifi.starrailexpress.api.RoleSkill;
 import io.wifi.starrailexpress.api.SRERole;
-import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.util.ShopEntry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -23,6 +22,7 @@ public class SteveRole extends NormalRole {
     public SteveRole(ResourceLocation id, int color, boolean innocent, boolean killer, SRERole.MoodType mood, int sprint,
             boolean seeTime) {
         super(id, color, innocent, killer, mood, sprint, seeTime);
+        setRoleData(SteveRoleData::new);
     }
 
     public static void registerSkill() {
@@ -46,13 +46,13 @@ public class SteveRole extends NormalRole {
     @Override
     public List<ShopEntry> getShopEntries() {
         List<ShopEntry> shop = new ArrayList<>();
-        shop.add(SteveMiner.offer(new ItemStack(Items.OAK_BOAT), Items.OAK_PLANKS, 5));
-        shop.add(SteveMiner.offer(ModItems.DREAM_PICKAXE.getDefaultInstance(), Items.DIAMOND, 3));
+        shop.add(SteveMiner.offer(ModItems.STEVE_BOAT.getDefaultInstance(), Items.OAK_PLANKS, 5));
+        shop.add(SteveMiner.offer(ModItems.STEVE_DIAMOND_PICKAXE.getDefaultInstance(), Items.DIAMOND, 3));
         shop.add(SteveMiner.offer(ModItems.DREAM_DIAMOND_SWORD.getDefaultInstance(), Items.DIAMOND, 2));
-        shop.add(SteveMiner.offer(new ItemStack(Items.MINECART), Items.IRON_INGOT, 5));
-        shop.add(SteveMiner.offer(new ItemStack(Items.GOLDEN_APPLE), Items.GOLD_INGOT, 8));
+        shop.add(SteveMiner.offer(ModItems.STEVE_MINECART.getDefaultInstance(), Items.IRON_INGOT, 5));
+        shop.add(SteveMiner.offer(ModItems.STEVE_GOLDEN_APPLE.getDefaultInstance(), Items.GOLD_INGOT, 8));
         shop.add(SteveMiner.offer(ModItems.STEVE_LEVER.getDefaultInstance(), Items.OAK_PLANKS, 1));
-        shop.add(SteveMiner.offer(TMMItems.WEAK_DEFENSE_VIAL.getDefaultInstance(), Items.GOLD_INGOT, 4));
+        shop.add(SteveMiner.offer(ModItems.STEVE_PISTON.getDefaultInstance(), Items.IRON_INGOT, 4));
         return shop;
     }
 }

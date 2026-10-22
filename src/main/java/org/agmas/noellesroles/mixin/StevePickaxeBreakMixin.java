@@ -1,6 +1,8 @@
 package org.agmas.noellesroles.mixin;
 
 import org.agmas.noellesroles.game.command_block.SteveMiner;
+import org.agmas.noellesroles.game.command_block.item.StevePickaxeItem;
+import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,8 +25,11 @@ public class StevePickaxeBreakMixin {
 
     @Inject(method = "destroyBlock", at = @At("HEAD"), cancellable = true)
     private void noellesroles$steveKeepsTaskBlock(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
-        if (SteveMiner.canMine(this.player, pos) && SteveMiner.mine(this.player, pos)) {
-            cir.setReturnValue(true);
+        if (this.player.getMainHandItem().getItem() instanceof StevePickaxeItem) {
+            // 无论采矿是否成功，专属镐都不能落入原版删除方块的分支。
+            boolean mined = SteveMiner.mine(this.player, pos);
+            this.player.connection.send(new ClientboundBlockUpdatePacket(this.player.level(), pos));
+            cir.setReturnValue(mined);
         }
     }
 }

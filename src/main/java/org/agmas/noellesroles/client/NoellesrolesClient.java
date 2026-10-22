@@ -242,6 +242,8 @@ public class NoellesrolesClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        org.agmas.noellesroles.game.command_block.SteveMiner.clientTaskBlock =
+                pos -> taskBlocks.containsKey(pos) || TaskBlockOverlayRenderer.RoomDoorPositions.contains(pos);
         org.agmas.noellesroles.game.modes.echo.client.EchoInputClient.initialize();
         org.agmas.noellesroles.game.modes.echo.client.EchoEditorClient.initialize();
         org.agmas.noellesroles.game.modes.echo.client.EchoIntroClient.initialize();

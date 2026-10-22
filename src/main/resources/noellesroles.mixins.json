@@ -25,6 +25,8 @@
     "CommandBlockRolePoolMixin",
     "CommandBlockCrackGunMixin",
     "StevePickaxeBreakMixin",
+    "SteveMiningPermissionMixin",
+    "SteveMiningProgressMixin",
     "MagicianPlayerEntityMixin",
     "PlayerPsychoComponentCooldownMixin",
     "PlayerPsychoComponentMixin",
@@ -117,6 +119,7 @@
     "defaultRequire": 1
   },
   "client": [
+    "client.SteveMiningPredictionMixin",
     "client.AbstractClientPlayerSkinMixin",
     "client.C4ItemEntityRendererMixin",
     "client.EmbalmerPalettePlayerRenderMixin",

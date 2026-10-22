@@ -172,6 +172,10 @@ public final class CommandBlockCombat {
         }
         SREGameWorldComponent game = SREGameWorldComponent.KEY.get(victim.level());
         if (DreadlordRole.rejectsDeath(victim, reason, forced)) {
+            var data = DreadlordRole.dataOf(victim);
+            if (data != null) {
+                data.onHit();
+            }
             return false;
         }
         if (game.isRole(victim, ModRoles.HIM) && isHimInvisible(victim)) {

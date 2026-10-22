@@ -515,13 +515,17 @@ public final class CommandBlockDirector {
 
     /** 拉杆：把下一次改写换成另一个还没变成杀手的异常，并重新抽职业。 */
     public static boolean rerollNext(ServerLevel level) {
-        if (session == null || !session.active || session.nextConvert == null) {
+        if (session == null || !session.active || session.nextConvert == null
+                || !session.levelKey.equals(level.dimension().location())
+                || SREGameTimeComponent.KEY.get(level).isTimeFrozen()) {
             return false;
         }
         List<ServerPlayer> marked = new ArrayList<>();
         SREGameWorldComponent game = SREGameWorldComponent.KEY.get(level);
         for (ServerPlayer player : level.players()) {
-            if (!GameUtils.isPlayerAliveAndSurvival(player) || !session.abnormals.contains(player.getUUID())) {
+            if (!GameUtils.isPlayerAliveAndSurvival(player) || !session.abnormals.contains(player.getUUID())
+                    || player.getUUID().equals(session.nextConvert) || hasTwinChildren(player)
+                    || Error404Role.isAssimilated(player)) {
                 continue;
             }
             SRERole role = game.getRole(player);
@@ -530,19 +534,17 @@ public final class CommandBlockDirector {
             }
             marked.add(player);
         }
-        if (marked.size() < 2) {
-            return false;
-        }
-        marked.removeIf(player -> player.getUUID().equals(session.nextConvert));
         if (marked.isEmpty()) {
             return false;
         }
         ServerPlayer chosen = marked.get(level.random.nextInt(marked.size()));
-        List<SRERole> pool = CommandBlockRules.pool();
+        List<SRERole> pool = new ArrayList<>(CommandBlockRules.pool());
+        pool.remove(session.nextRole);
         if (pool.isEmpty()) {
             return false;
         }
         SRERole next = pool.get(level.random.nextInt(pool.size()));
+        ServerPlayer previous = level.getServer().getPlayerList().getPlayer(session.nextConvert);
         session.queue.remove(chosen.getUUID());
         session.queue.add(0, chosen.getUUID());
         session.nextConvert = chosen.getUUID();
@@ -558,6 +560,10 @@ public final class CommandBlockDirector {
                 new SubtitleS2CPayload(Component.translatable("message.noellesroles.command_block.preview",
                         next.getName()), Component.empty(), 80, 0xFFE7D4FF, false,
                         SubtitleS2CPayload.POS_TOP, false));
+        if (previous != null) {
+            previous.displayClientMessage(Component.translatable("message.noellesroles.steve.preview_cancelled")
+                    .withStyle(ChatFormatting.LIGHT_PURPLE), false);
+        }
         return true;
     }
 

@@ -1,9 +1,10 @@
 package org.agmas.noellesroles.game.command_block.item;
 
 import org.agmas.noellesroles.game.command_block.CommandBlockDirector;
-import org.agmas.noellesroles.role.ModRoles;
+import org.agmas.noellesroles.game.command_block.SteveMiner;
+import java.util.List;
+import net.minecraft.world.item.TooltipFlag;
 
-import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -28,11 +29,11 @@ public class SteveLeverItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
+        if (!SteveMiner.canAct(player)) {
+            return InteractionResultHolder.fail(stack);
+        }
         if (level.isClientSide || !(player instanceof ServerPlayer self) || !(level instanceof ServerLevel server)) {
             return InteractionResultHolder.success(stack);
-        }
-        if (!SREGameWorldComponent.KEY.get(level).isRole(self, ModRoles.STEVE)) {
-            return InteractionResultHolder.fail(stack);
         }
         if (!CommandBlockDirector.rerollNext(server)) {
             self.displayClientMessage(Component.translatable("message.noellesroles.steve.lever_none")
@@ -45,5 +46,11 @@ public class SteveLeverItem extends Item {
         self.displayClientMessage(Component.translatable("message.noellesroles.steve.lever_used")
                 .withStyle(ChatFormatting.LIGHT_PURPLE), true);
         return InteractionResultHolder.consume(stack);
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable(getDescriptionId() + ".tooltip").withStyle(ChatFormatting.GRAY));
+        super.appendHoverText(stack, context, tooltip, flag);
     }
 }

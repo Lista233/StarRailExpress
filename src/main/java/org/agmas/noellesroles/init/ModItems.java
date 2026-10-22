@@ -1560,6 +1560,23 @@ public class ModItems {
     public static final Item STEVE_LEVER = register(
             new org.agmas.noellesroles.game.command_block.item.SteveLeverItem(new Item.Properties().stacksTo(16)),
             "steve_lever", ROLE_ITEMS_GROUP);
+    public static final Item STEVE_DIAMOND_PICKAXE = register(
+            new org.agmas.noellesroles.game.command_block.item.StevePickaxeItem(
+                    new Item.Properties().durability(org.agmas.noellesroles.game.command_block.SteveMiner.DIAMOND_USES), 10),
+            "steve_diamond_pickaxe", ROLE_ITEMS_GROUP, TOOLS_GROUP);
+    public static final Item STEVE_BOAT = register(
+            new org.agmas.noellesroles.game.command_block.item.SteveBoatItem(new Item.Properties().stacksTo(1)),
+            "steve_boat", ROLE_ITEMS_GROUP, TOOLS_GROUP);
+    public static final Item STEVE_MINECART = register(
+            new org.agmas.noellesroles.game.command_block.item.SteveMinecartItem(new Item.Properties().stacksTo(1)),
+            "steve_minecart", ROLE_ITEMS_GROUP, TOOLS_GROUP);
+    public static final Item STEVE_GOLDEN_APPLE = register(
+            new org.agmas.noellesroles.game.command_block.item.SteveGoldenAppleItem(
+                    new Item.Properties().stacksTo(16).food(net.minecraft.world.food.Foods.GOLDEN_APPLE)),
+            "steve_golden_apple", ROLE_ITEMS_GROUP, TOOLS_GROUP);
+    public static final Item STEVE_PISTON = register(
+            new org.agmas.noellesroles.game.command_block.item.StevePistonItem(new Item.Properties().stacksTo(16)),
+            "steve_piston", ROLE_ITEMS_GROUP, TOOLS_GROUP);
 
     public static Item register(Item item, String id, ResourceKey<CreativeModeTab>... extraGroups) {
         ResourceKey<CreativeModeTab>[] allGroups = java.util.Arrays.copyOf(extraGroups, extraGroups.length + 1);

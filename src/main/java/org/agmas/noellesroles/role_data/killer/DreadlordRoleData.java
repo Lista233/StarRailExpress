@@ -75,7 +75,7 @@ public class DreadlordRoleData extends SimpleRoleData {
         return true;
     }
 
-    /** 第二个技能：只在狂暴中进出黑暗，不占用恐惧技能的冷却。 */
+    /** 第二个技能：非狂暴也能进出黑暗，不占用恐惧技能的冷却。 */
     public boolean useDark() {
         if (!(player instanceof ServerPlayer self)) {
             return false;
@@ -88,11 +88,6 @@ public class DreadlordRoleData extends SimpleRoleData {
         if (dark) {
             leaveDark(self, false);
             return true;
-        }
-        if (!killing) {
-            self.displayClientMessage(Component.translatable("message.noellesroles.dreadlord.dark_need_form")
-                    .withStyle(ChatFormatting.GRAY), true);
-            return false;
         }
         int now = self.tickCount;
         if (now < darkReadyAt) {
@@ -149,12 +144,13 @@ public class DreadlordRoleData extends SimpleRoleData {
     }
 
     public void onHit() {
-        if (!(player instanceof ServerPlayer self) || dark || killing || isStunned()) {
+        if (!(player instanceof ServerPlayer self) || dark || isStunned()) {
             return;
         }
-        stunLeft = DreadlordRole.HIT_STUN;
-        self.addEffect(new MobEffectInstance(ModEffects.USED_BANED, DreadlordRole.HIT_STUN, 0, false, false, true));
-        DreadlordRole.stun(self, DreadlordRole.HIT_STUN);
+        int stun = killing ? DreadlordRole.KILLING_HIT_STUN : DreadlordRole.HIT_STUN;
+        stunLeft = stun;
+        self.addEffect(new MobEffectInstance(ModEffects.USED_BANED, stun, 0, false, false, true));
+        DreadlordRole.stun(self, stun);
         self.displayClientMessage(Component.translatable("message.noellesroles.dreadlord.stunned")
                 .withStyle(ChatFormatting.DARK_GRAY), true);
         if (self.level() instanceof ServerLevel level) {
@@ -337,11 +333,9 @@ public class DreadlordRoleData extends SimpleRoleData {
                         .withStyle(ChatFormatting.DARK_RED), true);
             }
         }
-        if (!killing || killLeft <= 0) {
+        if (killing && killLeft <= 0) {
             leaveDark(self, true);
-            if (killing) {
-                leaveKilling(self, level);
-            }
+            leaveKilling(self, level);
         }
     }
 

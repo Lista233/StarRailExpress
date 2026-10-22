@@ -9,10 +9,8 @@ import java.util.UUID;
 import org.agmas.noellesroles.game.roles.innocence.builder.BuilderWallPositions;
 import org.agmas.noellesroles.packet.BuilderRemoveWallS2CPacket;
 import org.agmas.noellesroles.packet.BuilderWallS2CPacket;
-import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.role_data.innocence.BuilderRoleData;
 
-import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -31,14 +29,15 @@ public final class SteveBuilder {
     public static final int COOLDOWN = 45 * 20;
     public static final int DURATION = BuilderRoleData.WALL_DURATION;
     private static final List<Wall> WALLS = new ArrayList<>();
-    private static long readyAt;
 
     private SteveBuilder() {
     }
 
     public static void clear() {
+        for (Wall wall : WALLS) {
+            BuilderWallPositions.removeWall(wall.positions);
+        }
         WALLS.clear();
-        readyAt = 0;
     }
 
     public static void tick(ServerLevel level) {
@@ -63,15 +62,10 @@ public final class SteveBuilder {
         if (!(player instanceof ServerPlayer server) || !(player.level() instanceof ServerLevel level)) {
             return false;
         }
-        if (!SREGameWorldComponent.KEY.get(level).isRole(player, ModRoles.STEVE)) {
+        if (!SteveMiner.canAct(player)) {
             return false;
         }
         long now = level.getGameTime();
-        if (now < readyAt) {
-            server.displayClientMessage(Component.translatable("hud.noellesroles.builder.cooldown",
-                    String.format("%.1f", (readyAt - now) / 20.0F)).withStyle(ChatFormatting.RED), true);
-            return false;
-        }
         List<BlockPos> wall = wall(server);
         int minY = wall.stream().mapToInt(BlockPos::getY).min().orElse(0);
         List<BlockPos> bricks = new ArrayList<>();
@@ -91,7 +85,6 @@ public final class SteveBuilder {
         for (ServerPlayer other : level.players()) {
             ServerPlayNetworking.send(other, packet);
         }
-        readyAt = now + COOLDOWN;
         level.playSound(null, server.getX(), server.getY(), server.getZ(), SoundEvents.STONE_PLACE, SoundSource.PLAYERS,
                 1.0F, 1.0F);
         server.displayClientMessage(Component.translatable("hud.noellesroles.builder.wall_built")
