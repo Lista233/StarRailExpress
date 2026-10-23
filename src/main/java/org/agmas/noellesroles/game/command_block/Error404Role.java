@@ -2,13 +2,13 @@ package org.agmas.noellesroles.game.command_block;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import org.agmas.noellesroles.Noellesroles;
-import org.agmas.noellesroles.game.command_block.Error404Pathfinder.Cell;
+import org.agmas.noellesroles.content.entity.Error404PuppetEntity;
+import org.agmas.noellesroles.init.ModEntities;
 import org.agmas.noellesroles.game.command_block.item.GazeRays;
 import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.init.ModItems;
@@ -16,9 +16,7 @@ import org.agmas.noellesroles.packet.Error404ActionC2SPacket;
 import org.agmas.noellesroles.packet.Error404StateS2CPacket;
 import org.agmas.noellesroles.packet.Error404StateS2CPacket.Contact;
 import org.agmas.noellesroles.role.ModRoles;
-import org.agmas.noellesroles.role_data.killer.Error404PuppetRoleData;
 import org.agmas.noellesroles.role_data.killer.Error404RoleData;
-import org.agmas.noellesroles.utils.RoleUtils;
 
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.NormalRole;
@@ -62,6 +60,7 @@ public class Error404Role extends NormalRole {
     public static final int VOID_RADIUS = 3;
     public static final ResourceLocation VOID_DEATH = Noellesroles.id("error_void");
     private static final Map<UUID, Assimilation> ASSIMILATIONS = new HashMap<>();
+    private static final Map<UUID, Error404PuppetEntity> PUPPETS = new HashMap<>();
     private static final List<VoidZone> ZONES = new ArrayList<>();
     private static final Map<ServerLevel, Map<BlockPos, SavedBlock>> ERASED = new HashMap<>();
 
@@ -87,25 +86,16 @@ public class Error404Role extends NormalRole {
                 RoleSkill.skill(SRE.id("error404_terminal"), "skill.noellesroles.error404.terminal",
                         context -> openTerminal(context.player()))
                         .shifted(true).modeSwitch(true).showOnHud(false).build());
-        RoleSkill.register(ModRoles.ERROR_404_PUPPET,
-                RoleSkill.skill(SRE.id("error404_detonate"), "skill.noellesroles.error404.detonate",
-                        context -> trySelfDestruct(context.player())).showOnHud(true).build());
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(level -> {
             if (SREGameWorldComponent.KEY.get(level).isRunning()) tick(level);
         });
     }
 
     public static Error404RoleData data(Player player) { return RoleData.getNullable(Error404RoleData.class, player); }
-    public static Error404PuppetRoleData puppetData(Player player) {
-        return RoleData.getNullable(Error404PuppetRoleData.class, player);
-    }
     public static boolean isHighDimension(Player player) {
         if (player == null || !GameUtils.isPlayerAliveAndSurvival(player)) return false;
         Error404RoleData data = data(player);
         return data != null && data.high && SREGameWorldComponent.KEY.get(player.level()).isRole(player, ModRoles.ERROR_404);
-    }
-    public static boolean isAssimilated(Player player) {
-        return player != null && SREGameWorldComponent.KEY.get(player.level()).isRole(player, ModRoles.ERROR_404_PUPPET);
     }
     private static boolean isHunter(ServerPlayer player) {
         return player != null && GameUtils.isPlayerAliveAndSurvival(player)
@@ -118,14 +108,14 @@ public class Error404Role extends NormalRole {
         ZONES.clear();
         ERASED.clear();
         ASSIMILATIONS.clear();
+        for (Error404PuppetEntity puppet : PUPPETS.values()) puppet.discard();
+        PUPPETS.clear();
     }
 
     public static void clear(ServerLevel level) {
         for (ServerPlayer player : level.players()) {
             Error404RoleData data = data(player);
             if (data != null) leaveHigh(player, data);
-            Error404PuppetRoleData puppet = puppetData(player);
-            if (puppet != null) releasePuppet(player, puppet);
         }
         clear();
     }
@@ -133,8 +123,11 @@ public class Error404Role extends NormalRole {
     public static void disconnected(ServerPlayer player) {
         Error404RoleData data = data(player);
         if (data != null) leaveHigh(player, data);
-        Error404PuppetRoleData puppet = puppetData(player);
-        if (puppet != null) releasePuppet(player, puppet);
+        PUPPETS.values().removeIf(puppet -> {
+            if (!player.getUUID().equals(puppet.ownerId())) return false;
+            puppet.discard();
+            return true;
+        });
         ASSIMILATIONS.entrySet().removeIf(entry -> entry.getKey().equals(player.getUUID())
                 || entry.getValue().owner.equals(player.getUUID()));
     }
@@ -198,12 +191,8 @@ public class Error404Role extends NormalRole {
         player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
         data.sync();
         ServerPlayNetworking.send(player, new Error404StateS2CPacket(false, false, List.of()));
-        for (ServerPlayer puppet : player.serverLevel().players()) {
-            Error404PuppetRoleData pd = puppetData(puppet);
-            if (pd != null && player.getUUID().equals(pd.owner)) {
-                stop(pd);
-                puppet.removeEffect(ModEffects.MOVE_BANED);
-            }
+        for (Error404PuppetEntity puppet : PUPPETS.values()) {
+            if (player.getUUID().equals(puppet.ownerId())) puppet.stop();
         }
     }
 
@@ -214,7 +203,7 @@ public class Error404Role extends NormalRole {
         }
         List<ServerPlayer> seen = GazeRays.playersAlong(hunter, 24, 0.2);
         ServerPlayer target = seen.isEmpty() ? null : seen.getFirst();
-        if (target == null || !hunter.hasLineOfSight(target) || isAssimilated(target)
+        if (target == null || !hunter.hasLineOfSight(target)
                 || isHunter(target) || ASSIMILATIONS.containsKey(target.getUUID())) {
             data.aimTarget = null;
             return;
@@ -237,18 +226,18 @@ public class Error404Role extends NormalRole {
 
     public static void tick(ServerLevel level) {
         long now = level.getGameTime();
-        Iterator<Map.Entry<UUID, Assimilation>> it = ASSIMILATIONS.entrySet().iterator();
-        while (it.hasNext()) {
-            var entry = it.next();
+        PUPPETS.values().removeIf(puppet -> !puppet.isAlive());
+        // 死亡可能同步触发结算并清空会话，使用快照避免迭代器失效。
+        for (var entry : List.copyOf(ASSIMILATIONS.entrySet())) {
             Assimilation assimilation = entry.getValue();
-            if (assimilation.level != level) continue;
+            if (assimilation.level != level || ASSIMILATIONS.get(entry.getKey()) != assimilation) continue;
             ServerPlayer target = level.getServer().getPlayerList().getPlayer(entry.getKey());
             ServerPlayer owner = level.getServer().getPlayerList().getPlayer(assimilation.owner);
             if (!isHunter(owner) || target == null || target.serverLevel() != level || owner.serverLevel() != level
                     || !GameUtils.isPlayerAliveAndSurvival(target)
                     || SREGameWorldComponent.KEY.get(level).getRole(target) != assimilation.originalRole) {
                 if (target != null) message(target, "cancelled");
-                it.remove();
+                ASSIMILATIONS.remove(entry.getKey());
                 continue;
             }
             if (now % 20 == 0) {
@@ -257,7 +246,7 @@ public class Error404Role extends NormalRole {
                 ParticleFx.sphere(level, ParticleTypes.REVERSE_PORTAL, target.position().add(0, 1, 0), 8, 0.8, 0.02);
             }
             if (now >= assimilation.doneAt) {
-                it.remove(); // 先释放预留槽，再转职，期间不能再次覆盖同化计时。
+                ASSIMILATIONS.remove(entry.getKey());
                 finishAssimilation(owner, target);
             }
         }
@@ -266,16 +255,28 @@ public class Error404Role extends NormalRole {
 
     private static void finishAssimilation(ServerPlayer owner, ServerPlayer target) {
         if (countOwned(owner) >= MAX_ASSIMILATED) return;
-        // 使用完整转职 API 清理原职业 RoleData、技能和初始道具，且不增加一次职业场次。
-        RoleUtils.changeRole(target, ModRoles.ERROR_404_PUPPET, true, false, true, false, true);
-        Error404PuppetRoleData puppet = puppetData(target);
+        ServerLevel level = owner.serverLevel();
+        Vec3 position = target.position();
+        float yaw = target.getYRot();
+        Component name = target.getName().copy();
+        Error404PuppetEntity puppet = ModEntities.ERROR404_PUPPET.create(level);
         if (puppet == null) return;
-        puppet.owner = owner.getUUID();
-        puppet.sync();
-        giveUnique(target, ModItems.ERROR_CORE);
+        puppet.setOwner(owner);
+        puppet.setCustomName(name);
+        puppet.moveTo(position.x, position.y, position.z, yaw, 0);
+        if (!level.addFreshEntity(puppet)) return;
+        PUPPETS.put(puppet.getUUID(), puppet);
+        // 先保证实体生成成功，再淘汰原玩家；死亡回调导致结算时也能统一清理实体。
+        GameUtils.killPlayer(target, false, owner, VOID_DEATH, true);
+        if (GameUtils.isPlayerAliveAndSurvival(target) || !SREGameWorldComponent.KEY.get(level).isRunning()
+                || !isHunter(owner)) {
+            PUPPETS.remove(puppet.getUUID());
+            puppet.discard();
+            return;
+        }
         target.displayClientMessage(Component.translatable("message.noellesroles.error404.assimilated")
                 .withStyle(ChatFormatting.DARK_PURPLE), false);
-        owner.displayClientMessage(Component.translatable("message.noellesroles.error404.finished", target.getName()), false);
+        owner.displayClientMessage(Component.translatable("message.noellesroles.error404.finished", name), false);
     }
 
     public static boolean openTerminal(ServerPlayer player) {
@@ -292,13 +293,16 @@ public class Error404Role extends NormalRole {
         long now = owner.level().getGameTime();
         for (ServerPlayer player : owner.serverLevel().players()) {
             if (!GameUtils.isPlayerAliveAndSurvival(player)) continue;
-            Error404PuppetRoleData puppet = puppetData(player);
             Assimilation assimilation = ASSIMILATIONS.get(player.getUUID());
-            int state = puppet != null && owner.getUUID().equals(puppet.owner) ? 1
-                    : assimilation != null && owner.getUUID().equals(assimilation.owner) ? 2 : 0;
+            int state = assimilation != null && owner.getUUID().equals(assimilation.owner) ? 2 : 0;
             contacts.add(new Contact(player.getUUID(), player.getGameProfile().getName(), player.getX(), player.getY(),
-                    player.getZ(), state, state == 2 ? Error404Exposure.secondsLeft(assimilation.doneAt, now) : 0,
-                    state == 1 ? puppet.order : 0));
+                    player.getZ(), state, state == 2 ? Error404Exposure.secondsLeft(assimilation.doneAt, now) : 0, 0));
+        }
+        for (Error404PuppetEntity puppet : PUPPETS.values()) {
+            if (puppet.isAlive() && puppet.level() == owner.level() && owner.getUUID().equals(puppet.ownerId())) {
+                contacts.add(new Contact(puppet.getUUID(), puppet.getName().getString(), puppet.getX(), puppet.getY(),
+                        puppet.getZ(), 1, 0, puppet.order()));
+            }
         }
         ServerPlayNetworking.send(owner, new Error404StateS2CPacket(true, open, List.copyOf(contacts)));
     }
@@ -321,12 +325,11 @@ public class Error404Role extends NormalRole {
             openTerminal(actor);
             return;
         }
-        ServerPlayer puppet = actor.serverLevel().getServer().getPlayerList().getPlayer(packet.puppet());
+        Error404PuppetEntity puppet = PUPPETS.get(packet.puppet());
         Assimilation pending = ASSIMILATIONS.get(packet.puppet());
         boolean ownsPending = pending != null && pending.level == actor.serverLevel() && actor.getUUID().equals(pending.owner);
-        Error404PuppetRoleData pd = puppet == null ? null : puppetData(puppet);
-        boolean owns = puppet != null && puppet.serverLevel() == actor.serverLevel()
-                && GameUtils.isPlayerAliveAndSurvival(puppet) && pd != null && actor.getUUID().equals(pd.owner);
+        boolean owns = puppet != null && puppet.level() == actor.level()
+                && puppet.isAlive() && actor.getUUID().equals(puppet.ownerId());
         if (!owns && !ownsPending) {
             message(actor, "not_owned");
             return;
@@ -344,29 +347,24 @@ public class Error404Role extends NormalRole {
         if (!owns) return;
         data.selected = puppet.getUUID();
         switch (packet.action()) {
-            case Error404ActionC2SPacket.HOLD -> stop(pd);
+            case Error404ActionC2SPacket.HOLD -> puppet.stop();
             case Error404ActionC2SPacket.DETONATE -> { if (!remoteDetonate(actor, puppet)) return; }
             case Error404ActionC2SPacket.ATTACK -> {
                 ServerPlayer target = actor.serverLevel().getServer().getPlayerList().getPlayer(packet.target());
                 if (target == null || target.serverLevel() != actor.serverLevel() || !GameUtils.isPlayerAliveAndSurvival(target)
-                        || target == actor || isHunter(target) || isAssimilated(target) || target == puppet) {
+                        || target == actor || isHunter(target)) {
                     message(actor, "invalid_target");
                     return;
                 }
-                if (!setPath(puppet, pd, target.position())) { message(actor, "no_path"); return; }
-                pd.order = 2;
-                pd.attackTarget = target.getUUID();
+                puppet.chase(target);
             }
             case Error404ActionC2SPacket.MOVE -> {
-                if (!Double.isFinite(packet.x()) || !Double.isFinite(packet.y()) || !Double.isFinite(packet.z())
-                        || Math.abs(packet.x()) > 30_000_000 || Math.abs(packet.z()) > 30_000_000
-                        || Math.abs(packet.y() - puppet.getY()) > 4) return;
-                if (!setPath(puppet, pd, new Vec3(packet.x(), packet.y(), packet.z()))) {
+                Vec3 destination = new Vec3(packet.x(), packet.y(), packet.z());
+                if (!validDestination(actor.serverLevel(), destination)) {
                     message(actor, "no_path");
                     return;
                 }
-                pd.order = 1;
-                pd.attackTarget = null;
+                puppet.moveToPoint(destination);
             }
             default -> { return; }
         }
@@ -374,11 +372,10 @@ public class Error404Role extends NormalRole {
         sendState(actor, false);
     }
 
-    /** 旧实体右键入口现在只选择本人傀儡，不再直接引爆。 */
+    /** 高维时右键自己的实体傀儡可选中并打开终端。 */
     public static boolean tryControl(ServerPlayer actor, net.minecraft.world.entity.Entity entity) {
-        if (!(entity instanceof ServerPlayer target) || !isHighDimension(actor)) return false;
-        Error404PuppetRoleData puppet = puppetData(target);
-        if (puppet == null || !actor.getUUID().equals(puppet.owner)) return false;
+        if (!(entity instanceof Error404PuppetEntity target) || !isHighDimension(actor)
+                || !actor.getUUID().equals(target.ownerId()) || !target.isAlive()) return false;
         Error404RoleData data = data(actor);
         data.selected = target.getUUID();
         return openTerminal(actor);
@@ -418,144 +415,92 @@ public class Error404Role extends NormalRole {
             message(actor, "select_first");
             return false;
         }
-        ServerPlayer target = actor.serverLevel().getServer().getPlayerList().getPlayer(data.selected);
+        Error404PuppetEntity target = PUPPETS.get(data.selected);
         return target != null && remoteDetonate(actor, target);
     }
 
-    private static boolean remoteDetonate(ServerPlayer actor, ServerPlayer target) {
-        Error404PuppetRoleData puppet = puppetData(target);
+    private static boolean remoteDetonate(ServerPlayer actor, Error404PuppetEntity target) {
         ItemStack detonator = findItem(actor, ModItems.ERROR_DETONATOR);
-        if (!isHighDimension(actor) || target.serverLevel() != actor.serverLevel() || puppet == null
-                || !actor.getUUID().equals(puppet.owner) || detonator.isEmpty()) {
+        if (!isHighDimension(actor) || target.level() != actor.level() || !target.isAlive()
+                || !actor.getUUID().equals(target.ownerId()) || detonator.isEmpty()
+                || PUPPETS.get(target.getUUID()) != target) {
             message(actor, "detonator_failed");
             return false;
         }
-        if (!trySelfDestruct(target)) return false;
+        ServerLevel level = actor.serverLevel();
+        Vec3 center = target.position().add(0, 0.9, 0);
+        // 区域不再依赖玩家死亡回调；先建立并挖空，再移除实体，重复包无法再次引爆。
+        VoidZone zone = new VoidZone(level, center, actor.getUUID(), level.getGameTime());
+        ZONES.add(zone);
+        carve(zone);
+        PUPPETS.remove(target.getUUID());
+        target.discard();
+        data(actor).selected = null;
         detonator.shrink(1);
         actor.getInventory().setChanged();
-        return true;
-    }
-
-    public static boolean trySelfDestruct(ServerPlayer player) {
-        if (!isAssimilated(player) || !GameUtils.isPlayerAliveAndSurvival(player)) return false;
-        Error404PuppetRoleData puppet = puppetData(player);
-        UUID owner = puppet == null || puppet.owner == null ? player.getUUID() : puppet.owner;
-        Vec3 center = player.position().add(0, 0.9, 0);
-        // 先使傀儡死亡再放置区域，重复按键和旧核心都不能再次引爆。
-        ServerPlayer killer = player.serverLevel().getServer().getPlayerList().getPlayer(owner);
-        GameUtils.killPlayer(player, false, killer, VOID_DEATH, true);
-        if (GameUtils.isPlayerAliveAndSurvival(player)) return false;
-        if (puppet != null) releasePuppet(player, puppet);
-        ZONES.add(new VoidZone(player.serverLevel(), center, owner, player.level().getGameTime()));
-        LegendFx.ring(player.serverLevel(), center, VOID_RADIUS, LegendFx.RIFT);
-        player.serverLevel().playSound(null, center.x, center.y, center.z, SoundEvents.GENERIC_EXPLODE,
+        ParticleFx.sphere(level, ParticleTypes.EXPLOSION_EMITTER, center, 1, 0, 0);
+        LegendFx.ring(level, center, VOID_RADIUS, LegendFx.RIFT);
+        level.playSound(null, center.x, center.y, center.z, SoundEvents.GENERIC_EXPLODE,
                 SoundSource.PLAYERS, 0.8F, 0.6F);
-        for (ServerPlayer nearby : player.serverLevel().players()) {
-            if (nearby.position().distanceToSqr(center) <= 32 * 32) message(nearby, "void_open");
+        for (ServerPlayer nearby : level.players()) {
+            if (nearby.position().distanceToSqr(center) <= 64 * 64) message(nearby, "void_open");
         }
         return true;
     }
 
-    public static void tickPuppet(ServerPlayer player, Error404PuppetRoleData data) {
-        if (!GameUtils.isPlayerAliveAndSurvival(player)) { releasePuppet(player, data); return; }
-        ServerPlayer owner = data.owner == null ? null : player.serverLevel().getServer().getPlayerList().getPlayer(data.owner);
-        if (!isHunter(owner) || owner.serverLevel() != player.serverLevel() || !isHighDimension(owner)) {
-            stop(data);
-            player.removeEffect(ModEffects.MOVE_BANED);
+    /** 服务端每 tick 直线推进，不使用寻路、玩家移动包或方块碰撞。 */
+    public static void tickPuppet(Error404PuppetEntity puppet) {
+        if (!(puppet.level() instanceof ServerLevel level)) return;
+        ServerPlayer owner = puppet.ownerId() == null ? null : level.getServer().getPlayerList().getPlayer(puppet.ownerId());
+        if (!puppet.isAlive() || !SREGameWorldComponent.KEY.get(level).isRunning()
+                || !isHunter(owner) || owner.level() != level || PUPPETS.get(puppet.getUUID()) != puppet) {
+            PUPPETS.remove(puppet.getUUID());
+            puppet.discard();
             return;
         }
-        long now = player.level().getGameTime();
-        if (now % 20 == 0) player.addEffect(new MobEffectInstance(ModEffects.MOVE_BANED, 40, 0, false, false, false));
-        if (data.order == 0 || now % 2 != 0) return;
-        if (data.order == 2) {
-            ServerPlayer target = player.serverLevel().getServer().getPlayerList().getPlayer(data.attackTarget);
-            if (target == null || target.serverLevel() != player.serverLevel() || !GameUtils.isPlayerAliveAndSurvival(target)
-                    || isHunter(target) || isAssimilated(target)) { stop(data); return; }
-            if (player.distanceToSqr(target) <= 2.4 * 2.4 && player.hasLineOfSight(target)) {
-                if (now >= data.attackAt) {
-                    data.attackAt = now + 20;
-                    player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        if (!isHighDimension(owner)) { puppet.stop(); return; }
+        long now = level.getGameTime();
+        if (puppet.order() == 2) {
+            ServerPlayer target = level.getServer().getPlayerList().getPlayer(puppet.attackTarget());
+            if (target == null || target.level() != level || !GameUtils.isPlayerAliveAndSurvival(target)
+                    || isHunter(target)) { puppet.stop(); return; }
+            if (puppet.distanceToSqr(target) <= 2.4 * 2.4 && puppet.hasLineOfSight(target)) {
+                if (now >= puppet.attackAt()) {
+                    puppet.setAttackAt(now + 20);
+                    puppet.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
                     CommandBlockCombat.tryKill(owner, target, Noellesroles.id("error404_puppet"), false);
                 }
                 return;
             }
-            if (now >= data.repathAt && !setPath(player, data, target.position())) {
-                stop(data);
-                message(owner, "no_path");
-                return;
-            }
+            puppet.updateDestination(target.position());
         }
-        movePuppet(player, data, owner);
+        Vec3 destination = puppet.destination();
+        if (destination == null) return;
+        Vec3 delta = destination.subtract(puppet.position());
+        boolean arrived = delta.lengthSqr() <= 0.18 * 0.18;
+        Vec3 next = arrived ? destination : puppet.position().add(delta.normalize().scale(0.18));
+        if (!validDestination(level, next)) { puppet.stop(); return; }
+        float yaw = (float) Math.toDegrees(Math.atan2(-delta.x, delta.z));
+        puppet.setYRot(yaw);
+        puppet.setYHeadRot(yaw);
+        puppet.setYBodyRot(yaw);
+        puppet.setPos(next.x, next.y, next.z);
+        if (arrived && puppet.order() == 1) puppet.stop();
     }
 
-    private static void stop(Error404PuppetRoleData data) {
-        data.order = 0;
-        data.attackTarget = null;
-        data.destination = null;
-        data.path = List.of();
-        data.pathIndex = 0;
-    }
-
-    public static void releasePuppet(ServerPlayer player, Error404PuppetRoleData data) {
-        stop(data);
-        data.owner = null;
-        player.removeEffect(ModEffects.MOVE_BANED);
-    }
-
-    private static Error404Pathfinder.Grid grid(ServerPlayer player) {
-        ServerLevel level = player.serverLevel();
-        return new Error404Pathfinder.Grid() {
-            private boolean inside(Cell cell) {
-                BlockPos pos = new BlockPos(cell.x(), cell.y(), cell.z());
-                return level.hasChunkAt(pos) && level.getWorldBorder().isWithinBounds(pos)
-                        && cell.y() >= level.getMinBuildHeight() && cell.y() < level.getMaxBuildHeight();
-            }
-            @Override public boolean clear(Cell cell) { return inside(cell); }
-            @Override public boolean standable(Cell cell) { return inside(cell); }
-        };
-    }
-
-    private static boolean setPath(ServerPlayer player, Error404PuppetRoleData data, Vec3 destination) {
-        if (!player.level().isInWorldBounds(BlockPos.containing(destination))) return false;
-        Error404Pathfinder.Grid grid = grid(player);
-        BlockPos startPos = player.blockPosition();
-        Cell start = new Cell(startPos.getX(), startPos.getY(), startPos.getZ());
-        BlockPos end = BlockPos.containing(destination);
-        Cell goal = new Cell(end.getX(), end.getY(), end.getZ());
-        List<Cell> path = Error404Pathfinder.find(grid, start, goal);
-        if (path.isEmpty()) return false;
-        data.path = path;
-        data.pathIndex = 0;
-        data.destination = new Vec3(goal.x() + 0.5, goal.y(), goal.z() + 0.5);
-        data.repathAt = player.level().getGameTime() + 20;
-        return true;
-    }
-    private static void movePuppet(ServerPlayer player, Error404PuppetRoleData data, ServerPlayer owner) {
-        if (data.pathIndex >= data.path.size()) {
-            if (data.order == 1) stop(data);
-            return;
-        }
-        Cell node = data.path.get(data.pathIndex);
-        Vec3 destination = new Vec3(node.x() + 0.5, node.y(), node.z() + 0.5);
-        Vec3 current = player.position();
-        if (current.distanceToSqr(destination) < 0.015) { data.pathIndex++; return; }
-        Vec3 delta = destination.subtract(current);
-        if (delta.length() > 0.36) delta = delta.normalize().scale(0.36);
-        Vec3 next = current.add(delta);
-        float[] rotation = GazeRays.lookAt(player, destination.add(0, player.getEyeHeight(), 0));
-        player.setYRot(rotation[0]);
-        player.setYHeadRot(rotation[0]);
-        player.setDeltaMovement(Vec3.ZERO);
-        player.fallDistance = 0;
-        player.teleportTo(next.x, next.y, next.z);
+    private static boolean validDestination(ServerLevel level, Vec3 point) {
+        if (!Double.isFinite(point.x) || !Double.isFinite(point.y) || !Double.isFinite(point.z)
+                || Math.abs(point.x) > 30_000_000 || Math.abs(point.z) > 30_000_000
+                || point.y < level.getMinBuildHeight() || point.y >= level.getMaxBuildHeight()) return false;
+        BlockPos pos = BlockPos.containing(point);
+        return level.hasChunkAt(pos) && level.getWorldBorder().isWithinBounds(pos);
     }
 
     private static int countOwned(ServerPlayer owner) {
         int count = 0;
         for (Assimilation pending : ASSIMILATIONS.values()) if (owner.getUUID().equals(pending.owner)) count++;
-        for (ServerPlayer player : owner.serverLevel().getServer().getPlayerList().getPlayers()) {
-            Error404PuppetRoleData data = puppetData(player);
-            if (data != null && owner.getUUID().equals(data.owner) && GameUtils.isPlayerAliveAndSurvival(player)) count++;
+        for (Error404PuppetEntity puppet : PUPPETS.values()) {
+            if (puppet.isAlive() && owner.getUUID().equals(puppet.ownerId())) count++;
         }
         return count;
     }
@@ -568,11 +513,6 @@ public class Error404Role extends NormalRole {
         return ItemStack.EMPTY;
     }
 
-    private static void giveUnique(ServerPlayer player, Item item) {
-        if (!findItem(player, item).isEmpty()) return;
-        ItemStack stack = item.getDefaultInstance();
-        if (!player.getInventory().add(stack)) player.drop(stack, false);
-    }
 
     private static void message(ServerPlayer player, String suffix) {
         player.displayClientMessage(Component.translatable("message.noellesroles.error404." + suffix), true);

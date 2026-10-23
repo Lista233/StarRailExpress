@@ -31,6 +31,12 @@ import org.agmas.noellesroles.game.command_block.CommandBlockThrownEntity;
 import org.agmas.noellesroles.content.entity.*;
 
 public class ModEntities {
+    public static final EntityType<Error404PuppetEntity> ERROR404_PUPPET = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, Noellesroles.id("error404_puppet"),
+            EntityType.Builder.of(Error404PuppetEntity::new, MobCategory.MISC)
+                    .sized(0.6F, 1.8F).clientTrackingRange(16).updateInterval(1)
+                    .noSave().build("error404_puppet"));
+
     public static final EntityType<RoleMineEntity> ROLE_MINE_ENTITY_ENTITY_TYPE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
             ResourceLocation.fromNamespaceAndPath(Noellesroles.MOD_ID, "cube"),
@@ -736,6 +742,7 @@ public class ModEntities {
         FabricDefaultAttributeRegistry.register(PIGEON, PigeonEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MECHANICAL_BIRD, MechanicalBirdEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(KUIXI_PUPPET, KuiXiPuppetEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(ERROR404_PUPPET, Error404PuppetEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MUMMY,
                 net.minecraft.world.entity.monster.Husk.createAttributes());
         FabricDefaultAttributeRegistry.register(UNDEAD, UndeadEntity.createAttributes());

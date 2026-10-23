@@ -133,8 +133,11 @@ public final class TrainDummyWeapons {
         if (!canUseSpecial(attacker, stack) || broken(stack)) {
             return false;
         }
-        float damage = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);
         float charge = attacker.getAttackStrengthScale(0.5F);
+        if (charge < 1.0F) {
+            return false;
+        }
+        float damage = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);
         damage *= 0.2F + charge * charge * 0.8F;
         attacker.resetAttackStrengthTicker();
         if (damage <= 0.0F) {

@@ -3,7 +3,7 @@ package org.agmas.noellesroles.game.command_block;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.agmas.noellesroles.game.command_block.item.GazeRays;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.role_data.killer.CandleShadeRoleData;
@@ -19,9 +19,12 @@ import io.wifi.starrailexpress.util.ShopEntry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
-/** 烛影：点亮一个人。对方看着你会把火吹灭。烛剪只收没看你的烛火。 */
+/** 烛影：点亮前方所有人。对方看着你会吹灭自己的烛火，命中后短暂隐身加速。 */
 public class CandleShadeRole extends NormalRole {
     public static final ResourceLocation DEATH_SNIP = org.agmas.noellesroles.Noellesroles.id("candle_snip");
     public static final double MARK_RANGE = 14.0D;
@@ -40,6 +43,12 @@ public class CandleShadeRole extends NormalRole {
                 "skill.noellesroles.candle_shade.light",
                 context -> light(context.player()))
                 .cooldownSeconds(18).announceToSelf().showOnHud(true).build());
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamage, damageTaken, blocked) -> {
+            if (entity instanceof ServerPlayer target && source.getEntity() instanceof ServerPlayer attacker
+                    && attacker != target && damageTaken > 0.0F) {
+                grantHitEffects(attacker);
+            }
+        });
     }
 
     public static boolean light(ServerPlayer player) {
@@ -51,12 +60,38 @@ public class CandleShadeRole extends NormalRole {
             player.displayClientMessage(Component.translatable("message.noellesroles.candle_shade.already"), true);
             return false;
         }
-        List<ServerPlayer> hit = GazeRays.playersAlong(player, MARK_RANGE, 0.35D);
-        if (hit.isEmpty() || !player.hasLineOfSight(hit.get(0))) {
+        List<ServerPlayer> hit = player.serverLevel().players().stream()
+                .filter(target -> target != player && GameUtils.isPlayerAliveAndSurvival(target))
+                .filter(target -> player.distanceToSqr(target) <= MARK_RANGE * MARK_RANGE)
+                .filter(target -> player.getLookAngle().dot(target.getEyePosition().subtract(player.getEyePosition())) > 0)
+                .filter(player::hasLineOfSight)
+                .toList();
+        if (hit.isEmpty()) {
             player.displayClientMessage(Component.translatable("message.noellesroles.candle_shade.miss"), true);
             return false;
         }
-        return data.light(hit.get(0), player.level().getGameTime());
+        long now = player.level().getGameTime();
+        for (ServerPlayer target : hit) {
+            data.light(target, now);
+        }
+        return true;
+    }
+
+    private static void grantHitEffects(ServerPlayer player) {
+        if (RoleData.getNullable(CandleShadeRoleData.class, player) == null
+                || !GameUtils.isPlayerAliveAndSurvival(player)) {
+            return;
+        }
+        player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 10 * 20, 0, false, false, true));
+        player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 2, 4));
+    }
+
+    @Override
+    public void onKill(Player victim, boolean spawnBody, Player killer, ResourceLocation deathReason) {
+        super.onKill(victim, spawnBody, killer, deathReason);
+        if (killer instanceof ServerPlayer attacker && killer != victim) {
+            grantHitEffects(attacker);
+        }
     }
 
     @Override

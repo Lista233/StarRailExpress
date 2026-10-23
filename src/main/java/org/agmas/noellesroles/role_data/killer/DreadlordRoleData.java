@@ -39,9 +39,12 @@ public class DreadlordRoleData extends SimpleRoleData {
     private int killLeft;
     private boolean dark;
     private int darkReadyAt;
+    private int darkUntil;
     private int stunLeft;
     private boolean ambushed;
     private int lungeLeft;
+    /** 一旦公开过形态，本实例的结束状态也必须继续同步，不能在 killing=false 后只发给本人。 */
+    private boolean publicFormSeen;
 
     public DreadlordRoleData(RoleDataContext context) {
         super(context);
@@ -101,7 +104,7 @@ public class DreadlordRoleData extends SimpleRoleData {
 
     @Override
     public boolean shouldSyncWith(ServerPlayer other) {
-        return killing || dark || other == this.player;
+        return publicFormSeen || killing || dark || other == this.player;
     }
 
     @Override
@@ -119,6 +122,7 @@ public class DreadlordRoleData extends SimpleRoleData {
         }
         killing = false;
         dark = false;
+        darkUntil = 0;
         stunLeft = 0;
         gaze.clear();
     }
@@ -129,9 +133,24 @@ public class DreadlordRoleData extends SimpleRoleData {
             return;
         }
         if (!GameUtils.isPlayerAliveAndSurvival(self)) {
+            if (killing) {
+                leaveKilling(self, level);
+            } else if (dark) {
+                leaveDark(self, true);
+                self.removeEffect(ModEffects.INVINCIBLE);
+                self.removeEffect(MobEffects.MOVEMENT_SPEED);
+            }
             return;
         }
         tickStun(self);
+        // 黑暗游走不能暂停狂暴寿命；无论在哪种形态都在此统一结束并广播复原状态。
+        if (killing) {
+            killLeft--;
+            if (SREPlayerPsychoComponent.KEY.get(self).getPsychoTicks() <= 0 || killLeft <= 0) {
+                leaveKilling(self, level);
+                return;
+            }
+        }
         if (dark) {
             tickDark(self, level);
             return;
@@ -194,13 +213,22 @@ public class DreadlordRoleData extends SimpleRoleData {
     }
 
     private void applyDread(ServerPlayer self, ServerPlayer target, ServerLevel level) {
+        int newlyFrightened = 0;
         for (ServerPlayer other : level.players()) {
             if (!GameUtils.isPlayerAliveAndSurvival(other)) {
                 continue;
             }
-            other.addEffect(new MobEffectInstance(ModEffects.DREADLORD_DREAD, DreadlordRole.DREAD_TICKS, 0,
-                    false, false, true));
+            boolean alreadyFrightened = other.hasEffect(ModEffects.DREADLORD_DREAD);
+            boolean applied = other.addEffect(new MobEffectInstance(ModEffects.DREADLORD_DREAD,
+                    DreadlordRole.DREAD_TICKS, 0, false, false, true));
+            if (other != self && !alreadyFrightened && applied) {
+                newlyFrightened++;
+            }
             SREPlayerMoodComponent.KEY.get(other).addMood(-0.02F);
+        }
+        // 只奖励真正新进入恐惧的其他玩家，续时不重复发钱；一轮只同步一次余额。
+        if (newlyFrightened > 0) {
+            SREPlayerShopComponent.KEY.get(self).addToBalance(newlyFrightened * 10);
         }
         target.displayClientMessage(Component.translatable("message.noellesroles.dreadlord.watched")
                 .withStyle(ChatFormatting.DARK_PURPLE), true);
@@ -230,6 +258,7 @@ public class DreadlordRoleData extends SimpleRoleData {
             return;
         }
         killing = true;
+        publicFormSeen = true;
         killLeft = DreadlordRole.KILL_FORM_TICKS;
         darkReadyAt = self.tickCount;
         setScale(self, DreadlordRole.KILL_SCALE);
@@ -262,7 +291,6 @@ public class DreadlordRoleData extends SimpleRoleData {
     }
 
     private void tickKilling(ServerPlayer self, ServerLevel level) {
-        killLeft--;
         if (lungeLeft > 0) {
             lungeLeft--;
             if (self.tickCount % 2 == 0) {
@@ -271,9 +299,6 @@ public class DreadlordRoleData extends SimpleRoleData {
         }
         if (self.tickCount % 10 == 0) {
             ParticleFx.sphere(level, ParticleTypes.SQUID_INK, self.position().add(0.0D, 1.2D, 0.0D), 8, 2.2D, 0.01D);
-        }
-        if (SREPlayerPsychoComponent.KEY.get(self).getPsychoTicks() <= 0 || killLeft <= 0) {
-            leaveKilling(self, level);
         }
     }
 
@@ -298,11 +323,13 @@ public class DreadlordRoleData extends SimpleRoleData {
 
     private void enterDark(ServerPlayer self) {
         dark = true;
+        publicFormSeen = true;
         ambushed = false;
         darkReadyAt = self.tickCount + DreadlordRole.DARK_COOLDOWN;
-        self.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, DreadlordRole.KILL_FORM_TICKS, 0,
+        darkUntil = self.tickCount + DreadlordRole.DARK_DURATION;
+        self.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, DreadlordRole.DARK_DURATION, 0,
                 false, false, false));
-        self.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, DreadlordRole.KILL_FORM_TICKS, 1,
+        self.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, DreadlordRole.DARK_DURATION, 1,
                 false, false, false));
         self.addEffect(new MobEffectInstance(ModEffects.INVINCIBLE, 40, 0, false, false, false));
         self.level().playSound(null, self.getX(), self.getY(), self.getZ(), SoundEvents.WARDEN_DIG,
@@ -313,6 +340,10 @@ public class DreadlordRoleData extends SimpleRoleData {
     }
 
     private void tickDark(ServerPlayer self, ServerLevel level) {
+        if (self.tickCount >= darkUntil) {
+            leaveDark(self, false);
+            return;
+        }
         self.addEffect(new MobEffectInstance(ModEffects.INVINCIBLE, 40, 0, false, false, false));
         self.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 40, 0, false, false, false));
         if (self.tickCount % 4 == 0) {
@@ -333,16 +364,20 @@ public class DreadlordRoleData extends SimpleRoleData {
                         .withStyle(ChatFormatting.DARK_RED), true);
             }
         }
-        if (killing && killLeft <= 0) {
-            leaveDark(self, true);
-            leaveKilling(self, level);
-        }
     }
 
     private void leaveDark(ServerPlayer self, boolean silent) {
         dark = false;
+        darkUntil = 0;
         ambushed = false;
         self.removeEffect(MobEffects.INVISIBILITY);
+        self.removeEffect(MobEffects.MOVEMENT_SPEED);
+        self.removeEffect(ModEffects.INVINCIBLE);
+        // 退出二技能只撤销黑暗效果；尚未结束的狂暴继续使用自身剩余时长。
+        if (killing && killLeft > 0) {
+            self.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, killLeft, 0, false, false, true));
+            self.addEffect(new MobEffectInstance(ModEffects.INVINCIBLE, killLeft, 0, false, false, true));
+        }
         self.level().playSound(null, self.getX(), self.getY(), self.getZ(), SoundEvents.WARDEN_EMERGE,
                 SoundSource.PLAYERS, 0.6F, 1.1F);
         if (!silent) {
@@ -375,9 +410,13 @@ public class DreadlordRoleData extends SimpleRoleData {
 
     @Override
     public void readFromSyncNbt(CompoundTag tag, HolderLookup.Provider lookup) {
+        boolean wasKilling = killing;
         killing = tag.getBoolean("Killing");
         dark = tag.getBoolean("Dark");
         killLeft = tag.getInt("KillLeft");
         stunLeft = tag.getInt("StunLeft");
+        if (wasKilling != killing && player != null) {
+            player.refreshDimensions();
+        }
     }
 }

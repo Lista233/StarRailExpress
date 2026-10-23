@@ -11,6 +11,13 @@ import io.wifi.starrailexpress.api.hit.HitPriority;
 import io.wifi.starrailexpress.api.hit.HitType;
 import io.wifi.starrailexpress.api.hit.SREHitManager;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import io.wifi.starrailexpress.content.item.api.SREItemProperties;
+import io.wifi.starrailexpress.index.TMMItems;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TieredItem;
+import net.minecraft.world.item.MaceItem;
 import io.wifi.starrailexpress.cca.SREPlayerTaskComponent;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.index.tag.TMMItemTags;
@@ -34,15 +41,15 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * 任务点旁边的裂缝。每 60 到 90 秒只刷一道，并挑一块能站的空位。
- * 击碎限定好人阵营的手枪，含平民和警长。
+ * 任务点旁边的裂缝。每 75 到 112.5 秒只刷一道，并挑一块能站的空位。
+ * 击碎限定好人阵营，支持枪械与近战武器。
  */
 public final class CommandBlockCracks {
     public static final String TAG = "sre.command_block_crack";
-    public static final int MIN_DELAY = 60 * 20;
-    public static final int MAX_DELAY = 90 * 20;
+    public static final int MIN_DELAY = 75 * 20;
+    public static final int MAX_DELAY = 2250; // 112.5 秒，原间隔增加 25%
     /** 刚刷出来时全场高亮的时长。 */
-    public static final int HIGHLIGHT_TICKS = 10 * 20;
+    public static final int HIGHLIGHT_TICKS = 5 * 20;
 
     private CommandBlockCracks() {
     }
@@ -57,6 +64,28 @@ public final class CommandBlockCracks {
                 return HitPriority.FALLBACK;
             }
             return null;
+        });
+        AttackEntityCallback.EVENT.register((attacker, world, hand, target, hit) -> {
+            if (!isCrack(target)) {
+                return InteractionResult.PASS;
+            }
+            ItemStack stack = attacker.getItemInHand(hand);
+            // 枪械仍由射击包结算，不能用左键敲击替代开枪。
+            if (!isMeleeWeapon(stack) || attacker.getCooldowns().isOnCooldown(stack.getItem())) {
+                return InteractionResult.FAIL;
+            }
+            if (attacker instanceof ServerPlayer player && player.distanceTo(target) <= 4.0D
+                    && player.getAttackStrengthScale(0.5F) >= 0.9F) {
+                if (tryShatterWithWeapon(player, target)) {
+                    player.resetAttackStrengthTicker();
+                    if (stack.isDamageableItem() && !player.isCreative()) {
+                        stack.hurtAndBreak(1, player, hand == net.minecraft.world.InteractionHand.MAIN_HAND
+                                ? net.minecraft.world.entity.EquipmentSlot.MAINHAND
+                                : net.minecraft.world.entity.EquipmentSlot.OFFHAND);
+                    }
+                }
+            }
+            return InteractionResult.SUCCESS;
         });
     }
 
@@ -75,8 +104,9 @@ public final class CommandBlockCracks {
         return entity instanceof CommandBlockCrackEntity && isCrack(entity);
     }
 
-    /** 只刷一道。没有合适空位就返回 false，由调用方过一会儿再试。 */
+    /** 刷新前清除已有裂缝，再只刷一道。没有合适空位就返回 false，由调用方过一会儿再试。 */
     public static boolean spawnOne(ServerLevel level) {
+        discard(level);
         Vec3 spot = chooseSpot(level);
         if (spot == null) {
             return false;
@@ -93,7 +123,7 @@ public final class CommandBlockCracks {
         return true;
     }
 
-    /** 出现时高亮十秒并全局通报，让所有人都知道裂缝在哪。 */
+    /** 出现时高亮五秒并全局通报，让所有人都知道裂缝在哪。 */
     private static void announceSpawn(ServerLevel level, CommandBlockCrackEntity crack) {
         crack.setHighlighted(true);
         crack.setGlowingTag(true);
@@ -110,13 +140,30 @@ public final class CommandBlockCracks {
             }
         }, HIGHLIGHT_TICKS);
     }
+    /** 普通近战武器；物品和攻击接口共同识别，避免空手或任务道具击碎裂缝。 */
+    public static boolean isMeleeWeapon(ItemStack stack) {
+        return !stack.isEmpty() && !stack.is(TMMItemTags.GUNS)
+                && (stack.getItem() instanceof SREItemProperties.TrainWeapon
+                        || stack.getItem() instanceof SREItemProperties.LeftClickHurtable
+                        || stack.getItem() instanceof TieredItem
+                        || stack.getItem() instanceof MaceItem
+                        || stack.is(TMMItems.BAT) || stack.is(TMMItems.NUNCHUCK)
+                        || stack.is(org.agmas.noellesroles.init.ModItems.BATON));
+    }
 
-    /** 好人阵营（平民和警长）的手枪才能击碎。返回 true 表示这一枪打在裂缝上并已结算。 */
+    /** 手枪入口保留物品检查；其它武器通过各自命中入口调用通用结算。 */
     public static boolean tryShatter(ServerPlayer shooter, Entity target) {
-        if (shooter == null || !isCrack(target)) {
-            return false;
-        }
-        if (!shooter.getMainHandItem().is(TMMItemTags.GUNS)) {
+        return shooter != null && shooter.getMainHandItem().is(TMMItemTags.GUNS)
+                && tryShatterWithWeapon(shooter, target);
+    }
+
+    /** 好人阵营的武器可击碎裂缝；移除成功后只结算一次破坏进度。 */
+    public static boolean tryShatterWithWeapon(ServerPlayer shooter, Entity target) {
+        if (shooter == null || !isCrack(target) || target.level() != shooter.level()
+                || !GameUtils.isPlayerAliveAndSurvival(shooter)
+                || Error404Role.isHighDimension(shooter)
+                || shooter.hasEffect(org.agmas.noellesroles.init.ModEffects.USED_BANED)
+                || org.agmas.noellesroles.content.effects.StatusAilmentHandler.isIntellectLocked(shooter)) {
             return false;
         }
         var role = SREGameWorldComponent.KEY.get(shooter.level()).getRole(shooter);

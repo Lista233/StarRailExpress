@@ -1,0 +1,284 @@
+package org.agmas.noellesroles.game.modes.echo.map.manor;
+
+import org.agmas.noellesroles.game.modes.echo.map.EchoMapConfig;
+import org.agmas.noellesroles.game.modes.echo.map.EchoMapValidator;
+import org.agmas.noellesroles.game.modes.echo.map.EchoWalkGraph;
+import org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorLayout.Box;
+import org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorLayout.Door;
+import org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorLayout.Kind;
+import org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorLayout.Layout;
+import org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorLayout.Marker;
+import org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * 生成庄园的结构与路线验收：不需要启动游戏，直接把布局当成整数方块图跑一遍
+ * 与开局路线准入同构的四阶段步行检查。
+ *
+ * <p>覆盖的失败模式：点位互相重叠、点位落在建筑里、门体不是整格、
+ * 关门时能走进核心区、开门后核心区不可达、撤离门开时到不了撤离区。
+ */
+class EchoManorLayoutTest {
+    private static final EchoManorPlan.Base BASE = new EchoManorPlan.Base(100, 64, 200);
+
+    private static EchoMapConfig config(Layout layout) throws Exception {
+        return EchoManorPlan.toConfig(layout, EchoManorPlan.DEFAULT_MAP_ID, BASE);
+    }
+
+    @Test
+    void sidecarValidForEveryPlayerCount() throws Exception {
+        Layout layout = EchoManorLayout.build();
+        EchoMapConfig map = config(layout);
+        for (int count = EchoRosterPolicy.MIN_PLAYERS; count <= EchoRosterPolicy.MAX_PLAYERS; count++) {
+            assertEquals(List.of(), EchoMapValidator.validate(map, count), "N=" + count);
+        }
+        assertEquals(32, EchoMapValidator.spawnCapacity(map));
+        assertEquals(21, map.carrierSpawns().size());
+        assertEquals(6, map.interceptorSpawns().size());
+        assertEquals(5, map.brokerSpawns().size());
+        assertEquals(3, map.altars().size());
+        assertEquals(2, map.coreGate().doors().size());
+        assertEquals(6, map.crystalNodes().size());
+        assertEquals(12, map.supplyCrates().size());
+    }
+
+    @Test
+    void everySpawnHasClearFeetAndHeadOnSolidGround() {
+        Layout layout = EchoManorLayout.build();
+        var spawns = new ArrayList<>(layout.carriers());
+        spawns.addAll(layout.interceptors());
+        spawns.addAll(layout.brokers());
+        Set<String> occupied = new HashSet<>();
+        for (var spawn : spawns) {
+            assertTrue(occupied.add(spawn.x() + "," + spawn.z()), "重叠出生点 " + spawn);
+            assertTrue(layout.solid(spawn.x(), EchoManorLayout.FEET_Y - 1, spawn.z()), "缺少地面 " + spawn);
+            assertEquals(Kind.AIR, layout.at(spawn.x(), EchoManorLayout.FEET_Y, spawn.z()), "脚部被占用 " + spawn);
+            assertEquals(Kind.AIR, layout.at(spawn.x(), EchoManorLayout.FEET_Y + 1, spawn.z()), "头部被占用 " + spawn);
+        }
+    }
+
+    @Test
+    void beaconsAndCrystalsMatchRosterThresholds() throws Exception {
+        EchoMapConfig map = config(EchoManorLayout.build());
+        for (int count = EchoRosterPolicy.MIN_PLAYERS; count <= EchoRosterPolicy.MAX_PLAYERS; count++) {
+            final int players = count;
+            long beacons = map.beacons().stream().filter(b -> b.minPlayers() <= players).count();
+            long crystals = map.crystalNodes().stream().filter(n -> n.minPlayers() <= players).count();
+            assertEquals(count <= 7 ? 2 : 3, beacons, "beacons N=" + count);
+            assertEquals(count <= 7 ? 4 : 6, crystals, "crystals N=" + count);
+        }
+    }
+
+    @Test
+    void everyObjectivePointSitsOnItsOwnMarkerBlock() throws Exception {
+        Layout layout = EchoManorLayout.build();
+        EchoMapConfig map = config(layout);
+        List<String> problems = new ArrayList<>();
+        Set<Long> used = new HashSet<>();
+
+        record Check(String name, double x, double y, double z) { }
+        List<Check> points = new ArrayList<>();
+        map.beacons().forEach(b -> points.add(new Check("beacon/" + b.id(), b.pos().x(), b.pos().y(), b.pos().z())));
+        map.crystalNodes().forEach(n -> points.add(new Check("crystal/" + n.id(), n.pos().x(), n.pos().y(), n.pos().z())));
+        map.altars().forEach(a -> points.add(new Check("altar/" + a.id(), a.pos().x(), a.pos().y(), a.pos().z())));
+        map.supplyCrates().forEach(c -> points.add(new Check("crate/" + c.id(), c.pos().x(), c.pos().y(), c.pos().z())));
+        map.blackCrystalNodes().forEach(n -> points.add(new Check("black/" + n.id(), n.pos().x(), n.pos().y(), n.pos().z())));
+        map.blackDropoffs().forEach(d -> points.add(new Check("drop/" + d.id(), d.pos().x(), d.pos().y(), d.pos().z())));
+        points.add(new Check("broker_exit", map.brokerExit().pos().x(), map.brokerExit().pos().y(), map.brokerExit().pos().z()));
+        points.add(new Check("free_exit", map.coreGate().freeExit().controlPos().x(), map.coreGate().freeExit().controlPos().y(), map.coreGate().freeExit().controlPos().z()));
+        points.add(new Check("evac_control", map.evacuation().controlPos().x(), map.evacuation().controlPos().y(), map.evacuation().controlPos().z()));
+        map.coreGate().doors().forEach(d -> points.add(new Check("core/" + d.id(), d.controlPos().x(), d.controlPos().y(), d.controlPos().z())));
+
+        for (Check point : points) {
+            int x = (int) Math.floor(point.x()) - BASE.x();
+            int y = (int) Math.floor(point.y()) - BASE.y();
+            int z = (int) Math.floor(point.z()) - BASE.z();
+            Kind kind = layout.at(x, y, z);
+            if (!kind.marker()) problems.add(point.name() + " -> " + kind + " @" + x + "," + y + "," + z);
+            long key = ((long) x * 131 + y) * 131 + z;
+            if (!used.add(key)) problems.add(point.name() + " 与其他点位重叠");
+        }
+        assertEquals(List.of(), problems);
+
+        // 每个标记方块都必须真的落在脚层或墙里，并且标记 id 唯一。
+        Set<String> ids = new HashSet<>();
+        for (Marker marker : layout.markers()) {
+            assertTrue(marker.kind().marker(), marker.id());
+            assertTrue(ids.add(marker.id()), "重复标记 id: " + marker.id());
+            assertTrue(marker.y() == EchoManorLayout.FEET_Y || marker.kind() == Kind.PANEL, marker.id());
+        }
+        assertEquals(points.size(), layout.markers().size());
+    }
+
+    @Test
+    void manorWalksThroughEveryGatePhase() {
+        Layout layout = EchoManorLayout.build();
+        List<Door> doors = layout.doors();
+        int startX = layout.carriers().getFirst().x(), startZ = layout.carriers().getFirst().z();
+        int phases = 4 + doors.size() * 2;
+        List<String> problems = new ArrayList<>();
+
+        List<Goal> openGoals = openGoals(layout);
+        List<Goal> coreGoals = List.of(
+                new Goal("beacon/core", layout.beacons().get(1).x(), EchoManorLayout.FEET_Y, layout.beacons().get(1).z(), false),
+                new Goal("crate/b1", 45, EchoManorLayout.FEET_Y, 35, false),
+                new Goal("crate/b2", 53, EchoManorLayout.FEET_Y, 35, false),
+                new Goal("free_exit", layout.freeControl().x(), EchoManorLayout.FEET_Y, layout.freeControl().z(), false));
+
+        // 地图 canJump 可能是 true 也可能是 false，两种步行能力都必须走通且关门进不去核心。
+        for (boolean jumping : new boolean[]{false, true}) for (int phase = 0; phase < phases; phase++) {
+            EchoWalkGraph graph = new EchoWalkGraph(terrain(layout, phase, doors),
+                    new EchoWalkGraph.Cell(startX, EchoManorLayout.FEET_Y, startZ), jumping, phase % 2 == 1, 60_000, 360_000);
+            EchoWalkGraph.Status status = graph.advance(1_000_000);
+            assertEquals(EchoWalkGraph.Status.COMPLETE, status, "phase " + phase + " 步行图未完成");
+
+            boolean evacuation = phase >= 2 + doors.size() * 2;
+            if (phase == 0) {
+                for (EchoWalkGraph.Cell cell : graph.reached()) {
+                    if (inside(layout.coreArea(), cell.x(), cell.y(), cell.z())) {
+                        problems.add("关门时仍能走进核心区: " + cell);
+                        break;
+                    }
+                }
+            }
+            if (evacuation) {
+                boolean inZone = graph.reached().stream().anyMatch(c -> inside(layout.evacZone(), c.x(), c.y(), c.z()));
+                if (!inZone) problems.add("撤离门开时到不了撤离区");
+                if (!reaches(graph, layout, layout.dropAnchor().x(), EchoManorLayout.FEET_Y, layout.dropAnchor().z(), true, false)) {
+                    problems.add("撤离门开时到不了掉货锚点");
+                }
+                continue;
+            }
+            boolean coreRegion = phase >= 2;
+            for (Goal goal : coreRegion ? coreGoals : openGoals) {
+                if (!reaches(graph, layout, goal.x(), goal.y(), goal.z(), goal.exact(), coreRegion)) {
+                    problems.add("阶段" + phase + " 不可达: " + goal.id());
+                }
+            }
+        }
+        assertEquals(List.of(), problems);
+    }
+
+    @Test
+    void sidecarJsonRoundTripsThroughStrictParser() throws Exception {
+        EchoMapConfig map = config(EchoManorLayout.build());
+        String json = new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(map) + "\n";
+        assertEquals(map, org.agmas.noellesroles.game.modes.echo.map.EchoMapRepository.parse(json));
+        java.nio.file.Path dump = java.nio.file.Path.of("build/manor-sidecar.json");
+        if (java.nio.file.Files.isDirectory(dump.getParent())) java.nio.file.Files.writeString(dump, json);
+    }
+
+    @Test
+    void layoutIsDeterministic() {
+        assertArrayEquals(EchoManorLayout.build().cells(), EchoManorLayout.build().cells());
+    }
+
+    // ==================== 测试用步行图 ====================
+
+    private record Goal(String id, int x, int y, int z, boolean exact) { }
+
+    private static List<Goal> openGoals(Layout layout) {
+        List<Goal> goals = new ArrayList<>();
+        layout.beacons().stream().filter(b -> b.region().equals("open"))
+                .forEach(b -> goals.add(new Goal("beacon/" + b.id(), b.x(), EchoManorLayout.FEET_Y, b.z(), false)));
+        layout.crystals().forEach(n -> goals.add(new Goal("crystal/" + n.id(), n.x(), EchoManorLayout.FEET_Y, n.z(), false)));
+        layout.altars().forEach(a -> goals.add(new Goal("altar/" + a.id(), a.x(), EchoManorLayout.FEET_Y, a.z(), false)));
+        layout.crates().stream().filter(c -> c.quality().equals("COMMON"))
+                .forEach(c -> goals.add(new Goal("crate/" + c.id(), c.x(), EchoManorLayout.FEET_Y, c.z(), false)));
+        layout.blackNodes().forEach(n -> goals.add(new Goal("black/" + n.id(), n.x(), EchoManorLayout.FEET_Y, n.z(), false)));
+        layout.blackDropoffs().forEach(d -> goals.add(new Goal("drop/" + d.id(), d.x(), EchoManorLayout.FEET_Y, d.z(), false)));
+        layout.doors().forEach(d -> goals.add(new Goal("core/" + d.id(), d.panelX(), 5, d.panelZ(), false)));
+        goals.add(new Goal("free_safe", layout.freeSafe().x(), EchoManorLayout.FEET_Y, layout.freeSafe().z(), true));
+        goals.add(new Goal("evac_safe", layout.evacSafe().x(), EchoManorLayout.FEET_Y, layout.evacSafe().z(), true));
+        goals.add(new Goal("evac_control", layout.evacControl().x(), 5, layout.evacControl().z(), false));
+        goals.add(new Goal("broker_exit", layout.brokerExit().x(), EchoManorLayout.FEET_Y, layout.brokerExit().z(), false));
+        for (int n = 0; n < layout.carriers().size(); n++)
+            goals.add(new Goal("carrier/" + n, layout.carriers().get(n).x(), EchoManorLayout.FEET_Y, layout.carriers().get(n).z(), true));
+        for (int n = 0; n < layout.interceptors().size(); n++)
+            goals.add(new Goal("interceptor/" + n, layout.interceptors().get(n).x(), EchoManorLayout.FEET_Y, layout.interceptors().get(n).z(), true));
+        for (int n = 0; n < layout.brokers().size(); n++)
+            goals.add(new Goal("broker/" + n, layout.brokers().get(n).x(), EchoManorLayout.FEET_Y, layout.brokers().get(n).z(), true));
+        return List.copyOf(goals);
+    }
+
+    private static boolean virtualAir(Layout layout, List<Door> doors, int phase, int x, int y, int z) {
+        double cx = x + 0.5, cy = y + 0.5, cz = z + 0.5;
+        if (phase >= 2 + doors.size() * 2) return inside(layout.evacDoor(), cx, cy, cz);
+        int door = phase / 2 - 1;
+        return door >= 0 && inside(doors.get(door).volume(), cx, cy, cz);
+    }
+
+    private static EchoWalkGraph.Terrain terrain(Layout layout, int phase, List<Door> doors) {
+        return new EchoWalkGraph.Terrain() {
+            @Override public boolean stand(EchoWalkGraph.Cell cell) {
+                return clear(cell) && solid(cell.x(), cell.y() - 1, cell.z())
+                        && !virtualAir(layout, doors, phase, cell.x(), cell.y() - 1, cell.z());
+            }
+
+            @Override public boolean clear(EchoWalkGraph.Cell cell) {
+                return air(cell.x(), cell.y(), cell.z()) && air(cell.x(), cell.y() + 1, cell.z());
+            }
+
+            private boolean air(int x, int y, int z) {
+                if (virtualAir(layout, doors, phase, x, y, z)) return true;
+                return !layout.solid(x, y, z);
+            }
+
+            private boolean solid(int x, int y, int z) { return layout.solid(x, y, z); }
+        };
+    }
+
+    /** 与 EchoRouteCheck.goal 同一套判定：±3 格内站位、3 格距离、区域、射线命中目标方块。 */
+    private static boolean reaches(EchoWalkGraph graph, Layout layout, int x, int y, int z, boolean exact, boolean coreRegion) {
+        int baseX = x, baseY = y, baseZ = z;
+        int rx = exact ? 0 : 3, ry = exact ? 0 : 2, rz = exact ? 0 : 3;
+        double targetX = x + 0.5, targetY = y + 0.5, targetZ = z + 0.5;
+        for (int dx = -rx; dx <= rx; dx++) {
+            for (int dy = -ry; dy <= ry; dy++) {
+                for (int dz = -rz; dz <= rz; dz++) {
+                    EchoWalkGraph.Cell cell = new EchoWalkGraph.Cell(baseX + dx, baseY + dy, baseZ + dz);
+                    if (!graph.reached(cell)) continue;
+                    double eyeX = cell.x() + 0.5, eyeY = cell.y() + 1.62, eyeZ = cell.z() + 0.5;
+                    if (Math.pow(eyeX - targetX, 2) + Math.pow(eyeY - targetY, 2) + Math.pow(eyeZ - targetZ, 2) > 9) continue;
+                    if (inside(layout.coreArea(), cell.x() + 0.5, cell.y(), cell.z() + 0.5) != coreRegion) continue;
+                    int[] hit = ray(layout, eyeX, eyeY, eyeZ, targetX, targetY, targetZ);
+                    if (hit == null || (hit[0] == x && hit[1] == y && hit[2] == z)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** 体素步进（Amanatides-Woo）；返回第一个实心方块，null 表示没命中。 */
+    private static int[] ray(Layout layout, double sx, double sy, double sz, double ex, double ey, double ez) {
+        double dx = ex - sx, dy = ey - sy, dz = ez - sz;
+        int ix = (int) Math.floor(sx), iy = (int) Math.floor(sy), iz = (int) Math.floor(sz);
+        int stepX = dx > 0 ? 1 : -1, stepY = dy > 0 ? 1 : -1, stepZ = dz > 0 ? 1 : -1;
+        double tDeltaX = dx == 0 ? Double.MAX_VALUE : Math.abs(1 / dx);
+        double tDeltaY = dy == 0 ? Double.MAX_VALUE : Math.abs(1 / dy);
+        double tDeltaZ = dz == 0 ? Double.MAX_VALUE : Math.abs(1 / dz);
+        double tMaxX = dx == 0 ? Double.MAX_VALUE : (dx > 0 ? (ix + 1 - sx) / dx : (sx - ix) / -dx);
+        double tMaxY = dy == 0 ? Double.MAX_VALUE : (dy > 0 ? (iy + 1 - sy) / dy : (sy - iy) / -dy);
+        double tMaxZ = dz == 0 ? Double.MAX_VALUE : (dz > 0 ? (iz + 1 - sz) / dz : (sz - iz) / -dz);
+        int endX = (int) Math.floor(ex), endY = (int) Math.floor(ey), endZ = (int) Math.floor(ez);
+        for (int guard = 0; guard < 512; guard++) {
+            if (ix == endX && iy == endY && iz == endZ) return null;
+            if (tMaxX < tMaxY && tMaxX < tMaxZ) { ix += stepX; tMaxX += tDeltaX; }
+            else if (tMaxY < tMaxZ) { iy += stepY; tMaxY += tDeltaY; }
+            else { iz += stepZ; tMaxZ += tDeltaZ; }
+            if (layout.solid(ix, iy, iz)) return new int[]{ix, iy, iz};
+        }
+        return null;
+    }
+
+    private static boolean inside(Box box, double x, double y, double z) {
+        return box.contains(x, y, z);
+    }
+}

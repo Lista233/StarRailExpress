@@ -14,11 +14,15 @@ import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.game.command_block.DreadlordRole;
 
+import io.wifi.starrailexpress.api.data.RoleData;
+import org.agmas.noellesroles.role_data.killer.PaperDollRoleData;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.util.ParticleFx;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -138,12 +142,6 @@ public final class CommandBlockCombat {
         if (game.isRole(player, ModRoles.STONE_MAN)) {
             return !absorbStoneHit(player, false);
         }
-        if (amount > 0.0F) {
-            ServerPlayer attacker = source.getEntity() instanceof ServerPlayer hitting ? hitting : null;
-            if (PaperDollRole.tryDodge(player, attacker, attacker != null)) {
-                return false;
-            }
-        }
         if (source.getEntity() instanceof ServerPlayer attacker && Entity303Role.rejectsHarm(attacker, player)) {
             return false;
         }
@@ -157,6 +155,18 @@ public final class CommandBlockCombat {
             var data = DreadlordRole.dataOf(player);
             if (data != null) {
                 data.onHit();
+            }
+        }
+        if (game.isRole(player, ModRoles.ENTITY_NULL)) {
+            var data = RoleData.getNullable(org.agmas.noellesroles.role_data.killer.EntityNullRoleData.class, player);
+            if (data != null && data.deferDamage(player, source, amount)) {
+                return false;
+            }
+        }
+        if (game.isRole(player, ModRoles.PAPER_DOLL)) {
+            PaperDollRoleData data = RoleData.getNullable(PaperDollRoleData.class, player);
+            if (data != null && data.deferDamage(player, source, amount)) {
+                return false;
             }
         }
         return true;
@@ -185,9 +195,6 @@ public final class CommandBlockCombat {
             return false;
         }
         if (game.isRole(victim, ModRoles.STONE_MAN) && absorbStoneHit(victim, false)) {
-            return false;
-        }
-        if (PaperDollRole.tryDodge(victim, killer instanceof ServerPlayer hitting ? hitting : null, false)) {
             return false;
         }
         if (killer instanceof ServerPlayer attacker && game.isRole(attacker, ModRoles.HIM) && !canHimKill(attacker, victim)) {
@@ -285,6 +292,13 @@ public final class CommandBlockCombat {
         for (ServerPlayer other : level.players()) {
             if (!GameUtils.isPlayerAliveAndSurvival(other)) {
                 continue;
+            }
+            // 无敌期间少量石屑随身体散落；一次调用生成多颗粒子，不逐颗发包。
+            if (now % 5L == 0L && game.isRole(other, ModRoles.STONE_MAN)
+                    && STONE_INVULN_UNTIL.getOrDefault(other.getUUID(), 0L) > now) {
+                ParticleFx.region(level,
+                        new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState()),
+                        other.getBoundingBox(), 6, 0.035D);
             }
             UUID previous = LOOK_LOCKED.get(other.getUUID());
             ServerPlayer lock = null;

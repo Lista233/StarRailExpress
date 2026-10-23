@@ -9,6 +9,24 @@ import java.util.function.Function;
 public final class EchoMapValidator {
     private EchoMapValidator() { }
 
+    /** 按阵营出生点计算连续可支持的人数上限；不代替结构/世界校验。 */
+    public static int spawnCapacity(EchoMapConfig map) {
+        int capacity = EchoRosterPolicy.MIN_PLAYERS - 1;
+        for (int count = EchoRosterPolicy.MIN_PLAYERS; count <= EchoRosterPolicy.MAX_PLAYERS; count++) {
+            var profile = EchoRosterPolicy.forPlayerCount(count);
+            if (map.carrierSpawns().size() < profile.carriers()
+                    || map.interceptorSpawns().size() < profile.interceptors()
+                    || map.brokerSpawns().size() < profile.brokers()) break;
+            capacity = count;
+        }
+        return capacity;
+    }
+
+    /** 保存/绑定至少检查最低人数档；旧图只检查到自身出生点容量。 */
+    public static int validationPlayerLimit(EchoMapConfig map) {
+        return Math.max(EchoRosterPolicy.MIN_PLAYERS, spawnCapacity(map));
+    }
+
     public static List<String> validate(EchoMapConfig map, int count) {
         var profile = EchoRosterPolicy.forPlayerCount(count);
         List<String> errors = new ArrayList<>();
@@ -19,9 +37,9 @@ public final class EchoMapValidator {
         unique(map.blackCrystalNodes(), EchoMapConfig.Point::id, "blackCrystalNodes", errors);
         unique(map.blackDropoffs(), EchoMapConfig.Point::id, "blackDropoffs", errors);
         unique(map.coreGate().doors(), EchoMapConfig.Door::id, "coreGate.doors", errors);
-        require(map.carrierSpawns().size() >= 8 && map.carrierSpawns().size() <= 128, "carrierSpawns数量", errors);
-        require(map.interceptorSpawns().size() >= 2 && map.interceptorSpawns().size() <= 128, "interceptorSpawns数量", errors);
-        require(map.brokerSpawns().size() >= 2 && map.brokerSpawns().size() <= 128, "brokerSpawns数量", errors);
+        require(map.carrierSpawns().size() >= Math.max(8, profile.carriers()) && map.carrierSpawns().size() <= 128, "carrierSpawns数量", errors);
+        require(map.interceptorSpawns().size() >= Math.max(2, profile.interceptors()) && map.interceptorSpawns().size() <= 128, "interceptorSpawns数量", errors);
+        require(map.brokerSpawns().size() >= Math.max(2, profile.brokers()) && map.brokerSpawns().size() <= 128, "brokerSpawns数量", errors);
         require(map.altars().size() == 3, "altars必须恰好三个", errors);
         require(map.coreGate().doors().size() >= 2, "核心区至少两个入口", errors);
         require(map.blackCrystalNodes().size() >= 2 && map.blackDropoffs().size() >= 2, "黑晶点/投放点不足", errors);
@@ -56,6 +74,14 @@ public final class EchoMapValidator {
         for (var wolf : map.interceptorSpawns()) {
             openPoint(map,wolf.pos(),"interceptorSpawn",errors);
             for (var other : others) require(wolf.pos().distanceTo(other.pos()) >= 24, "对立出生点距离小于24",errors);
+        }
+        List<EchoMapConfig.Spawn> spawns = new ArrayList<>(others);
+        spawns.addAll(map.interceptorSpawns());
+        for (int a = 0; a < spawns.size(); a++) for (int b = a + 1; b < spawns.size(); b++) {
+            var first = spawns.get(a);
+            var second = spawns.get(b);
+            require(Math.abs(first.x() - second.x()) >= 0.6 || Math.abs(first.z() - second.z()) >= 0.6
+                    || Math.abs(first.y() - second.y()) >= 1.8, "出生点互相重叠", errors);
         }
         pairDistance(beacons.stream().map(EchoMapConfig.Beacon::pos).toList(),24,"beacons",errors);
         pairDistance(map.altars().stream().map(EchoMapConfig.Point::pos).toList(),20,"altars",errors);

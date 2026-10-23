@@ -260,6 +260,17 @@ public class DreamHealthComponent implements RoleComponent {
         if (attacker != null && org.agmas.noellesroles.katana.KatanaHandler.tryBlockAttack(sp, attacker)) {
             return false;
         }
+        if (attacker != null && attacker != sp
+                && org.agmas.noellesroles.game.command_block.CommandBlockDirector.isActive(sp.serverLevel())
+                && io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(sp.level())
+                        .isRole(sp, org.agmas.noellesroles.role.ModRoles.ENTITY_NULL)) {
+            var data = io.wifi.starrailexpress.api.data.RoleData.getNullable(
+                    org.agmas.noellesroles.role_data.killer.EntityNullRoleData.class, sp);
+            if (data != null && data.deferHit(sp,
+                    () -> hurt(attacker, damage, deathReason, ignoreVirtualShield, pierceOtherShields))) {
+                return true;
+            }
+        }
         if (attacker != null) {
             ProgressionDataManager.onVirtualDamageDealt(attacker, damage);
         }

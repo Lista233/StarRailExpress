@@ -6,6 +6,7 @@ import java.util.List;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.role_data.killer.PaperDollRoleData;
+import org.agmas.noellesroles.game.command_block.item.GazeRays;
 
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.NormalRole;
@@ -20,16 +21,17 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * 纸人：技能立一个一次性替身，挡住一次非强制伤害后往后闪。
- * 成功后只虚弱 3 秒。冲刺不缩短，也不禁捡东西。
+ * 纸人：受击后半秒内按技能免除此击并后闪，成功后冷却 32 秒。
+ * 成功后虚弱 3 秒、发光 2 秒，冲刺不缩短。
  */
 public class PaperDollRole extends NormalRole {
     public static final ResourceLocation DEATH_CUT = org.agmas.noellesroles.Noellesroles.id("paper_cut");
+    public static final ResourceLocation SKILL_ID = SRE.id("paper_doll_arm");
+    public static final double TURN_RANGE = 8.0D;
 
     public PaperDollRole(ResourceLocation id, int color, boolean innocent, boolean killer, SRERole.MoodType mood,
             int sprint, boolean seeTime) {
@@ -38,21 +40,23 @@ public class PaperDollRole extends NormalRole {
 
     public static void registerSkill() {
         RoleSkill.register(ModRoles.PAPER_DOLL, RoleSkill.skill(
-                SRE.id("paper_doll_arm"),
+                SKILL_ID,
                 "skill.noellesroles.paper_doll.arm",
                 PaperDollRole::arm)
-                .cooldownSeconds(32).announceToSelf().showOnHud(true).build());
+                .cooldownSeconds(32).announceToSelf().showOnHud(true).build(),
+                RoleSkill.skill(SRE.id("paper_doll_turn"), "skill.noellesroles.paper_doll.turn", PaperDollRole::turn)
+                        .cooldownSeconds(60).announceToSelf().showOnHud(true).build());
     }
 
-    public static boolean tryDodge(ServerPlayer self, ServerPlayer attacker, boolean tellAttacker) {
-        if (self == null || !SREGameWorldComponent.KEY.get(self.level()).isRole(self, ModRoles.PAPER_DOLL)) {
+    public static boolean deferDeath(Player victim, boolean spawnBody,
+            Player killer, ResourceLocation reason, boolean forced) {
+        if (forced || !(victim instanceof ServerPlayer self)
+                || !CommandBlockDirector.isActive(self.serverLevel())
+                || !SREGameWorldComponent.KEY.get(self.level()).isRole(self, ModRoles.PAPER_DOLL)) {
             return false;
         }
         PaperDollRoleData data = RoleData.getNullable(PaperDollRoleData.class, self);
-        if (data == null) {
-            return false;
-        }
-        return data.absorb(self, attacker, tellAttacker) != 0;
+        return data != null && data.deferDeath(self, spawnBody, killer, reason);
     }
 
     private static boolean arm(RoleSkill.RoleSkillContext context) {
@@ -64,17 +68,36 @@ public class PaperDollRole extends NormalRole {
         if (data == null) {
             return false;
         }
-        long now = self.serverLevel().getGameTime();
-        if (!data.arm(now)) {
-            self.displayClientMessage(Component.translatable("message.noellesroles.paper_doll.already")
+        if (!data.dodge(self)) {
+            self.displayClientMessage(Component.translatable("message.noellesroles.paper_doll.no_hit")
                     .withStyle(ChatFormatting.GRAY), true);
             return false;
         }
-        LegendFx.ring(self.serverLevel(), self.position().add(0.0D, 0.2D, 0.0D), 1.4F, LegendFx.PAPER);
-        self.serverLevel().playSound(null, self.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS,
-                0.35F, 1.7F);
-        self.displayClientMessage(Component.translatable("message.noellesroles.paper_doll.armed")
-                .withStyle(ChatFormatting.WHITE), true);
+        return true;
+    }
+
+    /** 让准星内的单个目标随机水平转向，保持位置和俯仰角，服务端同步到本人视角。 */
+    private static boolean turn(RoleSkill.RoleSkillContext context) {
+        ServerPlayer self = context.player();
+        if (!GameUtils.isPlayerAliveAndSurvival(self)) {
+            return false;
+        }
+        ServerPlayer target = GazeRays.firstVisiblePlayer(self, TURN_RANGE, 0.3D);
+        if (target == null) {
+            self.displayClientMessage(Component.translatable("message.noellesroles.paper_doll.turn_no_target")
+                    .withStyle(ChatFormatting.GRAY), true);
+            return false;
+        }
+        float yaw = self.getRandom().nextFloat() * 360.0F - 180.0F;
+        float pitch = target.getXRot();
+        target.setYRot(yaw);
+        target.setYHeadRot(yaw);
+        target.setYBodyRot(yaw);
+        target.connection.teleport(target.getX(), target.getY(), target.getZ(), yaw, pitch);
+        self.displayClientMessage(Component.translatable("message.noellesroles.paper_doll.turned", target.getDisplayName())
+                .withStyle(ChatFormatting.LIGHT_PURPLE), true);
+        target.displayClientMessage(Component.translatable("message.noellesroles.paper_doll.turn_received")
+                .withStyle(ChatFormatting.LIGHT_PURPLE), true);
         return true;
     }
 

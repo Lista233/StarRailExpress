@@ -1,5 +1,7 @@
 package org.agmas.noellesroles.game.modes.echo.map;
 
+import org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -99,5 +101,5 @@ public record EchoMapConfig(int schemaVersion, String mapId, String coordinateSp
     private static void text(String text) {
         if (text == null || text.isBlank() || text.length()>128) throw new IllegalArgumentException("缺失或超长ID");
     }
-    private static void threshold(int count) { if (count<6 || count>12) throw new IllegalArgumentException("minPlayers必须为6–12"); }
+    private static void threshold(int count) { if (count<EchoRosterPolicy.MIN_PLAYERS || count>EchoRosterPolicy.MAX_PLAYERS) throw new IllegalArgumentException("minPlayers必须为6–32"); }
 }

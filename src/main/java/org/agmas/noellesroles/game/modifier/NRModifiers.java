@@ -218,7 +218,7 @@ public class NRModifiers {
             .setDefaultEnableNeededPlayerCount(12)
             .setAddedVersion("4.4");
 
-    /** 命令方块标记的异常。隐藏，不参与自然刷新。 */
+    /** 命令方块标记的异常。开局可见，不参与自然刷新。 */
     public static SREModifier ABNORMAL = HMLModifiers.registerModifier(new SREModifier(
             Noellesroles.id("abnormal"),
             0xB45ADC,
@@ -226,7 +226,6 @@ public class NRModifiers {
             null,
             false,
             false))
-            .setHidden(true)
             .setDefaultMax(0)
             .setDefaultEnableChance(0)
             .setAddedVersion("4.4");

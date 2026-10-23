@@ -1,5 +1,7 @@
 package org.agmas.noellesroles.game.modes.echo.command;
 
+import org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy;
+import org.agmas.noellesroles.game.modes.echo.map.EchoMapValidator;
 import io.wifi.starrailexpress.cca.AreasWorldComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import net.minecraft.commands.CommandSourceStack;
@@ -137,7 +139,7 @@ public final class EchoMapTools {
     public static boolean validateWorld(CommandSourceStack source,EchoMapConfig map) { return validateWorld(source,map,false); }
     /** quiet 用于 random 之类的静默重试：失败只返回值，不刷屏。 */
     public static boolean validateWorld(CommandSourceStack source,EchoMapConfig map,boolean quiet) {
-        for(int count=6;count<=12;count++) {
+        for(int count=EchoRosterPolicy.MIN_PLAYERS;count<=EchoMapValidator.validationPlayerLimit(map);count++) {
             var check=EchoPreflight.check(source.getLevel(),count,false,map);
             if(!check.valid()) {
                 if(!quiet) check.errors().stream().limit(12).forEach(source::sendFailure);

@@ -23,7 +23,8 @@ import java.util.UUID;
 
 /** 独立模式承载；当前只在开发开关开启后允许测试生命周期。 */
 public final class EchoGameMode extends GameMode {
-    public EchoGameMode() { super(EchoBootstrap.ID, 12, 6); }
+    public EchoGameMode() { super(EchoBootstrap.ID, org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy.MAX_PLAYERS,
+            org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy.MIN_PLAYERS); }
     private final java.util.Set<UUID> finalizing=new java.util.HashSet<>();
     public void finishElimination(ServerPlayer victim,@Nullable ServerPlayer killer,ResourceLocation reason) {
         if(!finalizing.add(victim.getUUID())) return;

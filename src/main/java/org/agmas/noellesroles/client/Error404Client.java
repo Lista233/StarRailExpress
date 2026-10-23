@@ -3,15 +3,9 @@ package org.agmas.noellesroles.client;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.client.event.CommonHudRenderCallback;
 import org.agmas.noellesroles.client.screen.Error404CommandScreen;
 import org.agmas.noellesroles.packet.Error404StateS2CPacket;
-import org.agmas.noellesroles.role.ModRoles;
-
-import io.wifi.starrailexpress.cca.SREGameWorldComponent;
-import io.wifi.starrailexpress.event.OnGettingPlayerSkin;
-import io.wifi.starrailexpress.event.OnGettingPlayerSkin.PlayerSkinResult;
 import io.wifi.utils.client.betterrender.FakeGuiGraphics;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -19,20 +13,15 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.network.chat.Component;
 
 /**
  * Error404 战术终端的纯客户端入口。
  *
- * <p>状态包只缓存、不重建已打开的终端，避免刷新丢掉傀儡选择。
- * 傀儡皮肤按宽手人形指定，不伪装成怪物。
+ * <p>状态包只缓存、不重建已打开的终端，避免刷新丢掉傀儡选择。</p>
  */
 @Environment(EnvType.CLIENT)
 public final class Error404Client {
-    private static final PlayerSkin PUPPET_SKIN = new PlayerSkin(
-            Noellesroles.id("textures/entity/player/error404_puppet.png"),
-            null, null, null, PlayerSkin.Model.WIDE, false);
 
     private static boolean high;
     private static final List<Error404StateS2CPacket.Contact> CONTACTS = new ArrayList<>();
@@ -48,16 +37,9 @@ public final class Error404Client {
                     if (context.client().screen instanceof Error404CommandScreen terminal) terminal.onFeedback(packet.message());
                 }));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clear());
-        OnGettingPlayerSkin.EVENT.register((player, originalSkin) -> {
-            if (player == null || player.level() == null) {
-                return PlayerSkinResult.SKIP;
-            }
-            SREGameWorldComponent game = SREGameWorldComponent.KEY.get(player.level());
-            if (game == null || !game.isRole(player, ModRoles.ERROR_404_PUPPET)) {
-                return PlayerSkinResult.SKIP;
-            }
-            return PlayerSkinResult.playerSkin(PUPPET_SKIN);
-        });
+        net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(
+                org.agmas.noellesroles.init.ModEntities.ERROR404_PUPPET,
+                org.agmas.noellesroles.client.renderer.Error404PuppetRenderer::new);
         CommonHudRenderCallback.EVENT.register((graphics, delta) -> renderHud(graphics));
     }
 

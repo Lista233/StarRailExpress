@@ -1517,6 +1517,9 @@ public class ModItems {
     public static final Item VOID_STEP = register(
             new org.agmas.noellesroles.game.command_block.item.VoidStepItem(new Item.Properties().stacksTo(1)),
             "void_step", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
+    public static final Item NULL_ITEM_ERASER = register(
+            new org.agmas.noellesroles.game.command_block.item.NullItemEraserItem(new Item.Properties().stacksTo(16)),
+            "null_item_eraser", ROLE_ITEMS_GROUP);
     public static final Item FARLANDS_RIFT = register(
             new org.agmas.noellesroles.game.command_block.item.FarlandsRiftItem(new Item.Properties().stacksTo(1)),
             "farlands_rift", ROLE_ITEMS_GROUP, WEAPONS_GROUP);
@@ -1557,9 +1560,6 @@ public class ModItems {
             new org.agmas.noellesroles.game.command_block.item.StevePickaxeItem(
                     new Item.Properties().stacksTo(1).durability(org.agmas.noellesroles.game.command_block.SteveMiner.USES)),
             "steve_pickaxe", ROLE_ITEMS_GROUP, TOOLS_GROUP);
-    public static final Item STEVE_LEVER = register(
-            new org.agmas.noellesroles.game.command_block.item.SteveLeverItem(new Item.Properties().stacksTo(16)),
-            "steve_lever", ROLE_ITEMS_GROUP);
     public static final Item STEVE_DIAMOND_PICKAXE = register(
             new org.agmas.noellesroles.game.command_block.item.StevePickaxeItem(
                     new Item.Properties().durability(org.agmas.noellesroles.game.command_block.SteveMiner.DIAMOND_USES), 10),

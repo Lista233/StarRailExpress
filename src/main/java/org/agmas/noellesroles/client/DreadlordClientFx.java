@@ -6,15 +6,23 @@ import com.mojang.math.Axis;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
@@ -30,6 +38,12 @@ import org.agmas.noellesroles.role_data.killer.DreadlordRoleData;
 @Environment(EnvType.CLIENT)
 public final class DreadlordClientFx {
     private DreadlordClientFx() {
+    }
+
+    public static void register() {
+        // 独立于本地玩家的冒险/观战状态，否则死亡后特效不再清理。
+        ClientTickEvents.END_CLIENT_TICK.register(DreadlordClientFx::tickFloats);
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clearFloats(client));
     }
 
     public static boolean renderDark(AbstractClientPlayer player, PoseStack poseStack, MultiBufferSource buffer,
@@ -102,48 +116,54 @@ public final class DreadlordClientFx {
     }
 
     private static final List<FloatBlock> FLOATS = new ArrayList<>();
-    private static int nextLift;
+    /** 区块编译可能在工作线程读取，不能遍历主线程正在修改的 FLOATS。 */
+    private static volatile Set<Long> hiddenBlocks = Set.of();
+    private static final Set<SectionPos> DIRTY = new HashSet<>();
+    private static ClientLevel floatLevel;
+    private static long nextLift;
 
     public static boolean hides(int x, int y, int z) {
-        long key = BlockPos.asLong(x, y, z);
-        for (FloatBlock block : FLOATS) {
-            if (block.key == key) {
-                return true;
-            }
-        }
-        return false;
+        return hiddenBlocks.contains(BlockPos.asLong(x, y, z));
     }
 
     public static void tickFloats(Minecraft client) {
-        if (client.level == null || client.player == null) {
-            if (!FLOATS.isEmpty()) {
-                markAll(client);
-                FLOATS.clear();
-            }
+        if (floatLevel != client.level) {
+            clearFloats(client);
+            floatLevel = client.level;
+        }
+        if (client.level == null || client.player == null
+                || !io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(client.level).isRunning()) {
+            clearFloats(client);
             return;
         }
-        boolean frenzy = false;
+        List<Player> sources = new ArrayList<>();
+        Set<UUID> active = new HashSet<>();
         for (Player other : client.level.players()) {
             DreadlordRoleData data = DreadlordRole.dataOf(other);
-            if (data != null && data.isKilling() && !data.isDark()) {
-                frenzy = true;
-                if (client.player.tickCount >= nextLift) {
-                    liftAround(client, other);
-                }
+            if (other.isAlive() && !other.isSpectator() && DreadlordRole.isDreadlord(other)
+                    && data != null && data.isKilling() && !data.isDark()) {
+                sources.add(other);
+                active.add(other.getUUID());
             }
-        }
-        if (frenzy && client.player.tickCount >= nextLift) {
-            nextLift = client.player.tickCount + 12;
         }
         Iterator<FloatBlock> it = FLOATS.iterator();
         while (it.hasNext()) {
             FloatBlock block = it.next();
             block.age++;
-            if (block.age >= 50) {
-                client.levelRenderer.setSectionDirty(block.pos.getX(), block.pos.getY(), block.pos.getZ());
+            if (!active.contains(block.owner) || block.age >= 50) {
                 it.remove();
+                markDirty(block.pos);
             }
         }
+        long now = client.level.getGameTime();
+        if (!sources.isEmpty() && now >= nextLift) {
+            for (Player source : sources) {
+                liftAround(client, source);
+            }
+            nextLift = now + 12;
+        }
+        // 先发布最新隐藏集合，再重建网格，恢复方块时不再烘焙成空气。
+        flushDirty(client);
     }
 
     private static void liftAround(Minecraft client, Player source) {
@@ -166,8 +186,8 @@ public final class DreadlordClientFx {
                     }
                 }
                 if (!exists) {
-                    FLOATS.add(new FloatBlock(at, state));
-                    client.levelRenderer.setSectionDirty(at.getX(), at.getY(), at.getZ());
+                    FLOATS.add(new FloatBlock(at, state, source.getUUID()));
+                    markDirty(at);
                 }
                 break;
             }
@@ -179,7 +199,7 @@ public final class DreadlordClientFx {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) {
+        if (client.level == null || client.level != floatLevel) {
             return;
         }
         PoseStack poseStack = context.matrixStack();
@@ -201,25 +221,51 @@ public final class DreadlordClientFx {
         }
     }
 
-    private static void markAll(Minecraft client) {
-        if (client.levelRenderer == null) {
+    /** 清除本世界的视觉副本，不修改真实方块；切世界和断线也必须清理。 */
+    private static void clearFloats(Minecraft client) {
+        for (FloatBlock block : FLOATS) {
+            markDirty(block.pos);
+        }
+        FLOATS.clear();
+        flushDirty(client);
+        hiddenBlocks = Set.of();
+        floatLevel = null;
+        nextLift = 0L;
+    }
+
+    private static void markDirty(BlockPos pos) {
+        DIRTY.add(SectionPos.of(pos));
+        // 区段边界的相邻面也要重建，防止留下空洞或错误遮挡。
+        for (net.minecraft.core.Direction direction : net.minecraft.core.Direction.values()) {
+            DIRTY.add(SectionPos.of(pos.relative(direction)));
+        }
+    }
+
+    private static void flushDirty(Minecraft client) {
+        if (DIRTY.isEmpty()) {
             return;
         }
-        for (FloatBlock block : FLOATS) {
-            client.levelRenderer.setSectionDirty(block.pos.getX(), block.pos.getY(), block.pos.getZ());
+        hiddenBlocks = FLOATS.stream().map(block -> block.key).collect(Collectors.toUnmodifiableSet());
+        if (client.level == floatLevel && client.levelRenderer != null) {
+            for (SectionPos section : DIRTY) {
+                client.levelRenderer.setSectionDirty(section.x(), section.y(), section.z());
+            }
         }
+        DIRTY.clear();
     }
 
     private static final class FloatBlock {
         private final BlockPos pos;
         private final long key;
         private final BlockState state;
+        private final UUID owner;
         private int age;
 
-        private FloatBlock(BlockPos pos, BlockState state) {
+        private FloatBlock(BlockPos pos, BlockState state, UUID owner) {
             this.pos = pos.immutable();
             this.key = this.pos.asLong();
             this.state = state;
+            this.owner = owner;
         }
     }
 }

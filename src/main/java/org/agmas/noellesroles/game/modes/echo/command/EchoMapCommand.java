@@ -14,13 +14,14 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.synchronization.SingletonArgumentInfo;
 import net.minecraft.resources.ResourceLocation;
 import org.agmas.noellesroles.game.modes.echo.map.EchoMapDraft;
+import org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy;
 
 /** 静态命令树，不注册新按键，不以字符串拼接执行管理命令。 */
 public final class EchoMapCommand {
     private EchoMapCommand() { }
     public static void initialize() {
         ArgumentTypeRegistry.registerArgumentType(ResourceLocation.fromNamespaceAndPath("noellesroles","echo_token"),EchoTokenArgument.class,SingletonArgumentInfo.contextFree(EchoTokenArgument::token));
-        ServerTickEvents.START_SERVER_TICK.register(server -> { EchoMapTools.tick(server); EchoRouteTools.tick(server); });
+        ServerTickEvents.START_SERVER_TICK.register(server -> { EchoMapTools.tick(server); EchoRouteTools.tick(server); org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorGenerator.tick(server); });
         ServerPlayConnectionEvents.DISCONNECT.register((handler,server) -> { EchoMapTools.disconnected(handler.player.getUUID()); EchoRouteTools.disconnected(handler.player.getUUID()); });
         ServerWorldEvents.UNLOAD.register((server,level) -> { EchoMapTools.unload(level); EchoRouteTools.unload(level); });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> { EchoMapTools.stop(); EchoRouteTools.stop(); });
@@ -36,7 +37,7 @@ public final class EchoMapCommand {
                 .suggests((c,b) -> SharedSuggestionProvider.suggest(EchoMapDraft.KINDS,b))
                 .then(Commands.argument("id",EchoTokenArgument.token())
                         .executes(c -> EchoMapTools.run(c.getSource(),() -> EchoMapTools.mark(c.getSource(),arg(c,"kind"),arg(c,"id"),6)))
-                        .then(Commands.argument("minPlayers",IntegerArgumentType.integer(6,12))
+                        .then(Commands.argument("minPlayers",IntegerArgumentType.integer(EchoRosterPolicy.MIN_PLAYERS,EchoRosterPolicy.MAX_PLAYERS))
                                 .executes(c -> EchoMapTools.run(c.getSource(),() -> EchoMapTools.mark(c.getSource(),arg(c,"kind"),arg(c,"id"),IntegerArgumentType.getInteger(c,"minPlayers"))))))));
         map.then(Commands.literal("corner")
                 .then(Commands.literal("a").executes(c -> EchoMapTools.run(c.getSource(),() -> EchoMapTools.corner(c.getSource(),true))))
@@ -69,6 +70,15 @@ public final class EchoMapCommand {
                         .executes(c -> EchoMapTools.run(c.getSource(), () -> EchoMapTools.gate(c.getSource(), true))))
                 .then(Commands.literal("off")
                         .executes(c -> EchoMapTools.run(c.getSource(), () -> EchoMapTools.gate(c.getSource(), false)))));
+        map.then(Commands.literal("generate")
+                .then(Commands.argument("mapId", EchoTokenArgument.token())
+                        .executes(c -> EchoMapTools.run(c.getSource(), () -> org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorGenerator.start(c.getSource(), arg(c, "mapId"), false)))
+                        .then(Commands.literal("confirm")
+                                .executes(c -> EchoMapTools.run(c.getSource(), () -> org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorGenerator.start(c.getSource(), arg(c, "mapId"), true)))))
+                .then(Commands.literal("status")
+                        .executes(c -> EchoMapTools.run(c.getSource(), () -> org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorGenerator.status(c.getSource()))))
+                .then(Commands.literal("cancel")
+                        .executes(c -> EchoMapTools.run(c.getSource(), () -> org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorGenerator.cancel(c.getSource())))));
         return map;
     }
 }

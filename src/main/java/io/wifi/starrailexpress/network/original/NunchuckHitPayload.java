@@ -176,6 +176,23 @@ public record NunchuckHitPayload(int targetId, int direction) implements CustomP
         @Override
         public void receive(@NotNull NunchuckHitPayload payload, ServerPlayNetworking.@NotNull Context context) {
             var target = context.player().serverLevel().getEntity(payload.targetId());
+            if (org.agmas.noellesroles.game.command_block.CommandBlockCracks.isCrack(target)) {
+                ServerPlayer player = context.player();
+                if (payload.direction() < 0 || payload.direction() > 3
+                        || !player.getMainHandItem().is(TMMItems.NUNCHUCK)
+                        || player.getCooldowns().isOnCooldown(TMMItems.NUNCHUCK)
+                        || player.distanceTo(target) > 4.0D) {
+                    return;
+                }
+                var role = SREGameWorldComponent.KEY.get(player.level()).getRole(player);
+                var component = SREPlayerNunchuckComponent.KEY.get(player);
+                if ((role == null || role.onUseGun(player))
+                        && !component.isMoveOnCooldown(payload.direction(), 140)
+                        && org.agmas.noellesroles.game.command_block.CommandBlockCracks.tryShatterWithWeapon(player, target)) {
+                    component.recordMoveUse(payload.direction());
+                }
+                return;
+            }
             if (target instanceof LivingEntity living && (living instanceof Player || living instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity)) {
                 onHurt(context.player(), living, payload.direction);
             }

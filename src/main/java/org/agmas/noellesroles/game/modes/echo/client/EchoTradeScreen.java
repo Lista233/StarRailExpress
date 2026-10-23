@@ -17,6 +17,7 @@ public final class EchoTradeScreen extends Screen {
     private long offerVersion=-1;
     private String signature="";
     private int x,y,w,h;
+    private int targetPage;
     private long openedAt;
     public EchoTradeScreen(Screen parent) { super(Component.translatable("echo.trade.title")); this.parent=parent; }
     @Override protected void init() {
@@ -28,9 +29,16 @@ public final class EchoTradeScreen extends Screen {
         if(trade==null) {
             selected.clear(); tradeId=null; offerVersion=-1;
             var candidates=minecraft.level.players().stream().filter(p -> p!=minecraft.player && !p.isSpectator() && !p.isCreative() && p.isAlive() && p.distanceToSqr(minecraft.player)<=d.tradeRange()*d.tradeRange() && minecraft.player.hasLineOfSight(p))
-                    .sorted(Comparator.comparingDouble(p -> p.distanceToSqr(minecraft.player))).limit(12).toList();
+                    .sorted(Comparator.comparingDouble(p -> p.distanceToSqr(minecraft.player))).toList();
+            int pageSize = Math.max(2, Math.min(6, (h - 110) / 22) * 2);
+            int pages = Math.max(1, (candidates.size() + pageSize - 1) / pageSize);
+            targetPage = Math.max(0, Math.min(targetPage, pages - 1));
+            if (pages > 1) {
+                button(Component.literal("<"), x+8, y+h-46, 32, () -> { targetPage--; init(); }).active=targetPage>0;
+                button(Component.literal(">"), x+80, y+h-46, 32, () -> { targetPage++; init(); }).active=targetPage<pages-1;
+            }
             int row=0;
-            for(var p:candidates) {
+            for(var p:candidates.subList(targetPage * pageSize, Math.min(candidates.size(), (targetPage + 1) * pageSize))) {
                 int column=row%2,at=row/2;
                 button(Component.translatable("echo.trade.propose",p.getName()),x+8+column*(w/2),y+58+at*22,w/2-16,
                         () -> EchoBagClient.send(EchoInventoryPayload.Operation.TRADE_PROPOSE,p.getUUID(),null,0)).active=enabled;

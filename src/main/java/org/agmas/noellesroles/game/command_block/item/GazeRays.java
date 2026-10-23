@@ -31,6 +31,32 @@ public final class GazeRays {
         return hit;
     }
 
+    /** 先截断方块遮挡，再按射线交点距离选择最近的可见存活玩家，不穿墙选人。 */
+    public static ServerPlayer firstVisiblePlayer(ServerPlayer attacker, double range, double inflate) {
+        Vec3 start = attacker.getEyePosition();
+        Vec3 end = start.add(attacker.getLookAngle().scale(range));
+        var wall = attacker.level().clip(new net.minecraft.world.level.ClipContext(start, end,
+                net.minecraft.world.level.ClipContext.Block.OUTLINE,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, attacker));
+        double closest = start.distanceToSqr(wall.getLocation());
+        ServerPlayer target = null;
+        for (ServerPlayer other : attacker.serverLevel().players()) {
+            if (other == attacker || !GameUtils.isPlayerAliveAndSurvival(other)
+                    || other.distanceToSqr(attacker) > range * range || !attacker.hasLineOfSight(other)) {
+                continue;
+            }
+            var hit = other.getBoundingBox().inflate(inflate).clip(start, end);
+            if (hit.isPresent()) {
+                double distance = start.distanceToSqr(hit.get());
+                if (distance < closest) {
+                    closest = distance;
+                    target = other;
+                }
+            }
+        }
+        return target;
+    }
+
     public static boolean lookingAt(Player viewer, Player target, double minDot) {
         if (viewer == null || target == null || !viewer.hasLineOfSight(target)) {
             return false;

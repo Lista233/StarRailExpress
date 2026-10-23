@@ -1,6 +1,7 @@
 package org.agmas.noellesroles.game.modes.echo.state;
 
 import java.util.*;
+import org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy;
 
 /** 公开目标事实与信标点位；不含玩家UUID/位置、阵营、手牌或私人契约。 */
 public record EchoPublicState(EchoPhase phase,long tick,int remaining,boolean paused,int escaped,int quota,
@@ -21,7 +22,7 @@ public record EchoPublicState(EchoPhase phase,long tick,int remaining,boolean pa
     }
     public EchoPublicState {
         Objects.requireNonNull(phase); beacons=List.copyOf(beacons);
-        if(tick<0 || remaining<0 || remaining>720000 || escaped<0 || escaped>12 || quota<1 || quota>12
+        if(tick<0 || remaining<0 || remaining>720000 || escaped<0 || escaped>EchoRosterPolicy.MAX_PLAYERS || quota<1 || quota>EchoRosterPolicy.MAX_PLAYERS
                 || coreUntil<0 || closedUntil<0 || beacons.size()>3) throw new IllegalArgumentException("无效公开目标");
         if(beacons.stream().map(Beacon::id).distinct().count()!=beacons.size()) throw new IllegalArgumentException("重复公开信标");
     }

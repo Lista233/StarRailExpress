@@ -50,12 +50,14 @@ class SteveRoleTest {
             JsonObject names = json("assets/noellesroles/lang/" + locale + ".json");
             JsonObject descriptions = json("assets/item_intro/lang/" + locale + ".json");
             for (String item : List.of("steve_pickaxe", "steve_diamond_pickaxe", "steve_boat",
-                    "steve_minecart", "steve_golden_apple", "steve_lever", "steve_piston")) {
+                    "steve_minecart", "steve_golden_apple", "steve_piston")) {
                 String key = "item.noellesroles." + item;
                 assertTrue(names.has(key), locale + ": " + key);
                 assertFalse(descriptions.get(key + ".desc").getAsString().isBlank(), locale + ": " + key);
                 assertTrue(json("assets/noellesroles/models/item/" + item + ".json").has("parent"), item);
             }
+            assertFalse(names.has("item.noellesroles.steve_lever"));
+            assertFalse(descriptions.has("item.noellesroles.steve_lever.desc"));
             assertTrue(names.has("message.noellesroles.steve.inventory_full"));
             assertTrue(names.has("item.noellesroles.steve_pickaxe.durability"));
             var intro = json("assets/role_modifier_intro/lang/" + locale + ".json");
@@ -73,6 +75,16 @@ class SteveRoleTest {
         for (String common : List.of("StevePickaxeBreakMixin", "SteveMiningPermissionMixin", "SteveMiningProgressMixin")) {
             assertTrue(mixins.getAsJsonArray("mixins").asList().stream().anyMatch(e -> common.equals(e.getAsString())));
         }
+    }
+
+    @Test
+    void removedLeverHasNoRegistrationShopEntryOrModel() throws Exception {
+        Path source = Path.of("src/main/java/org/agmas/noellesroles");
+        assertFalse(Files.readString(source.resolve("init/ModItems.java")).contains("STEVE_LEVER"));
+        assertFalse(Files.readString(source.resolve("game/command_block/SteveRole.java")).contains("STEVE_LEVER"));
+        assertFalse(Files.readString(source.resolve("game/command_block/CommandBlockDirector.java")).contains("rerollNext"));
+        assertFalse(Files.exists(source.resolve("game/command_block/item/SteveLeverItem.java")));
+        assertFalse(Files.exists(Path.of("src/main/resources/assets/noellesroles/models/item/steve_lever.json")));
     }
 
     private JsonObject json(String relative) throws Exception {

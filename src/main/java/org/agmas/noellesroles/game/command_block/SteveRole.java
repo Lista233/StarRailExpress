@@ -51,7 +51,6 @@ public class SteveRole extends NormalRole {
         shop.add(SteveMiner.offer(ModItems.DREAM_DIAMOND_SWORD.getDefaultInstance(), Items.DIAMOND, 2));
         shop.add(SteveMiner.offer(ModItems.STEVE_MINECART.getDefaultInstance(), Items.IRON_INGOT, 5));
         shop.add(SteveMiner.offer(ModItems.STEVE_GOLDEN_APPLE.getDefaultInstance(), Items.GOLD_INGOT, 8));
-        shop.add(SteveMiner.offer(ModItems.STEVE_LEVER.getDefaultInstance(), Items.OAK_PLANKS, 1));
         shop.add(SteveMiner.offer(ModItems.STEVE_PISTON.getDefaultInstance(), Items.IRON_INGOT, 4));
         return shop;
     }

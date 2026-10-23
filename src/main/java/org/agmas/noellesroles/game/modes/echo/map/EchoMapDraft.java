@@ -1,6 +1,7 @@
 package org.agmas.noellesroles.game.modes.echo.map;
 
 import com.google.gson.*;
+import org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
@@ -55,7 +56,7 @@ public final class EchoMapDraft {
     }
     public void mark(String kind,String id,EchoMapConfig.Vec point,float yaw,float pitch,int minPlayers) throws IOException {
         if(!KINDS.contains(kind)) throw new IllegalArgumentException("未知点位kind: "+kind);
-        if(minPlayers<6 || minPlayers>12) throw new IllegalArgumentException("minPlayers必须为6–12");
+        if(minPlayers<EchoRosterPolicy.MIN_PLAYERS || minPlayers>EchoRosterPolicy.MAX_PLAYERS) throw new IllegalArgumentException("minPlayers必须为6–32");
         // 出生点允许留空（自动追加）；其余类型必须给 id
         if(!kind.endsWith("_spawn")) id(id);
         update(tree -> {
@@ -235,7 +236,7 @@ public final class EchoMapDraft {
                     }
                     if(minPlayers!=null) {
                         if(!hasPlayers(kind)) throw new IllegalArgumentException("该类型没有人数档");
-                        if(minPlayers<6 || minPlayers>12) throw new IllegalArgumentException("minPlayers必须为6–12");
+                        if(minPlayers<EchoRosterPolicy.MIN_PLAYERS || minPlayers>EchoRosterPolicy.MAX_PLAYERS) throw new IllegalArgumentException("minPlayers必须为6–32");
                         found.addProperty("minPlayers",minPlayers);
                     }
                     if(move!=null) setPos(found.has("controlPos")?found.getAsJsonObject("controlPos"):found.getAsJsonObject("pos"),move);

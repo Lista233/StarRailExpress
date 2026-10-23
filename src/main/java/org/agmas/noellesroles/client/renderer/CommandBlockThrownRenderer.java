@@ -21,11 +21,11 @@ import org.agmas.noellesroles.init.ModItems;
 
 /**
  * 命令方块投掷物。石头和火球沿用默认投掷物渲染；
- * 石枪模型本身沿 +X 横放，投出后要把枪尖转到飞行方向，不能继续横着飞。
+ * 石枪原模型沿 +X；先抵消 FIXED 展示旋转，再按飞行方向定向。
  */
 public class CommandBlockThrownRenderer extends EntityRenderer<CommandBlockThrownEntity> {
-    /** 模型枪身沿 +X，转到箭矢局部 +Y（飞行方向）需要绕 Z 再转 90°。 */
-    private static final float SPEAR_ALIGN_DEGREES = 90.0F;
+    /** stone_spear.json 的 fixed.rotation 为 [0, 90, 0]，只在投掷渲染里抵消，不改手持模型。 */
+    private static final float SPEAR_FIXED_YAW_DEGREES = 90.0F;
     private static final float SPEAR_SCALE = 1.15F;
 
     private final ItemRenderer itemRenderer;
@@ -57,9 +57,11 @@ public class CommandBlockThrownRenderer extends EntityRenderer<CommandBlockThrow
         float yaw = entity.renderYaw(partialTick);
         float pitch = entity.renderPitch(partialTick);
         poseStack.pushPose();
-        // 箭矢约定：绕 Y、再绕 Z 后，局部 +Y 指向飞行方向。模型枪身沿 +X，再绕 Z 90° 把枪尖转过去。
+        // face() 的 yaw=atan2(x,z)、pitch=atan2(y,水平距离)：局部 +X 经 Y(yaw-90)、Z(pitch) 后正对速度。
+        // renderStatic 还会应用模型的 FIXED 旋转，须先抵消其 Y 90°，不能额外把枪身转向 +Y。
         poseStack.mulPose(Axis.YP.rotationDegrees(yaw - 90.0F));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(pitch + SPEAR_ALIGN_DEGREES));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(pitch));
+        poseStack.mulPose(Axis.YP.rotationDegrees(-SPEAR_FIXED_YAW_DEGREES));
         poseStack.scale(SPEAR_SCALE, SPEAR_SCALE, SPEAR_SCALE);
         this.itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, packedLight, OverlayTexture.NO_OVERLAY,
                 poseStack, bufferSource, entity.level(), entity.getId());

@@ -33,7 +33,7 @@ public class HimRole extends NormalRole {
     @Override
     public List<ShopEntry> getShopEntries() {
         List<ShopEntry> shop = new ArrayList<>();
-        shop.add(new ShopEntry(ModItems.HIM_FIREBALL.getDefaultInstance(), 50, ShopEntry.Type.WEAPON));
+        shop.add(new ShopEntry(ModItems.HIM_FIREBALL.getDefaultInstance(), 75, ShopEntry.Type.WEAPON));
         shop.add(new ShopEntry(ModItems.DREAM_DIAMOND_SWORD.getDefaultInstance(), 120, ShopEntry.Type.WEAPON));
         shop.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(), 80, ShopEntry.Type.TOOL));
         return shop;

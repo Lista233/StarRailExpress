@@ -30,7 +30,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
-/** 镰刀：只有杀戮形态能用。按住蓄满后向前挥出，0.25 秒后处决弧线上的人。冷却 5.5 秒。 */
+/** 镰刀：只有杀戮形态能用。按住蓄满后向前挥出，0.25 秒后处决弧线上的人。冷却 8.5 秒。 */
 public class ReaperScytheItem extends Item implements ChargeableItem {
     public static final int CHARGE_TICKS = 12;
     public static final int WINDUP = 5;

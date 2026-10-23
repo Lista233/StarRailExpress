@@ -19,6 +19,7 @@ import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.role_data.innocence.DisabledPatientRoleData;
 import org.agmas.noellesroles.game.command_block.DreadlordRole;
 import org.agmas.noellesroles.utils.RoleUtils;
+import org.agmas.noellesroles.utils.MoneyUtils;
 import org.agmas.noellesroles.game.modifier.NRModifiers;
 import org.agmas.noellesroles.packet.CommandBlockProgressS2CPacket;
 import pro.fazeclan.river.stupid_express.constants.SEModifiers;
@@ -91,8 +92,7 @@ import org.agmas.noellesroles.init.ModEntities;
 public final class CommandBlockDirector {
     private static final int CONVERT_INTERVAL = 60 * 20;
     private static final int EVENT_INTERVAL = 120 * 20;
-    private static final int ANCHOR_LEAD = 30 * 20;
-    private static final double ANCHOR_HOLD = 6.0D;
+    private static final int COIN_REWARD = 25;
     private static boolean registered;
     private static boolean occupySlots;
     private static boolean suppressOfficialRoll;
@@ -144,6 +144,17 @@ public final class CommandBlockDirector {
         AllowPlayerDeathWithKiller.EVENT.register((player, killer, reason) -> CommandBlockCombat.allowScriptDeath(player,
                 killer, reason, GameUtils.isForcedDeathInProgress()));
         OnKillPlayerTriggered.EVENT.register((victim, spawnBody, killer, reason, force) -> {
+            // 此时已解析真实杀手，且尚未触发击杀奖励；保存全部原参数，超时只结算一次。
+            if (SREGameWorldComponent.KEY.get(victim.level()).isRole(victim, ModRoles.ENTITY_NULL)
+                    && CommandBlockCombat.allowScriptDeath(victim, killer, reason, force)
+                    && EntityNullRole.deferDeath(victim, spawnBody, killer, reason, force)) {
+                return TrueFalseResult.FALSE;
+            }
+            if (!force && SREGameWorldComponent.KEY.get(victim.level()).isRole(victim, ModRoles.PAPER_DOLL)
+                    && CommandBlockCombat.allowScriptDeath(victim, killer, reason, false)
+                    && PaperDollRole.deferDeath(victim, spawnBody, killer, reason, force)) {
+                return TrueFalseResult.FALSE;
+            }
             if (killer instanceof ServerPlayer attacker && victim instanceof ServerPlayer dead
                     && CommandBlockRules.isPoolRole(SREGameWorldComponent.KEY.get(attacker.level()).getRole(attacker))) {
                 CommandBlockCombat.onKillerDeath(attacker, dead);
@@ -257,6 +268,22 @@ public final class CommandBlockDirector {
     private static void onTrueStart(ServerLevel level) {
         if (session != null && !session.active && session.levelKey.equals(level.dimension().location())) {
             start(level);
+        }
+        remindMarkedAbnormals(level);
+    }
+
+    /** 安全时间结束后，提醒仍挂着异常修饰符的玩家。 */
+    private static void remindMarkedAbnormals(ServerLevel level) {
+        if (session == null || session.ended || !session.levelKey.equals(level.dimension().location())) {
+            return;
+        }
+        Component text = Component.translatable("message.noellesroles.command_block.abnormal_marked")
+                .withStyle(ChatFormatting.LIGHT_PURPLE);
+        for (ServerPlayer player : level.players()) {
+            if (GameUtils.isPlayerAliveAndSurvival(player)
+                    && WorldModifierComponent.getInstance(player).isModifier(player, NRModifiers.ABNORMAL)) {
+                player.displayClientMessage(text, false);
+            }
         }
     }
 
@@ -513,66 +540,11 @@ public final class CommandBlockDirector {
         RoleUtils.changeRoleAndSendWelcome(chosen, ModRoles.STEVE);
     }
 
-    /** 拉杆：把下一次改写换成另一个还没变成杀手的异常，并重新抽职业。 */
-    public static boolean rerollNext(ServerLevel level) {
-        if (session == null || !session.active || session.nextConvert == null
-                || !session.levelKey.equals(level.dimension().location())
-                || SREGameTimeComponent.KEY.get(level).isTimeFrozen()) {
-            return false;
-        }
-        List<ServerPlayer> marked = new ArrayList<>();
-        SREGameWorldComponent game = SREGameWorldComponent.KEY.get(level);
-        for (ServerPlayer player : level.players()) {
-            if (!GameUtils.isPlayerAliveAndSurvival(player) || !session.abnormals.contains(player.getUUID())
-                    || player.getUUID().equals(session.nextConvert) || hasTwinChildren(player)
-                    || Error404Role.isAssimilated(player)) {
-                continue;
-            }
-            SRERole role = game.getRole(player);
-            if (role == null || CommandBlockRules.isPoolRole(role)) {
-                continue;
-            }
-            marked.add(player);
-        }
-        if (marked.isEmpty()) {
-            return false;
-        }
-        ServerPlayer chosen = marked.get(level.random.nextInt(marked.size()));
-        List<SRERole> pool = new ArrayList<>(CommandBlockRules.pool());
-        pool.remove(session.nextRole);
-        if (pool.isEmpty()) {
-            return false;
-        }
-        SRERole next = pool.get(level.random.nextInt(pool.size()));
-        ServerPlayer previous = level.getServer().getPlayerList().getPlayer(session.nextConvert);
-        session.queue.remove(chosen.getUUID());
-        session.queue.add(0, chosen.getUUID());
-        session.nextConvert = chosen.getUUID();
-        session.nextRole = next;
-        session.previewed = true;
-        if (!game.isRole(chosen, ModRoles.ABNORMAL)) {
-            RoleUtils.changeRole(chosen, ModRoles.ABNORMAL, false, false, false, false, true);
-            // 变成异常（中立空壳）时清掉只适用于旧阵营的修饰符
-            RoleUtils.removeInapplicableModifiers(chosen, ModRoles.ABNORMAL);
-            RoleUtils.addModifier(chosen, NRModifiers.ABNORMAL);
-        }
-        PacketTracker.sendToClient(chosen,
-                new SubtitleS2CPayload(Component.translatable("message.noellesroles.command_block.preview",
-                        next.getName()), Component.empty(), 80, 0xFFE7D4FF, false,
-                        SubtitleS2CPayload.POS_TOP, false));
-        if (previous != null) {
-            previous.displayClientMessage(Component.translatable("message.noellesroles.steve.preview_cancelled")
-                    .withStyle(ChatFormatting.LIGHT_PURPLE), false);
-        }
-        return true;
-    }
-
     private static void beginPreview(ServerLevel level, ServerPlayer player) {
-        List<SRERole> pool = CommandBlockRules.pool();
-        if (pool.isEmpty() || player == null) {
+        SRERole role = pickConversionRole(level);
+        if (role == null || player == null) {
             return;
         }
-        SRERole role = pool.get(level.random.nextInt(pool.size()));
         session.nextRole = role;
         session.previewed = true;
         session.nextWarnAt = 0;
@@ -586,6 +558,23 @@ public final class CommandBlockDirector {
                         SubtitleS2CPayload.POS_TOP, false));
     }
 
+    /** 优先本局没出现的职业，池耗尽后兼顾累计次数和当前存活人数；预告后保持选定职业。 */
+    private static SRERole pickConversionRole(ServerLevel level) {
+        Map<SRERole, Integer> livingCounts = new HashMap<>();
+        SREGameWorldComponent game = SREGameWorldComponent.KEY.get(level);
+        for (ServerPlayer player : level.players()) {
+            if (GameUtils.isPlayerAliveAndSurvival(player)) {
+                SRERole role = game.getRole(player);
+                if (role != null) {
+                    livingCounts.merge(role, 1, Integer::sum);
+                }
+            }
+        }
+        List<SRERole> candidates = CommandBlockRoleSelection.candidates(
+                CommandBlockRules.pool(), session.roleUses, livingCounts);
+        return candidates.isEmpty() ? null : candidates.get(level.random.nextInt(candidates.size()));
+    }
+
     private static void convertNext(ServerLevel level) {
         if (session.nextConvert == null) {
             return;
@@ -596,19 +585,19 @@ public final class CommandBlockDirector {
         session.previewed = false;
         SRERole role = session.nextRole;
         session.nextRole = null;
-        if (player == null || !GameUtils.isPlayerAliveAndSurvival(player) || Error404Role.isAssimilated(player)) {
+        if (player == null || !GameUtils.isPlayerAliveAndSurvival(player)) {
             return;
         }
         if (role == null || !CommandBlockRules.isPoolRole(role)) {
-            List<SRERole> pool = CommandBlockRules.pool();
-            if (pool.isEmpty()) {
+            role = pickConversionRole(level);
+            if (role == null) {
                 // 池内职业被全部禁用时保持异常空壳，不改写
                 return;
             }
-            role = pool.get(level.random.nextInt(pool.size()));
         }
         RoleUtils.removeModifier(player, NRModifiers.ABNORMAL, true, true);
         RoleUtils.changeRoleAndSendWelcome(player, role);
+        session.roleUses.merge(role, 1, Integer::sum);
         SREPlayerShopComponent shop = SREPlayerShopComponent.KEY.get(player);
         if (shop.balance < GameConstants.getMoneyStart()) {
             shop.setBalance(GameConstants.getMoneyStart());
@@ -629,7 +618,6 @@ public final class CommandBlockDirector {
 
     private static void tickEvents(ServerLevel level, long now) {
         maybeSaveRewind(level, now);
-        maybeSaveAnchor(level, now);
         if (now < session.nextEventAt || session.pendingEvent == null) {
             return;
         }
@@ -681,7 +669,11 @@ public final class CommandBlockDirector {
                     }
                 }
             }
-            case ANCHOR -> applyAnchor(level);
+            case COINS -> {
+                for (ServerPlayer player : level.players()) {
+                    MoneyUtils.addToBalance(player, COIN_REWARD);
+                }
+            }
         }
         // 事件回放：记录本次命令方块小事件，形如「命令方块事件触发了：命令注入」
         SRE.REPLAY_MANAGER.recordCustomEvent(
@@ -692,19 +684,15 @@ public final class CommandBlockDirector {
             SRENetworkMessageUtils.sendBroadcast(player, text);
         }
     }
+
     private static void armRewind(long now) {
         session.rewindNodes.clear();
         session.rewindArea = null;
         session.rewindSaved = false;
         session.rewindSaveAt = 0;
         session.rewindTime = 0;
-        session.anchorSpots.clear();
-        session.anchorSaved = false;
-        session.anchorSaveAt = 0;
         if (session.pendingEvent == FieldEvent.REWIND) {
             session.rewindSaveAt = Math.max(now, session.nextEventAt - 60 * 20);
-        } else if (session.pendingEvent == FieldEvent.ANCHOR) {
-            session.anchorSaveAt = Math.max(now, session.nextEventAt - ANCHOR_LEAD);
         }
     }
 
@@ -762,48 +750,6 @@ public final class CommandBlockDirector {
         session.rewindSaved = false;
     }
 
-    private static void maybeSaveAnchor(ServerLevel level, long now) {
-        if (session.pendingEvent != FieldEvent.ANCHOR || session.anchorSaved || now < session.anchorSaveAt) {
-            return;
-        }
-        session.anchorSaved = true;
-        session.anchorSpots.clear();
-        for (ServerPlayer player : level.players()) {
-            if (!GameUtils.isPlayerAliveAndSurvival(player)) {
-                continue;
-            }
-            session.anchorSpots.put(player.getUUID(), player.position());
-        }
-        Component text = Component.translatable("message.noellesroles.command_block.event.anchor_saved")
-                .withStyle(ChatFormatting.DARK_PURPLE);
-        for (ServerPlayer player : level.players()) {
-            SRENetworkMessageUtils.sendBroadcast(player, text);
-        }
-    }
-
-    private static void applyAnchor(ServerLevel level) {
-        if (!session.anchorSaved) {
-            maybeSaveAnchor(level, session.tick);
-        }
-        for (ServerPlayer player : level.players()) {
-            if (!GameUtils.isPlayerAliveAndSurvival(player)) {
-                continue;
-            }
-            Vec3 spot = session.anchorSpots.get(player.getUUID());
-            if (spot == null) {
-                continue;
-            }
-            if (player.distanceToSqr(spot) <= ANCHOR_HOLD * ANCHOR_HOLD) {
-                player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 40, 0));
-                continue;
-            }
-            StandSpots.place(player, spot);
-            player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20, 0));
-            player.addEffect(new MobEffectInstance(MobEffects.GLOWING, 20, 0));
-        }
-        session.anchorSpots.clear();
-        session.anchorSaved = false;
-    }
 
     private static void shuffle(ServerLevel level) {
         List<ServerPlayer> living = new ArrayList<>();
@@ -1085,8 +1031,8 @@ public final class CommandBlockDirector {
                 "message.noellesroles.command_block.event.rewind_fired"),
         HUSH("message.noellesroles.command_block.event.hush",
                 "message.noellesroles.command_block.event.hush_fired"),
-        ANCHOR("message.noellesroles.command_block.event.anchor",
-                "message.noellesroles.command_block.event.anchor_fired"),
+        COINS("message.noellesroles.command_block.event.coins",
+                "message.noellesroles.command_block.event.coins_fired"),
         TRACE("message.noellesroles.command_block.event.trace",
                 "message.noellesroles.command_block.event.trace_fired"),
         JAM("message.noellesroles.command_block.event.jam",
@@ -1121,6 +1067,8 @@ public final class CommandBlockDirector {
         private long tick;
         private final List<UUID> abnormals = new ArrayList<>();
         private final List<UUID> queue = new ArrayList<>();
+        /** 本局已成功转化的职业次数，不随死亡或时间回溯清空。 */
+        private final Map<SRERole, Integer> roleUses = new HashMap<>();
         private final List<PendingKill> pendingKills = new ArrayList<>();
         private boolean active;
         private boolean ended;
@@ -1142,9 +1090,6 @@ public final class CommandBlockDirector {
         private int rewindTime;
         private long rewindSaveAt;
         private boolean rewindSaved;
-        private final Map<UUID, Vec3> anchorSpots = new HashMap<>();
-        private long anchorSaveAt;
-        private boolean anchorSaved;
 
         private Session(ResourceLocation levelKey, int originalKillers) {
             this.levelKey = levelKey;

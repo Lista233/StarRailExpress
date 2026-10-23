@@ -117,8 +117,15 @@ public class CommandBlockThrownEntity extends Entity implements ItemSupplier {
         thrown.setItem(item);
         thrown.setPos(pos);
         thrown.setDeltaMovement(velocity);
-        thrown.setYRot(player.getYRot());
-        thrown.setXRot(player.getXRot());
+        if (kind == SPEAR) {
+            // 初始包与后续 face() 使用同一套飞行角度，避免刚投出时拿玩家角度插值而横摆。
+            thrown.face(velocity);
+            thrown.yRotO = thrown.getYRot();
+            thrown.xRotO = thrown.getXRot();
+        } else {
+            thrown.setYRot(player.getYRot());
+            thrown.setXRot(player.getXRot());
+        }
         player.level().addFreshEntity(thrown);
         return thrown;
     }

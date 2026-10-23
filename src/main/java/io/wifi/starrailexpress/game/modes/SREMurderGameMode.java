@@ -885,6 +885,12 @@ public class SREMurderGameMode extends GameMode {
 
     public GameUtils.WinStatus allowGameEnd(ServerLevel serverWorld, GameUtils.WinStatus winStatus,
             boolean isLooseEndsMode, SREGameWorldComponent gameWorldComponent) {
+        if (org.agmas.noellesroles.game.command_block.CommandBlockDirector.holdsTheRound(serverWorld)) {
+            return org.agmas.noellesroles.game.command_block.CommandBlockWinPriority.check(serverWorld,
+                    () -> AllowGameEnd.EVENT_START.invoker().allowGameEnd(serverWorld, winStatus, isLooseEndsMode),
+                    () -> CustomWinnerClass.checkWinnerBuiltin(serverWorld, winStatus, isLooseEndsMode),
+                    () -> AllowGameEnd.EVENT_END.invoker().allowGameEnd(serverWorld, winStatus, isLooseEndsMode));
+        }
         var c = AllowGameEnd.EVENT_START.invoker().allowGameEnd(serverWorld,
                 winStatus, false);
         if (c != null && !c.equals(WinStatus.NOT_MODIFY)) {

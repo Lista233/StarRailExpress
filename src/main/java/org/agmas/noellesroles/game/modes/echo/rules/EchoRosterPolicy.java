@@ -8,12 +8,14 @@ import java.util.random.RandomGenerator;
 
 /** 固定人数档与无放回分配；不接受普通职业池覆盖。 */
 public final class EchoRosterPolicy {
+    public static final int MIN_PLAYERS = 6;
+    public static final int MAX_PLAYERS = 32;
     private EchoRosterPolicy() { }
 
     public record Profile(int playerCount, int interceptors, int carriers, int brokers, int beacons,
                           int escapeQuota, int operationTicks, int evacuationTicks) {
         public Profile {
-            if (playerCount < 6 || playerCount > 12 || interceptors < 1 || carriers < 1 || brokers < 1
+            if (playerCount < MIN_PLAYERS || playerCount > MAX_PLAYERS || interceptors < 1 || carriers < 1 || brokers < 1
                     || interceptors + carriers + brokers != playerCount || beacons < 2 || beacons > 3
                     || escapeQuota < 1 || escapeQuota > carriers || operationTicks <= 0 || evacuationTicks <= 0) {
                 throw new IllegalArgumentException("无效人数档");
@@ -22,7 +24,14 @@ public final class EchoRosterPolicy {
     }
 
     public static Profile forPlayerCount(int count) {
-        if (count < 6 || count > 12) throw new IllegalArgumentException("回声托运站要求6–12人");
+        if (count < MIN_PLAYERS || count > MAX_PLAYERS) throw new IllegalArgumentException("回响托运站要求6–32人");
+        if (count > 12) {
+            int interceptors = (count + 5) / 6;
+            int brokers = count / 6;
+            int carriers = count - interceptors - brokers;
+            return new Profile(count, interceptors, carriers, brokers, 3,
+                    (carriers * 5 + 7) / 8, EchoRules.secondsToTicks(840), EchoRules.secondsToTicks(120));
+        }
         int wolves = count <= 8 ? 1 : 2;
         int brokers = count == 12 ? 2 : 1;
         int quota = switch (count) {
@@ -61,11 +70,15 @@ public final class EchoRosterPolicy {
             Objects.requireNonNull(faction);
             if (faction == EchoFaction.BROKER) brokers.add(uuid);
         });
-        if (brokers.size() > 2) throw new IllegalArgumentException("投机客人数超过上限");
+        if (brokers.size() > MAX_PLAYERS / 6) throw new IllegalArgumentException("投机客人数超过模式上限");
         List<EchoContract> contracts = new ArrayList<>(List.of(EchoContract.values()));
         shuffle(contracts, random);
         Map<UUID, EchoContract> result = new LinkedHashMap<>();
-        for (int index = 0; index < brokers.size(); index++) result.put(brokers.get(index), contracts.get(index));
+        // 每轮四种契约不重复，人数超出种类数后重新洗牌；进度仍按玩家独立保存。
+        for (int index = 0; index < brokers.size(); index++) {
+            if (index > 0 && index % contracts.size() == 0) shuffle(contracts, random);
+            result.put(brokers.get(index), contracts.get(index % contracts.size()));
+        }
         return Collections.unmodifiableMap(result);
     }
 

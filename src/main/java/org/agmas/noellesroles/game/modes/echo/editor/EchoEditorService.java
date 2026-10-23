@@ -13,6 +13,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.level.storage.LevelResource;
 import org.agmas.noellesroles.game.modes.echo.map.*;
 import org.agmas.noellesroles.game.modes.echo.runtime.EchoPreflight;
+import org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -161,7 +162,7 @@ public final class EchoEditorService {
         int threshold = 6;
         if (minPlayers != null && !minPlayers.isBlank()) {
             try { threshold = Integer.parseInt(minPlayers.trim()); }
-            catch (NumberFormatException invalid) { throw new IOException("minPlayers必须是6–12的整数"); }
+            catch (NumberFormatException invalid) { throw new IOException("minPlayers必须是6–32的整数"); }
         }
         EchoMapConfig.Vec point;
         if (kind.endsWith("_spawn") || Set.of("spectator", "free_safe", "evacuation_safe", "drop_anchor").contains(kind)) {
@@ -247,7 +248,7 @@ public final class EchoEditorService {
             if (parts.length > 0 && !parts[0].isBlank()) newId = parts[0].trim();
             if (parts.length > 1 && !parts[1].isBlank()) {
                 try { players = Integer.parseInt(parts[1].trim()); }
-                catch (NumberFormatException invalid) { throw new IOException("人数档必须是6–12的整数"); }
+                catch (NumberFormatException invalid) { throw new IOException("人数档必须是6–32的整数"); }
             }
             if (parts.length > 2 && !parts[2].isBlank()) coords = parts[2].trim();
         }
@@ -489,7 +490,7 @@ public final class EchoEditorService {
     }
 
     /**
-     * 6–12 人全部档位的校验；返回前若干条问题。
+     * 6 人至地图出生点容量（最多 32 人）的逐档校验；返回前若干条问题。
      *
      * <p>已加载 Areas 地图时跑完整预检（结构 + 世界安全 + 地图设置）；没加载时只跑纯结构校验——
      * 世界安全检查留到开局预检做，这样不加载地图也能在工具里把配置建完、存完。
@@ -498,7 +499,7 @@ public final class EchoEditorService {
         var areas = AreasWorldComponent.KEY.get(level);
         boolean hasAreas = areas.mapName != null && !areas.mapName.isBlank();
         List<String> issues = new ArrayList<>();
-        for (int count = 6; count <= 12 && issues.isEmpty(); count++) {
+        for (int count = EchoRosterPolicy.MIN_PLAYERS; count <= EchoMapValidator.validationPlayerLimit(map) && issues.isEmpty(); count++) {
             if (hasAreas) {
                 var check = EchoPreflight.check(level, count, false, map);
                 if (!check.valid()) check.errors().stream().limit(8).map(Component::getString).forEach(issues::add);

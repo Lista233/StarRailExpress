@@ -24,6 +24,7 @@
     "CommandBlockPlaneIntroMixin",
     "CommandBlockRolePoolMixin",
     "CommandBlockCrackGunMixin",
+    "DreadlordSoulTrackingMixin",
     "StevePickaxeBreakMixin",
     "SteveMiningPermissionMixin",
     "SteveMiningProgressMixin",

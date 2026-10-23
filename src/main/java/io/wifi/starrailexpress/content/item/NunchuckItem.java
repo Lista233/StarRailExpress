@@ -52,18 +52,13 @@ public class NunchuckItem extends Item {
                 }
             }
 
-            Player target = getTargetPlayer(user);
-            int targetId = target == null ? -1 : target.getId();
-            if (targetId < 0) {
-                HitResult dummyHit = ProjectileUtil.getHitResultOnViewVector(user,
-                        entity -> entity instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy
-                                && dummy.canReceiveHits(),
-                        4.0F);
-                if (dummyHit instanceof EntityHitResult entityHit
-                        && entityHit.getEntity() instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity) {
-                    targetId = entityHit.getEntity().getId();
-                }
-            }
+            HitResult hit = ProjectileUtil.getHitResultOnViewVector(user,
+                    entity -> (entity instanceof Player player && GameUtils.isPlayerAliveAndSurvival(player))
+                            || (entity instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy
+                                    && dummy.canReceiveHits())
+                            || org.agmas.noellesroles.game.command_block.CommandBlockCracks.isCrack(entity),
+                    4.0F);
+            int targetId = hit instanceof EntityHitResult entityHit ? entityHit.getEntity().getId() : -1;
             if (targetId >= 0) {
                 int direction = user.isShiftKeyDown() ? 3 : 0;
                 ClientPlayNetworking.send(new NunchuckHitPayload(targetId, direction));

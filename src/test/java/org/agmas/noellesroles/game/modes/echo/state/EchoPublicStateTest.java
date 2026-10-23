@@ -39,4 +39,14 @@ class EchoPublicStateTest {
         assertThrows(IllegalArgumentException.class,() -> new EchoPublicState.Point(Double.NaN,0,0));
         assertThrows(IllegalArgumentException.class,() -> new EchoPublicState.Point(30000001,0,0));
     }
+    @Test void supportsFullThirtyTwoPlayerProjectionAndRejectsOverflow() {
+        var full = new EchoPublicState(EchoPhase.EVACUATION,100,1200,false,21,14,
+                true,0,true,0,false,List.of());
+        assertEquals(21, full.escaped());
+        assertEquals(14, full.quota());
+        assertThrows(IllegalArgumentException.class, () -> new EchoPublicState(EchoPhase.EVACUATION,
+                100,1200,false,33,14,true,0,true,0,false,List.of()));
+        assertThrows(IllegalArgumentException.class, () -> new EchoPublicState(EchoPhase.EVACUATION,
+                100,1200,false,0,33,true,0,true,0,false,List.of()));
+    }
 }

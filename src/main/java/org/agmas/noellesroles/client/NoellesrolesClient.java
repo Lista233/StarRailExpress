@@ -316,6 +316,7 @@ public class NoellesrolesClient implements ClientModInitializer {
         org.agmas.noellesroles.client.HamoonClientFx.register();
         org.agmas.noellesroles.client.RoadRollerClient.register();
         org.agmas.noellesroles.client.CommandBlockProgressClient.register();
+        org.agmas.noellesroles.client.hud.roles.PaperDollHud.register();
         org.agmas.noellesroles.client.CommandBlockAmbientSound.register();
         org.agmas.noellesroles.content.item.LetterItem.clientReplacementOpener =
                 org.agmas.noellesroles.client.CommandBlockLetter::tryOpen;
@@ -553,6 +554,7 @@ public class NoellesrolesClient implements ClientModInitializer {
         Error404Client.register();
         DreadlordSkinHandler.register();
         DreadlordDreadClient.register();
+        DreadlordClientFx.register();
         CommonClientHudRenderer.registerRenderersEvent();
         WorldRenderEvents.AFTER_TRANSLUCENT.register((renderContext) -> {
             TaskBlockOverlayRenderer.render(renderContext);
@@ -1468,7 +1470,6 @@ public class NoellesrolesClient implements ClientModInitializer {
                 }
             }
             DreadlordDreadClient.lookAtSelf(client.player);
-            DreadlordClientFx.tickFloats(client);
 
             handleStalkerContinuousInput(client);
 

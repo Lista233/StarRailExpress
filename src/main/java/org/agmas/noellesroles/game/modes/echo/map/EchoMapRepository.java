@@ -1,5 +1,6 @@
 package org.agmas.noellesroles.game.modes.echo.map;
 
+import org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy;
 import com.google.gson.*;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
@@ -65,7 +66,7 @@ public final class EchoMapRepository {
     public static Path save(Path worldRoot,EchoMapConfig map,String expectedDigest) throws IOException {
         requireMapId(map.mapId());
         if(!map.coordinateSpace().equals("template")) throw new IOException("禁止导出实战坐标");
-        for(int count=6;count<=12;count++) {
+        for(int count=EchoRosterPolicy.MIN_PLAYERS;count<=EchoMapValidator.validationPlayerLimit(map);count++) {
             var errors=EchoMapValidator.validate(map,count);
             if(!errors.isEmpty()) throw new IOException("N="+count+": "+String.join("; ",errors.stream().limit(8).toList()));
         }

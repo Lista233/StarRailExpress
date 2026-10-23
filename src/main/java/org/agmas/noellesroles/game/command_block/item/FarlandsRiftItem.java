@@ -54,7 +54,9 @@ public class FarlandsRiftItem extends Item {
                     .withStyle(ChatFormatting.GRAY), true);
             return InteractionResultHolder.fail(stack);
         }
-        LegendFx.ring(self.serverLevel(), at, 2.2F, LegendFx.RIFT);
+        // 一个包交给客户端持续绘制整个前摇，范围与服务端判定保持一致。
+        io.wifi.starrailexpress.util.ParticleFx.sendCustom(self.serverLevel(), LegendFx.RING, at,
+                FarlandsRoleData.RIFT_DELAY, (float) FarlandsRoleData.RIFT_RADIUS, LegendFx.RIFT);
         self.serverLevel().playSound(null, at.x, at.y, at.z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.8F,
                 0.5F);
         self.displayClientMessage(Component.translatable("message.noellesroles.farlands.rift_open")

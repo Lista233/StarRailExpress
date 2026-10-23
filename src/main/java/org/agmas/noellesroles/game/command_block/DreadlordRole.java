@@ -30,7 +30,7 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * 恐惧魔王：伪装成乘客。盯住一个人会让所有人看见自己被注视，并打乱皮肤和名牌。
- * 恐惧技能直接开启 25 秒狂暴，走 Psycho 的倒计时、滤镜和追杀音。第二个技能随时都能遁入黑暗。
+ * 恐惧技能开启 22.5 秒狂暴，走 Psycho 的倒计时、滤镜和追杀音。二技能遁入黑暗最多持续 10 秒。
  */
 public class DreadlordRole extends NormalRole {
     public static final ResourceLocation DEATH = Noellesroles.id("reaper_scythe");
@@ -38,12 +38,13 @@ public class DreadlordRole extends NormalRole {
     public static final double GAZE_DOT = 0.82D;
     public static final int GAZE_TICKS = 3 * 20;
     public static final int DREAD_TICKS = 10 * 20;
-    public static final int KILL_FORM_TICKS = 25 * 20;
+    public static final int KILL_FORM_TICKS = 450;
     public static final int FORM_COOLDOWN = 90;
     public static final int FORM_COST = 100;
-    public static final int DARK_COOLDOWN = 5 * 20;
+    public static final int DARK_COOLDOWN = 9 * 20;
+    public static final int DARK_DURATION = 10 * 20;
     public static final int AMBUSH_LOCK = 20;
-    public static final int EXECUTE_COOLDOWN = 110;
+    public static final int EXECUTE_COOLDOWN = 170;
     public static final int HIT_STUN = 3 * 20;
     /** 狂暴中被命中的僵直。黑暗游走仍然无敌，不进这段硬直。 */
     public static final int KILLING_HIT_STUN = 7 * 20;

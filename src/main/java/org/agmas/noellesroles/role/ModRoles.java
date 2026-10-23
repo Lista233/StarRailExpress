@@ -2087,11 +2087,6 @@ public class ModRoles {
             .addFlag("Command_Role")
             .setAddedVersion("4.5");
 
-    /** 404 同化者：独立阵营身份，不继承原职业技能，也不进入随机池。 */
-    public static final SRERole ERROR_404_PUPPET = TMMRoles.registerRole(
-            new org.agmas.noellesroles.game.command_block.Error404PuppetRole(
-                    Noellesroles.id("error404_puppet")));
-
 
     /** 实体303。只由命令方块事件改写产生。无限体力。 */
     public static final SRERole ENTITY_303 = TMMRoles.registerRole(

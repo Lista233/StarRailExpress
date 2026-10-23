@@ -35,6 +35,27 @@ class EchoMapDraftTest {
         assertEquals("season1/echo_station",draft.snapshot().mapId());
         assertThrows(IOException.class,() -> new EchoMapDraft(output.translated(new EchoMapConfig.Vec(0,0,200))));
     }
+    @Test void thresholdsAcceptThroughThirtyTwoAndRejectOutsideRangeAtomically() throws Exception {
+        var draft = new EchoMapDraft(example());
+        for (String kind : new String[]{"beacon_open", "crystal", "supply"}) {
+            draft.mark(kind, "expanded", new EchoMapConfig.Vec(-20.5, 64, 20.5), 0, 0, 13);
+            draft.meta(kind, "expanded", null, 32, null);
+            assertNotNull(draft.snapshot());
+        }
+        var before = draft.snapshot();
+        long revision = draft.revision();
+        for (int invalid : new int[]{5, 33}) {
+            assertThrows(IllegalArgumentException.class, () -> draft.mark("crystal", "bad", new EchoMapConfig.Vec(0, 64, 0), 0, 0, invalid));
+            assertThrows(IllegalArgumentException.class, () -> draft.meta("crystal", "expanded", null, invalid, null));
+            assertThrows(IllegalArgumentException.class, () -> new EchoMapConfig.Node("bad", new EchoMapConfig.Vec(0, 64, 0), invalid));
+        }
+        assertEquals(before, draft.snapshot());
+        assertEquals(revision, draft.revision());
+        assertEquals(32, draft.snapshot().crystalNodes().getLast().minPlayers());
+        assertEquals(32, draft.snapshot().beacons().getLast().minPlayers());
+        assertEquals(32, draft.snapshot().supplyCrates().getLast().minPlayers());
+    }
+
     @Test void newDraftIsEditableButCannotBeSavedBeforeAllRequiredPointsExist() throws Exception {
         var draft=EchoMapDraft.empty("station/new");
         draft.mark("core_control","west",new EchoMapConfig.Vec(-14,65,0),0,0,6);

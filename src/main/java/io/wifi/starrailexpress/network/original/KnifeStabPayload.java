@@ -72,6 +72,20 @@ public record KnifeStabPayload(int target) implements CustomPacketPayload {
                 return;
             }
             Entity targetEntity = player.serverLevel().getEntity(payload.target());
+            if (org.agmas.noellesroles.game.command_block.CommandBlockCracks.isCrack(targetEntity)) {
+                ItemStack stack = player.getMainHandItem();
+                var role = SREGameWorldComponent.KEY.get(player.level()).getRole(player);
+                if (stack.getItem() instanceof io.wifi.starrailexpress.content.item.KnifeItem
+                        && !player.getCooldowns().isOnCooldown(stack.getItem())
+                        && player.distanceTo(targetEntity) <= 4.0D
+                        && !io.wifi.starrailexpress.game.KillerKnifeDurability.isDepleted(stack)
+                        && (role == null || role.onUseKnife(player))
+                        && org.agmas.noellesroles.game.command_block.CommandBlockCracks.tryShatterWithWeapon(player, targetEntity)) {
+                    player.getCooldowns().addCooldown(stack.getItem(), getKnifeCooldown(player));
+                    player.swing(InteractionHand.MAIN_HAND);
+                }
+                return;
+            }
             ServerPlayer target = null;
             if ((targetEntity instanceof ServerPlayer ts)) {
                 target = ts;

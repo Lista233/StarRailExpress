@@ -45,8 +45,8 @@ import net.minecraft.world.item.ItemStack;
 public class EntityNullRoleData extends SimpleRoleData {
     /** 抹除次数的上限（同时持有）；不是一局总数，会按时间恢复。 */
     public static final int MAX_ERASES = 2;
-    /** 抹除前摇：正常 2 秒。 */
-    public static final int WINDUP_TICKS = 2 * 20;
+    /** 抹除前摇：正常 1.25 秒。 */
+    public static final int WINDUP_TICKS = 25;
     /** 抹除前摇：断电中只要 1 秒（黑暗里动手更快）。 */
     public static final int WINDUP_TICKS_DARK = 20;
     /** 起手能锁定的最远距离。 */
@@ -67,6 +67,115 @@ public class EntityNullRoleData extends SimpleRoleData {
     private UUID windupTarget;
     private long windupAt;
     private long nextRegenAt;
+    public static final int REACTION_TICKS = 10;
+    public static final double SELF_ERASE_RADIUS = 4.0D;
+    private long reactionUntil;
+    private Runnable pendingHit;
+    private boolean resolvingHit;
+    private boolean selfEraseUsed;
+    private long eraserBuyReadyAt;
+
+    /** 只暂缓第一击；连续命中不延长反击窗口。 */
+    public boolean deferHit(ServerPlayer self, Runnable hit) {
+        if (resolvingHit || selfEraseUsed || !GameUtils.isPlayerAliveAndSurvival(self)) {
+            return false;
+        }
+        if (pendingHit != null) {
+            return true;
+        }
+        if (!io.wifi.starrailexpress.cca.SREAbilityPlayerComponent.KEY.get(self)
+                .canUseSkill(org.agmas.noellesroles.game.command_block.EntityNullRole.SELF_ERASE_SKILL)) {
+            return false;
+        }
+        pendingHit = hit;
+        reactionUntil = self.level().getGameTime() + REACTION_TICKS;
+        sync();
+        self.displayClientMessage(Component.translatable("message.noellesroles.entity_null.react"), true);
+        self.playNotifySound(SoundEvents.NOTE_BLOCK_PLING.value(), SoundSource.PLAYERS, 1.0F, 0.6F);
+        return true;
+    }
+
+    /** 普通玩家攻击保留原伤害，环境伤害及强制伤害不开放窗口。 */
+    public boolean deferDamage(ServerPlayer self, net.minecraft.world.damagesource.DamageSource source, float amount) {
+        if (!(amount > 0.0F) || !(source.getEntity() instanceof ServerPlayer attacker) || attacker == self
+                || source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+            return false;
+        }
+        return deferHit(self, () -> {
+            self.invulnerableTime = 0;
+            self.hurt(source, amount);
+        });
+    }
+
+    /** 每局一次，只有受击后的十 tick 内可以释放；不产生方块爆炸。 */
+    public boolean selfErase(ServerPlayer self) {
+        if (selfEraseUsed || pendingHit == null || self.level().getGameTime() >= reactionUntil
+                || !GameUtils.isPlayerAliveAndSurvival(self)) {
+            return false;
+        }
+        selfEraseUsed = true;
+        clearPendingHit();
+        windupTarget = null;
+        windupAt = 0;
+        sync();
+        ServerLevel level = self.serverLevel();
+        var origin = self.position();
+        var area = self.getBoundingBox().inflate(SELF_ERASE_RADIUS);
+        double radiusSqr = SELF_ERASE_RADIUS * SELF_ERASE_RADIUS;
+        level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, origin.x, origin.y + 1, origin.z,
+                1, 0, 0, 0, 0);
+        NullFx.erase(level, origin);
+        level.playSound(null, self.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.0F, 0.7F);
+        for (ServerPlayer target : new ArrayList<>(level.players())) {
+            if (target != self && GameUtils.isPlayerAliveAndSurvival(target)
+                    && target.distanceToSqr(origin) <= radiusSqr) {
+                GameUtils.killPlayer(target, false, self, DEATH, false);
+            }
+        }
+        // 自身必死，先结算玩家，再清理包括死亡时新掉落的物品。
+        GameUtils.killPlayer(self, false, self, DEATH, true);
+        for (var item : level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, area,
+                item -> item.isAlive() && item.distanceToSqr(origin) <= radiusSqr)) {
+            item.discard();
+        }
+        return true;
+    }
+
+    private void clearPendingHit() {
+        pendingHit = null;
+        reactionUntil = 0;
+    }
+
+    private void tickPendingHit(ServerPlayer self, long now) {
+        if (pendingHit == null || now < reactionUntil) {
+            return;
+        }
+        Runnable hit = pendingHit;
+        clearPendingHit();
+        sync();
+        resolvingHit = true;
+        try {
+            hit.run();
+        } finally {
+            resolvingHit = false;
+        }
+    }
+
+    public boolean canBuyEraser() {
+        return player.level().getGameTime() >= eraserBuyReadyAt;
+    }
+
+    public void onBuyEraser() {
+        eraserBuyReadyAt = player.level().getGameTime() + 120 * 20;
+        sync();
+    }
+
+    @Override
+    public void clear() {
+        clearPendingHit();
+        windupTarget = null;
+        windupAt = 0;
+    }
 
     public EntityNullRoleData(RoleDataContext context) {
         super(context);
@@ -87,6 +196,7 @@ public class EntityNullRoleData extends SimpleRoleData {
         int windup = windupTicks(self.serverLevel());
         windupTarget = target.getUUID();
         windupAt = now + windup;
+        target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, windup, 3, false, false, true));
         self.addEffect(new MobEffectInstance(MobEffects.GLOWING, windup + 10, 0, false, false, true));
         self.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, windup + 10, 1, false, false, true));
         self.displayClientMessage(Component.translatable("message.noellesroles.entity_null.charging", target.getName())
@@ -96,7 +206,7 @@ public class EntityNullRoleData extends SimpleRoleData {
         return true;
     }
 
-    /** 断电中前摇减半：黑暗里没人看得见他在做什么。 */
+    /** 断电中前摇缩短到一秒：黑暗里没人看得见他在做什么。 */
     private static int windupTicks(ServerLevel level) {
         return SREWorldBlackoutComponent.KEY.get(level).isBlackoutActive() ? WINDUP_TICKS_DARK : WINDUP_TICKS;
     }
@@ -110,10 +220,15 @@ public class EntityNullRoleData extends SimpleRoleData {
             // 死了就把没结算的前摇丢掉，避免复活后技能一直被占着
             windupTarget = null;
             windupAt = 0;
+            clearPendingHit();
             return;
         }
         ServerLevel level = self.serverLevel();
         long now = level.getGameTime();
+        tickPendingHit(self, now);
+        if (!GameUtils.isPlayerAliveAndSurvival(self)) {
+            return;
+        }
         boolean dark = SREWorldBlackoutComponent.KEY.get(level).isBlackoutActive();
         if (now % 20 == 0) {
             tickPassive(self, dark);
@@ -290,6 +405,9 @@ public class EntityNullRoleData extends SimpleRoleData {
         tag.putInt("left", erasesLeft);
         tag.putLong("regenAt", nextRegenAt);
         tag.putLong("windupAt", windupAt);
+        tag.putLong("reactionUntil", reactionUntil);
+        tag.putBoolean("selfEraseUsed", selfEraseUsed);
+        tag.putLong("eraserBuyReadyAt", eraserBuyReadyAt);
         if (windupTarget != null) {
             tag.putUUID("windup", windupTarget);
         }
@@ -301,5 +419,8 @@ public class EntityNullRoleData extends SimpleRoleData {
         windupAt = tag.getLong("windupAt");
         windupTarget = tag.contains("windup") ? tag.getUUID("windup") : null;
         nextRegenAt = tag.getLong("regenAt");
+        reactionUntil = tag.getLong("reactionUntil");
+        selfEraseUsed = tag.getBoolean("selfEraseUsed");
+        eraserBuyReadyAt = tag.getLong("eraserBuyReadyAt");
     }
 }

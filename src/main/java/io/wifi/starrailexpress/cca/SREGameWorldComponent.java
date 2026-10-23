@@ -53,6 +53,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import org.agmas.harpymodloader.component.WorldModifierComponent;
+import org.agmas.noellesroles.api.time.TimeRewindPlayback;
 import org.agmas.noellesroles.api.time.TimeRewind;
 import org.agmas.noellesroles.content.item.GroselleJourneyManager;
 import org.agmas.noellesroles.game.roles.innocence.fool.TarotAssemblyManager;
@@ -843,7 +844,8 @@ public class SREGameWorldComponent implements AutoSyncedComponent, ServerTicking
                             continue;
                         }
 
-                        if (gameMode.enableEnvironmentDetection()) {
+                        if (gameMode.enableEnvironmentDetection()
+                                && !TimeRewindPlayback.isActive(player.getUUID())) {
                             playerEnvironmentDetection(player, areas, this);
                         }
                         if (world.getGameTime() % 40 == 0) {
