@@ -21,6 +21,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import org.agmas.noellesroles.Noellesroles;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -72,6 +73,8 @@ public final class EmbalmerVoiceSwapManager {
         remove(second.getUUID());
         LINKS.put(first.getUUID(), new Link(second.getUUID(), until));
         LINKS.put(second.getUUID(), new Link(first.getUUID(), until));
+        Noellesroles.LOGGER.info("[Embalmer] Voice swap established: {} <-> {} for {} ticks",
+                first.getName().getString(), second.getName().getString(), DURATION_TICKS);
     }
 
     /** 移除某人的配对（会成对移除，避免残留单向链接）。 */

@@ -64,7 +64,9 @@ public class EmbalmerVoiceSwapWidget extends Button {
                 return;
             }
             var data = RoleData.getNullable(EmbalmerRoleData.class, client.player);
-            if (data == null || data.voiceSwapCooldown > 0) {
+            // 本地数据未同步到时不要静默吞掉点击：照常发包，由服务端做权威校验
+            // （冷却中服务端会回提示；只有本地明确处于冷却才本地拦截，避免刷屏）
+            if (data != null && data.voiceSwapCooldown > 0) {
                 return;
             }
             if (client.player.level().getPlayerByUUID(voiceTarget.getProfile().getId()) == null) {
