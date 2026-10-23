@@ -126,6 +126,8 @@ public final class SpeakerTracks {
         mod(tracks, NRSounds.DAYWALKER, "daywalker");
         mod(tracks, NRSounds.MOOD, "mood");
         mod(tracks, NRSounds.COMMAND_BLOCK, "command_block");
+        mod(tracks, NRSounds.COMMAND_BLOCK_2, "command_block_2");
+        mod(tracks, NRSounds.COMMAND_BLOCK_3, "command_block_3");
         return List.copyOf(tracks);
     }
 

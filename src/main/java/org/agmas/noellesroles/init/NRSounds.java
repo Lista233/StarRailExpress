@@ -97,6 +97,8 @@ public class NRSounds {
     public static final SoundEvent DAYWALKER = registrar.create("noellesroles.daywalker");
     public static final SoundEvent MOOD = registrar.create("noellesroles.mood");
     public static final SoundEvent COMMAND_BLOCK = registrar.create("noellesroles.command_block");
+    public static final SoundEvent COMMAND_BLOCK_2 = registrar.create("noellesroles.command_block_2");
+    public static final SoundEvent COMMAND_BLOCK_3 = registrar.create("noellesroles.command_block_3");
 
 
     // ==================== 常量定义 ====================
