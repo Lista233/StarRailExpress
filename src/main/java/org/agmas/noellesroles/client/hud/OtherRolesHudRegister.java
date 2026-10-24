@@ -86,13 +86,13 @@ public class OtherRolesHudRegister {
         SwordsmanHud.register();
         MushroomScholarHud.register();
         RavenHud.register();
+        DaywalkerHud.register();
         DoomedSinnerHud.register();
         WraithAssassinHud.register();
         org.agmas.noellesroles.client.hud.roles.AmonHud.register();
         AdventurerHud.register();
         ReasonerHud.register();
         VoiceChangerHud.register();
-        EmbalmerHud.register();
         SkincrawlerHud.register();
         SwapperHud.register();
         PhantomMusicianHud.register();
