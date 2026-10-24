@@ -16,4 +16,8 @@ public abstract class EchoHotbarMixin {
     private void noellesroles$echoHotbar(GuiGraphics graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
         if (EchoHotbar.render(graphics)) ci.cancel();
     }
+    @Inject(method = "renderSelectedItemName", at = @At("HEAD"), cancellable = true)
+    private void noellesroles$echoItemName(GuiGraphics graphics, CallbackInfo ci) {
+        if (EchoHotbar.active()) ci.cancel();
+    }
 }

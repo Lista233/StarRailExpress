@@ -2,44 +2,58 @@ package org.agmas.noellesroles.game.modes.echo.combat;
 
 import org.agmas.noellesroles.game.modes.echo.state.EchoLifeState;
 
-/** 暂停感知的两次机会、蓄力和控制状态；不读取Minecraft生命值。 */
+/** 暂停感知的三心血量、倒地救援、蓄力和控制状态；原版生命值只是投影。 */
 public final class EchoCombatState {
-    public enum Hit { IGNORED, DOWNED, ELIMINATED, RESET_INTERCEPTOR }
-    /** 出击与真正击倒的硬下限；专长、技能和演出相位均不能缩短。 */
-    public static final int MIN_ATTACK_COOLDOWN_TICKS=60, MIN_DOWN_COOLDOWN_TICKS=400;
+    public enum Hit { IGNORED, DAMAGED, DOWNED, ELIMINATED, RESET_INTERCEPTOR }
+    public static final float MAX_HEALTH=6F, CUTTER_DAMAGE=3F;
+    /** 挥空至少3秒；实际武器命中至少6秒，不受专长和演出后摇缩短。 */
+    public static final int MIN_ATTACK_COOLDOWN_TICKS=60, HIT_COOLDOWN_TICKS=120;
     public record Snapshot(EchoLifeState life,long bleedUntil,long protectedUntil,long controlledUntil,
-                           long controlImmuneUntil,long cutterReadyAt,long shoveReadyAt) { }
+                           long controlImmuneUntil,long cutterReadyAt,long shoveReadyAt,float health) {
+        /** 兼容旧投影；新协议显式携带剩余半心单位。 */
+        public Snapshot(EchoLifeState life,long bleedUntil,long protectedUntil,long controlledUntil,
+                        long controlImmuneUntil,long cutterReadyAt,long shoveReadyAt) {
+            this(life,bleedUntil,protectedUntil,controlledUntil,controlImmuneUntil,cutterReadyAt,shoveReadyAt,
+                    life==EchoLifeState.HEALTHY?MAX_HEALTH:life==EchoLifeState.WOUNDED?CUTTER_DAMAGE:0F);
+        }
+    }
     private final org.agmas.noellesroles.game.modes.echo.rules.EchoRuleConfig.Combat rules;
     public EchoCombatState() { this(org.agmas.noellesroles.game.modes.echo.rules.EchoRuleConfig.DEFAULT.combat()); }
     public EchoCombatState(org.agmas.noellesroles.game.modes.echo.rules.EchoRuleConfig.Combat rules) { this.rules=java.util.Objects.requireNonNull(rules); }
     private EchoLifeState life=EchoLifeState.HEALTHY;
+    private float health=MAX_HEALTH;
     private long bleedUntil,protectedUntil,controlledUntil,controlImmuneUntil,cutterReadyAt,shoveReadyAt,environmentReadyAt;
     private long chargeStartedAt=-1;
     public EchoLifeState life() { return life; }
+    public float health() { return health; }
     public boolean controlled(long now) { return now<controlledUntil; }
     public boolean canAct(long now) { return life.standing() && !controlled(now); }
     public boolean protectedAt(long now) { return now<protectedUntil; }
     public long bleedUntil() { return bleedUntil; }
-    public Snapshot snapshot() { return new Snapshot(life,bleedUntil,protectedUntil,controlledUntil,controlImmuneUntil,cutterReadyAt,shoveReadyAt); }
+    public Snapshot snapshot() { return new Snapshot(life,bleedUntil,protectedUntil,controlledUntil,controlImmuneUntil,cutterReadyAt,shoveReadyAt,health); }
 
     public boolean beginCutter(long now) {
         if(!canAct(now) || now<cutterReadyAt) return false;
         chargeStartedAt=now; return true;
     }
-    public boolean releaseCutter(long now) { return releaseCutter(now,rules.cutterChargeTicks()); }
-    /** 本能只缩短有效蓄力要求，不改变武器的服务端冷却下限。 */
+    /** 蓄满后松手提交，蓄力取消不消耗冷却。 */
+    public boolean releaseCutter(long now) { return releaseCutter(now,EchoCutterStrike.CHARGE_TICKS); }
     public boolean releaseCutter(long now,int requiredChargeTicks) {
+        return releaseCutter(now,requiredChargeTicks,now);
+    }
+    public boolean releaseCutter(long now,int requiredChargeTicks,long releasedAt) {
         long start=chargeStartedAt; chargeStartedAt=-1;
-        if(start<0 || now-start<Math.max(1,requiredChargeTicks) || !canAct(now) || now<cutterReadyAt) return false;
+        if(releasedAt>now || (requiredChargeTicks>0 && (start<0 || releasedAt-start<requiredChargeTicks))
+                || !canAct(now) || now<cutterReadyAt) return false;
         cutterReadyAt=Math.max(cutterReadyAt,now+Math.max(MIN_ATTACK_COOLDOWN_TICKS,rules.cutterCooldownTicks()));
         activeAction(); return true;
     }
-    public int cutterChargeTicks() { return rules.cutterChargeTicks(); }
+    public int cutterChargeTicks() { return EchoCutterStrike.CHARGE_TICKS; }
     public long cutterRemaining(long now) { return Math.max(0,cutterReadyAt-now); }
-    /** 只接收已经完成生命状态转换的结果；多目标、延迟命中一律取最大截止。 */
+    /** 实际受伤/倒地/淘汰均算命中；多目标只刷新截止，不累加惩罚。 */
     public boolean recordCutterHit(long now,Hit hit) {
-        if(hit!=Hit.DOWNED) return false;
-        cutterReadyAt=Math.max(cutterReadyAt,now+MIN_DOWN_COOLDOWN_TICKS); return true;
+        if(!EchoCutterStrike.feedbackEligible(hit,false,false)) return false;
+        cutterReadyAt=Math.max(cutterReadyAt,now+HIT_COOLDOWN_TICKS); return true;
     }
     public void cancelCharge() { chargeStartedAt=-1; }
     public boolean shoveReady(long now) { return canAct(now) && now>=shoveReadyAt; }
@@ -48,16 +62,20 @@ public final class EchoCombatState {
         if(!life.standing() || duration<=0 || now<controlImmuneUntil || controlled(now)) return false;
         controlledUntil=now+duration; controlImmuneUntil=controlledUntil+rules.controlImmunityTicks(); cancelCharge(); return true;
     }
-    public Hit hit(long now,boolean force,boolean interceptor) {
+    /** 普通杀手攻击固定扣一心半，不受扑击/连段增幅而变为秒杀。 */
+    public Hit hit(long now,boolean force,boolean interceptor) { return damage(now,force,interceptor,CUTTER_DAMAGE); }
+    public Hit damage(long now,boolean force,boolean interceptor,float amount) {
         if(!life.potentiallyEscapable()) return Hit.IGNORED;
         if(force) { eliminate(); return Hit.ELIMINATED; }
+        if(!Float.isFinite(amount) || amount<=0) return Hit.IGNORED;
         if(interceptor) {
             if(now<environmentReadyAt) return Hit.IGNORED;
             environmentReadyAt=now+rules.environmentProtectionTicks(); controlledUntil=now+rules.environmentControlTicks(); controlImmuneUntil=controlledUntil+rules.controlImmunityTicks();
-            cancelCharge(); return Hit.RESET_INTERCEPTOR;
+            health=MAX_HEALTH; cancelCharge(); return Hit.RESET_INTERCEPTOR;
         }
         if(life==EchoLifeState.DOWNED || protectedAt(now)) return Hit.IGNORED;
-        cancelCharge();
+        cancelCharge(); health=Math.max(0F,health-amount);
+        if(health>0F) return Hit.DAMAGED;
         if(life==EchoLifeState.HEALTHY) { life=EchoLifeState.DOWNED; bleedUntil=now+rules.bleedTicks(); return Hit.DOWNED; }
         eliminate(); return Hit.ELIMINATED;
     }
@@ -73,12 +91,12 @@ public final class EchoCombatState {
     }
     public boolean rescue(long now) {
         if(!canBeRescued(now)) return false;
-        life=EchoLifeState.WOUNDED; bleedUntil=0; protectedUntil=now+rules.rescueProtectionTicks(); return true;
+        life=EchoLifeState.WOUNDED; health=CUTTER_DAMAGE; bleedUntil=0; protectedUntil=now+rules.rescueProtectionTicks(); return true;
     }
     public void activeAction() { protectedUntil=0; }
     public void depart(EchoLifeState terminal) {
         if(terminal!=EchoLifeState.ESCAPED && terminal!=EchoLifeState.RETIRED && terminal!=EchoLifeState.ELIMINATED) throw new IllegalArgumentException("非离场状态");
-        life=terminal; bleedUntil=0; protectedUntil=0; controlledUntil=0; cancelCharge();
+        life=terminal; health=0; bleedUntil=0; protectedUntil=0; controlledUntil=0; cancelCharge();
     }
     private void eliminate() { depart(EchoLifeState.ELIMINATED); }
 }

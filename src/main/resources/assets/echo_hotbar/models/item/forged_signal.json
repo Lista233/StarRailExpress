@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "noellesroles:gui/echo/cards/forged_signal"
+    "layer0": "echo_hotbar:item/cards/forged_signal"
   }
 }

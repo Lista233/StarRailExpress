@@ -1,66 +1,80 @@
 package org.agmas.noellesroles.game.modes.echo.client;
 
-import io.wifi.starrailexpress.api.data.RoleData;
+import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.resources.ResourceLocation;
 import org.agmas.noellesroles.game.modes.echo.EchoGameMode;
-import org.agmas.noellesroles.game.modes.echo.state.EchoFaction;
-import org.agmas.noellesroles.game.modes.echo.state.EchoRoleData;
+import org.agmas.noellesroles.game.modes.echo.state.EchoPhase;
+import org.agmas.noellesroles.game.modes.echo.visual.EchoVisualPayload;
+import org.agmas.noellesroles.game.modes.echo.visual.EchoVisualState;
+import java.util.UUID;
 
 /**
- * 追捕者的「狂暴形态」外观：固定使用疯魔（psycho）默认皮肤，并按 1.5 倍放大。
- *
- * <p>只影响表现，两侧都从同一份 {@link EchoRoleData} 读阵营，不做额外网络同步：
- * <ul>
- * <li>皮肤：{@code wathe:textures/entity/psycho(_thin).png}——即原版疯魔形态的默认贴图；</li>
- * <li>体型：渲染时在 {@code PlayerRenderer.scale} 之后乘 1.5（模型、手臂、手持物一起放大）；</li>
- * <li>碰撞箱：**完全不变**。{@code Entity#getDimensions} / {@code Pose} 一律不动，
- * 因此判定、射线距离、挤压与服务器位置全部保持原值——放大只是「看起来更大」，
- * 不会让追捕者更难打中，也不会改变追击距离。</li>
- * </ul>
- *
- * <p>皮肤替换走 {@code PlayerEntityRendererMixin} 已有的入口：那里优先读取职业的
- * {@code getPsychoSkin}，而回声追捕者的职业并不处于疯魔状态，所以这里提供独立的
- * 判定函数，由同一个 mixin 在「普通皮肤」之前短路。
+ * 狂暴外观只读公共视觉快照，不读取其它玩家仅本人同步的 RoleData。
+ * 复用现有皮肤/手臂入口，且只在 PlayerRenderer.scale 乘一次矩阵，不修改碰撞箱、眼高或属性。
+ * 公共快照不覆盖 Morph 状态本身，因此撤销狂暴外观后自然恢复原有变形。
  */
 public final class EchoInterceptorSkin {
+    public static final float SCALE = EchoVisualState.INTERCEPTOR_SCALE;
+    private static EchoVisualPayload snapshot;
+    private static ClientLevel world;
+    private static long receivedAt;
+    private static boolean initialized;
     private EchoInterceptorSkin() { }
 
-    /** 狂暴形态的视觉放大倍率（只影响渲染）。 */
-    public static final float SCALE = 1.5F;
-
-    /** 原版疯魔默认皮肤（与 {@code SRERole.getPsychoSkin} 的默认值一致）。 */
-    private static ResourceLocation psychoTexture(boolean slim) {
-        return ResourceLocation.fromNamespaceAndPath("wathe",
-                "textures/entity/psycho" + (slim ? "_thin" : "") + ".png");
+    public static void initialize() {
+        if (initialized) return;
+        initialized = true;
+        ClientPlayNetworking.registerGlobalReceiver(EchoVisualPayload.ID, (payload, context) -> context.client().execute(() -> {
+            var level = context.client().level;
+            if (level == null || !level.dimension().location().equals(payload.dimension())) return;
+            if (EchoVisualPayload.NONE.equals(payload.match())) { clear(); return; }
+            world = level; snapshot = payload; receivedAt = level.getGameTime();
+        }));
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> clear());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clear());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (snapshot != null && !active()) clear();
+        });
     }
 
-    /** 该玩家是否应按追捕者狂暴形态渲染：本局、截流者、且仍在局内。 */
+    /** 维度/世界实例、活动模式、快照租约都必须仍有效。旁观者也能看到公共外观。 */
+    public static boolean active() {
+        var client = Minecraft.getInstance();
+        if (snapshot == null || client.level == null || client.level != world
+                || client.level.getGameTime() - receivedAt > 40) return false;
+        var game = SREGameWorldComponent.KEY.get(client.level);
+        if (!(game.getGameMode() instanceof EchoGameMode)
+                || game.getGameStatus() != SREGameWorldComponent.GameStatus.ACTIVE) return false;
+        var data = EchoBagClient.data();
+        return data == null || data.matchId() == null || snapshot.match().equals(data.matchId())
+                && data.phase() != EchoPhase.SETTLING && data.phase() != EchoPhase.FINISHED;
+    }
+
+    public static boolean currentMatch(UUID match) {
+        return match != null && active() && match.equals(snapshot.match());
+    }
+
+    public static float pressure() { return active() ? snapshot.pressure() / 100F : 0F; }
+
     public static boolean applies(AbstractClientPlayer player) {
-        if (player == null) return false;
-        Minecraft client = Minecraft.getInstance();
-        if (client.level == null) return false;
-        if (!(io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(client.level).getGameMode()
-                instanceof EchoGameMode)) return false;
-        EchoRoleData data = RoleData.getNullable(EchoRoleData.class, player);
-        return data != null && data.matchId() != null && data.faction() == EchoFaction.INTERCEPTOR;
+        return player != null && player.level() == world && player.isAlive() && !player.isSpectator()
+                && active() && snapshot.interceptors().contains(player.getUUID());
     }
 
-    /** 狂暴形态贴图；不适用时返回 {@code null}，调用方继续走既有的皮肤逻辑。 */
+    /** 皮肤只覆盖渲染；即使当前另有 Morph 贴图，仍与放大判定使用同一公共身份。 */
     public static ResourceLocation texture(AbstractClientPlayer player) {
         if (!applies(player)) return null;
         boolean slim = player.getSkin().model() == net.minecraft.client.resources.PlayerSkin.Model.SLIM;
-        return psychoTexture(slim);
+        return ResourceLocation.fromNamespaceAndPath("wathe", "textures/entity/psycho" + (slim ? "_thin" : "") + ".png");
     }
 
-    /**
-     * 本地玩家的第一人称手臂贴图：与第三人称保持同一张，避免「身子是怪物、手臂还是原皮肤」。
-     * 不适用时返回 {@code null}。
-     */
-    public static ResourceLocation firstPersonTexture() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) return null;
-        return texture(client.player);
-    }
+    public static ResourceLocation firstPersonTexture() { return texture(Minecraft.getInstance().player); }
+
+    private static void clear() { snapshot = null; world = null; receivedAt = 0; }
 }

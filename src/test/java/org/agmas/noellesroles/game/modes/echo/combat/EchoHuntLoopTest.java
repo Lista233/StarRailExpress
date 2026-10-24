@@ -5,6 +5,23 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** 狩猎循环的纯状态机：锁定、相位、扑击升级、后摇与本能覆盖。 */
 class EchoHuntLoopTest {
+    @Test void chargedReleaseCommitsStrikeWithoutWindup() {
+        var loop=new EchoHuntLoop(); assertTrue(loop.canCharge(0));
+        loop.onCharge(0);
+        loop.beginStrike(16); assertTrue(loop.windupReady(16));
+        assertEquals(EchoHuntLoop.Phase.LUNGE,loop.phase());
+        assertEquals(0,EchoHuntLoop.WINDUP_TICKS);
+        loop.onMiss(16); assertFalse(loop.canCharge(16));
+        assertTrue(loop.canCharge(16+EchoHuntLoop.RECOVER_MISS_TICKS));
+    }
+    @Test void windupCanBeCancelledByControlOrSlotChange() {
+        var loop=new EchoHuntLoop(); loop.onCharge(0); loop.cancel(1);
+        assertTrue(loop.canCharge(1));
+    }
+    @Test void instinctDoesNotShortenAttackCooldownFloor() {
+        var loop=new EchoHuntLoop(); loop.activateInstinct(0); loop.beginStrike(0);
+        loop.onHit(0,true); assertTrue(loop.canCharge(0));
+    }
 
     @Test void stalkAccumulatesFocusUpToCap() {
         var loop = new EchoHuntLoop();
@@ -84,14 +101,15 @@ class EchoHuntLoopTest {
         assertEquals(EchoHuntLoop.Phase.STALK, loop.phase());
     }
 
-    @Test void instinctFillsFocusShortensChargeAndSkipsRecovery() {
+    @Test void instinctFillsFocusButChargeRemainsSixteenTicks() {
         var loop = new EchoHuntLoop();
         loop.activateInstinct(100);
         assertEquals(100, loop.focus());
         assertTrue(loop.instinct(100 + EchoHuntLoop.INSTINCT_TICKS - 1));
         assertFalse(loop.instinct(100 + EchoHuntLoop.INSTINCT_TICKS));
-        assertEquals(EchoHuntLoop.INSTINCT_CHARGE_TICKS, loop.chargeTicks(101, 20));
-        assertEquals(20, loop.chargeTicks(100 + EchoHuntLoop.INSTINCT_TICKS, 20));
+        assertEquals(16, loop.chargeTicks(101, 20));
+        assertEquals(16, loop.chargeTicks(101, 1));
+        assertEquals(16, loop.chargeTicks(100 + EchoHuntLoop.INSTINCT_TICKS, 20));
         loop.onCharge(101);
         loop.beginLunge(101);
         loop.onMiss(101);

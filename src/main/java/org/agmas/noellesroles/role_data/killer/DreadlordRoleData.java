@@ -260,7 +260,6 @@ public class DreadlordRoleData extends SimpleRoleData {
         killing = true;
         publicFormSeen = true;
         killLeft = DreadlordRole.KILL_FORM_TICKS;
-        darkReadyAt = self.tickCount;
         setScale(self, DreadlordRole.KILL_SCALE);
         lunge(self, 1.15D);
         self.addEffect(new MobEffectInstance(ModEffects.INVINCIBLE, DreadlordRole.KILL_FORM_TICKS, 0,

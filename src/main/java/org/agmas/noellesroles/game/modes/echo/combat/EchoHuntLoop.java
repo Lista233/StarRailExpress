@@ -15,7 +15,7 @@ package org.agmas.noellesroles.game.modes.echo.combat;
  * 因此可以被单元测试完整覆盖。
  */
 public final class EchoHuntLoop {
-    public enum Phase { STALK, CHARGE, LUNGE, RECOVER }
+    public enum Phase { STALK, CHARGE, WINDUP, LUNGE, RECOVER }
 
     /** 锁定值上限。 */
     public static final double FOCUS_MAX = 100.0D;
@@ -31,6 +31,8 @@ public final class EchoHuntLoop {
     public static final double CHARGE_DRAIN = 2.0D;
     /** 突进窗口（tick）。 */
     public static final int LUNGE_TICKS = 6;
+    /** 蓄满松手后不再等待前摇。 */
+    public static final int WINDUP_TICKS = 0;
     /** 挥空后摇、命中后摇（tick）。 */
     public static final int RECOVER_MISS_TICKS = 24, RECOVER_HIT_TICKS = 8;
     /** 突进窗口内的额外判定距离。 */
@@ -39,8 +41,8 @@ public final class EchoHuntLoop {
     public static final double EMPOWERED_RANGE_BONUS = 2.0D;
     /** 扑击命中额外倒地时长（tick）。 */
     public static final int EMPOWERED_BLEED_BONUS = 200;
-    /** 本能（专长主动技能）窗口与蓄力时间。 */
-    public static final int INSTINCT_TICKS = 60, INSTINCT_CHARGE_TICKS = 8;
+    /** 本能（专长主动技能）窗口；蓄力仍固定 0.8 秒。 */
+    public static final int INSTINCT_TICKS = 60;
     /** 各相移速倍率。 */
     public static final double CHARGE_SPEED = 0.55D, RECOVER_SPEED = 0.85D, INSTINCT_SPEED = 1.20D;
 
@@ -77,8 +79,13 @@ public final class EchoHuntLoop {
 
     /** 蓄力被打断（被冲撞、被控制、换槽、松手未达最短蓄力）。 */
     public void cancel(long now) {
-        if (phase == Phase.CHARGE) { phase = Phase.STALK; phaseUntil = now; }
+        if (phase == Phase.CHARGE || phase == Phase.WINDUP) { phase = Phase.STALK; phaseUntil = now; }
     }
+
+    /** 蓄满松手即进入出击相，同 tick 可结算。 */
+    public void beginStrike(long now) { phase = Phase.LUNGE; phaseUntil = now; }
+    public void beginWindup(long now) { beginStrike(now); }
+    public boolean windupReady(long now) { return phase == Phase.LUNGE || (phase == Phase.WINDUP && now >= phaseUntil); }
 
     /** 松手瞬间结算：锁定满则升级为扑击并清空锁定值。 */
     public Strike beginLunge(long now) {
@@ -120,16 +127,16 @@ public final class EchoHuntLoop {
         phaseUntil = now;
     }
 
-    /** 蓄力所需 tick；本能期间固定 8，否则用专长算出的值。 */
+    /** 蓄力固定 16 tick，不受专长、本能或旧配置影响。 */
     public int chargeTicks(long now, int specializationTicks) {
-        return instinct(now) ? Math.min(INSTINCT_CHARGE_TICKS, Math.max(1, specializationTicks)) : Math.max(1, specializationTicks);
+        return EchoCutterStrike.CHARGE_TICKS;
     }
 
     /** 当前相位的移速倍率。 */
     public double speedFactor(long now) {
         advance(now);
         double base = switch (phase) {
-            case CHARGE -> CHARGE_SPEED;
+            case CHARGE, WINDUP -> CHARGE_SPEED;
             case RECOVER -> RECOVER_SPEED;
             default -> 1.0D;
         };
@@ -176,7 +183,7 @@ public final class EchoHuntLoop {
 
     /** 相位到期自动回到 STALK；LUNGE 到期视为本次出击结束。 */
     private void advance(long now) {
-        if (phase == Phase.STALK || phase == Phase.CHARGE) return;
+        if (phase == Phase.STALK || phase == Phase.CHARGE || phase == Phase.WINDUP) return;
         if (now < phaseUntil) return;
         phase = Phase.STALK;
         phaseUntil = now;

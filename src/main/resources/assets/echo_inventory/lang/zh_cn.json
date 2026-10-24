@@ -6,7 +6,7 @@
   "echo.inventory.has_key": "携带钥匙",
   "echo.inventory.tools": "固定工具",
   "echo.inventory.resources": "随身物资 · 6 格",
-  "echo.inventory.tool.0": "阵营工具 / 空手交互",
+  "echo.inventory.tool.0": "任务 / 阵营工具",
   "echo.inventory.tool.1": "卡牌终端",
   "echo.inventory.tool.2": "专长技能",
   "echo.inventory.tool_help.0": "此格固定。截流者持截流器蓄力攻击；其他阵营保留空手，按住右键采集、提交或救援。",
@@ -26,5 +26,16 @@
   "echo.inventory.invalid_recipe": "这两件物资不能合成，请选择同系列的基础卡。",
   "echo.inventory.empty_detail": "点下方物资查看效果、使用或拆包。\n前3格为固定工具，后6格就是快捷栏物资，不再有额外背包。\nShift+单击两张基础卡可预览合成。",
   "echo.inventory.equipped": "终端已装备",
-  "echo.inventory.close_help": "%s / ESC 关闭 · 数字键选格 · 物资可直接右键使用"
+  "echo.inventory.close_help": "%s / ESC 关闭 · 数字键选格 · 物资可直接右键使用",
+  "echo.inventory.draft.title": "物资包 · 三选一",
+  "echo.inventory.draft.choose_help": "选择一张带走 · 关闭背包不会刷新候选",
+  "echo.inventory.draft.opening": "正在拆开物资包",
+  "echo.inventory.draft.requesting": "等待服务器确认…",
+  "echo.inventory.draft.progress": "拆封 %s%% · 剩余 %s秒",
+  "echo.inventory.draft.cancel_help": "取消 / 关闭背包可中断；已生成候选不会重抽。",
+  "echo.inventory.request.timeout": "请求超时，正在重新同步；未重复提交操作。",
+  "echo.inventory.request.unavailable": "操作失败：当前库存不可用，请重新打开背包。",
+  "echo.inventory.request.syncing": "操作未提交：等待规则与库存同步完成。",
+  "echo.inventory.request.busy": "操作未提交：上一项请求仍在等待确认。",
+  "echo.inventory.request.failed": "操作失败：%s"
 }

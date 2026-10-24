@@ -178,7 +178,8 @@ public final class EchoBagService {
         if(draft==null && inventory.locked(packId)) throw new IllegalStateException("LOCKED");
         if(inventory.emptySlot()<0) throw new IllegalStateException("FULL");
         boolean fresh=draft==null; if(fresh) draft=new Draft(pack,match.rules());
-        if(!draft.state.begin(player.getUUID(),match.matchTick(),true,EchoDraftService.Context.all(match.faction(player.getUUID()),inventory.keyAvailable(),keyCount()<match.playerCount()+3),random)) throw new IllegalStateException("COOLDOWN");
+        if(!draft.state.begin(player.getUUID(),match.matchTick(),true,EchoDraftService.Context.all(match.faction(player.getUUID()),inventory.keyAvailable(),keyCount()<match.playerCount()+3),random))
+            throw new IllegalStateException(draft.state.state()==EchoPackDraft.State.BOUND && match.matchTick()<draft.state.readyAt()?"COOLDOWN":"BUSY");
         if(fresh) { inventory.lock(packId,draft.offer,inventory.revision()); drafts.put(player.getUUID(),draft); }
         inventory.reserve(draft.offer,inventory.revision());
         if(draft.state.requiresKeyReservation()) inventory.reserveKey(true);

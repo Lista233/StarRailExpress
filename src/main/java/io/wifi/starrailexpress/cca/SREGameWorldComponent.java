@@ -821,7 +821,7 @@ public class SREGameWorldComponent implements AutoSyncedComponent, ServerTicking
                 // 回溯期间的旁观者只是临时保护状态，仍属于尚未离场的玩家。
                 alivePlayers.removeIf(p -> !GameUtils.isPlayerAliveAndSurvivalIgnoreShitSplit(p)
                         && !TimeRewind.isSmoothRewinding(p));
-                if (alivePlayers.size() <= 0) {
+                if (alivePlayers.isEmpty() && (gameMode == null || gameMode.shouldStopWhenNoPlayers())) {
                     SREGameRoundEndComponent.KEY.get(serverWorld).setRoundEndData(
                             new ArrayList<>(serverWorld.players()),
                             WinStatus.NO_PLAYER);

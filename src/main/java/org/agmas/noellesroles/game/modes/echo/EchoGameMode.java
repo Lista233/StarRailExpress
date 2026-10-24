@@ -40,6 +40,9 @@ public final class EchoGameMode extends GameMode {
     @Override public boolean canAllPeopleSeeTime() { return true; }
     @Override public boolean autoTriggerGameTrueStarted() { return false; }
     @Override public boolean shouldRecordPlayerStats() { return false; }
+    @Override public boolean shouldStopWhenNoPlayers() { return false; }
+    // 独立地图由 EchoMatch 的区域检查和三心伤害链处理，不套用列车环境秒杀。
+    @Override public boolean enableEnvironmentDetection() { return false; }
 
     @Override public void initializeGame(ServerLevel level, SREGameWorldComponent component, List<ServerPlayer> players) {
         EchoSessions.initialize(level, players);

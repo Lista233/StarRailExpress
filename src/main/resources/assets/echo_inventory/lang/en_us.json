@@ -6,7 +6,7 @@
   "echo.inventory.has_key": "Carrying a key",
   "echo.inventory.tools": "Fixed tools",
   "echo.inventory.resources": "Supplies · 6 slots",
-  "echo.inventory.tool.0": "Faction tool / empty hand",
+  "echo.inventory.tool.0": "Objectives / faction tool",
   "echo.inventory.tool.1": "Card terminal",
   "echo.inventory.tool.2": "Specialization skill",
   "echo.inventory.tool_help.0": "Fixed slot. Interceptors charge the cutter; other factions keep an empty hand to gather, deliver or rescue by holding Use.",
@@ -26,5 +26,16 @@
   "echo.inventory.invalid_recipe": "These supplies cannot combine. Choose base cards from the same series.",
   "echo.inventory.empty_detail": "Select supplies below to view, use or open them.\nThree fixed tools and six supply slots share your hotbar. There is no extra bag.\nShift-click two base cards to preview crafting.",
   "echo.inventory.equipped": "Equipped in terminal",
-  "echo.inventory.close_help": "%s / ESC: close · Number keys: select · Right-click supplies to use"
+  "echo.inventory.close_help": "%s / ESC: close · Number keys: select · Right-click supplies to use",
+  "echo.inventory.draft.title": "Supply pack · Pick one",
+  "echo.inventory.draft.choose_help": "Keep one card · Closing does not reroll choices",
+  "echo.inventory.draft.opening": "Opening supply pack",
+  "echo.inventory.draft.requesting": "Awaiting server confirmation…",
+  "echo.inventory.draft.progress": "Opening %s%% · %ss left",
+  "echo.inventory.draft.cancel_help": "Cancel / close to interrupt. Generated choices never reroll.",
+  "echo.inventory.request.timeout": "Request timed out. Resyncing, not repeating the action.",
+  "echo.inventory.request.unavailable": "Failed: inventory unavailable. Reopen your bag.",
+  "echo.inventory.request.syncing": "Not sent: waiting for rules and inventory sync.",
+  "echo.inventory.request.busy": "Not sent: previous request awaits confirmation.",
+  "echo.inventory.request.failed": "Action failed: %s"
 }

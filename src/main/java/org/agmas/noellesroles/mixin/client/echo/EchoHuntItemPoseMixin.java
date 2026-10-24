@@ -49,16 +49,6 @@ public class EchoHuntItemPoseMixin {
 
         if (!stack.is(EchoContent.CUTTER)) return;
 
-        // 蓄力：刀身后仰、翻腕；出击：随挥砍前倒。
-        if (entity.isUsingItem() && entity.getUseItem() == stack) {
-            int total = Math.max(1, chargeTicks(entity));
-            float progress = EchoHuntAnim.clamp01((entity.getTicksUsingItem() + partialTick()) / total);
-            EchoHuntClient.Action action = EchoHuntClient.action(entity.getUUID());
-            boolean empowered = action != null && action.empowered;
-            float[] pose = EchoHuntAnim.thirdPersonChargeItem(progress, side, empowered);
-            rotate(poseStack, pose[3], pose[4], pose[5]);
-            return;
-        }
 
         EchoHuntClient.Action action = EchoHuntClient.action(entity.getUUID());
         if (action == null) return;

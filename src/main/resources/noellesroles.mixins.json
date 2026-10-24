@@ -122,6 +122,8 @@
     "defaultRequire": 1
   },
   "client": [
+    "client.echo.EchoTrackingOutlineMixin",
+    "client.echo.EchoFearCameraMixin",
     "client.SteveMiningPredictionMixin",
     "client.AbstractClientPlayerSkinMixin",
     "client.C4ItemEntityRendererMixin",

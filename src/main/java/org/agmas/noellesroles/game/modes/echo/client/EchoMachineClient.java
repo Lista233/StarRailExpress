@@ -125,7 +125,8 @@ public final class EchoMachineClient {
     static int renderHud(FakeGuiGraphics graphics, int x, int y, int width, int limit) {
         var machine = current();
         if (machine == null || y + 31 > limit || width < 120) return y;
-        var client = Minecraft.getInstance(); var g = graphics.getDefaultGuiGraphics();
+        // 回调只在脏 tick 执行；必须入帧缓存，直接使用真实 GuiGraphics 会在中间帧消失。
+        var g = graphics;
         int accent = color(machine);
         g.fillGradient(x, y, x + width, y + 29, 0xEB1A1008, 0xEB20140A);
         g.renderOutline(x, y, width, 29, 0xFF8B6914);
@@ -152,7 +153,7 @@ public final class EchoMachineClient {
                     default -> 0xFFE0AD5B;
                 };
     }
-    private static void fit(net.minecraft.client.gui.GuiGraphics g, Component text, int x, int y, int width, int color) {
+    private static void fit(FakeGuiGraphics g, Component text, int x, int y, int width, int color) {
         var font = Minecraft.getInstance().font;
         float scale = Math.min(1F, width / (float) Math.max(1, font.width(text)));
         g.pose().pushPose(); g.pose().translate(x, y, 0); g.pose().scale(scale, scale, 1);

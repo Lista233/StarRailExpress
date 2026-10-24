@@ -62,19 +62,13 @@ public class EchoHuntFirstPersonMixin {
 
         if (!stack.is(EchoContent.CUTTER)) return;
 
-        // 蓄力：本地读使用时长，进度按专长蓄力 tick 归一化（狩猎本能期间会被压缩）。
-        if (player.isUsingItem() && player.getUseItem() == stack) {
-            int total = 20;
-            EchoRoleData data = EchoRoleDataHolder.of(player);
-            if (data != null) total = Math.max(1, data.cutterChargeTicks());
-            float progress = EchoHuntAnim.clamp01((player.getTicksUsingItem() + partialTicks) / total);
-            EchoHuntClient.Action action = EchoHuntClient.action(player.getUUID());
-            boolean empowered = action != null && action.empowered;
-            float[] pose = EchoHuntAnim.firstPersonCharge(progress, side, empowered);
-            apply(poseStack, pose);
+        if (player.isUsingItem() && player.getUsedItemHand() == hand) {
+            var data = EchoRoleDataHolder.of(player);
+            float charge = Math.min(1F, (player.getTicksUsingItem() + partialTicks)
+                    / org.agmas.noellesroles.game.modes.echo.combat.EchoCutterStrike.CHARGE_TICKS);
+            apply(poseStack, EchoHuntAnim.firstPersonCharge(charge, side, data != null && data.huntInstinct()));
             return;
         }
-
         EchoHuntClient.Action action = EchoHuntClient.action(player.getUUID());
         if (action == null || action.kind == EchoHuntPayload.Kind.CHARGE) return;
         float progress = action.progress(System.nanoTime() / 1_000_000L);

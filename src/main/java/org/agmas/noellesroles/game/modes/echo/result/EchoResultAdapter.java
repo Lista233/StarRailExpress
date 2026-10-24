@@ -21,7 +21,8 @@ public final class EchoResultAdapter {
         round.CustomWinnerExtraRoleIds.clear();
         round.CustomWinnerID = "echo_freight";
         round.CustomWinnerTitle = Component.translatable("echo.result." + snapshot.outcome().name().toLowerCase(Locale.ROOT));
-        round.CustomWinnerSubtitle = Component.translatable(snapshot.debug()?"echo.runtime.result_debug":"echo.runtime.result", snapshot.reason());
+        round.CustomWinnerSubtitle = Component.translatable(snapshot.debug()?"echo.runtime.result_debug":"echo.runtime.result",
+                Component.translatable(EchoResultReason.translationKey(snapshot.reason())));
         round.CustomWinnerColor = switch (snapshot.outcome()) {
             case CARRIERS -> 0x44BB66;
             case INTERCEPTORS -> 0xCC2233;

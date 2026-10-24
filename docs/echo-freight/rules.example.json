@@ -22,7 +22,7 @@
   },
   "beacon": {
     "requiredCrystals": 3,
-    "chargeSeconds": 60,
+    "chargeSeconds": 100,
     "escortBonus": 0.2,
     "maxEscorts": 3,
     "escortRange": 6,
@@ -50,7 +50,7 @@
     "shoveCooldownSeconds": 25,
     "shoveControlSeconds": 1.25,
     "controlImmunitySeconds": 8,
-    "bleedSeconds": 45,
+    "bleedSeconds": 67.5,
     "rescueSeconds": 5,
     "rescueProtectionSeconds": 6,
     "environmentControlSeconds": 3,

@@ -86,6 +86,13 @@ public final class EchoSignalService {
         ground.removeIf(l -> now>=l.end() || !match.inGrace(l.owner()) && groundPoint(l).isEmpty());
         for(ServerPlayer receiver:match.onlinePlayers()) {
             List<EchoSignalView> views=new ArrayList<>();
+            // 队友授权优先放入有界投影，满员时不会被其它信号挤掉；倒地仍属于在场队友。
+            if(match.present(receiver) && match.life(receiver.getUUID()).potentiallyEscapable())
+                for(ServerPlayer target:match.onlinePlayers())
+                    if(target!=receiver && match.present(target) && match.life(target.getUUID()).potentiallyEscapable()
+                            && org.agmas.noellesroles.game.modes.echo.visual.EchoVisualState.teammates(
+                                    match.faction(receiver.getUUID()),match.faction(target.getUUID())))
+                        views.add(new EchoSignalView("teammate",target.getUUID(),0,(now/20+2)*20));
             if(alive(receiver)) {
                 for(Lease l:leases) if(l.owner().equals(receiver.getUUID()) && (now-l.start())%l.interval()<l.visible()) {
                     ServerPlayer target=player(l.target());

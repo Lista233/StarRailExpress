@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "noellesroles:gui/echo/cards/key_disruptor"
+    "layer0": "echo_hotbar:item/cards/key_disruptor"
   }
 }

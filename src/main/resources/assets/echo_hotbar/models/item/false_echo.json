@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "noellesroles:gui/echo/cards/false_echo"
+    "layer0": "echo_hotbar:item/cards/false_echo"
   }
 }

@@ -94,7 +94,7 @@ class DreadlordLifecycleTest {
     void darkDurationAndCooldownAreIndependentOfFrenzy() throws Exception {
         assertEquals(450, DreadlordRole.KILL_FORM_TICKS);
         assertEquals(200, DreadlordRole.DARK_DURATION);
-        assertEquals(180, DreadlordRole.DARK_COOLDOWN);
+        assertEquals(30 * 20, DreadlordRole.DARK_COOLDOWN);
         String text = source("role_data/killer/DreadlordRoleData.java");
         assertTrue(text.contains("darkUntil = self.tickCount + DreadlordRole.DARK_DURATION;"));
         assertTrue(text.contains("darkReadyAt = self.tickCount + DreadlordRole.DARK_COOLDOWN;"));
@@ -106,5 +106,19 @@ class DreadlordLifecycleTest {
         assertTrue(leave.contains("self.removeEffect(MobEffects.MOVEMENT_SPEED);"));
         assertTrue(leave.contains("self.removeEffect(ModEffects.INVINCIBLE);"));
         assertTrue(leave.contains("if (killing && killLeft > 0)"));
+    }
+
+    @Test
+    void localizedDescriptionsMatchCurrentDarkAndHitStunTimings() throws Exception {
+        for (String locale : new String[]{"zh_cn", "zh_tw", "en_us"}) {
+            var json = com.google.gson.JsonParser.parseString(Files.readString(Path.of(
+                    "src/main/resources/assets/role_modifier_intro/lang/" + locale + ".json"))).getAsJsonObject();
+            String intro = json.get("info.screen.roleid.dreadlord").getAsString();
+            for (int seconds : new int[]{DreadlordRole.DARK_DURATION / 20,
+                    DreadlordRole.DARK_COOLDOWN / 20, DreadlordRole.KILLING_HIT_STUN / 20}) {
+                assertTrue(java.util.regex.Pattern.compile("(?<![\\d.])" + seconds + "\\s*(?:s\\b|秒)")
+                        .matcher(intro).find(), locale + ": missing " + seconds + "s in Dreadlord description");
+            }
+        }
     }
 }

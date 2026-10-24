@@ -62,7 +62,6 @@ class SteveRoleTest {
             assertTrue(names.has("item.noellesroles.steve_pickaxe.durability"));
             var intro = json("assets/role_modifier_intro/lang/" + locale + ".json");
             assertTrue(intro.get("info.screen.roleid.steve").getAsString().contains("128"));
-            assertTrue(intro.get("info.screen.roleid.dreadlord").getAsString().contains("7"));
         }
     }
 

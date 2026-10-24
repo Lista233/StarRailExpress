@@ -184,7 +184,8 @@ public final class EchoMatch {
     public EchoPhase phase() { return clock.phase(); }
     public long matchTick() { return clock.matchTick(); }
     public int playerCount() { return members.size(); }
-    public int escapeQuota() { return prepared.profile().escapeQuota(); }
+    /** 保留协议字段，0 表示不限撤离人数；不再使用历史人数档配额。 */
+    public int escapeQuota() { return 0; }
     public long escapedCount() { return members.values().stream().filter(m -> m.state.life()==EchoLifeState.ESCAPED).count(); }
     public EchoResultSnapshot result() { return result; }
     public EchoObjectiveService objectives() { return objectives; }
@@ -364,9 +365,15 @@ public final class EchoMatch {
             if(player==null || player!=member.live) { if(member.live!=null) disconnect(member.live); continue; }
             if(player.level()!=level || player.isSpectator() || player.isCreative() || !player.isAlive()
                     || SREGameWorldComponent.KEY.get(level).getRole(player)!=EchoRoles.get(member.faction)
-                    || RoleData.getOptional(EchoRoleData.class,player).map(d -> !id.equals(d.matchId()) || d.inventory()!=bags.inventory(member.uuid)).orElse(true)
-                    || !io.wifi.starrailexpress.cca.AreasWorldComponent.KEY.get(level).getPlayArea().contains(player.position())) {
+                    || RoleData.getOptional(EchoRoleData.class,player).map(d -> !id.equals(d.matchId()) || d.inventory()!=bags.inventory(member.uuid)).orElse(true)) {
                 exit(member.uuid); spectator(player); continue;
+            }
+            if(!io.wifi.starrailexpress.cca.AreasWorldComponent.KEY.get(level).getPlayArea().contains(player.position())) {
+                // 地图边缘/坠落不是主动离场：回安全点并按模式血量结算，避免直接触发人数不足。
+                var point=member.lastSafe;
+                player.teleportTo(level,point.x,point.y,point.z,player.getYRot(),player.getXRot());
+                combat.lethal(player,null,io.wifi.starrailexpress.game.GameConstants.DeathReasons.FELL_OUT_OF_TRAIN,false,true);
+                continue;
             }
             if(member.state.life().standing() && matchTick()%20==0 && safeSpot(player)) member.lastSafe=player.position();
         }
@@ -410,7 +417,12 @@ public final class EchoMatch {
     public boolean useBlock(ServerPlayer player,BlockPos pos) { return enqueue(player,() -> { if(!cards.scenes().dismantle(player)) objectives.useBlock(player,pos); }); }
     public boolean useEntity(ServerPlayer player,UUID entity) { return enqueue(player,() -> { if(!cards.scenes().dismantle(player)) objectives.useEntity(player,entity); }); }
     public boolean overload(ServerPlayer player) { return !trades.busy(player.getUUID()) && enqueue(player,() -> { if(!trades.busy(player.getUUID())) objectives.overload(player); }); }
-    public boolean releaseCutter(ServerPlayer player) { return enqueue(player,() -> combat.releaseCutter(player)); }
+    public boolean releaseCutter(ServerPlayer player) {
+        long releasedAt=matchTick();
+        boolean queued=enqueue(player,() -> combat.releaseCutter(player,releasedAt));
+        if(queued) combat.awaitCutterRelease(player);
+        return queued;
+    }
     public boolean shove(ServerPlayer player) { return enqueue(player,() -> combat.shove(player)); }
     public boolean requestRoll(ServerPlayer player,org.agmas.noellesroles.game.modes.echo.action.EchoRollRequest request) {
         return id.equals(request.match()) && faction(player.getUUID())==EchoFaction.CARRIER
@@ -472,7 +484,11 @@ public final class EchoMatch {
                 SREGameWorldComponent.KEY.get(level).isSkillAvailable=true;
                 objectives.startOperations(); projectPhase(); lockSpecializations();
                 OnGameTrueStarted.EVENT.invoker().onGameTrueStarted(level);
-            } else if(boundary==EchoRoundClock.Boundary.TIME_EXPIRED) settle(EchoResultSnapshot.Outcome.INTERCEPTORS,"TIME_EXPIRED",true);
+            } else if(boundary==EchoRoundClock.Boundary.TIME_EXPIRED) {
+                boolean evacuationSucceeded=escapedCount()>0;
+                settle(evacuationSucceeded?EchoResultSnapshot.Outcome.CARRIERS:EchoResultSnapshot.Outcome.INTERCEPTORS,
+                        evacuationSucceeded?"ESCAPE_COMPLETED":"TIME_EXPIRED",true);
+            }
             if(result==null && level.getGameTime()%10==0) objectives.publish(false);
         } catch(RuntimeException failure) {
             Noellesroles.LOGGER.error("回声目标事务失败，安全中止 {}",id,failure);
@@ -485,6 +501,8 @@ public final class EchoMatch {
     }
     public void settle(EchoResultSnapshot.Outcome outcome,String reason,boolean stop) {
         if(result!=null) return;
+        Noellesroles.LOGGER.info("回声结算 match={} reason={} phase={} tick={} remaining={} members={}",id,reason,phase(),matchTick(),
+                SREGameTimeComponent.KEY.get(level).getTime(),members.values().stream().map(m -> m.name+":"+m.faction+":"+m.state.life()+":"+m.connection.connected()).toList());
         contracts.finish(outcome!=EchoResultSnapshot.Outcome.VOID);
         List<EchoResultSnapshot.PlayerResult> rows=new ArrayList<>();
         for(Member member:members.values()) {
@@ -498,7 +516,8 @@ public final class EchoMatch {
         clock.settle(); intents.clear();
         SREGameWorldComponent.KEY.get(level).isSkillAvailable=false;
         EchoResultAdapter.apply(level,result);
-        SRE.REPLAY_MANAGER.recordCustomEvent(Component.translatable(result.debug()?"echo.runtime.result_debug":"echo.runtime.result",reason));
+        SRE.REPLAY_MANAGER.recordCustomEvent(Component.translatable(result.debug()?"echo.runtime.result_debug":"echo.runtime.result",
+                Component.translatable(EchoResultReason.translationKey(reason))));
         rolls.cleanup();
         contracts.cleanup();
         try { try { trades.cleanup(); } finally { try { cards.cleanup(); } finally { try { bags.cleanup(); } finally { try { objectives.cleanup(); } finally { combat.cleanup(); } } } } }

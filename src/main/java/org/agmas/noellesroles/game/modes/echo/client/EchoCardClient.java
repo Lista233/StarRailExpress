@@ -16,7 +16,7 @@ import org.agmas.noellesroles.game.modes.echo.content.EchoCardProxyItem;
 import org.agmas.noellesroles.game.modes.echo.inventory.EchoInventoryPayload;
 import java.util.*;
 
-/** 代理仅采集目标意图；线框、方向与到期均读取本人的服务端授权。 */
+/** 代理仅采集目标意图；发光、方向与到期均读取本人的服务端授权。 */
 public final class EchoCardClient {
     private static Vec3 firstPoint;
     private static UUID firstInstance;
@@ -44,14 +44,21 @@ public final class EchoCardClient {
             var pose=context.matrixStack(); Vec3 camera=context.camera().getPosition();
             pose.pushPose(); pose.translate(-camera.x,-camera.y,-camera.z);
             var buffer=LINES.getBuffer(TaskBlockOverlayRenderer.ALWAYS_VISIBLE_THICK_LINES);
-            for(var signal:data.signals()) if(signal.target()!=null && !Set.of("mask","ally").contains(signal.kind()) && data.projectedTick()<signal.until()) {
-                Entity target=client.level.getPlayerByUUID(signal.target());
-                if(target!=null && !target.isSpectator() && target.isAlive()) LevelRenderer.renderLineBox(pose,buffer,target.getBoundingBox().inflate(0.06),1F,0.35F,0.22F,0.9F);
-            }
             if(firstPoint!=null) LevelRenderer.renderLineBox(pose,buffer,new AABB(firstPoint.add(-0.2,0,-0.2),firstPoint.add(0.2,0.4,0.2)),1F,0.8F,0.2F,0.9F);
             pose.popPose(); LINES.endBatch();
         });
     }
+    /** 原版/其它来源发光保持不变，队友和追踪轮廓仅消费服务器给本人的授权。 */
+    public static boolean shouldGlow(Entity target) {
+        var client=Minecraft.getInstance(); var data=EchoBagClient.data();
+        if (!(target instanceof Player) || client.player==null || client.level==null || target==client.player
+                || target.level()!=client.level || !target.isAlive() || target.isSpectator()
+                || client.player.isSpectator() || !client.player.isAlive() || data==null || !data.life().potentiallyEscapable()
+                || !EchoInterceptorSkin.currentMatch(data.matchId())) return false;
+        return org.agmas.noellesroles.game.modes.echo.visual.EchoVisualState.authorized(
+                data.signals(),target.getUUID(),data.projectedTick(),data.life().standing());
+    }
+
     /** 只按当前实际槽位从本人快照找实例，绝不读取展示栈组件中的资源身份。 */
     public static org.agmas.noellesroles.game.modes.echo.inventory.EchoResourceInstance heldInstance() {
         var client=Minecraft.getInstance(); var data=EchoBagClient.data();
@@ -73,6 +80,11 @@ public final class EchoCardClient {
         if(instance.kind()==org.agmas.noellesroles.game.modes.echo.inventory.EchoResourceInstance.Kind.PACK) {
             var draft=data.draft();
             boolean ongoing=draft!=null && (draft.state().equals("CHANNELING") || draft.state().equals("OFFERED"));
+            if(draft!=null && draft.packId().equals(instance.instanceId()) && draft.state().equals("BOUND")
+                    && data.projectedTick()<draft.readyAt()) {
+                client.setScreen(new io.wifi.starrailexpress.client.gui.screen.ingame.LimitedInventoryScreen(client.player));
+                return; // 只显示已有取消冷却的倒计时，不重复提交必然失败的拆包请求。
+            }
             // 快捷栏右键直接开始拆包；已有引导/候选只恢复原流程，不重复提交。
             if(ongoing || EchoBagClient.send(EchoInventoryPayload.Operation.BEGIN_PACK,instance.instanceId(),null,0))
                 client.setScreen(new io.wifi.starrailexpress.client.gui.screen.ingame.LimitedInventoryScreen(client.player));

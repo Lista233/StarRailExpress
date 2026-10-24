@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "noellesroles:gui/echo/cards/residual_veil"
+    "layer0": "echo_hotbar:item/cards/residual_veil"
   }
 }

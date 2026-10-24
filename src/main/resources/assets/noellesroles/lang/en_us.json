@@ -1,6 +1,6 @@
 {
   "item.noellesroles.echo_cutter": "Echo Cutter",
-  "item.noellesroles.echo_cutter.desc": "Interceptor only, fixed hotbar slot 1. Hold use for 0.6s and release to strike the first valid target within 2.75 blocks. Every charged swing has a 2.5s cooldown, even on a miss. First hit downs; a hit after rescue eliminates. Cannot finish downed players, drop or trade.",
+  "item.noellesroles.echo_cutter.desc": "Interceptor weapon in fixed hotbar slot 1. Hold use to charge for 0.8s, then release to strike immediately with no extra windup. Releasing early cancels without consuming cooldown. Each hit deals 1.5 hearts: two hits down, a hit after rescue protection eliminates. Valid hits trigger hurt animation and brief knockback. Misses cool down for at least 3s; actual hits for at least 6s and give the attacker Slowness I for 3s. Cannot finish downed players, hit teammates, drop or trade.",
   "echo.skill.shove": "Shove (25s cooldown on success)",
   "echo.combat.control_immune": "Target resists control. Shove cooldown was not consumed.",
   "echo.combat.downed": "%s is down and needs rescue!",

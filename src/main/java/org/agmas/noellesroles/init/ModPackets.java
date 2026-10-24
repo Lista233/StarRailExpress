@@ -50,6 +50,9 @@ public class ModPackets {
 
     public static void registerPackets() {
         PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.visual.EchoVisualPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.visual.EchoVisualPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
                 org.agmas.noellesroles.game.modes.echo.objective.EchoSoundPayload.ID,
                 org.agmas.noellesroles.game.modes.echo.objective.EchoSoundPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(
@@ -64,6 +67,9 @@ public class ModPackets {
         PayloadTypeRegistry.playS2C().register(
                 org.agmas.noellesroles.game.modes.echo.objective.EchoMachinePayload.ID,
                 org.agmas.noellesroles.game.modes.echo.objective.EchoMachinePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.map.EchoFacilityMapPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.map.EchoFacilityMapPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(
                 org.agmas.noellesroles.game.modes.echo.map.EchoMapPreviewPayload.ID,
                 org.agmas.noellesroles.game.modes.echo.map.EchoMapPreviewPayload.CODEC);

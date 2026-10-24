@@ -15,6 +15,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class EchoRuleRepositoryTest {
     @TempDir Path root;
+    @Test void slowerBeaconAndLongerDownedDefaultsKeepExplicitOverrides() throws Exception {
+        assertEquals(0.6,1200D/EchoRuleConfig.DEFAULT.beacon().chargeTicks(),1e-9);
+        assertEquals(1350,EchoRuleConfig.DEFAULT.combat().bleedTicks());
+        var custom=EchoRuleRepository.parse("{\"beacon\":{\"chargeSeconds\":60},\"combat\":{\"bleedSeconds\":45}}");
+        assertEquals(1200,custom.beacon().chargeTicks()); assertEquals(900,custom.combat().bleedTicks());
+    }
     @Test void defaultsAndFullSecondsExampleRoundTripWithStableEffectiveHash() throws Exception {
         assertEquals(EchoRuleConfig.DEFAULT,EchoRuleRepository.parse("{}"));
         assertEquals(EchoRuleConfig.DEFAULT,EchoRuleRepository.parse(EchoRuleRepository.example()));
@@ -40,7 +46,7 @@ class EchoRuleRepositoryTest {
     }
     @Test void relationshipsAndProbabilityGuaranteesCannotBeBroken() {
         for(String json:List.of("{\"beacon\":{\"pollutionIntervalSeconds\":21}}", "{\"gate\":{\"wedgeMaxSeconds\":14}}", "{\"gate\":{\"overloadSeconds\":60}}",
-                "{\"beacon\":{\"strongRollback\":0.1}}", "{\"combat\":{\"rescueSeconds\":45}}", "{\"combat\":{\"environmentProtectionSeconds\":1}}",
+                "{\"beacon\":{\"strongRollback\":0.1}}", "{\"combat\":{\"rescueSeconds\":67.5}}", "{\"combat\":{\"environmentProtectionSeconds\":1}}",
                 "{\"draft\":{\"common\":{\"common\":0.9}}}", "{\"draft\":{\"rareFirst\":{\"common\":1,\"rare\":0}}}"))
             assertThrows(IOException.class,() -> EchoRuleRepository.parse(json),json);
     }
@@ -69,10 +75,10 @@ class EchoRuleRepositoryTest {
     }
     @Test void combatUsesConfiguredChargeCooldownBleedAndRescueProtection() throws Exception {
         var rules=EchoRuleRepository.parse("{\"combat\":{\"cutterChargeSeconds\":0.1,\"cutterCooldownSeconds\":0.5,\"bleedSeconds\":2,\"rescueSeconds\":1,\"rescueProtectionSeconds\":3}}").combat();
-        var attacker=new EchoCombatState(rules); assertTrue(attacker.beginCutter(0)); assertTrue(attacker.releaseCutter(2)); assertEquals(62,attacker.snapshot().cutterReadyAt(),"配置可以更长，但不能低于 3 秒");
-        var victim=new EchoCombatState(rules); assertEquals(EchoCombatState.Hit.DOWNED,victim.hit(10,false,false)); assertEquals(50,victim.bleedUntil());
+        var attacker=new EchoCombatState(rules); assertTrue(attacker.beginCutter(0)); assertTrue(attacker.releaseCutter(16)); assertEquals(76,attacker.snapshot().cutterReadyAt(),"配置可以更长，但不能低于 3 秒");
+        var victim=new EchoCombatState(rules); assertEquals(EchoCombatState.Hit.DAMAGED,victim.hit(10,false,false)); assertEquals(EchoCombatState.Hit.DOWNED,victim.hit(10,false,false)); assertEquals(50,victim.bleedUntil());
         assertTrue(victim.rescue(20)); assertEquals(80,victim.snapshot().protectedUntil()); assertEquals(EchoCombatState.Hit.IGNORED,victim.hit(79,false,false));
-        var bleeding=new EchoCombatState(rules); bleeding.hit(0,false,false); assertFalse(bleeding.expireBleed(39)); assertTrue(bleeding.expireBleed(40));
+        var bleeding=new EchoCombatState(rules); bleeding.hit(0,false,false); bleeding.hit(0,false,false); assertFalse(bleeding.expireBleed(39)); assertTrue(bleeding.expireBleed(40));
     }
     @Test void draftUsesConfiguredDeadlinesAndCachedCandidatesAcrossCancellation() throws Exception {
         var rules=EchoRuleRepository.parse("{\"draft\":{\"channelSeconds\":0.1,\"cancelCooldownSeconds\":0.3,\"choiceSeconds\":0.2}}").draft();

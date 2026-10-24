@@ -68,19 +68,15 @@ public abstract class EchoHuntThirdPersonMixin<T extends LivingEntity> {
             return;
         }
 
-        // 2) 蓄力：实际使用中的手持物（第三人称用 ticksUsingItem + partialTick 近似）。
-        if (entity.isUsingItem() && entity.getUseItem() == held && entity.getUsedItemHand() == hand) {
-            int total = Math.max(1, chargeTicks(entity));
-            float progress = EchoHuntAnim.clamp01((entity.getTicksUsingItem() + partialTick()) / total);
-            EchoHuntClient.Action action = EchoHuntClient.action(entity.getUUID());
-            boolean empowered = action != null && action.empowered;
-            float[] pose = EchoHuntAnim.thirdPersonCharge(progress, side, empowered);
+        // 2) 使用中持续抬刀，蓄满后保持，直到松手。
+        if (cutter && entity.isUsingItem() && entity.getUsedItemHand() == hand) {
+            float charge = Math.min(1F, (entity.getTicksUsingItem() + partialTick()) / chargeTicks(entity));
+            float[] pose = EchoHuntAnim.thirdPersonCharge(charge, side, false);
             arm.xRot = pose[0];
             arm.yRot = pose[1];
             arm.zRot = pose[2];
             return;
         }
-
         // 3) 出击与后摇。
         EchoHuntClient.Action action = EchoHuntClient.action(entity.getUUID());
         if (action == null) return;
@@ -103,14 +99,9 @@ public abstract class EchoHuntThirdPersonMixin<T extends LivingEntity> {
         arm.zRot = pose[2];
     }
 
-    /** 蓄力总时长：优先读本人投影（狩猎本能期间会被压缩到 8 tick）。 */
+    /** 所有玩家的蓄力动作统一为 0.8 秒。 */
     private static int chargeTicks(LivingEntity entity) {
-        if (entity instanceof net.minecraft.world.entity.player.Player player) {
-            var data = io.wifi.starrailexpress.api.data.RoleData.getNullable(
-                    org.agmas.noellesroles.game.modes.echo.state.EchoRoleData.class, player);
-            if (data != null) return Math.max(1, data.cutterChargeTicks());
-        }
-        return 20;
+        return org.agmas.noellesroles.game.modes.echo.combat.EchoCutterStrike.CHARGE_TICKS;
     }
 
     /** 单帧部分 tick，用于让动画在 20 Hz 的实体 tick 之间也平滑。 */

@@ -10,7 +10,7 @@ class EchoObjectiveRulesTest {
         for(int escorts=0;escorts<=3;escorts++) {
             EchoBeaconState beacon=new EchoBeaconState();
             assertTrue(beacon.submit()); assertTrue(beacon.submit()); assertTrue(beacon.submit()); assertFalse(beacon.submit());
-            int expected=(int)Math.ceil(6000D/(5+escorts));
+            int expected=(int)Math.ceil(2000D/(1+0.2*escorts));
             for(int tick=0;tick<expected-1;tick++) assertFalse(beacon.tick(tick,escorts));
             assertTrue(beacon.tick(expected-1,escorts)); assertTrue(beacon.active()); assertEquals(1000,beacon.progressPermille());
             assertFalse(beacon.pollute(expected,false));
@@ -18,18 +18,18 @@ class EchoObjectiveRulesTest {
     }
     @Test void pollutionLockAndSharedCooldownSurvivePurifyAndStableLayer() {
         EchoBeaconState beacon=new EchoBeaconState(); for(int n=0;n<3;n++) beacon.submit();
-        for(int n=0;n<600;n++) beacon.tick(n,0);
+        for(int n=0;n<1000;n++) beacon.tick(n,0);
         assertEquals(500,beacon.progressPermille()); assertTrue(beacon.stabilize()); assertFalse(beacon.stabilize());
-        assertTrue(beacon.pollute(600,false)); assertEquals(500,beacon.progressPermille()); assertFalse(beacon.stable());
-        assertFalse(beacon.tick(601,3)); assertTrue(beacon.purify(601)); assertFalse(beacon.canPollute(601));
-        assertTrue(beacon.pollute(1500,true)); assertEquals(100,beacon.progressPermille());
-        assertFalse(beacon.pollute(1500,false)); assertEquals(2400,beacon.nextPolluteAt());
+        assertTrue(beacon.pollute(1000,false)); assertEquals(500,beacon.progressPermille()); assertFalse(beacon.stable());
+        assertFalse(beacon.tick(1001,3)); assertTrue(beacon.purify(1001)); assertFalse(beacon.canPollute(1001));
+        assertTrue(beacon.pollute(1900,true)); assertEquals(100,beacon.progressPermille());
+        assertFalse(beacon.pollute(1900,false)); assertEquals(2800,beacon.nextPolluteAt());
     }
     @Test void pulseAndLockOverlapInsteadOfAddingDurations() {
         EchoBeaconState beacon=new EchoBeaconState(); for(int n=0;n<3;n++) beacon.submit();
         assertTrue(beacon.pollute(0,false)); assertTrue(beacon.pause(0,100));
         for(int tick=0;tick<400;tick++) assertFalse(beacon.tick(tick,3));
-        assertEquals(0,beacon.progressPermille()); beacon.tick(400,3); assertTrue(beacon.progressPermille()>0);
+        assertEquals(0,beacon.progressPermille()); beacon.tick(400,3); beacon.tick(401,3); assertTrue(beacon.progressPermille()>0);
     }
     @Test void overloadOnceKeepsCoreOpenAndReopensAfterExactlyThirtySeconds() {
         EchoGateState gates=new EchoGateState();
@@ -80,8 +80,8 @@ class EchoObjectiveRulesTest {
         var clock=new org.agmas.noellesroles.game.modes.echo.runtime.EchoRoundClock();
         clock.capture(0,1,false); clock.finish(0,false);
         EchoBeaconState beacon=new EchoBeaconState(); for(int n=0;n<3;n++) beacon.submit();
-        for(int tick=0;tick<1199;tick++) beacon.tick(tick,0);
-        clock.capture(1,1,false); assertTrue(beacon.tick(1199,0));
+        for(int tick=0;tick<1999;tick++) beacon.tick(tick,0);
+        clock.capture(1,1,false); assertTrue(beacon.tick(1999,0));
         assertTrue(clock.openEvacuation(false));
         assertEquals(org.agmas.noellesroles.game.modes.echo.runtime.EchoRoundClock.Boundary.NONE,clock.finish(2400,false));
         EchoGateState gate=new EchoGateState(); gate.beginEvacuation();

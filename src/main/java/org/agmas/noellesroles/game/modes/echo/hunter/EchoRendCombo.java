@@ -67,7 +67,7 @@ public final class EchoRendCombo {
     /** 命中：非终结技推进一段并刷新窗口，终结技打完后回到第一段。 */
     public void onHit(long now, Swing swing) { onHit(now,swing,now); }
 
-    /** 连段衔接窗口从武器真正就绪时起算，不通过短后摇绕过 3 秒/20 秒冷却。 */
+    /** 连段衔接窗口从武器真正就绪时起算，不通过短后摇绕过出击与命中冷却。 */
     public void onHit(long now, Swing swing,long cutterReadyAt) {
         if (swing == null || swing.finisher() || swing.stage() >= MAX_STAGE) { stage = 1; windowUntil = 0; return; }
         stage = Math.max(1, swing.stage()) + 1;

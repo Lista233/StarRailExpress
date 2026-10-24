@@ -41,13 +41,13 @@ public class DreadlordRole extends NormalRole {
     public static final int KILL_FORM_TICKS = 450;
     public static final int FORM_COOLDOWN = 90;
     public static final int FORM_COST = 100;
-    public static final int DARK_COOLDOWN = 9 * 20;
+    public static final int DARK_COOLDOWN = 30 * 20;
     public static final int DARK_DURATION = 10 * 20;
     public static final int AMBUSH_LOCK = 20;
     public static final int EXECUTE_COOLDOWN = 170;
     public static final int HIT_STUN = 3 * 20;
     /** 狂暴中被命中的僵直。黑暗游走仍然无敌，不进这段硬直。 */
-    public static final int KILLING_HIT_STUN = 7 * 20;
+    public static final int KILLING_HIT_STUN = 8 * 20;
     public static final double AMBUSH_RANGE = 2.2D;
     public static final double KILL_SCALE = 1.5D;
 
@@ -83,6 +83,7 @@ public class DreadlordRole extends NormalRole {
                         SRE.id("dreadlord_dark"),
                         "skill.noellesroles.dreadlord.dark",
                         context -> useDark(context.player()))
+                        .cooldownTicks(DARK_COOLDOWN)
                         .toggleable(true)
                         .announceToSelf().showOnHud(true).build());
     }

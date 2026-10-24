@@ -6,42 +6,70 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class EchoCombatStateTest {
+    private static EchoCombatState.Hit down(EchoCombatState state,long now) {
+        assertEquals(EchoCombatState.Hit.DAMAGED,state.hit(now,false,false));
+        assertEquals(3F,state.health());
+        return state.hit(now,false,false);
+    }
+    @Test void threeHeartsLoseOnlyOneAndHalfPerAttack() {
+        var state=new EchoCombatState();
+        assertEquals(6F,state.health());
+        assertEquals(EchoCombatState.Hit.DAMAGED,state.hit(1,false,false));
+        assertTrue(state.life().standing()); assertEquals(3F,state.snapshot().health());
+        assertEquals(EchoCombatState.Hit.DOWNED,state.hit(61,false,false));
+        assertEquals(0F,state.health());
+        assertTrue(state.rescue(62)); assertEquals(3F,state.health());
+        state.activeAction();
+        assertEquals(EchoCombatState.Hit.ELIMINATED,state.hit(63,false,false));
+    }
+    @Test void nonFiniteAndNonPositiveDamageCannotCorruptHealth() {
+        var state=new EchoCombatState();
+        for(float amount:new float[]{Float.NaN,Float.POSITIVE_INFINITY,Float.NEGATIVE_INFINITY,0F,-1F})
+            assertEquals(EchoCombatState.Hit.IGNORED,state.damage(0,false,false,amount));
+        assertEquals(6F,state.health());
+        assertEquals(EchoCombatState.Hit.DAMAGED,state.damage(1,false,false,0.5F));
+        assertEquals(5.5F,state.health());
+    }
     @Test void twoWolvesSameTickCannotFinishDownedTarget() {
         var state=new EchoCombatState();
-        assertEquals(EchoCombatState.Hit.DOWNED,state.hit(10,false,false));
+        assertEquals(EchoCombatState.Hit.DOWNED,down(state,10));
         assertEquals(EchoCombatState.Hit.IGNORED,state.hit(10,false,false));
-        assertEquals(910,state.bleedUntil());
+        assertEquals(1360,state.bleedUntil());
         assertEquals(EchoLifeState.DOWNED,state.life());
     }
     @Test void rescuedTargetHasOnlyOneRemainingOpportunity() {
-        var state=new EchoCombatState(); state.hit(0,false,false);
+        var state=new EchoCombatState(); down(state,0);
         assertTrue(state.rescue(100)); assertEquals(EchoLifeState.WOUNDED,state.life());
         assertEquals(EchoCombatState.Hit.IGNORED,state.hit(219,false,false));
         assertEquals(EchoCombatState.Hit.ELIMINATED,state.hit(220,false,false));
         assertEquals(EchoCombatState.Hit.IGNORED,state.hit(221,false,false));
     }
     @Test void activeInteractionCancelsRescueProtection() {
-        var state=new EchoCombatState(); state.hit(0,false,false); state.rescue(100);
+        var state=new EchoCombatState(); down(state,0); state.rescue(100);
         state.activeAction(); assertFalse(state.protectedAt(100));
         assertEquals(EchoCombatState.Hit.ELIMINATED,state.hit(100,false,false));
     }
     @Test void bleedDeadlineWinsOverRescueAtExactTick() {
-        var state=new EchoCombatState(); state.hit(20,false,false);
-        assertTrue(state.canBeRescued(919)); assertFalse(state.rescue(920));
-        assertTrue(state.expireBleed(920)); assertFalse(state.expireBleed(920));
-        assertFalse(state.rescue(921)); assertEquals(EchoLifeState.ELIMINATED,state.life());
+        var state=new EchoCombatState(); down(state,20);
+        assertTrue(state.canBeRescued(1369)); assertFalse(state.rescue(1370));
+        assertTrue(state.expireBleed(1370)); assertFalse(state.expireBleed(1370));
+        assertFalse(state.rescue(1371)); assertEquals(EchoLifeState.ELIMINATED,state.life());
     }
     @Test void rescueBeforeDeadlineClearsBleed() {
-        var state=new EchoCombatState(); state.hit(20,false,false);
-        assertTrue(state.rescue(919)); assertFalse(state.expireBleed(920));
+        var state=new EchoCombatState(); down(state,20);
+        assertTrue(state.rescue(1369)); assertFalse(state.expireBleed(1370));
         assertEquals(0,state.bleedUntil());
     }
-    @Test void chargeRequiresTwelveModeTicksAndMissStillCoolsDown() {
-        var state=new EchoCombatState(); assertTrue(state.beginCutter(0));
-        assertFalse(state.releaseCutter(11)); assertEquals(0,state.snapshot().cutterReadyAt());
-        assertTrue(state.beginCutter(11)); assertTrue(state.releaseCutter(23));
-        assertFalse(state.releaseCutter(23)); assertFalse(state.beginCutter(82));
-        assertTrue(state.beginCutter(83));
+    @Test void chargedReleaseKeepsThreeSecondCooldown() {
+        var state=new EchoCombatState();
+        assertTrue(state.beginCutter(0));
+        assertTrue(EchoCutterStrike.commit(state,16));
+        assertEquals(76,state.snapshot().cutterReadyAt());
+        assertFalse(EchoCutterStrike.commit(state,16));
+        assertFalse(state.beginCutter(75));
+        assertTrue(state.beginCutter(76));
+        assertTrue(EchoCutterStrike.commit(state,92));
+        assertEquals(152,state.snapshot().cutterReadyAt());
     }
     @Test void controlCancelsChargeAndResistsUntilEightSecondsAfterEnd() {
         var state=new EchoCombatState(); state.beginCutter(0);
@@ -65,7 +93,7 @@ class EchoCombatStateTest {
     @Test void forceBypassesFirstOpportunityAndProtection() {
         var state=new EchoCombatState();
         assertEquals(EchoCombatState.Hit.ELIMINATED,state.hit(0,true,false));
-        var rescued=new EchoCombatState(); rescued.hit(0,false,false); rescued.rescue(1);
+        var rescued=new EchoCombatState(); down(rescued,0); rescued.rescue(1);
         assertEquals(EchoCombatState.Hit.ELIMINATED,rescued.hit(1,true,false));
     }
     @Test void terminalDepartureCannotBeHitRescuedOrControlled() {
@@ -77,19 +105,19 @@ class EchoCombatStateTest {
     }
     @Test void frozenClockDoesNotAdvanceBleedingChargeOrControl() {
         var clock=new EchoRoundClock(); var state=new EchoCombatState();
-        state.hit(0,false,false);
+        down(state,0);
         for(int n=0;n<1000;n++) { clock.capture(n,100,true); clock.finish(100,true); }
         assertEquals(0,clock.matchTick()); assertFalse(state.expireBleed(clock.matchTick()));
         var wolf=new EchoCombatState(); wolf.beginCutter(clock.matchTick());
-        assertFalse(wolf.releaseCutter(clock.matchTick()));
+        assertFalse(wolf.releaseCutter(clock.matchTick(),12));
     }
     @Test void repeatedUnderchargedCancellationsNeverConsumeCooldown() {
         var state=new EchoCombatState();
         for(int now=0;now<100;now++) {
-            assertTrue(state.beginCutter(now)); assertFalse(state.releaseCutter(now+1));
+            assertTrue(state.beginCutter(now)); assertFalse(state.releaseCutter(now+1,12));
             assertEquals(0,state.snapshot().cutterReadyAt());
         }
-        assertFalse(state.releaseCutter(1000),"取消后不能靠旧蓄力时间出手");
+        assertFalse(state.releaseCutter(1000,12),"兼容蓄力接口取消后不能靠旧时间出手");
     }
     @Test void specializationAndInstinctCannotReduceThreeSecondFloor() {
         for(var spec:new org.agmas.noellesroles.game.modes.echo.state.EchoSpecialization[]{
@@ -104,32 +132,34 @@ class EchoCombatStateTest {
             assertTrue(loop.canCharge(charge)); assertFalse(state.beginCutter(charge+59));
         }
     }
-    @Test void onlyActualDownTransitionAddsTwentySeconds() {
+    @Test void everyActualHitAppliesSixSecondsButProtectionAndFriendlyResetDoNot() {
         var attacker=new EchoCombatState(); var victim=new EchoCombatState();
-        assertTrue(attacker.beginCutter(0)); assertTrue(attacker.releaseCutter(12));
-        assertTrue(attacker.recordCutterHit(12,victim.hit(12,false,false)));
-        assertEquals(412,attacker.snapshot().cutterReadyAt());
-        assertFalse(attacker.recordCutterHit(13,victim.hit(13,false,false)));
+        assertTrue(attacker.beginCutter(0)); assertTrue(attacker.releaseCutter(16));
+        assertTrue(attacker.recordCutterHit(16,victim.hit(16,false,false)),"首次受伤也算命中");
+        assertEquals(136,attacker.snapshot().cutterReadyAt());
+        assertTrue(attacker.recordCutterHit(16,victim.hit(16,false,false)));
+        assertEquals(136,attacker.snapshot().cutterReadyAt());
+        assertFalse(attacker.recordCutterHit(17,victim.hit(17,false,false)));
         assertTrue(victim.rescue(20));
-        assertFalse(attacker.recordCutterHit(21,victim.hit(21,false,false)),"救援保护不算击倒");
+        assertFalse(attacker.recordCutterHit(21,victim.hit(21,false,false)),"救援保护不算命中");
         victim.activeAction();
-        assertFalse(attacker.recordCutterHit(22,victim.hit(22,false,false)),"淘汰不是首次击倒");
+        assertTrue(attacker.recordCutterHit(22,victim.hit(22,false,false)),"淘汰同样算命中");
         var ally=new EchoCombatState();
-        assertFalse(attacker.recordCutterHit(23,ally.hit(23,false,true)),"友军复位不能触发击倒冷却");
-        assertEquals(412,attacker.snapshot().cutterReadyAt());
+        assertFalse(attacker.recordCutterHit(23,ally.hit(23,false,true)),"友军复位不能触发命中冷却");
+        assertEquals(142,attacker.snapshot().cutterReadyAt());
     }
     @Test void multiTargetAndDeferredHitsAlwaysTakeMaximumDeadline() {
         var attacker=new EchoCombatState();
-        assertTrue(attacker.beginCutter(0)); assertTrue(attacker.releaseCutter(12));
-        attacker.recordCutterHit(20,new EchoCombatState().hit(20,false,false));
-        assertEquals(420,attacker.snapshot().cutterReadyAt());
-        attacker.recordCutterHit(20,new EchoCombatState().hit(20,false,false));
-        assertEquals(420,attacker.snapshot().cutterReadyAt(),"同 tick 横扫不叠加惩罚");
-        attacker.recordCutterHit(35,new EchoCombatState().hit(35,false,false));
-        assertEquals(435,attacker.snapshot().cutterReadyAt(),"延迟弹命中以命中 tick 起算");
-        assertFalse(attacker.releaseCutter(36,1)); assertFalse(attacker.beginCutter(434));
-        assertEquals(435,attacker.snapshot().cutterReadyAt(),"后续出击不能把 20 秒改为 3 秒");
-        assertTrue(attacker.beginCutter(435));
+        assertTrue(attacker.beginCutter(0)); assertTrue(attacker.releaseCutter(16));
+        attacker.recordCutterHit(20,down(new EchoCombatState(),20));
+        assertEquals(140,attacker.snapshot().cutterReadyAt());
+        attacker.recordCutterHit(20,down(new EchoCombatState(),20));
+        assertEquals(140,attacker.snapshot().cutterReadyAt(),"同 tick 横扫不叠加惩罚");
+        attacker.recordCutterHit(35,down(new EchoCombatState(),35));
+        assertEquals(155,attacker.snapshot().cutterReadyAt(),"延迟弹命中以命中 tick 起算");
+        assertFalse(attacker.releaseCutter(36,1)); assertFalse(attacker.beginCutter(154));
+        assertEquals(155,attacker.snapshot().cutterReadyAt(),"后续出击不能把6秒改为3秒");
+        assertTrue(attacker.beginCutter(155));
     }
     @Test void longerConfiguredCooldownIsNeverShortenedByDown() {
         var base=org.agmas.noellesroles.game.modes.echo.rules.EchoRuleConfig.DEFAULT.combat();
@@ -137,27 +167,43 @@ class EchoCombatStateTest {
                 12,600,base.cutterRange(),base.shoveCooldownTicks(),base.shoveControlTicks(),base.controlImmunityTicks(),
                 base.bleedTicks(),base.rescueTicks(),base.rescueProtectionTicks(),base.environmentControlTicks(),
                 base.environmentProtectionTicks(),base.rescueRange(),base.shoveRange()));
-        assertTrue(state.beginCutter(0)); assertTrue(state.releaseCutter(12));
+        assertTrue(state.beginCutter(0)); assertTrue(state.releaseCutter(16));
         state.recordCutterHit(20,EchoCombatState.Hit.DOWNED);
-        assertEquals(612,state.snapshot().cutterReadyAt());
+        assertEquals(616,state.snapshot().cutterReadyAt());
     }
     @Test void instinctAndDashFinisherCannotBypassDownCooldown() {
         var state=new EchoCombatState(); var loop=new EchoHuntLoop();
-        assertTrue(state.beginCutter(0)); assertTrue(state.releaseCutter(12));
-        state.recordCutterHit(12,EchoCombatState.Hit.DOWNED);
-        loop.activateInstinct(13); loop.onHit(13,true,1);
-        var combo=new org.agmas.noellesroles.game.modes.echo.hunter.EchoRendCombo(); combo.forceFinisher(13);
-        assertTrue(combo.swing(13).finisher()); assertTrue(loop.canCharge(13));
-        assertFalse(state.beginCutter(13)); assertFalse(state.beginCutter(411));
-        assertTrue(state.beginCutter(412));
+        assertTrue(state.beginCutter(0)); assertTrue(state.releaseCutter(16));
+        state.recordCutterHit(16,EchoCombatState.Hit.DOWNED);
+        loop.activateInstinct(17); loop.onHit(17,true,1);
+        var combo=new org.agmas.noellesroles.game.modes.echo.hunter.EchoRendCombo(); combo.forceFinisher(17);
+        assertTrue(combo.swing(17).finisher()); assertTrue(loop.canCharge(17));
+        assertFalse(state.beginCutter(17)); assertFalse(state.beginCutter(135));
+        assertTrue(state.beginCutter(136));
     }
     @Test void frozenClockKeepsWeaponRemainingAndSnapshotDeadline() {
         var clock=new EchoRoundClock(); var state=new EchoCombatState();
         state.recordCutterHit(clock.matchTick(),EchoCombatState.Hit.DOWNED);
         long savedDeadline=state.snapshot().cutterReadyAt();
         for(int n=0;n<1000;n++) { clock.capture(n,100,true); clock.finish(100,true); }
-        assertEquals(400,state.cutterRemaining(clock.matchTick()));
+        assertEquals(120,state.cutterRemaining(clock.matchTick()));
         assertEquals(savedDeadline,state.snapshot().cutterReadyAt());
         assertFalse(state.beginCutter(clock.matchTick()));
+    }
+    @Test void feedbackAndKnockbackIgnoreProtectedFriendlyAndForcedHits() {
+        assertTrue(EchoCutterStrike.feedbackEligible(EchoCombatState.Hit.DAMAGED,false,false));
+        assertTrue(EchoCutterStrike.feedbackEligible(EchoCombatState.Hit.DOWNED,false,false));
+        assertTrue(EchoCutterStrike.feedbackEligible(EchoCombatState.Hit.ELIMINATED,false,false));
+        assertFalse(EchoCutterStrike.feedbackEligible(EchoCombatState.Hit.IGNORED,false,false));
+        assertFalse(EchoCutterStrike.feedbackEligible(EchoCombatState.Hit.RESET_INTERCEPTOR,false,false));
+        assertFalse(EchoCutterStrike.feedbackEligible(EchoCombatState.Hit.DOWNED,true,false));
+        assertFalse(EchoCutterStrike.feedbackEligible(EchoCombatState.Hit.DAMAGED,false,true));
+        var push=EchoCutterStrike.impulse(10,0,0,3,4);
+        assertNotNull(push); assertEquals(14,push.until());
+        assertTrue(EchoCutterStrike.pushing(push,10,false));
+        assertTrue(EchoCutterStrike.pushing(push,13,false));
+        assertFalse(EchoCutterStrike.pushing(push,11,true));
+        assertFalse(EchoCutterStrike.pushing(push,14,false));
+        assertNull(EchoCutterStrike.impulse(10,1,1,1,1));
     }
 }

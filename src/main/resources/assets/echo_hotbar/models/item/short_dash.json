@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "noellesroles:gui/echo/cards/short_dash"
+    "layer0": "echo_hotbar:item/cards/short_dash"
   }
 }

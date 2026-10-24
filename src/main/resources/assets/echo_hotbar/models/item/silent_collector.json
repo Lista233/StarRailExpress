@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "noellesroles:gui/echo/cards/silent_collector"
+    "layer0": "echo_hotbar:item/cards/silent_collector"
   }
 }

@@ -8,8 +8,6 @@ import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import org.agmas.noellesroles.game.modes.echo.cards.*;
 import org.agmas.noellesroles.game.modes.echo.inventory.*;
 import org.agmas.noellesroles.game.modes.echo.state.*;
@@ -34,6 +32,7 @@ public final class EchoInventoryPanel {
     private static Component tr(String key, Object... args) { return Component.translatable("echo.inventory." + key, args); }
     private boolean offered(EchoRoleData d) { return d.draft() != null && d.draft().state().equals("OFFERED"); }
     private boolean channeling(EchoRoleData d) { return d.draft() != null && d.draft().state().equals("CHANNELING"); }
+    private boolean opening(EchoRoleData d) { return channeling(d) || EchoBagClient.beginning(); }
     private boolean paused() { return client.level == null || io.wifi.starrailexpress.cca.SREGameTimeComponent.KEY.get(client.level).isTimeFrozen(); }
     private boolean writable(EchoRoleData d) {
         return d.phase().acceptsActions() && d.life().standing() && !d.controlled() && !paused()
@@ -66,6 +65,23 @@ public final class EchoInventoryPanel {
         selected.removeIf(id -> d.items().stream().noneMatch(i -> i.instanceId().equals(id)));
         var nextOffer = offered(d) ? d.draft().offerId() : null;
         if (!Objects.equals(visibleOffer, nextOffer)) { Arrays.fill(choiceScroll, 0); visibleOffer = nextOffer; }
+        if (opening(d)) {
+            button(Component.translatable("echo.ui.cancel_open"), layout.modalX() + 16, layout.modalButtonY(), layout.modalWidth() - 32, 18,
+                    EchoBagClient::cancelOpening);
+            signature = signature(d); rebuild = false;
+            return;
+        }
+        if (offered(d)) {
+            for (int n = 0; n < 9; n++) { var slot = new HotbarSlot(n); slot.active = false; screen.addRoleWidget(slot); }
+            for (int n = 0; n < Math.min(3, d.draft().candidates().size()); n++) {
+                int choice = n;
+                button(Component.translatable("echo.ui.choose", n + 1), layout.choiceX(n) + 4, layout.actionsY(), layout.choiceWidth() - 10, 18,
+                        () -> EchoBagClient.send(EchoInventoryPayload.Operation.CHOOSE, d.draft().offerId(), null, choice)).active =
+                        !EchoBagClient.waiting() && !paused() && d.life().potentiallyEscapable();
+            }
+            signature = signature(d); rebuild = false;
+            return;
+        }
         int x = layout.x(), y = layout.y(), w = layout.width();
         int navW = (w - 26) / 3;
         boolean idle = !EchoBagClient.waiting() && !offered(d) && !channeling(d);
@@ -73,28 +89,21 @@ public final class EchoInventoryPanel {
                 () -> client.setScreen(new EchoTradeScreen(screen))).active = idle;
         var contract = button(Component.translatable("echo.contract.title"), x + 13 + navW, y + 26, navW, 18,
                 () -> client.setScreen(new EchoContractScreen(screen)));
-        contract.active = d.contract() != null && !channeling(d);
+        contract.active = d.contract() != null && idle;
         var spec = button(Component.translatable("echo.spec.title"), x + 18 + 2 * navW, y + 26, navW, 18,
                 () -> EchoSpecializationClient.open(client));
         spec.active = idle && EchoSpecializationClient.view() != null && !EchoSpecializationClient.view().locked();
         for (int n = 0; n < 9; n++) screen.addRoleWidget(new HotbarSlot(n));
-        if (offered(d)) {
-            for (int n = 0; n < Math.min(3, d.draft().candidates().size()); n++) {
-                int choice = n;
-                button(Component.translatable("echo.ui.choose", n + 1), layout.choiceX(n) + 4, layout.actionsY(), layout.choiceWidth() - 10, 18,
-                        () -> EchoBagClient.send(EchoInventoryPayload.Operation.CHOOSE, d.draft().offerId(), null, choice)).active =
-                        !EchoBagClient.waiting() && !paused() && d.life().potentiallyEscapable();
-            }
-        } else {
+        {
             var item = primary();
             boolean allowed = writable(d), unlocked = item != null && !d.bag().locks().containsKey(item.instanceId());
             boolean bound = item != null && d.draft() != null && d.draft().packId().equals(item.instanceId()) && d.draft().state().equals("BOUND");
             int actionW = (w - 25) / 4;
-            var open = button(Component.translatable(channeling(d) ? "echo.ui.cancel_open" : "echo.ui.open"), x + 8, layout.actionsY(), actionW, 18, () -> {
-                if (channeling(d)) EchoBagClient.send(EchoInventoryPayload.Operation.CANCEL_PACK, d.draft().offerId(), null, 0);
-                else if (primary() != null) EchoBagClient.send(EchoInventoryPayload.Operation.BEGIN_PACK, primary().instanceId(), null, 0);
+            var open = button(Component.translatable("echo.ui.open"), x + 8, layout.actionsY(), actionW, 18, () -> {
+                if (primary() != null) EchoBagClient.send(EchoInventoryPayload.Operation.BEGIN_PACK, primary().instanceId(), null, 0);
             });
-            open.active = channeling(d) ? !EchoBagClient.waiting() : allowed && d.trade() == null && item != null && item.kind() == EchoResourceInstance.Kind.PACK && (unlocked || bound);
+            open.active = allowed && d.trade() == null && item != null && item.kind() == EchoResourceInstance.Kind.PACK
+                    && (unlocked || bound) && (!bound || d.projectedTick() >= d.draft().readyAt());
             var card = item == null || item.kind() == EchoResourceInstance.Kind.PACK ? null : EchoCardRegistry.require(item.definitionId());
             boolean self = card != null && (card.target() == EchoCardDefinition.Target.SELF || card.target() == EchoCardDefinition.Target.DIRECTION);
             var use = button(tr(self ? "use" : "hold"), x + 11 + actionW, layout.actionsY(), actionW, 18, () -> {
@@ -123,7 +132,7 @@ public final class EchoInventoryPanel {
     }
     private void select(int hotbar, boolean alternate) {
         var d = data();
-        if (d == null || d.bag() == null || offered(d)) return;
+        if (d == null || d.bag() == null || offered(d) || opening(d)) return;
         if (hotbar < 3) { tool = hotbar; selected.clear(); screen.player.getInventory().selected = hotbar; }
         else {
             var slot = d.bag().slots().get(hotbar - 3);
@@ -160,7 +169,9 @@ public final class EchoInventoryPanel {
     }
     private String signature(EchoRoleData d) {
         return d.bag().revision() + ":" + d.draft() + ":" + d.trade() + ":" + d.acknowledged() + ":" + EchoBagClient.waiting()
-                + ":" + d.life() + ":" + d.controlled() + ":" + d.phase() + ":" + paused() + ":" + EchoSpecializationClient.view();
+                + ":" + d.life() + ":" + d.controlled() + ":" + d.phase() + ":" + paused() + ":" + EchoSpecializationClient.view()
+                + ":" + EchoBagClient.beginning() + ":" + EchoBagClient.localError()
+                + ":" + (d.draft()!=null && d.draft().state().equals("BOUND") && d.projectedTick()<d.draft().readyAt());
     }
     public void tick() {
         var d = data();
@@ -175,6 +186,17 @@ public final class EchoInventoryPanel {
     public void close() { EchoBagClient.close(); }
 
     public void renderBackground(GuiGraphics g) {
+        var state = data();
+        if (state != null && opening(state)) {
+            g.fill(0, 0, screen.width, screen.height, 0xB0000000);
+            int mx = layout.modalX(), my = layout.modalY(), mw = layout.modalWidth(), mh = layout.modalHeight();
+            g.fillGradient(mx, my, mx + mw, my + mh, 0xFF2B2013, 0xFF100D09);
+            g.renderOutline(mx, my, mw, mh, GOLD);
+            g.renderOutline(mx + 2, my + 2, mw - 4, mh - 4, 0xFF8B6914);
+            g.fill(mx + 4, my + 4, mx + mw - 4, my + 5, 0x55FFE8C0);
+            return;
+        }
+        if (state != null && offered(state)) g.fill(0, 0, screen.width, screen.height, 0xB0000000);
         int x = layout.x(), y = layout.y(), w = layout.width(), h = layout.height();
         g.fillGradient(x, y, x + w, y + h, 0xF01A1008, 0xF00F1417);
         g.renderOutline(x, y, w, h, 0xFF8B6914);
@@ -183,10 +205,11 @@ public final class EchoInventoryPanel {
         var d = data();
         if (d == null || d.bag() == null) return;
         if (offered(d)) {
+            g.renderOutline(x + 2, y + 2, w - 4, h - 4, GOLD);
             for (int n = 0; n < 3; n++) {
                 int cx = layout.choiceX(n), cw = layout.choiceWidth() - 2;
-                g.fillGradient(cx, y + 49, cx + cw, layout.actionsY() - 4, 0xFF2B2013, 0xFF17110C);
-                g.renderOutline(cx, y + 49, cw, layout.actionsY() - y - 53, 0xFF6B5232);
+                g.fillGradient(cx, layout.choiceTop(), cx + cw, layout.choiceBottom(), 0xFF302415, 0xFF17110C);
+                g.renderOutline(cx, layout.choiceTop(), cw, layout.choiceBottom() - layout.choiceTop(), GOLD);
             }
         } else {
             g.fillGradient(x + 8, layout.contentY(), x + w - 8, layout.detailBottom(), 0xA0261D12, 0x90120D08);
@@ -195,37 +218,53 @@ public final class EchoInventoryPanel {
     }
     public void render(GuiGraphics g, int mouseX, int mouseY) {
         int x = layout.x(), y = layout.y(), w = layout.width();
-        text(g, tr("title"), x + 8, y + 8, w / 2 - 14, 10, GOLD);
+        var current = data();
+        if (current != null && opening(current)) { renderOpening(g, current); return; }
+        text(g, current != null && offered(current) ? tr("draft.title") : tr("title"), x + 8, y + 8, w / 2 - 14, 10, GOLD);
         var d = data();
         if (d == null || d.bag() == null) { text(g, Component.translatable("echo.ui.syncing"), x + 8, y + 52, w - 16, 20, MUTED); return; }
         text(g, tr("identity", Component.translatable("echo.faction." + d.faction().name().toLowerCase(Locale.ROOT)),
                 Component.translatable("echo.phase." + d.phase().name().toLowerCase(Locale.ROOT))), x + w / 2, y + 8, w / 2 - 8, 10, TEXT);
-        if (offered(d)) renderChoices(g, d);
+        if (offered(d)) {
+            text(g, tr("draft.choose_help"), x + 8, y + 29, w - 16, 16, GOLD);
+            renderChoices(g, d);
+        }
         else {
             text(g, tr("cargo", d.cargo().size(), d.capacity(), d.blackCargoCount(), d.key() == null ? tr("no_key") : tr("has_key")), x + 8, y + 50, w - 16, 10, TEXT);
             renderDetail(g, d);
             Component hint = output(d).<Component>map(c -> Component.translatable("echo.ui.craft_preview", Component.translatable(c.nameKey())))
                     .orElse(tr(selected.size() == 2 ? "invalid_recipe" : "select_help"));
             if (d.draft() != null) hint = Component.translatable("echo.ui.draft_status", Component.translatable("echo.draft." + d.draft().state().toLowerCase(Locale.ROOT)),
-                    Math.max(0, ((channeling(d) ? d.draft().deadline() : d.draft().readyAt()) - d.projectedTick() + 19) / 20));
-            text(g, hint, x + 8, layout.hintY(), w - 16, 10, GOLD);
+                    Math.max(0, (d.draft().readyAt() - d.projectedTick() + 19) / 20));
+            if (error(d) != null) {
+                hint = error(d);
+                g.fill(x + 6, layout.hintY() - 1, x + w - 6, layout.hintY() + 11, 0xB04A1610);
+            }
+            text(g, hint, x + 8, layout.hintY(), w - 16, 10, error(d) == null ? GOLD : 0xFFE06B65);
         }
         text(g, tr("tools"), layout.toolsX(), layout.labelY(), 3 * layout.slotStep() - 3, 10, GOLD);
         text(g, tr("resources"), layout.resourcesX(), layout.labelY(), 6 * layout.slotStep() - 3, 10, 0xFF5EB7D8);
-        Component status = EchoBagClient.waiting() ? Component.translatable("echo.ui.waiting") : !d.requestError().isEmpty() ?
-                Component.translatable("echo.error." + d.requestError().toLowerCase(Locale.ROOT)) : tr("close_help", client.options.keyInventory.getTranslatedKeyMessage());
-        text(g, status, x + 8, y + layout.height() - 13, w - 16, 10, d.requestError().isEmpty() ? MUTED : 0xFFE06B65);
+        Component failure = error(d);
+        Component status = failure != null ? failure : EchoBagClient.waiting() ? Component.translatable("echo.ui.waiting")
+                : tr("close_help", client.options.keyInventory.getTranslatedKeyMessage());
+        text(g, status, x + 8, y + layout.height() - 13, w - 16, 10, failure == null ? MUTED : 0xFFE06B65);
+        if (failure != null && mouseY >= y + layout.height() - 15 && mouseY < y + layout.height())
+            g.renderTooltip(client.font, client.font.split(failure, Math.max(100, w - 24)), mouseX, mouseY);
     }
     private void renderDetail(GuiGraphics g, EchoRoleData d) {
         int x = layout.x() + 16, y = layout.contentY() + 7, w = layout.width() - 32;
         var item = primary();
-        if (item == null && tool < 0) { text(g, tr("empty_detail"), x, y, w, layout.detailBottom() - y - 4, MUTED); return; }
+        if (item == null && tool < 0) {
+            scrollText(g, dashboard(d).append("\n\n").append(tr("empty_detail")), x, y, w, layout.detailBottom() - y - 4, detailScroll, TEXT);
+            return;
+        }
         Component title, body;
         if (tool >= 0) {
             var stack = screen.player.getInventory().getItem(tool);
             if (!stack.isEmpty()) g.renderItem(stack, x + 4, y + 5);
             title = toolName(tool);
             body = tr("tool_help." + tool);
+            if (tool == 0) body = dashboard(d).append("\n\n").append(body);
         } else {
             drawResource(g, item, x, y, 28);
             title = name(item);
@@ -239,8 +278,8 @@ public final class EchoInventoryPanel {
         for (int n = 0; n < Math.min(3, d.draft().candidates().size()); n++) {
             var card = EchoCardRegistry.require(d.draft().candidates().get(n));
             int x = layout.choiceX(n) + 4, y = layout.y(), w = layout.choiceWidth() - 10;
-            icon(g, card, x, y + 53, 18);
-            text(g, Component.translatable("echo.rarity." + card.rarity().name().toLowerCase(Locale.ROOT)), x + 23, y + 56, w - 23, 10, GOLD);
+            icon(g, card, x, y + 53, 22);
+            text(g, Component.translatable("echo.rarity." + card.rarity().name().toLowerCase(Locale.ROOT)), x + 27, y + 58, w - 27, 10, GOLD);
             text(g, Component.translatable(card.nameKey()), x, y + 76, w, 20, TEXT);
             var body = EchoCardText.description(card);
             long owned = d.items().stream().filter(i -> i.kind() != EchoResourceInstance.Kind.PACK).map(i -> EchoCardRegistry.require(i.definitionId()))
@@ -250,7 +289,7 @@ public final class EchoInventoryPanel {
             scrollText(g, body, x, y + 99, w, Math.max(10, layout.actionsY() - y - 107), choiceScroll[n], TEXT);
         }
         text(g, Component.translatable("echo.ui.choice_timeout", Math.max(0, (d.draft().deadline() - d.projectedTick() + 19) / 20)),
-                layout.x() + 8, layout.hintY(), layout.width() - 16, 10, GOLD);
+                layout.x() + 8, layout.hintY(), layout.width() - 16, 10, d.draft().deadline() - d.projectedTick() <= 100 ? 0xFFE06B65 : GOLD);
     }
     private Component toolName(int slot) { return tr("tool." + slot); }
     private Component name(EchoResourceInstance item) {
@@ -269,7 +308,7 @@ public final class EchoInventoryPanel {
     private void drawResource(GuiGraphics g, EchoResourceInstance item, int x, int y, int size) {
         if (item.kind() != EchoResourceInstance.Kind.PACK) icon(g, EchoCardRegistry.require(item.definitionId()), x, y, size);
         else {
-            var stack = new ItemStack(switch (item.quality()) { case COMMON -> Items.BUNDLE; case RARE -> Items.ENDER_CHEST; case BLACK_MARKET -> Items.CHEST_MINECART; });
+            var stack = org.agmas.noellesroles.game.modes.echo.content.EchoResourceItem.project(new EchoInventory.Slot(List.of(item), null));
             g.pose().pushPose(); g.pose().translate(x, y, 0); g.pose().scale(size / 16F, size / 16F, 1); g.renderItem(stack, 0, 0); g.pose().popPose();
         }
     }
@@ -293,8 +332,41 @@ public final class EchoInventoryPanel {
             g.fill(x + width - 2, y, x + width, y + height, 0xFF483722); g.fill(x + width - 2, top, x + width, top + thumb, GOLD);
         }
     }
+    private Component error(EchoRoleData d) {
+        if (!EchoBagClient.localError().isEmpty()) return tr("request." + EchoBagClient.localError());
+        if (EchoBagClient.waiting()) return null;
+        return d.requestError().isEmpty() ? null : tr("request.failed", Component.translatable("echo.error." + d.requestError().toLowerCase(Locale.ROOT)));
+    }
+    private net.minecraft.network.chat.MutableComponent dashboard(EchoRoleData d) {
+        var view = EchoHud.view();
+        if (!EchoHud.visible() || view == null || !view.match().equals(d.matchId())) return tr("tool_help.0").copy();
+        String goal = EchoHud.goal(view.state(), d);
+        var body = EchoHud.tr("goal." + goal).copy().append("\n").append(EchoHud.tr("hint." + goal));
+        body.append("\n").append(EchoHud.tr(view.state().coreOpen() ? "core.confirm" : "core.closed"));
+        if (d.contractProgress() != null) body.append("\n").append(Component.translatable("echo.contract.title"))
+                .append(" · ").append(Component.translatable("echo.dashboard.contract.state." + d.contractProgress().status().toLowerCase(Locale.ROOT)));
+        if (d.faction() == EchoFaction.CARRIER) body.append("\n").append(EchoHud.tr(d.shoveRemaining() > 0 ? "shove.cooldown" : "shove.ready", (d.shoveRemaining() + 19) / 20));
+        return body;
+    }
+    private void renderOpening(GuiGraphics g, EchoRoleData d) {
+        int x = layout.modalX(), y = layout.modalY(), w = layout.modalWidth();
+        text(g, tr("draft.opening"), x + 14, y + 12, w - 28, 12, GOLD);
+        var pack = d.draft() == null ? primary() : d.items().stream().filter(i -> i.instanceId().equals(d.draft().packId())).findFirst().orElse(null);
+        if (pack != null) drawResource(g, pack, x + 16, y + 36, 32);
+        else g.blit(ResourceLocation.parse("echo_hotbar:textures/item/pack_common.png"), x + 16, y + 36, 32, 32, 0F, 0F, 32, 32, 32, 32);
+        long total = Math.max(1, d.rules().draft().channelTicks());
+        long remaining = channeling(d) ? Math.max(0, d.draft().deadline() - d.projectedTick()) : total;
+        int progress = (int) Math.max(0, Math.min(1000, (total - remaining) * 1000 / total));
+        text(g, pack == null ? tr("draft.requesting") : name(pack), x + 58, y + 36, w - 74, 20, TEXT);
+        text(g, tr(EchoBagClient.beginning() ? "draft.requesting" : "draft.progress", progress / 10, String.format(Locale.ROOT, "%.1f", remaining / 20D)),
+                x + 58, y + 59, w - 74, 12, 0xFF5EB7D8);
+        g.fill(x + 16, y + 84, x + w - 16, y + 92, 0xFF49341E);
+        g.fill(x + 16, y + 84, x + 16 + (w - 32) * progress / 1000, y + 92, GOLD);
+        text(g, error(d) == null ? tr("draft.cancel_help") : error(d), x + 16, y + 100, w - 32, 20, error(d) == null ? MUTED : 0xFFE06B65);
+    }
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         var d = data(); if (d == null || d.bag() == null) return false;
+        if (opening(d)) return true;
         if (offered(d)) {
             for (int n = 0; n < 3; n++) if (mouseX >= layout.choiceX(n) && mouseX < layout.choiceX(n) + layout.choiceWidth()
                     && mouseY >= layout.y() + 49 && mouseY < layout.actionsY()) {

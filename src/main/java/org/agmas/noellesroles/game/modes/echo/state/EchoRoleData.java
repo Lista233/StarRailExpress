@@ -124,10 +124,9 @@ public final class EchoRoleData extends SimpleRoleData {
     private EchoDraftView draft;
     private long acknowledged,projectedTick;
     private String requestError="";
-    /** 蓄力时长：狩猎本能窗口内压缩到 8 tick，其余按专长倍率。 */
+    /** 追猎刀固定蓄力 0.8 秒，不受专长或狩猎本能缩短。 */
     public int cutterChargeTicks() {
-        int scaled=EchoSpecialization.scaled(cutterChargeTicks,specialization().cutterChargeSpeed(rules.specialization()));
-        return huntInstinct()?Math.min(org.agmas.noellesroles.game.modes.echo.combat.EchoHuntLoop.INSTINCT_CHARGE_TICKS,scaled):scaled;
+        return org.agmas.noellesroles.game.modes.echo.combat.EchoCutterStrike.CHARGE_TICKS;
     }
     /** 一次性效果按当前专长判定，避免切换专长后旧窗口误用。 */
     public boolean skillPending(EchoSkill skill) { return skillPendingActive() && skill()==skill; }
@@ -156,6 +155,7 @@ public final class EchoRoleData extends SimpleRoleData {
     public EchoFaction faction() { return faction; }
     public EchoPhase phase() { return phase; }
     public EchoLifeState life() { return combat.life(); }
+    public float health() { return combat.health(); }
     public boolean controlled() { return projectedTick<combat.controlledUntil(); }
     public long bleedRemaining() { return Math.max(0,combat.bleedUntil()-projectedTick); }
     public long projectedTick() { return projectedTick; }
@@ -201,7 +201,11 @@ public final class EchoRoleData extends SimpleRoleData {
         attachedCargo.remove(instance); sync();
     }
     public void bind(UUID id,EchoContract contract,EchoPhase phase) { matchId=id; this.contract=contract; this.phase=phase; sync(); }
-    public void attachInventory(EchoInventory inventory,UUID epoch,EchoFaction faction) { this.inventory=inventory; this.epoch=epoch; this.faction=faction; sync(); }
+    public void attachInventory(EchoInventory inventory,UUID epoch,EchoFaction faction) {
+        // 回复序号和错误属于连接 epoch，不能让上一连接的 COOLDOWN 被新拆包请求误认。
+        if(!Objects.equals(this.epoch,epoch)) { acknowledged=0; requestError=""; }
+        this.inventory=inventory; this.epoch=epoch; this.faction=faction; sync();
+    }
     public void projectInventory() { sync(); }
     public void acknowledge(long request,String error) { acknowledged=request; requestError=error; sync(); }
     public void projectDraft(EchoDraftView view) { if(!Objects.equals(draft,view)) { draft=view; sync(); } }
@@ -263,6 +267,7 @@ public final class EchoRoleData extends SimpleRoleData {
         }
         CompoundTag c=new CompoundTag(); c.putString("life",combat.life().name()); c.putLong("tick",projectedTick);
         c.putLong("bleed",combat.bleedUntil()); c.putLong("protection",combat.protectedUntil()); c.putLong("control",combat.controlledUntil());
+        c.putFloat("health",combat.health());
         c.putLong("immune",combat.controlImmuneUntil()); c.putLong("cutter",combat.cutterReadyAt()); c.putLong("shove",combat.shoveReadyAt()); tag.put("echoCombat",c);
     }
     @Override public void readFromSyncNbt(CompoundTag tag,HolderLookup.Provider provider) {
@@ -316,7 +321,9 @@ public final class EchoRoleData extends SimpleRoleData {
             draft=new EchoDraftView(d.getUUID("offer"),d.getUUID("pack"),d.getString("state"),choices,d.getLong("deadline"),d.getLong("ready"));
         }
         CompoundTag c=tag.getCompound("echoCombat"); projectedTick=c.getLong("tick");
-        combat=new EchoCombatState.Snapshot(parse(EchoLifeState.class,c.getString("life"),EchoLifeState.HEALTHY),c.getLong("bleed"),c.getLong("protection"),c.getLong("control"),c.getLong("immune"),c.getLong("cutter"),c.getLong("shove"));
+        var life=parse(EchoLifeState.class,c.getString("life"),EchoLifeState.HEALTHY);
+        float health=c.contains("health")?c.getFloat("health"):life==EchoLifeState.HEALTHY?EchoCombatState.MAX_HEALTH:life==EchoLifeState.WOUNDED?EchoCombatState.CUTTER_DAMAGE:0F;
+        combat=new EchoCombatState.Snapshot(life,c.getLong("bleed"),c.getLong("protection"),c.getLong("control"),c.getLong("immune"),c.getLong("cutter"),c.getLong("shove"),Float.isFinite(health)?Math.max(0,Math.min(EchoCombatState.MAX_HEALTH,health)):0F);
     }
     private static <E extends Enum<E>> E parse(Class<E> type,String value,E fallback) { try { return Enum.valueOf(type,value); } catch(IllegalArgumentException ignored) { return fallback; } }
     @Override public void clear() {

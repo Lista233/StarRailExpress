@@ -10,10 +10,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 追捕者狂暴形态的 1.5 倍体型。
+ * 追捕者狂暴形态的 1.25 倍体型。
  *
  * <p>放大发生在 {@link PlayerRenderer#scale} 的 RETURN：此时原版已 push 好矩阵并做完 0.9375
- * 的基础缩放，再乘 1.5 就得到「整体更大」的观感（模型、手臂、手持物与名牌一起跟随）。
+ * 的基础缩放，再且仅再乘一次 1.25；皮肤 Morph 不提供另一份缩放。
  *
  * <p>**碰撞箱不变**：这里只动渲染矩阵，不碰 {@code Entity#getDimensions} / {@code Pose} /
  * {@code getBoundingBox}。因此命中判定、射线距离、挤压、服务器位置全部保持原值。

@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "noellesroles:gui/echo/cards/cargo_lining"
+    "layer0": "echo_hotbar:item/cards/cargo_lining"
   }
 }

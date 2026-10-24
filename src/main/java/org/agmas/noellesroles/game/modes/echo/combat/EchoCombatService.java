@@ -11,6 +11,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -57,40 +59,58 @@ public final class EchoCombatService {
     private final Map<UUID,Integer> stillTicks=new HashMap<>();
     /** 原版物品冷却只是比赛截止的投影；暂停只平移原版时间轴，不逐 tick 重发冷却包。 */
     private final Map<UUID,Long> cutterProjections=new HashMap<>();
+    private final Map<UUID,EchoCutterStrike.Impulse> knockbacks=new HashMap<>();
+    private final Map<UUID,Double> originalMaxHealth=new HashMap<>();
+    /** 已松手但尚未消费的本局动作；停止使用时不能误清除这次释放。 */
+    private final Set<UUID> cutterReleases=new HashSet<>();
     public EchoCombatService(EchoMatch match,ServerLevel level) { this.match=match; this.level=level; }
 
-    /** 起手蓄力：必须先回到 STALK 相（后摇中不能连点），并扣掉本次蓄力的起始 tick。 */
+    /** 开始蓄力只记录起点，不攻击、不消耗冷却。 */
     public boolean beginCutter(ServerPlayer player) {
-        if(!match.standing(player) || match.bags().busy(player.getUUID()) || !match.phase().acceptsActions() || SREGameTimeComponent.KEY.get(level).isTimeFrozen()
-                || match.faction(player.getUUID())!=EchoFaction.INTERCEPTOR || player.getInventory().selected!=0
-                || !player.getMainHandItem().is(EchoContent.CUTTER)) return false;
-        long now=match.matchTick();
-        var loop=match.hunt(player.getUUID());
-        if(loop==null || !loop.canCharge(now)) return false;
-        if(!match.state(player.getUUID()).beginCutter(now)) return false;
-        loop.onCharge(now);
-        org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFx.charge(match,player);
-        match.trades().interrupt(player.getUUID());
-        match.objectives().cancelActor(player);
-        publishHunt(player);
-        return true;
-    }
-    /**
-     * 松手结算：锁定满则本次出击升级为「扑击」（判定距离 +2 格、倒地时间 +10 秒），
-     * 命中进入短后摇、挥空进入长后摇；扑击命中与狩猎本能期间免后摇。
-     *
-     * <p>职业分支只改「怎么打」：裂爪走三段连击，织网走蛛丝弹；SABOTEUR 与其它情况
-     * 保持原版一刀，判定距离、后摇与表现都与加入职业之前完全一致。
-     */
-    public void releaseCutter(ServerPlayer player) {
-        if(!match.standing(player) || !player.getMainHandItem().is(EchoContent.CUTTER) || player.getInventory().selected!=0
-                || match.faction(player.getUUID())!=EchoFaction.INTERCEPTOR || !match.phase().acceptsActions()
-                || SREGameTimeComponent.KEY.get(level).isTimeFrozen()) return;
+        if(!canUseCutter(player)) return false;
         long now=match.matchTick();
         var state=match.state(player.getUUID());
         var loop=match.hunt(player.getUUID());
-        int chargeTicks=loop==null?state.cutterChargeTicks():loop.chargeTicks(now,state.cutterChargeTicks());
-        if(!state.releaseCutter(now,chargeTicks)) { if(loop!=null) loop.cancel(now); return; }
+        if(loop!=null && !loop.canCharge(now)) return false;
+        if(state==null || !state.beginCutter(now)) return false;
+        if(loop!=null) loop.onCharge(now);
+        publishHunt(player);
+        return true;
+    }
+    private boolean canUseCutter(ServerPlayer player) {
+        return match.standing(player) && !match.bags().busy(player.getUUID()) && player.getMainHandItem().is(EchoContent.CUTTER)
+                && player.getInventory().selected==0 && match.faction(player.getUUID())==EchoFaction.INTERCEPTOR
+                && match.phase().acceptsActions() && !SREGameTimeComponent.KEY.get(level).isTimeFrozen();
+    }
+    public void awaitCutterRelease(ServerPlayer player) { cutterReleases.add(player.getUUID()); }
+    public void cancelCutter(ServerPlayer player) {
+        cutterReleases.remove(player.getUUID());
+        var state=match.state(player.getUUID());
+        if(state!=null) state.cancelCharge();
+        var loop=match.hunt(player.getUUID());
+        if(loop!=null) loop.cancel(match.matchTick());
+        publishHunt(player);
+    }
+    /** 释放后同次结算，不进入前摇；按收到松手的比赛 tick 校验，队列等待不算蓄力。 */
+    public void releaseCutter(ServerPlayer player,long releasedAt) {
+        cutterReleases.remove(player.getUUID());
+        if(!canUseCutter(player)) { cancelCutter(player); return; }
+        long now=match.matchTick();
+        var state=match.state(player.getUUID());
+        var loop=match.hunt(player.getUUID());
+        if(state==null || !state.canAct(now) || !EchoCutterStrike.commit(state,now,releasedAt)) { cancelCutter(player); return; }
+        if(loop!=null) loop.beginStrike(now);
+        player.stopUsingItem();
+        match.cards().breakMask(player.getUUID());
+        match.objectives().cancelActor(player);
+        executeStrike(player);
+    }
+
+    /** 松手立即按当前视线判定；没有延迟刀。 */
+    private void executeStrike(ServerPlayer player) {
+        long now=match.matchTick();
+        var state=match.state(player.getUUID());
+        var loop=match.hunt(player.getUUID());
         var strike=loop==null?new EchoHuntLoop.Strike(false,0,0):loop.beginLunge(now);
         match.cards().breakMask(player.getUUID());
         match.objectives().cancelActor(player);
@@ -151,20 +171,18 @@ public final class EchoCombatService {
                                  EchoRendCombo.Swing swing,float yaw,float pitch) {
         double range=match.rules().combat().cutterRange()+strike.rangeBonus()+(swing==null?0D:swing.reachBonus());
         float slashStrength=strike.empowered()?1.7F:1F;
-        // 刀光：从眼睛前方开始，沿视线方向铺开；参数只有 yaw/pitch/强度，不含实体位置。
         Vec3 look=player.getLookAngle();
         io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
                 org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.SLASH,
                 player.getEyePosition().add(look.scale(0.6)),0,yaw,pitch,slashStrength);
-        // 第二、三段额外补一层爪痕，让「连到了第几下」在画面上一眼可辨。
         if(swing!=null && swing.stage()>1) io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
                 org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.REND_CLAW,
                 player.getEyePosition().add(look.scale(0.5)),0,yaw,pitch,swing.stage());
         var target=firstPlayer(player,range).filter(p -> match.faction(p.getUUID())!=EchoFaction.INTERCEPTOR);
         if(target.isEmpty()) return false;
         ServerPlayer victim=target.get();
-        boolean connected=lethal(victim,player,GameConstants.DeathReasons.KNIFE,false,false)!=EchoCombatState.Hit.IGNORED;
-        if(!connected) return false;
+        var hit=lethal(victim,player,GameConstants.DeathReasons.KNIFE,false,false);
+        if(!EchoCutterStrike.feedbackEligible(hit,false,false)) return false;
         int bleed=strike.bleedBonus()+(swing==null?0:swing.bleedTicks());
         if(bleed>0) match.state(victim.getUUID()).extendBleed(now,bleed);
         // 血花打在受害者胸口高度，而不是脚下：命中反馈要落在看得见的位置。
@@ -196,7 +214,7 @@ public final class EchoCombatService {
                 double distance=to.length();
                 if(distance>WEB_SWEEP_RANGE+0.6D) continue;
                 if(distance>1.0E-3D && to.normalize().dot(look)<WEB_SWEEP_COS) continue;
-                if(lethal(victim,player,GameConstants.DeathReasons.KNIFE,false,false)==EchoCombatState.Hit.IGNORED) continue;
+                if(!EchoCutterStrike.feedbackEligible(lethal(victim,player,GameConstants.DeathReasons.KNIFE,false,false),false,false)) continue;
                 hit=true;
                 io.wifi.starrailexpress.util.ParticleFx.sendCustom(level,
                         org.agmas.noellesroles.game.modes.echo.anim.EchoHuntFxIds.WEB_SPLAT,
@@ -265,7 +283,7 @@ public final class EchoCombatService {
         var hit=lethal(victim,shooter,GameConstants.DeathReasons.KNIFE,false,false);
         // 弹在主人断线宽限内仍可结算；冷却记在成员状态而不是已断开的玩家实体上。
         if(shooter==null) recordCutterHit(owner,hit);
-        if(hit!=EchoCombatState.Hit.IGNORED) {
+        if(EchoCutterStrike.feedbackEligible(hit,false,false)) {
             var hunter=match.hunterState(owner);
             boolean inWeb=hunter!=null && hunter.bindTicksAt(now,victim.getX(),victim.getZ())>0;
             int extra=org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterState.boundBleed(inWeb);
@@ -412,37 +430,68 @@ public final class EchoCombatService {
     /** 返回本次命中的结算结果；IGNORED 表示目标处于保护/无敌窗口，调用方不得当成命中。 */
     public EchoCombatState.Hit lethal(ServerPlayer victim,ServerPlayer killer,ResourceLocation reason,boolean force,boolean environmental) {
         if(match.result()!=null || match.faction(victim.getUUID())==null || victim.level()!=level) return EchoCombatState.Hit.IGNORED;
+        return applyDamage(victim,killer,reason,force,environmental,EchoCombatState.CUTTER_DAMAGE);
+    }
+    public void environmentDamage(ServerPlayer victim,float amount) {
+        if(victim.invulnerableTime>0 || !Float.isFinite(amount) || amount<=0) return;
+        if(applyDamage(victim,null,GameConstants.DeathReasons.KNIFE,false,true,amount)!=EchoCombatState.Hit.IGNORED)
+            victim.invulnerableTime=10;
+    }
+    private EchoCombatState.Hit applyDamage(ServerPlayer victim,ServerPlayer killer,ResourceLocation reason,boolean force,boolean environmental,float amount) {
+        if(match.result()!=null || match.faction(victim.getUUID())==null || victim.level()!=level) return EchoCombatState.Hit.IGNORED;
         if(!force && (!match.phase().acceptsActions() || SREGameTimeComponent.KEY.get(level).isTimeFrozen())) return EchoCombatState.Hit.IGNORED;
         EchoCombatState state=match.state(victim.getUUID());
-        EchoCombatState.Hit hit=state.hit(match.matchTick(),force,match.faction(victim.getUUID())==EchoFaction.INTERCEPTOR);
+        EchoCombatState.Hit hit=state.damage(match.matchTick(),force,match.faction(victim.getUUID())==EchoFaction.INTERCEPTOR,amount);
         if(hit==EchoCombatState.Hit.IGNORED) return hit;
         if(!force && !environmental && killer!=null) recordCutterHit(killer.getUUID(),hit);
+        react(victim,killer,hit,force,environmental);
         match.cards().breakMask(victim.getUUID());
         match.trades().interrupt(victim.getUUID());
         match.objectives().cancelActor(victim); match.bags().interrupt(victim); victim.stopUsingItem();
-        if(hit==EchoCombatState.Hit.DOWNED) {
+        if(hit==EchoCombatState.Hit.DAMAGED) {
+            if(environmental && reason.equals(GameConstants.DeathReasons.FELL_OUT_OF_TRAIN)) {
+                Vec3 anchor=match.safeAnchor(victim,true);
+                victim.teleportTo(level,anchor.x,anchor.y,anchor.z,victim.getYRot(),victim.getXRot());
+            }
+        } else if(hit==EchoCombatState.Hit.DOWNED) {
             Vec3 anchor=match.safeAnchor(victim,environmental);
-            victim.teleportTo(level,anchor.x,anchor.y,anchor.z,victim.getYRot(),victim.getXRot());
-            anchors.put(victim.getUUID(),anchor); prone.add(victim.getUUID());
+            boolean shove=EchoCutterStrike.feedbackEligible(hit,force,environmental);
+            if(!shove) victim.teleportTo(level,anchor.x,anchor.y,anchor.z,victim.getYRot(),victim.getXRot());
+            anchors.put(victim.getUUID(),shove?victim.position():anchor); prone.add(victim.getUUID());
             downedBy.put(victim.getUUID(),killer==null?null:killer.getUUID());
-            dropCargo(victim,anchor); victim.setHealth(victim.getMaxHealth());
+            dropCargo(victim,anchor);
             if(killer!=null) match.objectives().grantReward(killer,PackQuality.RARE,"down:"+victim.getUUID());
             announce("echo.combat.downed",victim);
         } else if(hit==EchoCombatState.Hit.RESET_INTERCEPTOR) {
             Vec3 spawn=match.spawn(victim.getUUID()); anchors.put(victim.getUUID(),spawn);
             victim.teleportTo(level,spawn.x,spawn.y,spawn.z,victim.getYRot(),victim.getXRot());
-            victim.setHealth(victim.getMaxHealth());
+            // 生命值由下面的统一投影恢复，不能回到原来的十颗心。
         } else finishElimination(victim,killer,reason);
         project(victim,true);
         return hit;
     }
+    /** 实际伤害成功才发一次原版受击包和短击退；环境、友军与强制淘汰不走这条。 */
+    private void react(ServerPlayer victim,ServerPlayer killer,EchoCombatState.Hit hit,boolean force,boolean environmental) {
+        if(!EchoCutterStrike.feedbackEligible(hit,force,environmental) || killer==null || victim.level()!=killer.level()) return;
+        if(victim.hurtTime>0) return;
+        victim.hurtDuration=10; victim.hurtTime=10; victim.hurtMarked=true;
+        victim.serverLevel().broadcastDamageEvent(victim,victim.damageSources().playerAttack(killer));
+        victim.indicateDamage(killer.getX()-victim.getX(),killer.getZ()-victim.getZ());
+        var impulse=EchoCutterStrike.impulse(match.matchTick(),killer.getX(),killer.getZ(),victim.getX(),victim.getZ());
+        if(impulse==null) return;
+        knockbacks.put(victim.getUUID(),impulse);
+        victim.setDeltaMovement(impulse.x(),victim.getDeltaMovement().y,impulse.z());
+    }
 
-    /** 只有真正转为 DOWNED 的武器命中才延长武器截止，远程与多目标复用同一入口。 */
+    /** 实际武器命中统一施加6秒冷却与3秒缓慢I，远程与多目标复用此入口。 */
     private void recordCutterHit(UUID owner,EchoCombatState.Hit hit) {
         var state=match.state(owner);
         if(state==null || match.faction(owner)!=EchoFaction.INTERCEPTOR || !state.recordCutterHit(match.matchTick(),hit)) return;
         var player=match.connectedPlayer(owner);
-        if(player!=null) project(player,true);
+        if(player!=null) {
+            player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN,60,0,false,false,true));
+            project(player,true);
+        }
     }
 
     public boolean canRescue(ServerPlayer actor,UUID target) {
@@ -460,24 +509,43 @@ public final class EchoCombatService {
 
     /** 暂停只执行限制，不推进流血、控制或冷却。 */
     public void restrict() {
-        for(ServerPlayer player:match.onlinePlayers()) { restrict(player,match.state(player.getUUID())); projectCutterRemaining(player); }
+        for(ServerPlayer player:match.onlinePlayers()) { cancelCutter(player); player.stopUsingItem(); restrict(player,match.state(player.getUUID())); projectCutterRemaining(player); }
         match.bags().restrictOpening();
     }
     private void restrict(ServerPlayer player,EchoCombatState state) {
         long now=match.matchTick();
+        boolean paused=SREGameTimeComponent.KEY.get(level).isTimeFrozen();
+        var shove=knockbacks.get(player.getUUID());
+        if(shove!=null && !EchoCutterStrike.pushing(shove,now,paused)) { knockbacks.remove(player.getUUID()); shove=null; }
         if(state.life()==EchoLifeState.DOWNED || state.controlled(now)) {
             Vec3 anchor=anchors.computeIfAbsent(player.getUUID(),id -> player.position());
-            player.stopUsingItem(); player.setSprinting(false); player.setDeltaMovement(Vec3.ZERO); player.fallDistance=0;
-            if(player.position().distanceToSqr(anchor)>0.001) player.teleportTo(level,anchor.x,anchor.y,anchor.z,player.getYRot(),player.getXRot());
+            player.stopUsingItem(); player.setSprinting(false); player.fallDistance=0;
+            if(shove!=null && state.life()==EchoLifeState.DOWNED && !paused) advanceKnockback(player,shove);
+            else {
+                player.setDeltaMovement(Vec3.ZERO);
+                if(player.position().distanceToSqr(anchor)>0.001) player.teleportTo(level,anchor.x,anchor.y,anchor.z,player.getYRot(),player.getXRot());
+            }
             var speed=player.getAttribute(Attributes.MOVEMENT_SPEED);
             if(speed!=null && speed.getModifier(IMMOBILIZED)==null) speed.addTransientModifier(new AttributeModifier(IMMOBILIZED,-1,AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
             if(state.life()==EchoLifeState.DOWNED) { player.setPose(Pose.SWIMMING); prone.add(player.getUUID()); }
         } else releaseAnchor(player);
     }
+    /** 倒地窗口内只接受被动推力；撞墙立即停，不允许自行走动。 */
+    private void advanceKnockback(ServerPlayer player,EchoCutterStrike.Impulse shove) {
+        Vec3 step=new Vec3(shove.x(),0,shove.z());
+        if(!level.noCollision(player,player.getBoundingBox().move(step))) {
+            knockbacks.remove(player.getUUID()); player.setDeltaMovement(Vec3.ZERO); anchors.put(player.getUUID(),player.position()); return;
+        }
+        player.setDeltaMovement(step); player.move(net.minecraft.world.entity.MoverType.SELF,step);
+        anchors.put(player.getUUID(),player.position());
+    }
     public void tick() {
         long now=match.matchTick();
+        if(SREGameTimeComponent.KEY.get(level).isTimeFrozen()) {
+            for(ServerPlayer player:match.onlinePlayers()) player.setDeltaMovement(Vec3.ZERO);
+            return;
+        }
         for(UUID owner:match.participants()) if(match.connectedPlayer(owner)==null && match.life(owner)==EchoLifeState.DOWNED && now>=match.state(owner).bleedUntil()) match.exit(owner);
-        // 蛛丝弹与黏网先推进：本 tick 的命中要在移动限制之前生效，否则目标会先被钉在原地再挨打。
         tickHunterProjectiles(now);
         for(ServerPlayer player:match.onlinePlayers()) {
             EchoCombatState state=match.state(player.getUUID());
@@ -509,10 +577,10 @@ public final class EchoCombatService {
         }
         // 蓄力被打断（被冲撞、被控制、切槽、松手未达最短蓄力）时把相位拉回 STALK。
         if(loop.phase()==EchoHuntLoop.Phase.CHARGE
-                && (!state.canAct(now) || player.getInventory().selected!=0 || !player.isUsingItem() || !player.getUseItem().is(EchoContent.CUTTER))) {
-            loop.cancel(now);
-            // release 意图在 combat.tick 之后消费；正常松手不能提前抹掉它的服务端蓄力起点。
-            if(!state.canAct(now) || player.getInventory().selected!=0) state.cancelCharge();
+                && (!canUseCutter(player) || !state.canAct(now)
+                || (!player.isUsingItem() && !cutterReleases.contains(player.getUUID())))) {
+            cancelCutter(player);
+            player.stopUsingItem();
         }
         ServerPlayer loudest=null; double bestGain=0;
         for(ServerPlayer other:match.onlinePlayers()) {
@@ -593,7 +661,9 @@ public final class EchoCombatService {
     /** 只撤销模式实体限制和工具，不触碰成员生命或倒地截止。 */
     public void detach(ServerPlayer player) {
         releaseAnchor(player); player.stopUsingItem();
-        var state=match.state(player.getUUID()); if(state!=null) state.cancelCharge();
+        knockbacks.remove(player.getUUID());
+        restoreMaxHealth(player);
+        cancelCutter(player);
         clearCutterProjection(player);
         for(int slot=0;slot<player.getInventory().getContainerSize();slot++) if(EchoContent.readOnly(player.getInventory().getItem(slot))) player.getInventory().setItem(slot,ItemStack.EMPTY);
         player.inventoryMenu.setCarried(ItemStack.EMPTY); player.containerMenu.setCarried(ItemStack.EMPTY);
@@ -616,14 +686,35 @@ public final class EchoCombatService {
                 && !match.objectives().dropCarried(player,true,anchor)) throw new IllegalStateException("战斗掉钥匙失败");
     }
     private void releaseAnchor(ServerPlayer player) {
-        anchors.remove(player.getUUID());
+        anchors.remove(player.getUUID()); knockbacks.remove(player.getUUID());
         var speed=player.getAttribute(Attributes.MOVEMENT_SPEED); if(speed!=null) speed.removeModifier(IMMOBILIZED);
         if(prone.remove(player.getUUID())) player.setPose(Pose.STANDING);
     }
     private void project(ServerPlayer player,boolean force) {
+        projectHealth(player);
         RoleData.getOptional(EchoRoleData.class,player).filter(d -> match.id().equals(d.matchId()))
                 .ifPresent(data -> data.projectCombat(match.state(player.getUUID()).snapshot(),match.matchTick(),force));
         projectCutterRemaining(player);
+    }
+    private void projectHealth(ServerPlayer player) {
+        var state=match.state(player.getUUID());
+        if(state==null || !state.life().potentiallyEscapable()) return;
+        var attribute=player.getAttribute(Attributes.MAX_HEALTH);
+        if(attribute!=null) {
+            originalMaxHealth.putIfAbsent(player.getUUID(),attribute.getBaseValue());
+            if(attribute.getBaseValue()!=EchoCombatState.MAX_HEALTH) attribute.setBaseValue(EchoCombatState.MAX_HEALTH);
+        }
+        // 倒地由模式管理，不能把原版血量写零触发第二条死亡链。
+        float displayed=Math.max(0.5F,state.health());
+        if(player.getHealth()!=displayed) player.setHealth(displayed);
+    }
+    private void restoreMaxHealth(ServerPlayer player) {
+        var saved=originalMaxHealth.remove(player.getUUID());
+        var attribute=player.getAttribute(Attributes.MAX_HEALTH);
+        if(saved!=null && attribute!=null) {
+            attribute.setBaseValue(saved);
+            if(player.isAlive()) player.setHealth(player.getMaxHealth());
+        }
     }
     /** 将比赛 tick 的武器截止投影到原版冷却；重连/暂停恢复都不修改权威截止。 */
     public void projectCutterRemaining(ServerPlayer player) {
@@ -655,7 +746,7 @@ public final class EchoCombatService {
         match.onlinePlayers().forEach(p -> p.sendSystemMessage(message)); SRE.REPLAY_MANAGER.recordCustomEvent(message);
     }
     public void cleanup() {
-        for(ServerPlayer player:match.onlinePlayers()) { releaseAnchor(player); player.stopUsingItem(); clearCutterProjection(player); }
+        for(ServerPlayer player:match.onlinePlayers()) { releaseAnchor(player); player.stopUsingItem(); clearCutterProjection(player); restoreMaxHealth(player); }
         for(ServerPlayer player:match.onlinePlayers()) {
             for(int slot=0;slot<player.getInventory().getContainerSize();slot++)
                 if(EchoContent.readOnly(player.getInventory().getItem(slot))) player.getInventory().setItem(slot,ItemStack.EMPTY);
@@ -665,6 +756,7 @@ public final class EchoCombatService {
         anchors.clear(); downedBy.clear(); prone.clear();
         nextHeartbeat.clear(); lastPositions.clear(); stillTicks.clear();
         cutterProjections.clear();
+        knockbacks.clear(); originalMaxHealth.clear(); cutterReleases.clear();
         for(UUID owner:match.participants()) {
             var hunter=match.hunterState(owner);
             if(hunter!=null) hunter.clear();

@@ -7,7 +7,6 @@ import net.minecraft.client.resources.language.I18n;
 import io.wifi.utils.client.betterrender.FakeGuiGraphics;
 import net.minecraft.network.chat.Component;
 import org.agmas.noellesroles.game.modes.echo.EchoGameMode;
-import org.agmas.noellesroles.game.modes.echo.cards.EchoCardRegistry;
 import org.agmas.noellesroles.game.modes.echo.objective.EchoPublicPayload;
 import org.agmas.noellesroles.game.modes.echo.state.*;
 import java.util.*;
@@ -15,7 +14,7 @@ import java.util.*;
 /** 公开目标与本人状态分区；旁观者不读取其他人的私有RoleData。 */
 public final class EchoHud {
     private static final int TEXT = 0xFFFFF4DC, GOLD = 0xFFD4AF37, MUTED = 0xFF9E8B6E;
-    private static final int GREEN = 0xFF72C17B, RED = 0xFFE06B65, BLUE = 0xFF5EB7D8;
+    private static final int GREEN = 0xFF72C17B, RED = 0xFFE06B65;
     private static EchoPublicPayload view;
     private static int age;
     private EchoHud() { }
@@ -25,6 +24,7 @@ public final class EchoHud {
         ClientPlayNetworking.registerGlobalReceiver(EchoPublicPayload.ID,(p,c) -> c.client().execute(() -> { view=p; age=0; }));
         EchoObjectiveClient.initialize();
         EchoMachineClient.initialize();
+        EchoFacilityMapClient.initialize();
         EchoRollClient.initialize();
         EchoScreenFx.initialize();
         EchoSkillHud.initialize();
@@ -59,67 +59,49 @@ public final class EchoHud {
     private static void render(FakeGuiGraphics g) {
         if (!visible()) return;
         var client = Minecraft.getInstance();
+        if (client.screen != null) return;
         int width = client.getWindow().getGuiScaledWidth(), height = client.getWindow().getGuiScaledHeight();
+        var layout = new EchoHudLayout(width, height);
         var s = view.state();
         var d = ownData();
         long tick = s.displayTick(age);
-        int pw = Math.min(400, width - 16), x = (width - pw) / 2, y = 4;
-        boolean operations = s.phase() == EchoPhase.OPERATIONS;
-        int panelHeight = operations ? 91 : s.phase() == EchoPhase.EVACUATION ? 55 : 43;
-        panel(g, x, y, pw, panelHeight);
+        var header = layout.header();
+        int x = header.x(), y = header.y(), pw = header.width();
+        panel(g, x, y, pw, header.height());
         long seconds = (s.displayRemaining(age) + 19) / 20;
-        row(g, tr("phase_time", tr("phase." + s.phase().name().toLowerCase(Locale.ROOT)),
-                String.format(Locale.ROOT, "%d:%02d", seconds / 60, seconds % 60)), x + 5, y + 5, pw - 88, GOLD);
-        if (s.paused()) row(g, tr("paused"), x + pw - 78, y + 5, 73, RED);
-        String goal = goal(s, d);
-        row(g, tr("goal." + goal), x + 5, y + 18, pw - 10, TEXT);
-        row(g, tr("hint." + goal), x + 5, y + 29, pw - 10, MUTED);
-        if (operations) {
-            Component gate = s.coreOpen() ? s.coreUntil() > tick
-                    ? tr("core.closes", EchoPublicState.seconds(s.coreUntil(), tick)) : tr("core.confirm")
-                    : tr("core.closed");
-            row(g, gate, x + 5, y + 40, pw - 10, s.coreOpen() ? GREEN : MUTED);
+        Component phase = s.paused() ? tr("paused") : tr("phase." + s.phase().name().toLowerCase(Locale.ROOT));
+        row(g, tr("phase_time", phase, String.format(Locale.ROOT, "%d:%02d", seconds / 60, seconds % 60)),
+                x + 5, y + 4, pw / 2 - 7, s.paused() ? RED : GOLD);
+        Component gate = s.coreOpen() ? tr("compact.core_open", EchoPublicState.seconds(s.coreUntil(), tick)) : tr("compact.core_closed");
+        row(g, gate, x + pw / 2, y + 4, pw / 2 - 5, s.coreOpen() ? GREEN : MUTED);
+        if (s.phase() == EchoPhase.OPERATIONS && !s.beacons().isEmpty()) {
             int count = s.beacons().size();
             for (int i = 0; i < count; i++) {
                 int left = x + 5 + i * (pw - 10) / count;
                 int right = x + 5 + (i + 1) * (pw - 10) / count - 4;
                 var b = s.beacons().get(i);
-                // 编号只按公开列表顺序，不把地图内部 id 当作玩家可读名称。
-                row(g, tr("beacon.supply", tr("beacon.number." + (i + 1)), b.delivered(), b.required()),
-                        left, y + 53, right - left, b.active() ? GREEN : TEXT);
-                int progress = b.active() ? 1000 : Math.min(999, b.progress());
-                int barWidth = Math.max(8, right - left - 31);
-                g.fill(left, y + 67, left + barWidth, y + 71, 0xFF49341E);
-                g.fill(left, y + 67, left + barWidth * progress / 1000, y + 71, b.active() ? GREEN : GOLD);
-                row(g, tr("percent", progress / 10), left + barWidth + 3, y + 64, 28, b.active() ? GREEN : BLUE);
-                boolean locked = b.lockedUntil() > tick, stopped = b.pausedUntil() > tick;
-                Component status = b.active() ? tr("beacon.active")
-                        : locked && stopped ? tr("beacon.blocked_paused", EchoPublicState.seconds(b.lockedUntil(), tick), EchoPublicState.seconds(b.pausedUntil(), tick))
-                        : locked ? tr("beacon.blocked", EchoPublicState.seconds(b.lockedUntil(), tick))
-                        : stopped ? tr("beacon.paused", EchoPublicState.seconds(b.pausedUntil(), tick))
-                        : tr(b.charging() ? "beacon.charging" : "beacon.collect");
-                row(g, status, left, y + 77, right - left, locked || stopped ? RED : b.active() ? GREEN : MUTED);
+                boolean blocked = b.lockedUntil() > tick || b.pausedUntil() > tick;
+                int color = b.active() ? GREEN : blocked ? RED : TEXT;
+                int progress = b.active() ? 1000 : Math.max(0, Math.min(999, b.progress()));
+                row(g, tr("compact.beacon", i + 1, b.delivered(), b.required(), progress / 10), left, y + 17, right - left, color);
+                g.fill(left, y + 29, right, y + 31, 0xFF49341E);
+                g.fill(left, y + 29, left + (right - left) * progress / 1000, y + 31, b.active() ? GREEN : blocked ? RED : GOLD);
             }
         } else if (s.phase() == EchoPhase.EVACUATION) {
-            Component gate = s.evacuationOpen() ? tr("evac.open", s.escaped(), s.quota())
-                    : s.closedUntil() > tick ? tr("evac.overload", s.escaped(), s.quota(), EchoPublicState.seconds(s.closedUntil(), tick))
-                    : tr("evac.confirm", s.escaped(), s.quota());
-            row(g, gate, x + 5, y + 40, pw - 10, s.evacuationOpen() ? GREEN : RED);
-        }
+            Component evac = s.evacuationOpen() ? tr("evac.open", s.escaped())
+                    : s.closedUntil() > tick ? tr("evac.overload", s.escaped(), EchoPublicState.seconds(s.closedUntil(), tick))
+                    : tr("evac.confirm", s.escaped());
+            row(g, evac, x + 5, y + 19, pw - 10, s.evacuationOpen() ? GREEN : RED);
+        } else row(g, tr("compact.details", client.options.keyInventory.getTranslatedKeyMessage()), x + 5, y + 19, pw - 10, MUTED);
         if (d == null) return;
 
-        // 320×240 时中段左侧为 y=99..158，右侧留给技能与狩猎图形。
-        int infoX = 8, infoWidth = width - 128, infoY = y + panelHeight + 4;
-        if (d.contract() != null && d.contractProgress() != null) {
-            var p = d.contractProgress();
-            Component progress = switch (d.contract()) {
-                case SMUGGLER -> tr("contract.smuggler", p.primary());
-                case SCAVENGER -> tr("contract.scavenger", p.primary());
-                case INFORMATION_DEALER -> tr("contract.information_dealer", p.primary(), p.secondary());
-                case KEY_DEALER -> tr("contract.key_dealer", p.primary());
-            };
-            row(g, tr("contract.line", progress, translated("echo.dashboard.contract.state." + p.status().toLowerCase(Locale.ROOT), "contract.state.active")),
-                    infoX, infoY, infoWidth, GOLD);
+        // 临时情报只在相关时展开；右侧狩猎区和底部生命/快捷栏始终留空。
+        var context = layout.context();
+        int infoX = context.x(), infoWidth = context.width(), infoY = context.y();
+        if (!d.life().standing()) {
+            Component life = d.life() == EchoLifeState.DOWNED ? tr("life.bleeding", (d.bleedRemaining() + 19) / 20)
+                    : tr("life.label", tr("life." + d.life().name().toLowerCase(Locale.ROOT)));
+            row(g, life, infoX, infoY, infoWidth, RED);
             infoY += 11;
         }
         int n = 0;
@@ -135,14 +117,17 @@ public final class EchoHud {
         if (EchoCardClient.selectingSecond()) {
             row(g, tr("second_point"), infoX, infoY, infoWidth, GOLD);
             infoY += 11;
+        } else if (!EchoBagClient.localError().isEmpty()) {
+            row(g, Component.translatable("echo.inventory.request." + EchoBagClient.localError()), infoX, infoY, infoWidth, RED);
+            infoY += 11;
         } else if (!d.requestError().isEmpty()) {
             row(g, translated("echo.error." + d.requestError().toLowerCase(Locale.ROOT), "request_failed"), infoX, infoY, infoWidth, RED);
             infoY += 11;
         }
-        infoY = EchoMachineClient.renderHud(g, infoX, infoY, infoWidth, height - 99);
-        if (client.screen == null) {
+        infoY = EchoMachineClient.renderHud(g, infoX, infoY, infoWidth, context.bottom() - 18);
+        {
             var action = d.actionView();
-            int ay = Math.max(infoY, Math.min(height / 2 + 20, height - 99));
+            int ay = Math.max(infoY, Math.min(height / 2 + 20, context.bottom() - 18));
             if (action != null) {
                 int progress = Math.min(999, action.progress(tick));
                 Component name = translated("echo.dashboard.action." + action.kind().toLowerCase(Locale.ROOT), "action.unknown");
@@ -157,7 +142,7 @@ public final class EchoHud {
         renderSupplies(g, d, s, tick, width, height);
     }
 
-    private static String goal(EchoPublicState s, EchoRoleData d) {
+    static String goal(EchoPublicState s, EchoRoleData d) {
         if (s.paused()) return "paused";
         if (d == null) return "public." + s.phase().name().toLowerCase(Locale.ROOT);
         if (!d.life().standing()) return "life." + d.life().name().toLowerCase(Locale.ROOT);
@@ -179,35 +164,32 @@ public final class EchoHud {
     }
 
     private static void renderSupplies(FakeGuiGraphics g, EchoRoleData d, EchoPublicState s, long tick, int width, int height) {
-        // y>=height-40 留给快捷栏标签，y>=height-28 留给三工具＋六物资。
-        int half = (width - 24) / 2, right = width / 2 + 4, top = height - 79;
-        panel(g, 8, top, half, 37);
-        panel(g, right, top, half, 37);
-        row(g, tr("cargo", d.cargo().size(), d.capacity(), d.blackCargoCount()), 12, top + 4, half - 8, TEXT);
+        var layout = new EchoHudLayout(width, height);
+        var supplies = layout.supplies();
+        g.fill(supplies.x(), supplies.y(), supplies.right(), supplies.bottom(), 0xA01A1008);
+        int half = supplies.width() / 2;
+        row(g, tr("cargo", d.cargo().size(), d.capacity(), d.blackCargoCount()), supplies.x() + 3, supplies.y() + 1, half - 6, TEXT);
         Component key = d.key() == null ? tr("key.none") : d.keyPulseAt() > tick
-                ? tr("key.pulse", EchoPublicState.seconds(d.keyPulseAt(), tick)) : tr("key.held");
-        row(g, key, 12, top + 15, half - 8, GOLD);
-        Component life = d.life() == EchoLifeState.DOWNED ? tr("life.bleeding", (d.bleedRemaining() + 19) / 20)
-                : tr("life.label", tr("life." + d.life().name().toLowerCase(Locale.ROOT)));
-        row(g, life, 12, top + 26, half - 8, d.life() == EchoLifeState.DOWNED || d.life() == EchoLifeState.WOUNDED ? RED : GREEN);
-        Component equipped = tr("equipped.none");
-        boolean forged = false;
-        if (d.selectedCard() != null) {
-            var item = d.items().stream().filter(i -> i.instanceId().equals(d.selectedCard())).findFirst().orElse(null);
-            if (item != null) {
-                var card = EchoCardRegistry.require(item.definitionId());
-                equipped = tr("equipped", translated(card.nameKey(), "card"));
-                forged = card.shortId().equals("forged_signal");
+                ? tr("compact.key", EchoPublicState.seconds(d.keyPulseAt(), tick)) : tr("compact.key_held");
+        row(g, key, supplies.x() + half, supplies.y() + 1, half - 3, GOLD);
+        var utility = layout.utility();
+        Component basic = d.faction() == EchoFaction.CARRIER ? EchoRollClient.hud(d)
+                : d.faction() == EchoFaction.INTERCEPTOR && s.phase() == EchoPhase.EVACUATION
+                ? tr(s.overloadUsed() ? "overload.used" : "overload.ready") : tr("compact.details", Minecraft.getInstance().options.keyInventory.getTranslatedKeyMessage());
+        row(g, basic, utility.x() + 3, utility.y() + 1, utility.width() / 2 - 7, MUTED);
+        // 本模式常规 HUD 屏蔽原版血条时，补回基于真实 health 的三颗心，而非旧生命枚举。
+        if (!io.wifi.starrailexpress.client.SREClient.shouldRenderVanillaHud()) {
+            var health = layout.health();
+            // 公共 HUD 只在脏 tick 录制，心形精灵必须入帧缓存，不能直接绘制一帧后消失。
+            var graphics = g;
+            float hp = Math.max(0, Math.min(6, d.health()));
+            for (int i = 0; i < 3; i++) {
+                int hx = health.x() + i * 9;
+                graphics.blitSprite(net.minecraft.resources.ResourceLocation.withDefaultNamespace("hud/heart/container"), hx, health.y(), 9, 9);
+                if (hp > i * 2) graphics.blitSprite(net.minecraft.resources.ResourceLocation.withDefaultNamespace(
+                        hp >= i * 2 + 2 ? "hud/heart/full" : "hud/heart/half"), hx, health.y(), 9, 9);
             }
         }
-        row(g, equipped, right + 4, top + 4, half - 8, GOLD);
-        Component basic = switch (d.faction()) {
-            case CARRIER -> d.shoveRemaining() > 0 ? tr("shove.cooldown", (d.shoveRemaining() + 19) / 20) : tr("shove.ready");
-            case INTERCEPTOR -> s.phase() == EchoPhase.EVACUATION ? tr(s.overloadUsed() ? "overload.used" : "overload.ready") : tr("intercept");
-            case BROKER -> tr("trade");
-        };
-        row(g, basic, right + 4, top + 15, half - 8, TEXT);
-        row(g, d.faction()==EchoFaction.CARRIER ? EchoRollClient.hud(d) : forged ? tr("forgery") : tr("skill", translated(d.skill().nameKey(), "skill.generic")), right + 4, top + 26, half - 8, MUTED);
     }
 
     static Component tr(String key, Object... args) { return Component.translatable("echo.dashboard." + key, args); }

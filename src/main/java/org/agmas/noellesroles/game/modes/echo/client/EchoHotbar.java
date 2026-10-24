@@ -20,8 +20,8 @@ public final class EchoHotbar {
         var data = EchoBagClient.data();
         return data != null && data.matchId() != null && data.faction() != null;
     }
-    /** HUD 应避让从 height-42 到屏幕底边的区域。 */
-    public static int reservedHeight() { return 42; }
+    /** 仅占底部28px；其上原版三颗心的位置不绘制分组标签。 */
+    public static int reservedHeight() { return 28; }
     /** 返回 true 表示已接管渲染，调用方应取消原版快捷栏。 */
     public static boolean render(GuiGraphics graphics) {
         if (!active()) return false;
@@ -36,8 +36,6 @@ public final class EchoHotbar {
         int resourcesLeft = left + toolsWidth + GROUP_GAP;
         panel(graphics, left, top, toolsWidth);
         panel(graphics, resourcesLeft, top, resourcesWidth);
-        graphics.drawString(client.font, Component.translatable("echo_hotbar.tools"), left, height - 40, 0xFFD4AF37, false);
-        graphics.drawString(client.font, Component.translatable("echo_hotbar.resources"), resourcesLeft, height - 40, 0xFFD4AF37, false);
         for (int slot = 0; slot < EchoHotbarSlots.TOTAL; slot++) {
             int resource = EchoHotbarSlots.resourceSlot(slot);
             int x = resource < 0 ? left + slot * (SLOT + GAP) : resourcesLeft + resource * (SLOT + GAP);

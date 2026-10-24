@@ -76,9 +76,9 @@
   "echo.dashboard.beacon.blocked": "封锁%s秒",
   "echo.dashboard.beacon.paused": "停充%s秒",
   "echo.dashboard.beacon.blocked_paused": "封%s秒 停%s秒",
-  "echo.dashboard.evac.open": "已撤离 %s/%s · 撤离门开放",
-  "echo.dashboard.evac.overload": "已撤离 %s/%s · 过载封门 %s秒",
-  "echo.dashboard.evac.confirm": "已撤离 %s/%s · 等待开门确认",
+  "echo.dashboard.evac.open": "已撤离 %s 人 · 不限名额 · 撤离门开放",
+  "echo.dashboard.evac.overload": "已撤离 %s 人 · 不限名额 · 过载封门 %s秒",
+  "echo.dashboard.evac.confirm": "已撤离 %s 人 · 不限名额 · 等待开门确认",
   "echo.dashboard.contract.line": "私契·%s · %s",
   "echo.dashboard.contract.smuggler": "黑晶 %s/2",
   "echo.dashboard.contract.scavenger": "选包 %s/3",
@@ -149,5 +149,14 @@
   "echo.dashboard.hunt.instinct": "本能%s秒",
   "echo.dashboard.hunt.instinct_empowered": "本能%s秒·强",
   "echo.dashboard.hunt.weaver": "织网",
-  "echo.dashboard.hunt.rend": "裂爪"
+  "echo.dashboard.hunt.rend": "裂爪",
+  "echo.dashboard.compact.core_open": "核心门 开 · %s秒",
+  "echo.dashboard.compact.core_closed": "核心门 关",
+  "echo.dashboard.compact.beacon": "#%s %s/%s · %s%%",
+  "echo.dashboard.compact.details": "%s 查看任务 / 物资",
+  "echo.dashboard.compact.key": "钥匙 · 脉冲 %s秒",
+  "echo.dashboard.compact.key_held": "持有钥匙",
+  "echo.dashboard.compact.ready": "就绪",
+  "echo.dashboard.compact.cooldown": "%s秒",
+  "echo.dashboard.compact.unavailable": "不可用"
 }

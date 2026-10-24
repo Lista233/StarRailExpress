@@ -55,6 +55,10 @@ public final class EchoBootstrap {
         ServerWorldEvents.UNLOAD.register((server,level) -> org.agmas.noellesroles.game.modes.echo.runtime.EchoRouteAdmission.unload(level));
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> org.agmas.noellesroles.game.modes.echo.runtime.EchoRouteAdmission.stop());
         ServerTickEvents.END_SERVER_TICK.register(EchoSessions::endTick);
+        ServerTickEvents.END_SERVER_TICK.register(org.agmas.noellesroles.game.modes.echo.map.EchoFacilityMapService::tick);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> org.agmas.noellesroles.game.modes.echo.map.EchoFacilityMapService.stop());
+        ServerTickEvents.END_SERVER_TICK.register(org.agmas.noellesroles.game.modes.echo.visual.EchoVisualService::tick);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> org.agmas.noellesroles.game.modes.echo.visual.EchoVisualService.stop());
         ServerWorldEvents.UNLOAD.register((server, level) -> EchoSessions.unload(level));
         ServerLifecycleEvents.SERVER_STOPPING.register(EchoSessions::stopServer);
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler,sender,server) -> EchoSessions.joined(handler.player));

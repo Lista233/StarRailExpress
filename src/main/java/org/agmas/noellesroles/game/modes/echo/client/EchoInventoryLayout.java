@@ -21,4 +21,11 @@ public record EchoInventoryLayout(int x, int y, int width, int height, int slotS
     public int hintY() { return labelY() - 16; }
     public int choiceWidth() { return (width - 24) / 3; }
     public int choiceX(int choice) { return x + 8 + choice * (choiceWidth() + 4); }
+    public int modalWidth() { return Math.min(360, width - 24); }
+    public int modalHeight() { return 156; }
+    public int modalX() { return x + (width - modalWidth()) / 2; }
+    public int modalY() { return y + (height - modalHeight()) / 2; }
+    public int modalButtonY() { return modalY() + modalHeight() - 28; }
+    public int choiceTop() { return y + 49; }
+    public int choiceBottom() { return actionsY() + 21; }
 }

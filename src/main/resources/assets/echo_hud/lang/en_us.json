@@ -76,9 +76,9 @@
   "echo.dashboard.beacon.blocked": "Locked %ss",
   "echo.dashboard.beacon.paused": "Stopped %ss",
   "echo.dashboard.beacon.blocked_paused": "Lock %ss Stop %ss",
-  "echo.dashboard.evac.open": "Evacuated %s/%s · Gate open",
-  "echo.dashboard.evac.overload": "Evacuated %s/%s · Overload closure %ss",
-  "echo.dashboard.evac.confirm": "Evacuated %s/%s · Awaiting gate confirmation",
+  "echo.dashboard.evac.open": "Evacuated %s · No quota · Gate open",
+  "echo.dashboard.evac.overload": "Evacuated %s · No quota · Closure %ss",
+  "echo.dashboard.evac.confirm": "Evacuated %s · No quota · Awaiting gate",
   "echo.dashboard.contract.line": "Private: %s · %s",
   "echo.dashboard.contract.smuggler": "Black %s/2",
   "echo.dashboard.contract.scavenger": "Packs %s/3",
@@ -149,5 +149,14 @@
   "echo.dashboard.hunt.instinct": "Instinct %ss",
   "echo.dashboard.hunt.instinct_empowered": "Inst %ss +",
   "echo.dashboard.hunt.weaver": "Weaver",
-  "echo.dashboard.hunt.rend": "Rend"
+  "echo.dashboard.hunt.rend": "Rend",
+  "echo.dashboard.compact.core_open": "Core open · %ss",
+  "echo.dashboard.compact.core_closed": "Core closed",
+  "echo.dashboard.compact.beacon": "#%s %s/%s · %s%%",
+  "echo.dashboard.compact.details": "%s: objectives / bag",
+  "echo.dashboard.compact.key": "Key · pulse %ss",
+  "echo.dashboard.compact.key_held": "Key held",
+  "echo.dashboard.compact.ready": "Ready",
+  "echo.dashboard.compact.cooldown": "%ss",
+  "echo.dashboard.compact.unavailable": "Unavailable"
 }

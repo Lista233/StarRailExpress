@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "noellesroles:gui/echo/cards/overload_pulse"
+    "layer0": "echo_hotbar:item/cards/overload_pulse"
   }
 }

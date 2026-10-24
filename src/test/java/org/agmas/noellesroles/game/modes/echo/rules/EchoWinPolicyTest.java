@@ -17,6 +17,37 @@ class EchoWinPolicyTest {
         return EchoWinPolicy.evaluate(new EchoWinPolicy.Facts(phase, time, 3, aborted, facts));
     }
 
+    @Test void oneRemainingCarrierNeverLosesToALegacyQuota() {
+        var facts=List.of(fact(EchoFaction.CARRIER,EchoLifeState.HEALTHY),fact(EchoFaction.INTERCEPTOR,EchoLifeState.HEALTHY));
+        for(int quota:new int[]{0,3,14,32}) for(var phase:List.of(EchoPhase.OPERATIONS,EchoPhase.EVACUATION))
+            assertEquals(EchoWinPolicy.Outcome.NONE,EchoWinPolicy.evaluate(new EchoWinPolicy.Facts(phase,20,quota,false,facts)).outcome());
+    }
+
+    @Test void firstEscapeLocksVictoryWithoutStoppingOtherPlayers() {
+        var facts=new ArrayList<>(List.of(fact(EchoFaction.CARRIER,EchoLifeState.ESCAPED),
+                fact(EchoFaction.CARRIER,EchoLifeState.DOWNED),fact(EchoFaction.INTERCEPTOR,EchoLifeState.HEALTHY)));
+        assertEquals(EchoWinPolicy.Outcome.NONE,check(EchoPhase.EVACUATION,20,false,facts).outcome());
+        facts.set(2,new EchoWinPolicy.PlayerFact(EchoFaction.INTERCEPTOR,EchoLifeState.HEALTHY,false,false));
+        assertEquals(EchoWinPolicy.Outcome.NONE,check(EchoPhase.EVACUATION,20,false,facts).outcome());
+        assertEquals(EchoWinPolicy.Outcome.CARRIERS,check(EchoPhase.EVACUATION,0,false,facts).outcome());
+        facts.set(1,fact(EchoFaction.CARRIER,EchoLifeState.ELIMINATED));
+        assertEquals(EchoWinPolicy.Reason.ESCAPE_COMPLETED,check(EchoPhase.EVACUATION,20,false,facts).reason());
+    }
+
+    @Test void noEscapeOnlyLosesWhenAllChancesAreGoneOrTimeExpires() {
+        var facts=new ArrayList<>(List.of(fact(EchoFaction.CARRIER,EchoLifeState.DOWNED),fact(EchoFaction.INTERCEPTOR,EchoLifeState.HEALTHY)));
+        assertEquals(EchoWinPolicy.Outcome.NONE,check(EchoPhase.EVACUATION,20,false,facts).outcome());
+        assertEquals(EchoWinPolicy.Reason.TIME_EXPIRED,check(EchoPhase.EVACUATION,0,false,facts).reason());
+        facts.set(0,fact(EchoFaction.CARRIER,EchoLifeState.ELIMINATED));
+        assertEquals(EchoWinPolicy.Reason.NO_CARRIERS_LEFT,check(EchoPhase.EVACUATION,20,false,facts).reason());
+    }
+
+    @Test void publicSnapshotSupportsUnlimitedQuotaSentinel() {
+        var state=new EchoPublicState(EchoPhase.EVACUATION,100,1200,false,21,0,true,0,true,0,false,List.of());
+        assertEquals(0,state.quota()); assertEquals(21,state.escaped());
+        assertThrows(IllegalArgumentException.class,() -> new EchoWinPolicy.Facts(EchoPhase.EVACUATION,20,-1,false,List.of()));
+    }
+
     @Test void lastTickEscapeWinsBeforeTimeoutButAbortWinsEverything() {
         var facts = List.of(fact(EchoFaction.CARRIER, EchoLifeState.ESCAPED),
                 fact(EchoFaction.CARRIER, EchoLifeState.ESCAPED), fact(EchoFaction.CARRIER, EchoLifeState.ESCAPED));
@@ -33,7 +64,7 @@ class EchoWinPolicyTest {
         assertEquals(EchoWinPolicy.Outcome.NONE, check(EchoPhase.OPERATIONS,20,false,facts).outcome());
         assertEquals(EchoWinPolicy.Reason.TIME_EXPIRED, check(EchoPhase.OPERATIONS,0,false,facts).reason());
         facts.set(2, new EchoWinPolicy.PlayerFact(EchoFaction.CARRIER, EchoLifeState.WOUNDED,false,false));
-        assertEquals(EchoWinPolicy.Reason.INSUFFICIENT_CARRIERS, check(EchoPhase.OPERATIONS,20,false,facts).reason());
+        assertEquals(EchoWinPolicy.Outcome.NONE, check(EchoPhase.OPERATIONS,20,false,facts).outcome());
         facts.set(2,fact(EchoFaction.CARRIER, EchoLifeState.HEALTHY));
         facts.set(3,new EchoWinPolicy.PlayerFact(EchoFaction.INTERCEPTOR, EchoLifeState.HEALTHY,false,false));
         assertEquals(EchoWinPolicy.Reason.NO_INTERCEPTOR, check(EchoPhase.OPERATIONS,20,false,facts).reason());

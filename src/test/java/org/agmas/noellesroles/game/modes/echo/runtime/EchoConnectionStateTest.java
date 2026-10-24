@@ -35,9 +35,10 @@ class EchoConnectionStateTest {
     }
     @Test void bleedDeadlineIsNotExtendedByDisconnectOrReconnect() {
         UUID match=UUID.randomUUID(); var c=new EchoConnectionState(match); var combat=new EchoCombatState();
-        combat.hit(10,false,false); assertEquals(910,combat.bleedUntil());
-        c.disconnect(600); assertTrue(c.reconnect(match,900)); assertEquals(910,combat.bleedUntil());
-        assertFalse(combat.expireBleed(909)); assertTrue(combat.expireBleed(910)); assertEquals(EchoLifeState.ELIMINATED,combat.life());
+        assertEquals(EchoCombatState.Hit.DAMAGED,combat.hit(10,false,false));
+        assertEquals(EchoCombatState.Hit.DOWNED,combat.hit(10,false,false)); assertEquals(1360,combat.bleedUntil());
+        c.disconnect(600); assertTrue(c.reconnect(match,900)); assertEquals(1360,combat.bleedUntil());
+        assertFalse(combat.expireBleed(1359)); assertTrue(combat.expireBleed(1360)); assertEquals(EchoLifeState.ELIMINATED,combat.life());
     }
     @Test void detachedProjectionCannotChangeCanonicalCargoSnapshot() {
         var cargo=new EchoCargoState(); UUID first=UUID.randomUUID(),second=UUID.randomUUID(); cargo.add(first,2);

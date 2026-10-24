@@ -16,6 +16,7 @@ public final class EchoAtmosphereClient {
     private EchoAtmosphereClient() { }
 
     public static void initialize() {
+        EchoInterceptorSkin.initialize();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             var data = EchoBagClient.data();
             EchoLifeState life = data == null || data.matchId() == null ? null : data.life();
@@ -37,6 +38,19 @@ public final class EchoAtmosphereClient {
                 default -> { }
             }
         });
+    }
+
+    /** 相机局部轻颤：只消费服务端心跳授权，菜单/暂停/旁观/结束立即归零。 */
+    public static float cameraPressure() {
+        var client = Minecraft.getInstance();
+        var data = EchoBagClient.data();
+        if (client.level == null || client.player == null || client.screen != null || client.isPaused()
+                || io.wifi.starrailexpress.cca.SREGameTimeComponent.KEY.get(client.level).isTimeFrozen()
+                || client.getCameraEntity() != client.player || client.player.isSpectator() || client.player.isCreative()
+                || !client.player.isAlive() || data == null || !data.life().standing()
+                || data.faction() == org.agmas.noellesroles.game.modes.echo.state.EchoFaction.INTERCEPTOR
+                || !EchoInterceptorSkin.currentMatch(data.matchId())) return 0F;
+        return EchoInterceptorSkin.pressure();
     }
 
     private static void play(net.minecraft.sounds.SoundEvent event, float pitch, float volume) {
