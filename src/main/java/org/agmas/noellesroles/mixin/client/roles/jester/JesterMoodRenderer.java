@@ -41,9 +41,6 @@ public class JesterMoodRenderer {
     public static float moodOffset;
 
     @Shadow
-    public static float moodTextWidth;
-
-    @Shadow
     public static float moodRender;
 
     @Shadow
@@ -67,7 +64,7 @@ public class JesterMoodRenderer {
             context.pose().translate(0.0F, 10.0F * moodOffset, 0.0F);
             PoseStack var10000 = context.pose();
             var10000.translate(26.0F, (float) (8 + 9), 0.0F);
-            context.pose().scale((moodTextWidth - 8.0F) * moodRender, 1.0F, 1.0F);
+            context.pose().scale(HudMoodRenderer.MOOD_BAR_WIDTH * moodRender, 1.0F, 1.0F);
             context.fill(0, 0, 1, 1, ModRoles.JESTER.color() | (int) (moodAlpha * 255.0F) << 24);
             context.pose().popPose();
             ci.cancel();
