@@ -15,6 +15,7 @@
 
 package io.wifi.starrailexpress.game.modes.funny;
 
+import net.exmo.sre.repair.role.RepairRole;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
@@ -539,6 +540,7 @@ public class SREClassChangeGameMode extends SREMurderGameMode {
         List<SRERole> availableRoles = new ArrayList<>(StupidExpress.getEnableRoles(true));
         availableRoles.removeIf(role -> role == null
                 || role.isOtherModeRole()
+                || (role instanceof RepairRole)
                 || role == TMMRoles.LOOSE_END
                 || role == SpecialGameModeRoles.SUPER_LOOSE_END
                 || role == ModRoles.BETTER_VIGILANTE

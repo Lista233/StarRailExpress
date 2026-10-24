@@ -27,16 +27,9 @@ import net.minecraft.world.entity.MobCategory;
 
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.content.block_entity.DevilRouletteTableEntity;
-import org.agmas.noellesroles.game.command_block.CommandBlockThrownEntity;
 import org.agmas.noellesroles.content.entity.*;
 
 public class ModEntities {
-    public static final EntityType<Error404PuppetEntity> ERROR404_PUPPET = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE, Noellesroles.id("error404_puppet"),
-            EntityType.Builder.of(Error404PuppetEntity::new, MobCategory.MISC)
-                    .sized(0.6F, 1.8F).clientTrackingRange(16).updateInterval(1)
-                    .noSave().build("error404_puppet"));
-
     public static final EntityType<RoleMineEntity> ROLE_MINE_ENTITY_ENTITY_TYPE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
             ResourceLocation.fromNamespaceAndPath(Noellesroles.MOD_ID, "cube"),
@@ -477,17 +470,6 @@ public class ModEntities {
                     .trackedUpdateRate(10)
                     .build());
 
-    /** 毛线球抛射物（裁缝的毛线球，命中玩家给予 8 秒腿瘸）。 */
-    @SuppressWarnings("deprecation")
-    public static final EntityType<YarnBallEntity> YARN_BALL = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            Noellesroles.id("yarn_ball"),
-            FabricEntityTypeBuilder.<YarnBallEntity>create(MobCategory.MISC, YarnBallEntity::new)
-                    .dimensions(EntityDimensions.fixed(0.25F, 0.25F))
-                    .trackRangeBlocks(8)
-                    .trackedUpdateRate(10)
-                    .build());
-
     @SuppressWarnings("deprecation")
     public static final EntityType<EmpBombEntity> EMP_BOMB = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
@@ -650,17 +632,6 @@ public class ModEntities {
                     .trackedUpdateRate(2)
                     .build());
 
-    /** 命令方块投掷物：石头、火球和石枪都沿抛物线飞。石枪命中后飞回手里。 */
-    @SuppressWarnings("deprecation")
-    public static final EntityType<CommandBlockThrownEntity> COMMAND_BLOCK_THROWN = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            Noellesroles.id("command_block_thrown"),
-            FabricEntityTypeBuilder.<CommandBlockThrownEntity>create(MobCategory.MISC, CommandBlockThrownEntity::new)
-                    .dimensions(EntityDimensions.fixed(0.25F, 0.25F))
-                    .trackRangeBlocks(64)
-                    .trackedUpdateRate(1)
-                    .build());
-
     /** 滚木实体 - 沿方向滚动碾死玩家 */
     @SuppressWarnings("deprecation")
     public static final EntityType<RollingLogEntity> ROLLING_LOG = Registry.register(
@@ -717,26 +688,6 @@ public class ModEntities {
                     .trackedUpdateRate(1)
                     .build());
 
-    /** 命令方块裂缝。客户端用独立渲染器画裂口。 */
-    public static final EntityType<CommandBlockCrackEntity> COMMAND_BLOCK_CRACK = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            Noellesroles.id("command_block_crack"),
-            EntityType.Builder.of(CommandBlockCrackEntity::new, MobCategory.MISC)
-                    .sized(1.2F, 1.8F)
-                    .clientTrackingRange(128)
-                    .updateInterval(10)
-                    .build("command_block_crack"));
-
-    /** 天上的命令方块。碰撞箱盖住模型，跟踪距离够整张地图。 */
-    public static final EntityType<CommandBlockMarkerEntity> COMMAND_BLOCK_MARKER = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            Noellesroles.id("command_block_marker"),
-            EntityType.Builder.of(CommandBlockMarkerEntity::new, MobCategory.MISC)
-                    .sized(8.0F, 8.0F)
-                    .clientTrackingRange(128)
-                    .updateInterval(2)
-                    .build("command_block_marker"));
-
     /**
      * 初始化实体
      * 注册实体属性（LivingEntity 需要）
@@ -753,7 +704,6 @@ public class ModEntities {
         FabricDefaultAttributeRegistry.register(PIGEON, PigeonEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MECHANICAL_BIRD, MechanicalBirdEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(KUIXI_PUPPET, KuiXiPuppetEntity.createAttributes());
-        FabricDefaultAttributeRegistry.register(ERROR404_PUPPET, Error404PuppetEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MUMMY,
                 net.minecraft.world.entity.monster.Husk.createAttributes());
         FabricDefaultAttributeRegistry.register(UNDEAD, UndeadEntity.createAttributes());

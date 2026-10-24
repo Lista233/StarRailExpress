@@ -188,7 +188,6 @@ public class Noellesroles implements ModInitializer {
         HSRConstants.init();
         // 初始化模组角色列表
         ModRoles.init();
-        org.agmas.noellesroles.game.modes.echo.EchoBootstrap.initialize();
         // 初始化修饰符
         NRModifiers.init();
         // 初始化初始物品映射

@@ -81,15 +81,9 @@ public class PlaySoundEventMixin {
         }
 
         long currentTime = mc.level.getGameTime();
-        if (isEchoHunter(mc.player)) {
-            if (!acceptHunterPing(new Vec3(x, y, z), currentTime)) {
+        for (AgentListenStepHandler.SoundInfo existing : soundInfos) {
+            if (existing.pos.distanceToSqr(x, y ,z) < 1.0d && currentTime - existing.time < 10) {
                 return;
-            }
-        } else {
-            for (AgentListenStepHandler.SoundInfo existing : soundInfos) {
-                if (existing.pos.distanceToSqr(x, y ,z) < 1.0d && currentTime - existing.time < 10) {
-                    return;
-                }
             }
         }
 
