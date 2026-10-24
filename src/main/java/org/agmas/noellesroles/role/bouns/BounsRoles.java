@@ -41,6 +41,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.agmas.harpymodloader.Harpymodloader;
+import org.agmas.harpymodloader.events.GameInitializeEvent;
 import org.agmas.noellesroles.role_data.innocence.AnglerRoleData;
 import org.agmas.noellesroles.role_data.innocence.ClimbPoseRoleData;
 import org.agmas.noellesroles.role_data.innocence.FatFishRoleData;
@@ -394,6 +395,7 @@ public class BounsRoles {
             .setCanBeRandomedByOtherRoles(false)
             .setDefaultEnableChance(1000) // 刷新率 10%
             .setDefaultEnableNeededPlayerCount(12) // 人数刷新上限 12 人
+            .setCanAutoAddMoney(true) // 被动收入金币
             .setAddedVersion("4.4") // versiontag 4.4
             .setTaskReward(2, 1, new ItemStack(TMMItems.STANDARD_REVOLVER)) // 完成 2 个任务获制式左轮
             .setCanUseInstinctAndNightVision(true)
@@ -592,6 +594,13 @@ public class BounsRoles {
                         GameConstants.DeathReasons.REGRET_SUICIDE);
             }
             return true;
+        });
+
+        // 黑警：每局开局复位黑警时刻的全局触发守卫。
+        // momentTriggeredGuard 是静态字段，触发后不会随对局结束自动清零，
+        // 若不在每局 initializeGame 时复位，第一局触发过之后所有后续对局都无法再进入黑警时刻。
+        GameInitializeEvent.EVENT.register((level, gameWorldComponent, readyPlayerList) -> {
+            LicensedVillainRoleData.resetMomentTriggered();
         });
     }
 

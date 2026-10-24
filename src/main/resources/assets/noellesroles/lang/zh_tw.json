@@ -4488,6 +4488,7 @@
   "skill.noellesroles.rabbit_wansui.target.tip": "你被變成兔兔啦！使用解藥或者針管來恢復原狀！",
   "message.noellesroles.yuyuko.player.failed": "你不能吞噬 %s：%s",
   "message.noellesroles.yuyuko.player.failed.no_afk": "他沒有站定%s秒。",
+  "message.noellesroles.yuyuko.player.failed.blocked": "對方被護盾或無敵等效果保護，沒能被吃掉。",
   "message.noellesroles.yuyuko.success": "你吞噬了 %s",
   "replay.noellesroles.yuyuko.eat": "§c🍴§r %s 吞噬了 %s",
   "replay.event.rabbit.restore": "§b💊§r %s 從兔兔變回人類了！",

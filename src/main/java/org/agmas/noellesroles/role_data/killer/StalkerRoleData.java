@@ -15,6 +15,7 @@
 
 package org.agmas.noellesroles.role_data.killer;
 
+import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.data.RoleData;
 import io.wifi.starrailexpress.api.data.RoleDataContext;
@@ -24,9 +25,11 @@ import io.wifi.starrailexpress.cca.SREPlayerPsychoComponent;
 import io.wifi.starrailexpress.event.OnPlayerDeathWithKiller;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
+import io.wifi.starrailexpress.index.TMMItems;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
@@ -417,6 +420,10 @@ public class StalkerRoleData extends SimpleRoleData {
         if (!psycho.startPsycho_time(ASSASSIN_FORM_DURATION, GameConstants.getPsychoModeArmour(), true)) {
             return false;
         }
+        // 回放记录：刺客形态即潜行者的疯狂模式。
+        // 复用商店疯狂模式（SREPlayerShopComponent#usePsychoMode）现成的回放记录方式，
+        // 在回放中显示「xxx 释放了技能 疯狂模式」，与其它疯狂模式激活保持一致。
+        SRE.REPLAY_MANAGER.recordSkillUsed(player.getUUID(), BuiltInRegistries.ITEM.getKey(TMMItems.PSYCHO_MODE));
         this.phase = 3;
         this.phase3Timer = psycho.getPsychoTicks();
         this.assassinFormCooldown = ASSASSIN_FORM_COOLDOWN;

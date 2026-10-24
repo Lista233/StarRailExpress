@@ -4487,6 +4487,7 @@
     "skill.noellesroles.rabbit_wansui.target.tip": "You've been turned into a rabbit! Use an antidote or syringe to return to normal!",
     "message.noellesroles.yuyuko.player.failed": "You cannot devour %s: %s",
     "message.noellesroles.yuyuko.player.failed.no_afk": "They have not stood still for %ss.",
+    "message.noellesroles.yuyuko.player.failed.blocked": "They are protected by a shield, invincibility, or a similar effect and could not be devoured.",
     "message.noellesroles.yuyuko.success": "You devoured %s",
     "replay.noellesroles.yuyuko.eat": "§c🍴§r %s devoured %s",
     "replay.event.rabbit.restore": "§b💊§r %s turned back from a rabbit into a human!",
