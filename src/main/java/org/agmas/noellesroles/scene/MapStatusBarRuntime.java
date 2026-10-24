@@ -43,7 +43,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.agmas.noellesroles.component.FoodDrinkGlowComponent;
 import org.agmas.noellesroles.content.block.scene.StoveBlock;
-import org.agmas.noellesroles.game.roles.innocence.tailor.TailorClothesHandler;
 import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.init.ModSceneBlocks;
@@ -261,15 +260,13 @@ public final class MapStatusBarRuntime {
 
         int leatherPieces = leatherArmorPieces(player);
         boolean protectedFromCold = leatherPieces >= 3;
-        // 身着「裁缝的衣服」时保暖值不再自然下降（恢复照旧）
-        boolean tailorProtected = TailorClothesHandler.isWearingTailorClothes(player);
         int skyColdInterval = 20 * 20 * Math.max(1, leatherPieces + 1);
         int groundColdInterval = 15 * 20 * Math.max(1, leatherPieces + 1);
         boolean canSeeSky = level.canSeeSky(player.blockPosition());
         boolean inPowderSnow = level.getBlockState(player.blockPosition()).is(Blocks.POWDER_SNOW);
 
         // 看得见天空: 每20秒下降1点（皮甲会减速）
-        if (canSeeSky && !protectedFromCold && !tailorProtected) {
+        if (canSeeSky && !protectedFromCold) {
             if (++state.skyTicks >= skyColdInterval) {
                 state.skyTicks = 0;
                 state.change(-1);
@@ -283,7 +280,7 @@ public final class MapStatusBarRuntime {
             }
         }
 
-        if (inPowderSnow && leatherPieces == 0 && !tailorProtected) {
+        if (inPowderSnow && leatherPieces == 0) {
             if (++state.powderSnowTicks >= 2 * 20) {
                 state.powderSnowTicks = 0;
                 state.change(-1);
@@ -293,7 +290,7 @@ public final class MapStatusBarRuntime {
         }
 
         // 站在冰/蓝冰/浮冰/雪/雪块上: 每15秒下降1点（皮甲会减速，3件以上免疫）
-        if (isColdGround(level.getBlockState(player.blockPosition().below())) && !protectedFromCold && !tailorProtected) {
+        if (isColdGround(level.getBlockState(player.blockPosition().below())) && !protectedFromCold) {
             if (++state.blockTicks >= groundColdInterval) {
                 state.blockTicks = 0;
                 state.change(-1);

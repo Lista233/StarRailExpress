@@ -19,7 +19,6 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import io.wifi.starrailexpress.client.SREClient;
 import io.wifi.starrailexpress.event.RenderClientLightLevel;
-import org.agmas.noellesroles.client.CommandBlockSkyLight;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LightTexture;
@@ -35,9 +34,7 @@ public abstract class TrueDarknessLightmapTextureManagerMixin {
     @WrapOperation(method = "updateLightTexture", at = @At(value = "INVOKE", target = "Lorg/joml/Vector3f;lerp(Lorg/joml/Vector3fc;F)Lorg/joml/Vector3f;", ordinal = 0))
     private Vector3f tmm$fuckYourBlueAssHueMojang(Vector3f instance, Vector3fc other, float t,
             Operation<Vector3f> original) {
-        Vector3f sky = original.call(instance, other, t);
-        CommandBlockSkyLight.tintSkyLight(sky);
-        return sky;
+        return original.call(instance, other, t);
     }
 
     @WrapOperation(method = "updateLightTexture", at = @At(value = "INVOKE", target = "Lorg/joml/Vector3f;lerp(Lorg/joml/Vector3fc;F)Lorg/joml/Vector3f;", ordinal = 6))

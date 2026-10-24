@@ -36,8 +36,7 @@ public class PuppeteerBodyKnifeTargetMixin {
         // 扩展目标检测，包含 PuppeteerBodyEntity
         HitResult result = ProjectileUtil.getHitResultOnViewVector(user,
             entity -> (entity instanceof Player player && player.isAlive() && !player.isSpectator())
-                    || entity instanceof PuppeteerBodyEntity
-                    || org.agmas.noellesroles.game.command_block.CommandBlockCracks.isCrack(entity),
+                    || entity instanceof PuppeteerBodyEntity,
             4f);
         cir.setReturnValue(result);
     }
