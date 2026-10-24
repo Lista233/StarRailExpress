@@ -491,6 +491,22 @@ public class ModItems {
             "bang", ROLE_ITEMS_GROUP);
 
     /**
+     * 缝纫针（裁缝专属）
+     * - 长按右键一名玩家 5 秒，消耗一个毛线球为其编织一件「裁缝的衣服」
+     */
+    public static final Item SEWING_NEEDLE = register(
+            new SewingNeedleItem(new Item.Properties().stacksTo(1)),
+            "sewing_needle", ROLE_ITEMS_GROUP);
+
+    /**
+     * 毛线球（裁缝专属消耗品）
+     * - 右键投掷，命中玩家使其获得 8 秒「腿瘸」
+     */
+    public static final Item YARN_BALL = register(
+            new YarnBallItem(new Item.Properties().stacksTo(16)),
+            "yarn_ball", ROLE_ITEMS_GROUP);
+
+    /**
      * 波纹之力（承太郎商店，50 金币）
      * - 背包已有时不可再买，购买冷却 90 秒
      * - 右键：半径 5 格拉向自己，缓慢 I 5 秒，周围玩家理智 +30%，使用冷却 60 秒

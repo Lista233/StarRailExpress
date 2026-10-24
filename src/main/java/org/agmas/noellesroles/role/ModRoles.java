@@ -32,6 +32,7 @@ import org.agmas.noellesroles.game.roles.innocence.mortician.MorticianRole;
 import org.agmas.noellesroles.game.roles.innocence.nurse.NurseRole;
 import org.agmas.noellesroles.game.roles.killer.boom_maniac.BoomManiacRole;
 import org.agmas.noellesroles.game.roles.innocence.watchman.WatchmanRole;
+import org.agmas.noellesroles.game.roles.innocence.tailor.TailorRole;
 import org.agmas.noellesroles.game.roles.innocence.insurance.InsuranceRole;
 import org.agmas.noellesroles.game.roles.innocence.waiter.WaiterRole;
 import org.agmas.noellesroles.game.roles.innocence.veteran.VeteranKnifeHandler;
@@ -446,6 +447,35 @@ public class ModRoles {
             .setCanBeRandomedByOtherRoles(true)
             .setRoleData(WatchmanRoleData::new)
             .setAddedVersion("4.4");
+
+    // 裁缝角色 ID
+    public static final ResourceLocation TAILOR_ID = Noellesroles.id("tailor");
+
+    /**
+     * 裁缝 - 平民阵营
+     * - 属于平民阵营 (isInnocent = true)
+     * - 不能使用杀手能力 (canUseKiller = false)
+     * - 真实心情系统、标准冲刺时间
+     * - 开局自带一根缝纫针和一个毛线球
+     * - 缝纫针长按右键玩家 5 秒，消耗一个毛线球为其编织一件「裁缝的衣服」（随机颜色的皮革胸甲）
+     * - 身着「裁缝的衣服」：受到非 forcekill 的击杀有 5% 概率被衣服抵挡（衣服破损消失），
+     *   攻击者主手物品进入冷却时额外 +5 秒，且保暖值不再自然下降
+     * - 商店：毛线球初始 75 金币、每次购买 +50；缝纫针 25 金币（物品栏中没有时才可购买）
+     * - 职业相关规则全部集中在 TailorRole / TailorRoleData / TailorClothesHandler 里
+     */
+    public static SRERole TAILOR = TMMRoles.registerRole(new TailorRole(
+            TAILOR_ID, // 角色 ID
+            new Color(224, 122, 144).getRGB(), // 裁缝粉 - 代表毛线/布料
+            true, // isInnocent = 平民阵营
+            false, // canUseKiller = 无杀手能力
+            SRERole.MoodType.REAL, // 真实心情
+            TMMRoles.CIVILIAN.getMaxSprintTime(), // 标准冲刺时间
+            false // 不显示计时
+    ))
+            .setCanSeeCoin(true)
+            .setCanBeRandomedByOtherRoles(true)
+            .setRoleData(TailorRoleData::new)
+            .setAddedVersion("4.5");
 
     /**
      * 影隼角色 - 杀手阵营

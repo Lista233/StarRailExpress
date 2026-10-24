@@ -103,6 +103,7 @@
     "roles.raven.RavenKnifeLeftClickMixin",
     "roles.stalker.StalkerLeftClickKillMixin",
     "roles.stalker.StalkerOffItemMixin",
+    "roles.tailor.TailorCooldownPenaltyMixin",
     "roles.thief.DelayedCoinDisplayMixin",
     "roles.thief.ThiefsHonorMixin",
     "roles.trapper.TrapperTrapGunPayloadMixin",
