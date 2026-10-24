@@ -11,6 +11,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -410,6 +411,9 @@ public class DaywalkerRoleData extends SimpleRoleData {
         if (!(player instanceof ServerPlayer)) {
             return;
         }
+        // 终末追逐音乐随死亡立即停播（全场）。先记录再清零：
+        // 音乐只在终末追逐期间播放，未激活时无需发包。
+        boolean wasFinalChaseActive = finalChaseActive;
         int refundSeconds = spentMoments + storedMoments;
         // 恢复正常流速
         rateEnabled = false;
@@ -423,6 +427,15 @@ public class DaywalkerRoleData extends SimpleRoleData {
             glowApplied = false;
             if (player.hasEffect(MobEffects.GLOWING)) {
                 player.removeEffect(MobEffects.GLOWING);
+            }
+        }
+        // 结束终末追逐音效（参考亡命徒 StopSound 的停播写法）：
+        // 逐日者音乐是以全场广播方式播放的一次性音效，死亡后不会自行停止，
+        // 这里向全场发送停播包，按「音效 ID + MASTER 声道」精确停掉逐日者音乐。
+        if (wasFinalChaseActive && player.level() instanceof ServerLevel serverLevel) {
+            for (ServerPlayer other : serverLevel.players()) {
+                other.connection.send(new ClientboundStopSoundPacket(
+                        NRSounds.DAYWALKER.getLocation(), SoundSource.MASTER));
             }
         }
         if (refundSeconds > 0) {
