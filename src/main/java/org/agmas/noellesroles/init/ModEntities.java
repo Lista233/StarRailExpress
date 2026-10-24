@@ -477,6 +477,17 @@ public class ModEntities {
                     .trackedUpdateRate(10)
                     .build());
 
+    /** 毛线球抛射物（裁缝的毛线球，命中玩家给予 8 秒腿瘸）。 */
+    @SuppressWarnings("deprecation")
+    public static final EntityType<YarnBallEntity> YARN_BALL = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            Noellesroles.id("yarn_ball"),
+            FabricEntityTypeBuilder.<YarnBallEntity>create(MobCategory.MISC, YarnBallEntity::new)
+                    .dimensions(EntityDimensions.fixed(0.25F, 0.25F))
+                    .trackRangeBlocks(8)
+                    .trackedUpdateRate(10)
+                    .build());
+
     @SuppressWarnings("deprecation")
     public static final EntityType<EmpBombEntity> EMP_BOMB = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,

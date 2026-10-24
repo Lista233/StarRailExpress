@@ -7,23 +7,19 @@ import net.minecraft.world.item.Item;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * 更夫道具（锣 / 梆）的动态商店条目。
+ * 动态商店条目：基础价格 {@code basePrice}，每购买一次价格上涨 {@code step} 金币。
  *
  * <p>
- * 基础价格 {@code basePrice}，每购买一次价格上涨 {@code step} 金币（写入玩家的
- * {@link DynamicShopComponent}），实际扣费价由 {@code DynamicShopComponent#effectivePrice} 结算，
- * 商店 UI 也会显示同样的价格。
- *
- * <p>
- * 道具冷却的递增逻辑见
- * {@link org.agmas.noellesroles.role_data.innocence.WatchmanRoleData#itemCooldownTicks}。
+ * 已购买次数写入玩家的 {@link DynamicShopComponent}，实际扣费价由
+ * {@code DynamicShopComponent#effectivePrice} 结算，商店 UI 也会显示同样的价格。
+ * 更夫的锣 / 梆与裁缝的毛线球都使用它。
  */
-public class WatchmanShopEntry extends ShopEntry {
+public class SteppedPriceShopEntry extends ShopEntry {
 
     private final int basePrice;
     private final int step;
 
-    public WatchmanShopEntry(Item item, int basePrice, int step, Type type) {
+    public SteppedPriceShopEntry(Item item, int basePrice, int step, Type type) {
         super(item.getDefaultInstance(), basePrice, type);
         this.basePrice = basePrice;
         this.step = step;
