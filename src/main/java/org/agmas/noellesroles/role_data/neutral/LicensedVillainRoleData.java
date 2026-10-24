@@ -41,7 +41,7 @@ import java.util.OptionalInt;
 /**
  * 黑警（Licensed villain）职业数据。
  * <p>
- * 核心机制：当场上存活玩家数量低于开局人数的 25% 时触发「黑警时刻」。
+ * 核心机制：当场上存活玩家数量低于开局人数的 40% 时触发「黑警时刻」。
  * 黑警时刻触发后，以触发时在场玩家为基准比较三大阵营（杀手阵营含杀手方中立 /
  * 平民阵营含警长阵营 / 中立阵营不含杀手方中立）的存活数量，取最多者作为黑警的击杀目标阵营；
  * 若出现平票，按「杀手 > 中立 > 平民」的优先级选择。
@@ -64,6 +64,15 @@ public class LicensedVillainRoleData extends SimpleRoleData {
     /** 全局触发守卫，确保黑警时刻只触发一次。 */
     private static boolean momentTriggeredGuard = false;
 
+    /**
+     * 黑警时刻触发阈值（百分比）：存活人数不足开局人数的该比例时触发。
+     * <p>
+     * 用整数百分比而非 {@code 0.4} 之类的浮点字面量做比较：0.4 在二进制下是无限循环小数，
+     * {@code playerCount * 0.4} 在 10/15/20 人等开局人数下会产生 6.000000000000001 之类的
+     * 浮点误差，再套 {@code Math.ceil} 会使阈值整体偏移 1 人。
+     */
+    public static final int MOMENT_ALIVE_PERCENT = 40;
+
     /** 本实例（黑警）已知黑警时刻已触发。会同步给客户端用于透视。 */
     public boolean momentTriggered = false;
     /** 当前目标阵营阶段。会同步给客户端用于透视。 */
@@ -71,6 +80,17 @@ public class LicensedVillainRoleData extends SimpleRoleData {
 
     public LicensedVillainRoleData(RoleDataContext context) {
         super(context);
+    }
+
+    /**
+     * 复位黑警时刻的全局触发守卫，必须在每局游戏初始化时调用。
+     * <p>
+     * {@link #momentTriggeredGuard} 是静态字段：触发后置 {@code true} 且原先没有任何地方清零，
+     * 导致同一服务器进程内第一局触发过黑警时刻后，之后所有对局都无法再进入黑警时刻。
+     * 现在由 {@code GameInitializeEvent} 监听（见 {@code BounsRoles#registerEvents}）在每局开局前复位。
+     */
+    public static void resetMomentTriggered() {
+        momentTriggeredGuard = false;
     }
 
     // ---- 服务端的黑警时刻触发与状态 ----
@@ -103,8 +123,8 @@ public class LicensedVillainRoleData extends SimpleRoleData {
             return;
 
         int alive = countAlivePlayers(gameWorld);
-        // 存活人数不足开局人数的 25% 时触发
-        if (alive > 0 && alive < Math.ceil(playerCount * 0.25)) {
+        // 存活人数不足开局人数的 40% 时触发（整数乘法比较，等价于 alive < playerCount * 0.4）
+        if (alive > 0 && alive * 100 < playerCount * MOMENT_ALIVE_PERCENT) {
             if (momentTriggeredGuard)
                 return;
             momentTriggeredGuard = true;
