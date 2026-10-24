@@ -91,6 +91,9 @@ public final class EchoMapRepository {
             reader.setLenient(false);
             JsonElement tree = read(reader, 0);
             if (reader.peek() != JsonToken.END_DOCUMENT) throw new IOException("JSON含尾随内容");
+            // 旧独立中立出生点可省略；存在时仍严格解析并原样保存，运行时不使用。
+            if(tree.isJsonObject() && !tree.getAsJsonObject().has("brokerSpawns"))
+                tree.getAsJsonObject().add("brokerSpawns",new JsonArray());
             requireFields(tree, EchoMapConfig.class, "map");
             EchoMapConfig map = GSON.fromJson(tree, EchoMapConfig.class);
             if (!map.coordinateSpace().equals("template")) throw new IOException("侧文件必须使用template坐标");

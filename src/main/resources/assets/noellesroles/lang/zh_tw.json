@@ -5781,7 +5781,7 @@
   "message.noellesroles.error404.void_warning": "空間湮滅倒計時1秒！立即離開！",
   "death_reason.noellesroles.error404_puppet": "錯誤傀儡追擊",
   "item.noellesroles.echo_card_proxy": "回聲卡牌終端",
-  "item.noellesroles.echo_card_proxy.desc": "托運背包中裝備卡牌後，切到快捷欄第2格並右鍵目標使用；代理本身不保存卡牌ID或數值。",
+  "item.noellesroles.echo_card_proxy.desc": "固定於第2格，相容已裝備卡牌。道具現在位於快捷欄第4–9格，直接持卡右鍵即可使用；按背包鍵查看詳情、拆包與合成。",
   "item.noellesroles.echo_skill_token": "專長信物",
   "item.noellesroles.echo_skill_token.desc": "快捷欄第3格。右鍵釋放當前專長的主動技能；冷卻與成功與否全由伺服器判定，失敗不進入冷卻，信物也不會消耗或掉落。",
   "item.noellesroles.echo_editor": "迴響地圖編輯儀",

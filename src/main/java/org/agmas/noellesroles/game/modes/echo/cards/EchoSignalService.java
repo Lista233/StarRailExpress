@@ -20,10 +20,6 @@ public final class EchoSignalService {
     private final List<Lease> leases=new ArrayList<>();
     private final List<GroundLease> ground=new ArrayList<>();
     private final Map<Lease,Integer> cachedSectors=new HashMap<>();
-    /** 侦探被动：24 格内取噪声最高的一名目标，同一目标 40 tick 内不重复播报。 */
-    private static final double HEARING_RANGE=24;
-    private static final int HEARING_COOLDOWN=40;
-    private final Map<UUID,Map<UUID,Long>> heardAt=new HashMap<>();
     private final Map<GroundLease,Integer> cachedGround=new HashMap<>();
     public EchoSignalService(EchoMatch match,ServerLevel level) { this.match=match; this.level=level; }
     private boolean alive(ServerPlayer p) { return p!=null && match.present(p) && match.life(p.getUUID()).standing(); }
@@ -51,39 +47,6 @@ public final class EchoSignalService {
         leases.removeIf(l -> l.owner().equals(receiver.getUUID()) && l.target().equals(source.getUUID()) && l.kind().equals(kind));
         lease(receiver,source,kind,20,20,20);
         var lease=leases.getLast(); cachedSectors.put(lease,sector(receiver.getX(),receiver.getZ(),source.getX(),source.getZ()));
-    }
-    /** 侦测被动：只投影方向扇区，不带目标UUID、坐标或名称。 */
-    private void hearing(ServerPlayer listener,long now) {
-        var cooldowns=heardAt.computeIfAbsent(listener.getUUID(),id -> new HashMap<>());
-        cooldowns.values().removeIf(until -> until<=now);
-        ServerPlayer loudest=null; int best=0;
-        for(ServerPlayer source:match.onlinePlayers()) {
-            if(source==listener || !alive(source)) continue;
-            if(listener.distanceToSqr(source)>HEARING_RANGE*HEARING_RANGE) continue;
-            if(cooldowns.getOrDefault(source.getUUID(),0L)>now) continue;
-            int noise=noise(source);
-            if(noise>best) { best=noise; loudest=source; }
-        }
-        if(loudest==null) return;
-        cooldowns.put(loudest.getUUID(),now+HEARING_COOLDOWN);
-        leases.removeIf(l -> l.owner().equals(listener.getUUID()) && l.kind().equals("hearing"));
-        lease(listener,loudest,"hearing",20,20,20);
-        var lease=leases.getLast(); cachedSectors.put(lease,sector(listener.getX(),listener.getZ(),loudest.getX(),loudest.getZ()));
-    }
-    /** 噪声分：疾跑 3、明显位移 2、正在交互 2、带货 1、黑货再 1；站立不动且无货为静默。 */
-    private int noise(ServerPlayer source) {
-        int score=0;
-        if(source.isSprinting()) score+=3;
-        var velocity=source.getDeltaMovement();
-        if(velocity.horizontalDistanceSqr()>0.0144) score+=2;
-        boolean acting=RoleData.getOptional(EchoRoleData.class,source).map(d -> d.actionId()!=null || d.actionView()!=null).orElse(false);
-        if(acting) score+=2;
-        var data=RoleData.getOptional(EchoRoleData.class,source).orElse(null);
-        if(data!=null) {
-            if(!data.cargo().isEmpty()) score+=1;
-            if(data.blackCargoCount()>0) score+=1;
-        }
-        return score;
     }
     public boolean salvage(ServerPlayer actor,EchoCardDefinition card) {
         long now=match.matchTick(); int duration=EchoCardEffects.ticks(card,"durationTicks");
@@ -124,7 +87,6 @@ public final class EchoSignalService {
         for(ServerPlayer receiver:match.onlinePlayers()) {
             List<EchoSignalView> views=new ArrayList<>();
             if(alive(receiver)) {
-                if(match.faction(receiver.getUUID())==EchoFaction.INTERCEPTOR) hearing(receiver,now);
                 for(Lease l:leases) if(l.owner().equals(receiver.getUUID()) && (now-l.start())%l.interval()<l.visible()) {
                     ServerPlayer target=player(l.target());
                     if(EchoSignalView.directionOnly(l.kind())) {
@@ -148,9 +110,9 @@ public final class EchoSignalService {
         cachedSectors.keySet().retainAll(leases); cachedGround.keySet().retainAll(ground);
     }
     public static int sector(double ox,double oz,double x,double z) { return Math.floorMod((int)Math.round(Math.atan2(z-oz,x-ox)/(Math.PI/4)),8); }
-    public void depart(UUID owner) { leases.removeIf(l -> l.owner().equals(owner) || l.target().equals(owner)); ground.removeIf(l -> l.owner().equals(owner)); heardAt.remove(owner); }
+    public void depart(UUID owner) { leases.removeIf(l -> l.owner().equals(owner) || l.target().equals(owner)); ground.removeIf(l -> l.owner().equals(owner)); }
     public void cleanup() {
-        leases.clear(); ground.clear(); cachedSectors.clear(); cachedGround.clear(); heardAt.clear();
+        leases.clear(); ground.clear(); cachedSectors.clear(); cachedGround.clear();
         for(ServerPlayer player:match.onlinePlayers()) RoleData.getOptional(EchoRoleData.class,player).ifPresent(d -> d.projectSignals(List.of()));
     }
 }

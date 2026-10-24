@@ -15,8 +15,7 @@ public final class EchoMapValidator {
         for (int count = EchoRosterPolicy.MIN_PLAYERS; count <= EchoRosterPolicy.MAX_PLAYERS; count++) {
             var profile = EchoRosterPolicy.forPlayerCount(count);
             if (map.carrierSpawns().size() < profile.carriers()
-                    || map.interceptorSpawns().size() < profile.interceptors()
-                    || map.brokerSpawns().size() < profile.brokers()) break;
+                    || map.interceptorSpawns().size() < profile.interceptors()) break;
             capacity = count;
         }
         return capacity;
@@ -39,7 +38,8 @@ public final class EchoMapValidator {
         unique(map.coreGate().doors(), EchoMapConfig.Door::id, "coreGate.doors", errors);
         require(map.carrierSpawns().size() >= Math.max(8, profile.carriers()) && map.carrierSpawns().size() <= 128, "carrierSpawns数量", errors);
         require(map.interceptorSpawns().size() >= Math.max(2, profile.interceptors()) && map.interceptorSpawns().size() <= 128, "interceptorSpawns数量", errors);
-        require(map.brokerSpawns().size() >= Math.max(2, profile.brokers()) && map.brokerSpawns().size() <= 128, "brokerSpawns数量", errors);
+        // brokerSpawns仅保留旧文件兼容；中立复用carrier池，不增加旧图人数限制。
+        require(map.brokerSpawns().size() <= 128, "brokerSpawns超过128项", errors);
         require(map.altars().size() == 3, "altars必须恰好三个", errors);
         require(map.coreGate().doors().size() >= 2, "核心区至少两个入口", errors);
         require(map.blackCrystalNodes().size() >= 2 && map.blackDropoffs().size() >= 2, "黑晶点/投放点不足", errors);
@@ -69,7 +69,6 @@ public final class EchoMapValidator {
         for (var point : map.blackDropoffs()) openPoint(map,point.pos(),"blackDropoffs."+point.id(),errors);
         openPoint(map,map.brokerExit().pos(),"brokerExit",errors);
         List<EchoMapConfig.Spawn> others = new ArrayList<>(map.carrierSpawns());
-        others.addAll(map.brokerSpawns());
         for (var spawn : others) openPoint(map,spawn.pos(),"spawn",errors);
         for (var wolf : map.interceptorSpawns()) {
             openPoint(map,wolf.pos(),"interceptorSpawn",errors);

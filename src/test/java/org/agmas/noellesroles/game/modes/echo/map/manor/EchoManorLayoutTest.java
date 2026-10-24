@@ -126,11 +126,13 @@ class EchoManorLayoutTest {
         List<String> problems = new ArrayList<>();
 
         List<Goal> openGoals = openGoals(layout);
-        List<Goal> coreGoals = List.of(
-                new Goal("beacon/core", layout.beacons().get(1).x(), EchoManorLayout.FEET_Y, layout.beacons().get(1).z(), false),
-                new Goal("crate/b1", 45, EchoManorLayout.FEET_Y, 35, false),
-                new Goal("crate/b2", 53, EchoManorLayout.FEET_Y, 35, false),
-                new Goal("free_exit", layout.freeControl().x(), EchoManorLayout.FEET_Y, layout.freeControl().z(), false));
+        List<Goal> coreGoals = new ArrayList<>();
+        layout.beacons().stream().filter(b -> b.region().equals("core"))
+                .forEach(b -> coreGoals.add(new Goal("beacon/" + b.id(), b.x(), EchoManorLayout.FEET_Y, b.z(), false)));
+        layout.crates().stream().filter(c -> c.quality().equals("BLACK_MARKET"))
+                .forEach(c -> coreGoals.add(new Goal("crate/" + c.id(), c.x(), EchoManorLayout.FEET_Y, c.z(), false)));
+        coreGoals.add(new Goal("free_exit", layout.freeControl().x(), EchoManorLayout.FEET_Y,
+                layout.freeControl().z(), false));
 
         // 地图 canJump 可能是 true 也可能是 false，两种步行能力都必须走通且关门进不去核心。
         for (boolean jumping : new boolean[]{false, true}) for (int phase = 0; phase < phases; phase++) {

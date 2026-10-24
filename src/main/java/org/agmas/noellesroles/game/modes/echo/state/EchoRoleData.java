@@ -74,6 +74,13 @@ public final class EchoRoleData extends SimpleRoleData {
         if(skillReadyAt==readyAt && skillBuffUntil==buffUntil && skillPendingUntil==pendingUntil) return;
         skillReadyAt=readyAt; skillBuffUntil=buffUntil; skillPendingUntil=pendingUntil; sync();
     }
+    private long rollReadyAt, rollUntil;
+    public long rollRemaining() { return Math.max(0,rollReadyAt-projectedTick); }
+    public boolean rolling() { return projectedTick<rollUntil; }
+    public void projectRoll(long readyAt,long until) {
+        if(rollReadyAt==readyAt && rollUntil==until) return;
+        rollReadyAt=readyAt; rollUntil=until; sync();
+    }
     // ---- 追捕者狩猎循环投影（只给本人客户端做动画与准星环） ----
     private String huntPhase="STALK";
     private int huntFocus;
@@ -224,6 +231,7 @@ public final class EchoRoleData extends SimpleRoleData {
         tag.putLong("echoSpecDeadline",specializationDeadline); tag.putBoolean("echoSpecLocked",specializationLocked);
         if(contract!=null) tag.putString("echoContract",contract.name());
         tag.putLong("echoSkillReady",skillReadyAt); tag.putLong("echoSkillBuff",skillBuffUntil); tag.putLong("echoSkillPending",skillPendingUntil);
+        tag.putLong("echoRollReady",rollReadyAt); tag.putLong("echoRollUntil",rollUntil);
         tag.putString("echoHuntPhase",huntPhase); tag.putInt("echoHuntFocus",huntFocus);
         tag.putLong("echoHuntPhaseUntil",huntPhaseUntil); tag.putLong("echoHuntInstinctUntil",huntInstinctUntil);
         tag.putBoolean("echoHuntEmpowered",huntEmpowered);
@@ -272,6 +280,7 @@ public final class EchoRoleData extends SimpleRoleData {
         specializationDeadline=Math.max(0,tag.getLong("echoSpecDeadline")); specializationLocked=tag.getBoolean("echoSpecLocked");
         phase=parse(EchoPhase.class,tag.getString("echoPhase"),EchoPhase.SAFE); contract=parse(EchoContract.class,tag.getString("echoContract"),null);
         skillReadyAt=Math.max(0,tag.getLong("echoSkillReady")); skillBuffUntil=Math.max(0,tag.getLong("echoSkillBuff")); skillPendingUntil=Math.max(0,tag.getLong("echoSkillPending"));
+        rollReadyAt=Math.max(0,tag.getLong("echoRollReady")); rollUntil=Math.max(0,tag.getLong("echoRollUntil"));
         huntPhase=tag.contains("echoHuntPhase")?tag.getString("echoHuntPhase"):"STALK";
         huntFocus=Math.max(0,Math.min(100,tag.getInt("echoHuntFocus")));
         huntPhaseUntil=Math.max(0,tag.getLong("echoHuntPhaseUntil")); huntInstinctUntil=Math.max(0,tag.getLong("echoHuntInstinctUntil"));
@@ -320,6 +329,7 @@ public final class EchoRoleData extends SimpleRoleData {
         rules=org.agmas.noellesroles.game.modes.echo.rules.EchoRuleConfig.DEFAULT; rulesReady=false;
         matchId=null; epoch=null; contract=null; faction=null; phase=EchoPhase.FINISHED; cargo.clear(); actionId=null;
         skillReadyAt=0; skillBuffUntil=0; skillPendingUntil=0;
+        rollReadyAt=0; rollUntil=0;
         huntPhase="STALK"; huntFocus=0; huntPhaseUntil=0; huntInstinctUntil=0; huntEmpowered=false;
         trade=null; contractProgress=null; blackCargoCount=0;
         selectedCard=null; signals=List.of(); scenes=List.of();

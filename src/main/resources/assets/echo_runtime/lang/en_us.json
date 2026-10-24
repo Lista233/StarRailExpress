@@ -1,0 +1,7 @@
+{
+  "echo.runtime.started": "Echo Freight has begun. Good luck!",
+  "echo.runtime.result": "End reason: %s",
+  "echo.runtime.result_debug": "Debug match · End reason: %s",
+  "echo.runtime.chunks_started": "Preparing Echo map chunks (%s total); safety and route checks follow.",
+  "echo.runtime.chunks_progress": "Preparing Echo map chunks: %s / %s"
+}

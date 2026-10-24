@@ -24,9 +24,10 @@ import java.util.Set;
  * {@link EditorLayout} 算面板/页签/滚动几何，{@link SreTabButton} 页签，{@link WidgetPlacement} 放可滚动控件，
  * 滚轮 + 滚动条（含拖拽）+ 裁剪同一套写法；颜色一律取 {@link SREPanelStyle} 色板（docs/ui_style.md）。
  *
- * <p>四个页签：地图配置（新建/载入/放弃/声明）、点位坐标（标记/删除，带中文名）、
+ * <p>四个页签：地图配置（新建/载入/放弃/声明）、点位坐标（标记/删除，带中文名；可一键识别准星机器）、
  * 区域体积（角点输入框 + 取自准星 + 写入）、保存检查（预览/保存/确认覆盖 + 问题列表）。
  * 保存即校验：不再有独立「校验」按钮，保存前服务端检查 6 人至当前地图出生点容量（最多 32 人）。
+ * 识别按钮只发 IDENTIFY，机器类型和坐标由服务端按最新视线判定，不会自动保存。
  *
  * <p>界面不读文件也不写世界：每个按钮只发一条 {@link EchoEditorActionPayload}，
  * 服务端回的 {@link EchoEditorStatePayload} 是唯一事实来源（角点坐标也由它回显到输入框）。
@@ -178,7 +179,9 @@ public final class EchoEditorScreen extends Screen {
         boolean loaded = detail != null && detail.field().equals(kind);
         boolean hasSession = EchoEditorClient.state() != null && EchoEditorClient.state().session();
         textRows.add(new TextRow(y, "echo.editor.tip.point"));
-        y += 2 * EditorLayout.LINE_H;
+        y += EditorLayout.LINE_H;
+        textRows.add(new TextRow(y, "echo.editor.machine.tip"));
+        y += EditorLayout.LINE_H;
         textRows.add(new TextRow(y, "echo.editor.label.kinds"));
         y += EditorLayout.LINE_H + 2;
         for (String entry : EchoMapDraft.KINDS) {
@@ -186,8 +189,8 @@ public final class EchoEditorScreen extends Screen {
             y += LIST_ROW_H;
         }
         y += 6;
-        int minW = 36, btnW = 96;
-        int idW = Math.max(60, w - minW - btnW - 2 * EditorLayout.GAP);
+        int minW = 36, markW = 48, identifyW = 72;
+        int idW = Math.max(48, w - minW - markW - identifyW - 3 * EditorLayout.GAP);
         // 出生点类型：ID 框提示「下一个下标」，留空即自动追加到队尾
         Component idHint = spawnKind(kind)
                 ? SREPanelStyle.hint(Component.translatable("echo.editor.hint.spawn_index",
@@ -195,8 +198,11 @@ public final class EchoEditorScreen extends Screen {
                 : SREPanelStyle.hint(Component.translatable("echo.editor.hint.id"));
         idField = field(idText, x, y, idW, idHint, text -> idText = text);
         playersField = field(playersText, x + idW + EditorLayout.GAP, y, minW, "echo.editor.hint.min", text -> playersText = text);
-        button("echo.editor.button.mark", x + idW + minW + 2 * EditorLayout.GAP, y, btnW,
+        int markX = x + idW + minW + 2 * EditorLayout.GAP;
+        button("echo.editor.button.mark", markX, y, markW,
                 () -> send(EchoEditorActionPayload.Op.MARK, kind, idText, playersText));
+        button("echo.editor.machine.identify", markX + markW + EditorLayout.GAP, y, identifyW,
+                () -> send(EchoEditorActionPayload.Op.IDENTIFY, idText, playersText));
         y += ROW + 4;
 
         // 已有点位：逐条列出，行内改 / 删

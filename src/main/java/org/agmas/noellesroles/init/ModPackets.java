@@ -62,6 +62,9 @@ public class ModPackets {
                 org.agmas.noellesroles.game.modes.echo.objective.EchoPublicPayload.ID,
                 org.agmas.noellesroles.game.modes.echo.objective.EchoPublicPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.objective.EchoMachinePayload.ID,
+                org.agmas.noellesroles.game.modes.echo.objective.EchoMachinePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
                 org.agmas.noellesroles.game.modes.echo.map.EchoMapPreviewPayload.ID,
                 org.agmas.noellesroles.game.modes.echo.map.EchoMapPreviewPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(
@@ -70,6 +73,12 @@ public class ModPackets {
         PayloadTypeRegistry.playS2C().register(
                 org.agmas.noellesroles.game.modes.echo.anim.EchoHuntPayload.ID,
                 org.agmas.noellesroles.game.modes.echo.anim.EchoHuntPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                org.agmas.noellesroles.game.modes.echo.anim.EchoRollPayload.ID,
+                org.agmas.noellesroles.game.modes.echo.anim.EchoRollPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                org.agmas.noellesroles.game.modes.echo.action.EchoRollRequest.ID,
+                org.agmas.noellesroles.game.modes.echo.action.EchoRollRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(
                 org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload.ID,
                 org.agmas.noellesroles.game.modes.echo.editor.EchoEditorStatePayload.CODEC);

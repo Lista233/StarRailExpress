@@ -46,8 +46,9 @@ import java.util.Locale;
  * 不会把地图标记成可用。
  */
 public final class EchoManorGenerator {
-    private static final int BLOCKS_PER_TICK = 6000;
-    private static final int CHUNKS_PER_TICK = 6;
+    /** 200×200×22 ≈ 88 万格，切片预算比 96×96 时略降，避免单 tick 卡顿。 */
+    private static final int BLOCKS_PER_TICK = 5000;
+    private static final int CHUNKS_PER_TICK = 8;
     /** 模板里允许被覆盖的非空气方块上限；超过就要求 confirm。 */
     private static final int CONFLICT_LIMIT = 64;
     private static final int ROUTE_NODES_PER_TICK = 512;
@@ -238,7 +239,7 @@ public final class EchoManorGenerator {
                     BlockState present = current.level.getBlockState(pos);
                     if (present.isAir()) continue;
                     int lx = x - originX, lz = z - originZ;
-                    if (!present.equals(EchoManorScene.state(current.layout.at(lx, y, lz), lx, y, lz))) current.conflicts++;
+                    if (!present.equals(EchoManorScene.state(current.layout, lx, y, lz))) current.conflicts++;
                 }
             }
         }
@@ -253,7 +254,7 @@ public final class EchoManorGenerator {
             int x = rest % EchoManorLayout.WIDTH;
             int y = rest / EchoManorLayout.WIDTH;
             BlockPos pos = current.templateOrigin.offset(x, y, z);
-            BlockState desired = EchoManorScene.state(current.layout.at(x, y, z), x, y, z);
+            BlockState desired = EchoManorScene.state(current.layout, x, y, z);
             if (current.level.getBlockState(pos).equals(desired)) continue;
             current.level.setBlock(pos, desired, EchoManorScene.WRITE_FLAGS);
             current.level.getLightEngine().checkBlock(pos);
@@ -287,15 +288,16 @@ public final class EchoManorGenerator {
         ejectPlayers(current);
         send(current.source, Component.translatable("echo.manor.pasted", current.pasted));
     }
-    /** 粘贴可能把方块写进站在实战区里的玩家；先把他们抬到庄园上方，避免被埋。 */
+    /** 粘贴可能把方块写进站在实战区里的玩家；先把他们抬到地图正中上方，避免被埋。 */
     private static void ejectPlayers(Job current) {
         double x0 = current.pasteOrigin.getX(), y0 = current.pasteOrigin.getY(), z0 = current.pasteOrigin.getZ();
         double x1 = x0 + EchoManorLayout.WIDTH, y1 = y0 + EchoManorLayout.HEIGHT, z1 = z0 + EchoManorLayout.DEPTH;
+        double centerX = x0 + EchoManorLayout.WIDTH / 2.0D, centerZ = z0 + EchoManorLayout.DEPTH / 2.0D;
         for (net.minecraft.server.level.ServerPlayer player : current.level.players()) {
             if (player.isSpectator()) continue;
             var pos = player.position();
             if (pos.x < x0 || pos.x > x1 || pos.y < y0 || pos.y > y1 || pos.z < z0 || pos.z > z1) continue;
-            player.teleportTo(current.level, x0 + 48.5, y1 + 2, z0 + 48.5, player.getYRot(), player.getXRot());
+            player.teleportTo(current.level, centerX, y1 + 2, centerZ, player.getYRot(), player.getXRot());
         }
     }
 

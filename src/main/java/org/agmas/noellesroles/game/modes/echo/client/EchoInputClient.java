@@ -20,8 +20,12 @@ public final class EchoInputClient {
             if(client.player!=null) {
                 var own=RoleData.getNullable(EchoRoleData.class,client.player);
                 if(own!=null && own.draft()!=null && own.draft().state().equals("CHANNELING")) client.options.keyJump.setDown(false);
-                // 数字键仍可切槽，但只有 0..2 有效；滚轮由 EchoHotbarScrollMixin 限制。
-                if(client.player.getInventory().selected>2 && EchoHotbar.active()) client.player.getInventory().selected=2;
+                // 九格均可选择；Q/F 不进行本地预测，服务器另有独立门控。
+                if(EchoHotbar.active()) {
+                    client.options.keyDrop.setDown(false); client.options.keySwapOffhand.setDown(false);
+                    while(client.options.keyDrop.consumeClick()) { }
+                    while(client.options.keySwapOffhand.consumeClick()) { }
+                }
             }
             if(client.player==null) return;
             var data=RoleData.getNullable(EchoRoleData.class,client.player);

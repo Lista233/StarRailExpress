@@ -1,7 +1,6 @@
 package org.agmas.noellesroles.mixin.client.echo;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import org.agmas.noellesroles.game.modes.echo.client.EchoHotbar;
 import org.spongepowered.asm.mixin.Mixin;
@@ -9,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** 滚轮只在 0..2 之间移动，不回绕到空槽位。 */
+/** 回声固定九格分组显示，滚轮仍遍历完整 0..8。 */
 @Mixin(Inventory.class)
 public abstract class EchoHotbarScrollMixin {
     @Inject(method = "swapPaint", at = @At("HEAD"), cancellable = true)
@@ -18,7 +17,7 @@ public abstract class EchoHotbarScrollMixin {
         if (client.player == null || client.player.getInventory() != (Inventory) (Object) this) return;
         if (!EchoHotbar.active()) return;
         Inventory inventory = (Inventory) (Object) this;
-        inventory.selected = Mth.clamp(inventory.selected - (int) Math.signum(direction), 0, 2);
+        inventory.selected = Math.floorMod(inventory.selected - (int) Math.signum(direction), 9);
         ci.cancel();
     }
 }

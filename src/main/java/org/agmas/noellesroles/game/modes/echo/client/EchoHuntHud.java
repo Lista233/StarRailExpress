@@ -25,22 +25,23 @@ public final class EchoHuntHud {
     private EchoHuntHud() { }
 
     /** 环半径与线宽（像素）。 */
-    private static final int RADIUS = 17, THICK = 3;
+    private static final int RADIUS = 11, THICK = 2;
 
     public static void initialize() {
+        EchoCutterCooldownClient.initialize();
         org.agmas.noellesroles.client.event.CommonHudRenderCallback.EVENT.register((g, dt) -> render(g));
     }
 
     private static void render(FakeGuiGraphics g) {
         var client = Minecraft.getInstance();
-        if (client.player == null || client.level == null || client.options.hideGui) return;
-        var data = EchoBagClient.data();
-        if (data == null || data.matchId() == null || data.faction() != EchoFaction.INTERCEPTOR) return;
-        if (!data.life().standing() || !data.phase().acceptsActions()) return;
+        var data = EchoHud.ownData();
+        if (data == null || data.faction() != EchoFaction.INTERCEPTOR) return;
+        if (!data.life().standing() || !EchoHud.view().state().phase().acceptsActions()) return;
 
         int width = client.getWindow().getGuiScaledWidth(), height = client.getWindow().getGuiScaledHeight();
-        int cx = width - 8 - 46 - 26, cy = height / 2;
-        if (height < 240) { cx = width - 8 - 38 - 22; }
+        int cx = width - 78, cy = height / 2 + 8;
+        boolean paused = EchoHud.view().state().paused();
+        long cutterRemaining=org.agmas.noellesroles.game.modes.echo.content.EchoCutterItem.cutterRemaining(client.player);
 
         int focus = Math.max(0, Math.min(100, data.huntFocus()));
         boolean instinct = data.huntInstinct();
@@ -58,42 +59,41 @@ public final class EchoHuntHud {
             case CHARGE -> 0xFFFFE8C0;
             case LUNGE -> 0xFFFF8A3D;
             case RECOVER -> 0xFF8C7A5E;
-            case STALK -> EchoAnim.blend(0xFF6B5232, 0xFFD4AF37, EchoAnim.breathe(1400));
+            case STALK -> EchoAnim.blend(0xFF6B5232, 0xFFD4AF37, paused ? 0F : EchoAnim.breathe(1400));
         };
-        int dot = phase == EchoHuntLoop.Phase.RECOVER ? 0 : 3;
+        int dot = phase == EchoHuntLoop.Phase.RECOVER || cutterRemaining>0 ? 0 : 3;
         if (dot > 0) g.fill(cx - dot, cy - dot, cx + dot, cy + dot, dotColor);
         else ring(g, cx, cy, 3, dotColor, 0F, 1F);
 
         // 相位文字：在环下沿，用最短的可读词。
         String label = switch (phase) {
-            case STALK -> "echo.hunt.phase.stalk";
-            case CHARGE -> "echo.hunt.phase.charge";
-            case LUNGE -> "echo.hunt.phase.lunge";
-            case RECOVER -> "echo.hunt.phase.recover";
+            case STALK -> "hunt.stalk";
+            case CHARGE -> "hunt.charge";
+            case LUNGE -> "hunt.lunge";
+            case RECOVER -> "hunt.recover";
         };
-        g.drawCenteredString(client.font, net.minecraft.network.chat.Component.translatable(label), cx, cy + RADIUS + 4, 0xFFD4AF37);
+        EchoHud.row(g, EchoHud.tr(label), cx - 35, cy + RADIUS + 2, 70, 0xFFD4AF37);
 
-        // 扑击就绪 / 本能剩余：叠在环上方，最多两行。
-        int lineY = cy - RADIUS - 14;
-        if (empowered) {
-            g.drawCenteredString(client.font, net.minecraft.network.chat.Component.translatable("echo.hunt.empowered"),
-                    cx, lineY, EchoAnim.blend(0xFFE05A4A, 0xFFFFE8C0, EchoAnim.breathe(700)));
-            lineY -= 10;
-        }
+        // 状态合为一行，不能向上压住公共信标，也不能向下挤入快捷栏。
         if (instinct) {
             long remain = Math.max(0, data.huntInstinctUntil() - data.projectedTick());
-            g.drawCenteredString(client.font, net.minecraft.network.chat.Component.translatable("echo.hunt.instinct",
-                    String.format(Locale.ROOT, "%.1f", remain / 20D)), cx, lineY, 0xFF7FD8C4);
+            EchoHud.row(g, EchoHud.tr(empowered ? "hunt.instinct_empowered" : "hunt.instinct",
+                    String.format(Locale.ROOT, "%.1f", remain / 20D)), cx - 35, cy - RADIUS - 13, 70, 0xFF72C17B);
+        } else if (empowered) {
+            EchoHud.row(g, EchoHud.tr("hunt.empowered"), cx - 35, cy - RADIUS - 13, 70,
+                    EchoAnim.blend(0xFFE06B65, 0xFFFFF4DC, paused ? 0F : EchoAnim.breathe(700)));
         }
-        // 职业名：两个追猎者的打法差别很大，必须让本人随时确认自己拿的是哪一套。
+        // 职业分支仍明确显示给本人，短名不包含内部枚举。
         var hunterClass = data.hunterClass();
         if (hunterClass != null) {
-            int color = hunterClass == org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass.WEAVER
-                    ? 0xFF9FD8F0 : 0xFFFFB4A8;
-            g.drawCenteredString(client.font, net.minecraft.network.chat.Component.translatable(hunterClass.nameKey()),
-                    cx, cy + RADIUS + 16, color);
+            EchoHud.row(g, EchoHud.tr(hunterClass == org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass.WEAVER
+                    ? "hunt.weaver" : "hunt.rend"), cx - 35, cy + RADIUS + 12, 70, 0xFFFFF4DC);
         }
+        if(cutterRemaining>0) {
+            EchoHud.row(g,EchoHud.tr("hunter_balance.weapon_cooldown",String.format(Locale.ROOT,"%.1f",cutterRemaining/20D)),
+                    cx-43,cy+RADIUS+22,86,0xFFE06B65);
         }
+    }
 
     private static EchoHuntLoop.Phase phaseOf(String name) {
         if (name == null) return EchoHuntLoop.Phase.STALK;

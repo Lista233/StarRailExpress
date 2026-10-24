@@ -6,6 +6,7 @@
   "plugin": "org.agmas.noellesroles.client.NRMixinPlugin",
   "mixins": [
     "AbstractContainerMenuMixin",
+    "network.EchoHotbarPacketMixin",
     "DecServerJoinPlayer",
     "EntityMixinForInvisible",
     "FireworkRocketMixin",
@@ -246,6 +247,10 @@
     "client.echo.EchoHuntFirstPersonMixin",
     "client.echo.EchoHuntThirdPersonMixin",
     "client.echo.EchoHuntItemPoseMixin",
+    "client.echo.EchoRollPlayerMixin",
+    "client.echo.EchoRollModelMixin",
+    "client.echo.EchoRollInputMixin",
+    "client.echo.EchoRollHandMixin",
     "client.echo.EchoInterceptorScaleMixin"
   ],
   "overwrites": {

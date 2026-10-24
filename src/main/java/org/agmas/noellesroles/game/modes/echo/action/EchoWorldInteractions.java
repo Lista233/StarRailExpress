@@ -28,7 +28,7 @@ public final class EchoWorldInteractions {
     public static void register() {
         UseBlockCallback.EVENT.register((player,level,hand,hit) -> {
             if(!echo(level)) return InteractionResult.PASS;
-            if(hand==InteractionHand.MAIN_HAND && org.agmas.noellesroles.game.modes.echo.content.EchoContent.tool(player.getMainHandItem()))
+            if(hand==InteractionHand.MAIN_HAND && org.agmas.noellesroles.game.modes.echo.content.EchoContent.readOnly(player.getMainHandItem()))
                 return player.getMainHandItem().use(level,player,hand).getResult();
             if(hand!=InteractionHand.MAIN_HAND || !player.getMainHandItem().isEmpty()) return InteractionResult.FAIL;
             if(level.isClientSide) return InteractionResult.SUCCESS;
@@ -39,7 +39,7 @@ public final class EchoWorldInteractions {
         });
         UseEntityCallback.EVENT.register((player,level,hand,entity,hit) -> {
             if(!echo(level)) return entity.getTags().contains(EchoDropService.PARCEL_TAG)?InteractionResult.FAIL:InteractionResult.PASS;
-            if(hand==InteractionHand.MAIN_HAND && org.agmas.noellesroles.game.modes.echo.content.EchoContent.tool(player.getMainHandItem()))
+            if(hand==InteractionHand.MAIN_HAND && org.agmas.noellesroles.game.modes.echo.content.EchoContent.readOnly(player.getMainHandItem()))
                 return player.getMainHandItem().use(level,player,hand).getResult();
             if(hand!=InteractionHand.MAIN_HAND || !player.getMainHandItem().isEmpty()) return InteractionResult.FAIL;
             if(level.isClientSide) return InteractionResult.SUCCESS;
@@ -57,7 +57,7 @@ public final class EchoWorldInteractions {
         });
         net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.register((player,level,hand) -> {
             if(!echo(level)) return net.minecraft.world.InteractionResultHolder.pass(player.getItemInHand(hand));
-            return org.agmas.noellesroles.game.modes.echo.content.EchoContent.tool(player.getItemInHand(hand))
+            return org.agmas.noellesroles.game.modes.echo.content.EchoContent.readOnly(player.getItemInHand(hand))
                     ?net.minecraft.world.InteractionResultHolder.pass(player.getItemInHand(hand))
                     :net.minecraft.world.InteractionResultHolder.fail(player.getItemInHand(hand));
         });
@@ -85,6 +85,10 @@ public final class EchoWorldInteractions {
         ServerPlayNetworking.registerGlobalReceiver(EchoCancelActionPayload.ID,(payload,context) -> context.server().execute(() -> {
             var match=EchoSessions.get(context.player().serverLevel());
             if(match!=null && match.result()==null && match.id().equals(payload.matchId())) match.cancel(context.player(),payload.actionId());
+        }));
+        ServerPlayNetworking.registerGlobalReceiver(EchoRollRequest.ID,(payload,context) -> context.server().execute(() -> {
+            var match=EchoSessions.get(context.player().serverLevel());
+            if(match!=null && match.result()==null) match.requestRoll(context.player(),payload);
         }));
         ServerPlayNetworking.registerGlobalReceiver(org.agmas.noellesroles.game.modes.echo.inventory.EchoInventoryPayload.ID,(payload,context) -> context.server().execute(() -> {
             var match=EchoSessions.get(context.player().serverLevel());

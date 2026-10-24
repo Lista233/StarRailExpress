@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "noellesroles:block/echo_broker_exit"
+    },
+    "facing=east": {
+      "model": "noellesroles:block/echo_broker_exit",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "noellesroles:block/echo_broker_exit",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "noellesroles:block/echo_broker_exit",
+      "y": 270
+    }
+  }
+}

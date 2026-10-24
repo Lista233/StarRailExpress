@@ -55,6 +55,8 @@ public final class EchoCombatService {
     /** 织网被动「丝线感知」用的静止追踪：上一 tick 位置与连续静止 tick 数。 */
     private final Map<UUID,Vec3> lastPositions=new HashMap<>();
     private final Map<UUID,Integer> stillTicks=new HashMap<>();
+    /** 原版物品冷却只是比赛截止的投影；暂停只平移原版时间轴，不逐 tick 重发冷却包。 */
+    private final Map<UUID,Long> cutterProjections=new HashMap<>();
     public EchoCombatService(EchoMatch match,ServerLevel level) { this.match=match; this.level=level; }
 
     /** 起手蓄力：必须先回到 STALK 相（后摇中不能连点），并扣掉本次蓄力的起始 tick。 */
@@ -85,8 +87,10 @@ public final class EchoCombatService {
                 || match.faction(player.getUUID())!=EchoFaction.INTERCEPTOR || !match.phase().acceptsActions()
                 || SREGameTimeComponent.KEY.get(level).isTimeFrozen()) return;
         long now=match.matchTick();
-        if(!match.state(player.getUUID()).releaseCutter(now)) return;
+        var state=match.state(player.getUUID());
         var loop=match.hunt(player.getUUID());
+        int chargeTicks=loop==null?state.cutterChargeTicks():loop.chargeTicks(now,state.cutterChargeTicks());
+        if(!state.releaseCutter(now,chargeTicks)) { if(loop!=null) loop.cancel(now); return; }
         var strike=loop==null?new EchoHuntLoop.Strike(false,0,0):loop.beginLunge(now);
         match.cards().breakMask(player.getUUID());
         match.objectives().cancelActor(player);
@@ -105,7 +109,7 @@ public final class EchoCombatService {
             connected=thrown.hit(); deferred=thrown.deferred();
         } else connected=meleeRelease(player,now,strike,swing,yaw,pitch);
         if(hunter!=null && hunterClass==EchoHunterClass.REND) {
-            if(connected) hunter.combo().onHit(now,swing); else hunter.combo().onMiss(now);
+            if(connected) hunter.combo().onHit(now,swing,state.snapshot().cutterReadyAt()); else hunter.combo().onMiss(now);
         }
         if(loop!=null) {
             if(deferred) loop.onHit(now,true,EchoHuntLoop.RECOVER_HIT_TICKS);
@@ -129,6 +133,7 @@ public final class EchoCombatService {
                 nearby.playNotifySound(SoundEvents.PLAYER_ATTACK_SWEEP,SoundSource.PLAYERS,0.7F,1.25F);
             if(strike.empowered()) player.displayClientMessage(Component.translatable("echo.hunt.strike_empowered"),true);
         } else if(!deferred) player.playNotifySound(SoundEvents.PLAYER_ATTACK_NODAMAGE,SoundSource.PLAYERS,0.8F,0.9F);
+        project(player,true);
         publishHunt(player);
     }
 
@@ -258,6 +263,8 @@ public final class EchoCombatService {
     private void webHit(UUID owner,ServerPlayer victim,long now) {
         ServerPlayer shooter=level.getServer().getPlayerList().getPlayer(owner);
         var hit=lethal(victim,shooter,GameConstants.DeathReasons.KNIFE,false,false);
+        // 弹在主人断线宽限内仍可结算；冷却记在成员状态而不是已断开的玩家实体上。
+        if(shooter==null) recordCutterHit(owner,hit);
         if(hit!=EchoCombatState.Hit.IGNORED) {
             var hunter=match.hunterState(owner);
             boolean inWeb=hunter!=null && hunter.bindTicksAt(now,victim.getX(),victim.getZ())>0;
@@ -409,6 +416,7 @@ public final class EchoCombatService {
         EchoCombatState state=match.state(victim.getUUID());
         EchoCombatState.Hit hit=state.hit(match.matchTick(),force,match.faction(victim.getUUID())==EchoFaction.INTERCEPTOR);
         if(hit==EchoCombatState.Hit.IGNORED) return hit;
+        if(!force && !environmental && killer!=null) recordCutterHit(killer.getUUID(),hit);
         match.cards().breakMask(victim.getUUID());
         match.trades().interrupt(victim.getUUID());
         match.objectives().cancelActor(victim); match.bags().interrupt(victim); victim.stopUsingItem();
@@ -429,6 +437,14 @@ public final class EchoCombatService {
         return hit;
     }
 
+    /** 只有真正转为 DOWNED 的武器命中才延长武器截止，远程与多目标复用同一入口。 */
+    private void recordCutterHit(UUID owner,EchoCombatState.Hit hit) {
+        var state=match.state(owner);
+        if(state==null || match.faction(owner)!=EchoFaction.INTERCEPTOR || !state.recordCutterHit(match.matchTick(),hit)) return;
+        var player=match.connectedPlayer(owner);
+        if(player!=null) project(player,true);
+    }
+
     public boolean canRescue(ServerPlayer actor,UUID target) {
         return match.standing(actor) && match.faction(actor.getUUID())!=EchoFaction.INTERCEPTOR
                 && !actor.getUUID().equals(target) && match.state(target)!=null && match.state(target).canBeRescued(match.matchTick());
@@ -444,7 +460,7 @@ public final class EchoCombatService {
 
     /** 暂停只执行限制，不推进流血、控制或冷却。 */
     public void restrict() {
-        for(ServerPlayer player:match.onlinePlayers()) restrict(player,match.state(player.getUUID()));
+        for(ServerPlayer player:match.onlinePlayers()) { restrict(player,match.state(player.getUUID())); projectCutterRemaining(player); }
         match.bags().restrictOpening();
     }
     private void restrict(ServerPlayer player,EchoCombatState state) {
@@ -493,7 +509,11 @@ public final class EchoCombatService {
         }
         // 蓄力被打断（被冲撞、被控制、切槽、松手未达最短蓄力）时把相位拉回 STALK。
         if(loop.phase()==EchoHuntLoop.Phase.CHARGE
-                && (!player.isUsingItem() || !player.getUseItem().is(EchoContent.CUTTER))) loop.cancel(now);
+                && (!state.canAct(now) || player.getInventory().selected!=0 || !player.isUsingItem() || !player.getUseItem().is(EchoContent.CUTTER))) {
+            loop.cancel(now);
+            // release 意图在 combat.tick 之后消费；正常松手不能提前抹掉它的服务端蓄力起点。
+            if(!state.canAct(now) || player.getInventory().selected!=0) state.cancelCharge();
+        }
         ServerPlayer loudest=null; double bestGain=0;
         for(ServerPlayer other:match.onlinePlayers()) {
             if(other==player || !match.life(other.getUUID()).standing()) continue;
@@ -545,13 +565,14 @@ public final class EchoCombatService {
         RoleData.getOptional(EchoRoleData.class,player).filter(d -> match.id().equals(d.matchId()))
                 .ifPresent(d -> d.projectHunt(loop.phase().name(),loop.focus(),loop.phaseUntil(),loop.empowered(),loop.instinctUntil()));
     }
-    /** 三格携带：0 阵营工具、1 卡牌终端、2 专长信物；其余槽位一律清空。 */
+    /** 固定三工具 + 六格唯一库存投影；其它原版槽位不承担模式资源。 */
     private void enforceTool(ServerPlayer player,EchoCombatState state) {
         boolean wolf=match.faction(player.getUUID())==EchoFaction.INTERCEPTOR && state.life().standing();
         boolean standing=state.life().standing();
         boolean changed=false;
         var inventory=player.getInventory();
         for(int slot=0;slot<inventory.getContainerSize();slot++) {
+            if(slot>=3 && slot<9) continue;
             var stack=inventory.getItem(slot);
             boolean allowed=slot==0?(wolf && stack.is(EchoContent.CUTTER))
                     :slot==1?(standing && stack.is(EchoContent.CARD_PROXY))
@@ -562,8 +583,8 @@ public final class EchoCombatService {
         if(wolf && !inventory.getItem(0).is(EchoContent.CUTTER)) { inventory.setItem(0,new ItemStack(EchoContent.CUTTER)); changed=true; }
         if(standing && !inventory.getItem(1).is(EchoContent.CARD_PROXY)) { inventory.setItem(1,new ItemStack(EchoContent.CARD_PROXY)); changed=true; }
         if(standing && !inventory.getItem(2).is(EchoContent.SKILL_TOKEN)) { inventory.setItem(2,new ItemStack(EchoContent.SKILL_TOKEN)); changed=true; }
-        if(inventory.selected>2) inventory.selected=2;
-        if(changed) player.inventoryMenu.broadcastChanges();
+        org.agmas.noellesroles.game.modes.echo.content.EchoResourceItem.sync(player);
+        if(changed) { player.inventoryMenu.broadcastChanges(); if(player.containerMenu!=player.inventoryMenu) player.containerMenu.broadcastChanges(); }
     }
     public void exit(ServerPlayer player) { match.exit(player.getUUID()); }
     public void restore(ServerPlayer player) {
@@ -572,8 +593,11 @@ public final class EchoCombatService {
     /** 只撤销模式实体限制和工具，不触碰成员生命或倒地截止。 */
     public void detach(ServerPlayer player) {
         releaseAnchor(player); player.stopUsingItem();
-        for(int slot=0;slot<player.getInventory().getContainerSize();slot++) if(EchoContent.tool(player.getInventory().getItem(slot))) player.getInventory().setItem(slot,ItemStack.EMPTY);
-        player.inventoryMenu.broadcastChanges();
+        var state=match.state(player.getUUID()); if(state!=null) state.cancelCharge();
+        clearCutterProjection(player);
+        for(int slot=0;slot<player.getInventory().getContainerSize();slot++) if(EchoContent.readOnly(player.getInventory().getItem(slot))) player.getInventory().setItem(slot,ItemStack.EMPTY);
+        player.inventoryMenu.setCarried(ItemStack.EMPTY); player.containerMenu.setCarried(ItemStack.EMPTY);
+        player.inventoryMenu.broadcastChanges(); if(player.containerMenu!=player.inventoryMenu) player.containerMenu.broadcastChanges();
     }
     private void finishElimination(ServerPlayer player,ServerPlayer killer,ResourceLocation reason) {
         match.trades().interrupt(player.getUUID());
@@ -599,20 +623,48 @@ public final class EchoCombatService {
     private void project(ServerPlayer player,boolean force) {
         RoleData.getOptional(EchoRoleData.class,player).filter(d -> match.id().equals(d.matchId()))
                 .ifPresent(data -> data.projectCombat(match.state(player.getUUID()).snapshot(),match.matchTick(),force));
+        projectCutterRemaining(player);
+    }
+    /** 将比赛 tick 的武器截止投影到原版冷却；重连/暂停恢复都不修改权威截止。 */
+    public void projectCutterRemaining(ServerPlayer player) {
+        var state=match.state(player.getUUID());
+        if(state==null || match.faction(player.getUUID())!=EchoFaction.INTERCEPTOR || !state.life().standing()) {
+            clearCutterProjection(player); return;
+        }
+        long remaining=state.cutterRemaining(match.matchTick());
+        if(remaining==0) { clearCutterProjection(player); return; }
+        long readyAt=state.snapshot().cutterReadyAt();
+        var previous=cutterProjections.put(player.getUUID(),readyAt);
+        var cooldowns=player.getCooldowns();
+        int ticks=(int)Math.min(Integer.MAX_VALUE,remaining);
+        if(previous==null || previous!=readyAt || !cooldowns.isOnCooldown(EchoContent.CUTTER)) {
+            cooldowns.addCooldown(EchoContent.CUTTER,ticks);
+        } else {
+            var entry=cooldowns.cooldowns.get(EchoContent.CUTTER);
+            int end=cooldowns.tickCount+ticks, shift=end-entry.endTime;
+            if(shift!=0) cooldowns.cooldowns.put(EchoContent.CUTTER,
+                    new net.minecraft.world.item.ItemCooldowns.CooldownInstance(entry.startTime+shift,end));
+        }
+    }
+    private void clearCutterProjection(ServerPlayer player) {
+        cutterProjections.remove(player.getUUID());
+        if(player.getCooldowns().isOnCooldown(EchoContent.CUTTER)) player.getCooldowns().removeCooldown(EchoContent.CUTTER);
     }
     private void announce(String key,ServerPlayer player) {
         Component message=Component.translatable(key,player.getGameProfile().getName());
         match.onlinePlayers().forEach(p -> p.sendSystemMessage(message)); SRE.REPLAY_MANAGER.recordCustomEvent(message);
     }
     public void cleanup() {
-        for(ServerPlayer player:match.onlinePlayers()) { releaseAnchor(player); player.stopUsingItem(); }
+        for(ServerPlayer player:match.onlinePlayers()) { releaseAnchor(player); player.stopUsingItem(); clearCutterProjection(player); }
         for(ServerPlayer player:match.onlinePlayers()) {
             for(int slot=0;slot<player.getInventory().getContainerSize();slot++)
-                if(EchoContent.tool(player.getInventory().getItem(slot))) player.getInventory().setItem(slot,ItemStack.EMPTY);
-            player.inventoryMenu.broadcastChanges();
+                if(EchoContent.readOnly(player.getInventory().getItem(slot))) player.getInventory().setItem(slot,ItemStack.EMPTY);
+            player.inventoryMenu.setCarried(ItemStack.EMPTY); player.containerMenu.setCarried(ItemStack.EMPTY);
+            player.inventoryMenu.broadcastChanges(); if(player.containerMenu!=player.inventoryMenu) player.containerMenu.broadcastChanges();
         }
         anchors.clear(); downedBy.clear(); prone.clear();
         nextHeartbeat.clear(); lastPositions.clear(); stillTicks.clear();
+        cutterProjections.clear();
         for(UUID owner:match.participants()) {
             var hunter=match.hunterState(owner);
             if(hunter!=null) hunter.clear();

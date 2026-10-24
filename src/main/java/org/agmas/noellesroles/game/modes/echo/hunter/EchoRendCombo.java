@@ -65,10 +65,13 @@ public final class EchoRendCombo {
     }
 
     /** 命中：非终结技推进一段并刷新窗口，终结技打完后回到第一段。 */
-    public void onHit(long now, Swing swing) {
+    public void onHit(long now, Swing swing) { onHit(now,swing,now); }
+
+    /** 连段衔接窗口从武器真正就绪时起算，不通过短后摇绕过 3 秒/20 秒冷却。 */
+    public void onHit(long now, Swing swing,long cutterReadyAt) {
         if (swing == null || swing.finisher() || swing.stage() >= MAX_STAGE) { stage = 1; windowUntil = 0; return; }
         stage = Math.max(1, swing.stage()) + 1;
-        windowUntil = now + WINDOW_TICKS;
+        windowUntil = Math.max(now,cutterReadyAt) + WINDOW_TICKS;
     }
 
     /** 挥空：连段直接归零，给出真实的惩罚窗口。 */
@@ -82,7 +85,6 @@ public final class EchoRendCombo {
         stage = MAX_STAGE;
         windowUntil = now + WINDOW_TICKS;
     }
-
     /** 窗口到期后回到第一段；重复调用无副作用。 */
     public void expire(long now) {
         if (stage > 1 && now >= windowUntil) { stage = 1; windowUntil = 0; }

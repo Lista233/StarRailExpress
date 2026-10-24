@@ -56,7 +56,8 @@ public final class EchoManorPlan {
         for (SpawnPoint point : layout.carriers()) draft.mark("carrier_spawn", "", feet(base, point), point.yaw(), 0.0F, 6);
         for (SpawnPoint point : layout.interceptors()) draft.mark("interceptor_spawn", "", feet(base, point), point.yaw(), 0.0F, 6);
         for (SpawnPoint point : layout.brokers()) draft.mark("broker_spawn", "", feet(base, point), point.yaw(), 0.0F, 6);
-        draft.mark("spectator", "spectator", vecAt(base, layout.spectator().x(), EchoManorLayout.HEIGHT - 1, layout.spectator().z()),
+        // 观战点放在中央广场正上方、核心大厅屋顶以下，既能看到全图又不卡在屋顶里。
+        draft.mark("spectator", "spectator", vecAt(base, layout.spectator().x(), 12, layout.spectator().z()),
                 layout.spectator().yaw(), 30.0F, 6);
 
         for (Beacon beacon : layout.beacons())

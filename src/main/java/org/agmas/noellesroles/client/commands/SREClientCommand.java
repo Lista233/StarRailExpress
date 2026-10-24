@@ -48,7 +48,8 @@ public class SREClientCommand {
           dispatcher.register(ClientCommandManager.literal("sre:echo_bag").executes(ctx -> {
             var data=org.agmas.noellesroles.game.modes.echo.client.EchoBagClient.data();
             if(data==null || data.matchId()==null) { ctx.getSource().sendError(Component.translatable("echo.error.no_active_session")); return 0; }
-            ctx.getSource().getClient().setScreen(new org.agmas.noellesroles.game.modes.echo.client.EchoInventoryScreen(null));
+            var client=ctx.getSource().getClient();
+            client.setScreen(new io.wifi.starrailexpress.client.gui.screen.ingame.LimitedInventoryScreen(client.player));
             return 1;
           }));
           dispatcher.register(ClientCommandManager.literal("sre:echo_spec").executes(ctx -> {

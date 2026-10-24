@@ -51,9 +51,13 @@ public final class EchoCardEffects {
     }
     public void use(ServerPlayer player,EchoInventoryPayload request) {
         var card=require(player,request.first());
+        var inventorySlot=org.agmas.noellesroles.game.modes.echo.inventory.EchoHotbarSlots.resourceSlot(player.getInventory().selected);
+        boolean heldResource=inventorySlot>=0 && match.bags().inventory(player.getUUID()).slot(request.first())==inventorySlot
+                && player.getMainHandItem().is(org.agmas.noellesroles.game.modes.echo.content.EchoContent.RESOURCE);
+        boolean terminal=request.first().equals(selected.get(player.getUUID())) && player.getInventory().selected==1
+                && player.getMainHandItem().is(org.agmas.noellesroles.game.modes.echo.content.EchoContent.CARD_PROXY);
         if(card.target()!=EchoCardDefinition.Target.SELF && card.target()!=EchoCardDefinition.Target.DIRECTION
-                && (!request.first().equals(selected.get(player.getUUID())) || player.getInventory().selected!=1
-                || !player.getMainHandItem().is(org.agmas.noellesroles.game.modes.echo.content.EchoContent.CARD_PROXY))) reject("NO_TARGET");
+                && !heldResource && !terminal) reject("NO_TARGET");
         boolean success=apply(player,card,request);
         if(!success) reject("EFFECT_ACTIVE");
         var inventory=match.bags().inventory(player.getUUID());

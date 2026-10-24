@@ -28,8 +28,10 @@ public final class EchoBootstrap {
                 mode.identifier.equals(ID) && org.agmas.noellesroles.game.modes.echo.runtime.EchoRouteAdmission.defer(level,players));
         AllowGameInitialize.EVENT.register((level, mode, players) -> {
             if (!mode.identifier.equals(ID)) return true;
-            var check = EchoPreflight.check(level, players.size(), true);
+            boolean starting=SREGameWorldComponent.KEY.get(level).getGameStatus()==SREGameWorldComponent.GameStatus.STARTING;
+            var check = starting?EchoPreflight.check(level, players.size(), false):EchoPreflight.configuration(level, players.size());
             if (!check.valid()) {
+                org.agmas.noellesroles.game.modes.echo.runtime.EchoRouteAdmission.discard(level);
                 level.players().forEach(player -> check.errors().stream().limit(8).forEach(player::sendSystemMessage));
                 var areas = io.wifi.starrailexpress.cca.AreasWorldComponent.KEY.get(level);
                 org.agmas.noellesroles.Noellesroles.LOGGER.warn("回声开局预检未通过（地图={}，人数={}）: {}", areas.mapName, players.size(),

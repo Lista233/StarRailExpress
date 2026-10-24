@@ -1428,7 +1428,7 @@ public class NoellesrolesClient implements ClientModInitializer {
                 ClientPlayNetworking.send(new org.agmas.noellesroles.game.roles.innocence.fool.FoolPrayerC2SPacket());
             }
 
-            if (abilityPressed) {
+            if (abilityPressed && !org.agmas.noellesroles.game.modes.echo.client.EchoRollClient.handleAbility(client)) {
                 ClientAbilityHandler.handler(client);
             }
 

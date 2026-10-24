@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 把纯地图校验与已加载世界的安全检查组合；失败前不改玩家或世界。 */
+/** 结构预检与加载后的真实世界安全检查分离；不通过开发开关放宽任何安全检查。 */
 public final class EchoPreflight {
     private EchoPreflight() { }
 
@@ -27,16 +27,22 @@ public final class EchoPreflight {
         public boolean valid() { return errors.isEmpty() && prepared != null; }
     }
 
-    public static Check check(ServerLevel level, int playerCount, boolean requireDevelopment) {
-        return check(level,playerCount,requireDevelopment,null);
+    /** 保留旧调用签名；开发参数不再限制正式开局。 */
+    public static Check check(ServerLevel level, int playerCount, boolean ignoredDevelopment) {
+        return check(level,playerCount,ignoredDevelopment,null);
     }
 
-    public static Check check(ServerLevel level,int playerCount,boolean requireDevelopment,EchoMapConfig override) {
+    public static Check check(ServerLevel level,int playerCount,boolean ignoredDevelopment,EchoMapConfig override) {
+        return inspect(level,playerCount,override,true);
+    }
+
+    /** 重置前/加载前只读配置闸门；真实碰撞检查必须在区块准备完成后再次执行。 */
+    public static Check configuration(ServerLevel level,int playerCount) {
+        return inspect(level,playerCount,null,false);
+    }
+
+    private static Check inspect(ServerLevel level,int playerCount,EchoMapConfig override,boolean terrain) {
         List<Component> errors = new ArrayList<>();
-        if (requireDevelopment && !Boolean.getBoolean("sre.echo.development")) {
-            errors.add(Component.translatable("echo.error.development_only"));
-            return new Check(null, errors);
-        }
         EchoRosterPolicy.Profile profile;
         try { profile = EchoRosterPolicy.forPlayerCount(playerCount); }
         catch (IllegalArgumentException exception) {
@@ -75,14 +81,13 @@ public final class EchoPreflight {
                 errors.add(Component.translatable("echo.error.map_detail","coreArea outside playArea"));
             List<EchoMapConfig.Spawn> spawns = new ArrayList<>(map.carrierSpawns());
             spawns.addAll(map.interceptorSpawns());
-            spawns.addAll(map.brokerSpawns());
             for (EchoMapConfig.Spawn spawn : spawns) {
-                if (!safeSpawn(level, areas, spawn)) errors.add(Component.translatable("echo.error.spawn", spawn.x(), spawn.y(), spawn.z()));
+                if (!safeSpawn(level, areas, spawn, terrain)) errors.add(Component.translatable("echo.error.spawn", spawn.x(), spawn.y(), spawn.z()));
             }
             if (!areas.getPlayArea().contains(map.spectatorPos().x(), map.spectatorPos().y(), map.spectatorPos().z())) {
                 errors.add(Component.translatable("echo.error.map_detail", "spectatorPos outside playArea"));
             }
-            validateObjectives(level,areas,map,playerCount,errors);
+            validateObjectives(level,areas,map,playerCount,errors,terrain);
             if(org.agmas.noellesroles.game.modes.echo.objective.EchoGateJournal.pending(
                     worldRoot,level.dimension().location().toString(),mapId)) {
                 errors.add(Component.translatable("echo.error.recovery_pending"));
@@ -104,11 +109,13 @@ public final class EchoPreflight {
         return offset;
     }
 
-    private static boolean safeSpawn(ServerLevel level, AreasWorldComponent areas, EchoMapConfig.Spawn spawn) {
+    private static boolean safeSpawn(ServerLevel level, AreasWorldComponent areas, EchoMapConfig.Spawn spawn, boolean terrain) {
         if (!areas.getPlayArea().contains(spawn.x(), spawn.y(), spawn.z())
                 || !areas.getPlayArea().contains(spawn.x(), spawn.y() + 1.8, spawn.z())) return false;
         BlockPos feet = BlockPos.containing(spawn.x(), spawn.y(), spawn.z());
-        if (!level.hasChunkAt(feet) || !level.getWorldBorder().isWithinBounds(feet)) return false;
+        if (!level.getWorldBorder().isWithinBounds(feet)) return false;
+        if (!terrain) return true;
+        if (!level.hasChunkAt(feet)) return false;
         return level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
                 && level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty()
                 && level.getBlockState(feet.below()).isCollisionShapeFullBlock(level, feet.below())
@@ -124,7 +131,7 @@ public final class EchoPreflight {
                 || s.is(net.minecraft.world.level.block.Blocks.WITHER_ROSE) || s.is(net.minecraft.world.level.block.Blocks.POWDER_SNOW);
     }
 
-    private static void validateObjectives(ServerLevel level,AreasWorldComponent areas,EchoMapConfig map,int count,List<Component> errors) {
+    private static void validateObjectives(ServerLevel level,AreasWorldComponent areas,EchoMapConfig map,int count,List<Component> errors,boolean terrain) {
         List<EchoMapConfig.Vec> points=new ArrayList<>();
         map.crystalNodes().stream().filter(p -> p.minPlayers()<=count).forEach(p -> points.add(p.pos()));
         map.beacons().stream().filter(p -> p.minPlayers()<=count).forEach(p -> points.add(p.pos()));
@@ -140,13 +147,13 @@ public final class EchoPreflight {
         for(var point:points) {
             BlockPos pos=BlockPos.containing(point.x(),point.y(),point.z());
             if(!occupied.add(pos) || !areas.getPlayArea().contains(point.x(),point.y(),point.z())
-                    || !level.getWorldBorder().isWithinBounds(pos) || !level.hasChunkAt(pos) || level.getBlockState(pos).isAir()) {
+                    || !level.getWorldBorder().isWithinBounds(pos) || (terrain && (!level.hasChunkAt(pos) || level.getBlockState(pos).isAir()))) {
                 errors.add(Component.translatable("echo.error.map_detail","invalid/overlapping objective: "+pos));
             }
         }
         var anchor=map.evacuation().exitDropAnchor();
-        if(!safeSpawn(level,areas,map.coreGate().freeExit().outsideSafe()) || !safeSpawn(level,areas,map.evacuation().outsideSafe())
-                || !safeSpawn(level,areas,new EchoMapConfig.Spawn(anchor.x(),anchor.y(),anchor.z(),0,0))) {
+        if(!safeSpawn(level,areas,map.coreGate().freeExit().outsideSafe(),terrain) || !safeSpawn(level,areas,map.evacuation().outsideSafe(),terrain)
+                || !safeSpawn(level,areas,new EchoMapConfig.Spawn(anchor.x(),anchor.y(),anchor.z(),0,0),terrain)) {
             errors.add(Component.translatable("echo.error.map_detail","unsafe free/evacuation exit/drop anchor"));
         }
         var zone=map.evacuation().zone();
@@ -163,10 +170,11 @@ public final class EchoPreflight {
             }
             for(BlockPos pos:BlockPos.betweenClosed((int)volume.minX(),(int)volume.minY(),(int)volume.minZ(),
                     (int)volume.maxX()-1,(int)volume.maxY()-1,(int)volume.maxZ()-1)) {
-                if(!level.hasChunkAt(pos) || !level.getWorldBorder().isWithinBounds(pos)) {
+                if((terrain && !level.hasChunkAt(pos)) || !level.getWorldBorder().isWithinBounds(pos)) {
                     errors.add(Component.translatable("echo.error.map_detail","unloaded/out-of-border gate: "+pos));
                     break;
                 }
+                if(!terrain) continue;
                 var state=level.getBlockState(pos);
                 if(state.isAir() || state.hasBlockEntity() || !state.isCollisionShapeFullBlock(level,pos) || !level.getFluidState(pos).isEmpty()) {
                     errors.add(Component.translatable("echo.error.map_detail","gate must be ordinary closed solid blocks: "+pos));

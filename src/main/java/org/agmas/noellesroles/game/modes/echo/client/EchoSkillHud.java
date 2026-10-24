@@ -20,19 +20,19 @@ public final class EchoSkillHud {
 
     private static void render(FakeGuiGraphics g) {
         var client = Minecraft.getInstance();
-        if (client.player == null || client.level == null || client.options.hideGui) return;
-        var data = EchoBagClient.data();
-        if (data == null || data.matchId() == null || data.faction() == null) return;
+        var data = EchoHud.ownData();
+        if (data == null) return;
         int width = client.getWindow().getGuiScaledWidth(), height = client.getWindow().getGuiScaledHeight();
-        int size = height < 240 ? 38 : 46;
+        // 右侧独立窄带；320×240 时为 x=280..312、y=112..144。
+        int size = 32;
         int radius = size / 2;
-        boolean usable = data.life().standing();
-        int cx = width - radius - 8, cy = height / 2;
+        boolean usable = data.life().standing() && EchoHud.view().state().phase().acceptsActions() && !EchoHud.view().state().paused();
+        int cx = width - radius - 8, cy = height / 2 + 8;
         EchoSkill skill = data.skill();
         long remaining = data.skillRemaining();
         long total = Math.max(1, skill.cooldownTicks());
         boolean ready = remaining <= 0 && usable;
-        float breathe = EchoAnim.breathe(1600);
+        float breathe = EchoHud.view().state().paused() ? 0F : EchoAnim.breathe(1600);
         float alpha = usable ? 1F : 0.4F;
         int fillColor = EchoAnim.fade(0xD01A1008, alpha);
         int borderColor = EchoAnim.fade(ready ? EchoAnim.blend(0xFF8B6914, 0xFFFFE8C0, breathe) : 0xFF6B5232, alpha);

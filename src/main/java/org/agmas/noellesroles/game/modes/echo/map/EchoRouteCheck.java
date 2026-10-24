@@ -30,7 +30,7 @@ public final class EchoRouteCheck {
         if(!map.coordinateSpace().equals("world") || map.carrierSpawns().isEmpty()) throw new IllegalArgumentException("路线需要完整的实战坐标地图和托运者出生点");
         this.level=level; this.map=map; areas=AreasWorldComponent.KEY.get(level); jumping=areas.areasSettings.canJump;
         root=cell(map.carrierSpawns().getFirst().pos());
-        spawns("carrier",map.carrierSpawns()); spawns("interceptor",map.interceptorSpawns()); spawns("broker",map.brokerSpawns());
+        spawns("carrier",map.carrierSpawns()); spawns("interceptor",map.interceptorSpawns());
         map.beacons().forEach(p -> (p.region().equals("core")?coreGoals:openGoals).add(new Goal("beacon/"+p.id(),p.pos(),false)));
         map.crystalNodes().forEach(p -> openGoals.add(new Goal("crystal/"+p.id(),p.pos(),false)));
         map.altars().forEach(p -> openGoals.add(new Goal("altar/"+p.id(),p.pos(),false)));

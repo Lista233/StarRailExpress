@@ -5781,7 +5781,7 @@
   "message.noellesroles.error404.void_warning": "Annihilation in 1 second! Leave now!",
   "death_reason.noellesroles.error404_puppet": "Error Puppet Attack",
   "item.noellesroles.echo_card_proxy": "Echo Card Terminal",
-  "item.noellesroles.echo_card_proxy.desc": "Equip a card in the freight bag, switch to hotbar slot 2 and right-click a target. The terminal stores no card id or values.",
+  "item.noellesroles.echo_card_proxy.desc": "Fixed in slot 2 for equipped cards. Supplies now occupy hotbar slots 4–9: hold a card and right-click. Open inventory to inspect, open packs or craft.",
   "item.noellesroles.echo_skill_token": "Specialty Token",
   "item.noellesroles.echo_skill_token.desc": "Fixed hotbar slot 3. Right-click to fire the active skill of your specialization. The server decides success and cooldown; a failed attempt costs nothing and the token is never consumed or dropped.",
   "item.noellesroles.echo_editor": "Echo Map Editor",

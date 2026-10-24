@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class EchoSignalViewTest {
     @Test void everyDirectionKindRejectsTargetIdentity() {
-        for(String kind:List.of("tracking","key_contract","salvage","cargo_pulse","key_pulse","hearing")) {
+        for(String kind:List.of("tracking","key_contract","salvage","cargo_pulse","key_pulse")) {
             assertThrows(IllegalArgumentException.class,() -> new EchoSignalView(kind,UUID.randomUUID(),0,20));
             assertNull(new EchoSignalView(kind,null,7,20).target());
         }

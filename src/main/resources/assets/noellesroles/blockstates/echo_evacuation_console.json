@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "noellesroles:block/echo_evacuation_console"
+    },
+    "facing=east": {
+      "model": "noellesroles:block/echo_evacuation_console",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "noellesroles:block/echo_evacuation_console",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "noellesroles:block/echo_evacuation_console",
+      "y": 270
+    }
+  }
+}

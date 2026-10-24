@@ -16,9 +16,8 @@ import java.util.Locale;
 /**
  * 编辑工具物品的客户端缓存、HUD 与界面入口。
  *
- * <p>客户端不读文件、不写世界：所有操作都只是一条 {@link EchoEditorActionPayload}，
- * 服务端回一条 {@link EchoEditorStatePayload} 作为唯一事实来源。HUD 手持工具时常驻显示会话状态，
- * 让管理员在建造时不必反复开界面确认。
+ * <p>客户端不读文件、不写世界，也不上报机器类型或坐标：所有操作都只是一条 {@link EchoEditorActionPayload}，
+ * 服务端回一条 {@link EchoEditorStatePayload} 作为唯一事实来源。HUD 手持工具时常驻显示会话状态。
  */
 public final class EchoEditorClient {
     private static EchoEditorStatePayload state;
@@ -75,7 +74,7 @@ public final class EchoEditorClient {
     private static void renderHud(FakeGuiGraphics g) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || client.options.hideGui || !holding(client) || state == null) return;
-        int lines = 4 + state.sections().size() + (state.issues().isEmpty() ? 0 : state.issues().size()) + 1;
+        int lines = 5 + state.sections().size() + (state.issues().isEmpty() ? 0 : state.issues().size()) + 1;
         int pw = Math.min(240, g.guiWidth() - 16);
         int px = 8, py = 60;
         int height = lines * 10 + 8;
@@ -84,6 +83,7 @@ public final class EchoEditorClient {
         g.fill(px + 1, py + 1, px + pw - 1, py + 3, EchoAnim.fade(0xFFD4AF37, 0.85F));
         int y = py + 5;
         y = row(g, Component.translatable("echo.editor.hud.title"), px + 5, y, pw - 10, 0xFFD4AF37);
+        y = row(g, Component.translatable("echo.editor.machine.hud_hint"), px + 5, y, pw - 10, 0xFF9E8B6E);
         y = row(g, Component.translatable("echo.editor.hud.map",
                 state.mapName().isEmpty() ? Component.translatable("echo.editor.none") : Component.literal(state.mapName()),
                 state.mapId().isEmpty() ? Component.translatable("echo.editor.none") : Component.literal(state.mapId()),

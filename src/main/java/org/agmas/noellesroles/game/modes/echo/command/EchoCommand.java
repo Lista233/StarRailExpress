@@ -57,6 +57,7 @@ public final class EchoCommand {
     private static int finish(CommandSourceStack source, EchoResultSnapshot.Outcome outcome) {
         var match = EchoSessions.get(source.getLevel());
         if (match == null || match.result() != null) return missing(source);
+        if(outcome!=EchoResultSnapshot.Outcome.VOID) EchoSessions.markDebug(source.getLevel());
         match.settle(outcome, outcome == EchoResultSnapshot.Outcome.VOID ? "ADMIN_ABORT" : "DEBUG_RESULT", true);
         source.sendSuccess(() -> Component.translatable("echo.command.completed"), true);
         return 1;
@@ -65,6 +66,7 @@ public final class EchoCommand {
     private static int evacuation(CommandSourceStack source) {
         var match = EchoSessions.get(source.getLevel());
         if (match == null || !match.requestDevelopmentEvacuation()) return missing(source);
+        EchoSessions.markDebug(source.getLevel());
         source.sendSuccess(() -> Component.translatable("echo.command.completed"), false);
         return 1;
     }

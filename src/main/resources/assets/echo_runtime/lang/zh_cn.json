@@ -1,0 +1,7 @@
+{
+  "echo.runtime.started": "回声托运站已开始，祝各位好运！",
+  "echo.runtime.result": "结束原因：%s",
+  "echo.runtime.result_debug": "调试局 · 结束原因：%s",
+  "echo.runtime.chunks_started": "正在准备回声地图区块（共 %s 个）；完成后将进行安全与路线检查。",
+  "echo.runtime.chunks_progress": "回声地图区块准备：%s / %s"
+}

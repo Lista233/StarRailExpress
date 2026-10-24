@@ -121,6 +121,14 @@ class EchoHunterClassTest {
         assertEquals(1, combo.stage(), "swing 必须把过期状态写回，不能只是返回值");
     }
 
+    @Test void comboWindowStartsAfterAuthoritativeWeaponCooldown() {
+        var combo=new EchoRendCombo();
+        combo.onHit(12,combo.swing(12),412);
+        assertEquals(412+EchoRendCombo.WINDOW_TICKS,combo.windowUntil());
+        assertEquals(2,combo.swing(412+12).stage(),"20 秒后仍有正常蓄力衔接机会");
+        assertEquals(1,combo.swing(412+EchoRendCombo.WINDOW_TICKS).stage());
+    }
+
     // ───────────────────────── 织网弹道 ─────────────────────────
 
     @Test void boltFliesForwardAndDropsUnderGravity() {

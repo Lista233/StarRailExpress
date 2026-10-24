@@ -251,6 +251,7 @@ public final class EchoBagService {
         while(match.cargo(player.getUUID()).items().size()>data.capacity()) if(!match.objectives().dropCarried(player,false,match.safeAnchor(player,false))) throw new IllegalStateException("物流超额掉货失败");
         if(match.trades()!=null) match.trades().inventoryChanged(player.getUUID());
         data.projectInventory();
+        org.agmas.noellesroles.game.modes.echo.content.EchoResourceItem.sync(player);
     }
     public boolean drop(ServerPlayer player,UUID instance,boolean terminal) { return drop(player.getUUID(),instance,terminal,match.safeAnchor(player,false)); }
     private boolean drop(UUID owner,UUID instance,boolean terminal,Vec3 anchor) {

@@ -483,6 +483,116 @@ public final class EchoObjectiveService {
             }).orElse(null));
         }
     }
+    private record HintTarget(Target target, EchoMachineView.Type type, Vec3 pos, String id) { }
+
+    /** 只在近距且无遮挡时投影一台机器；优先准星目标，不广播整张地图或私人状态。 */
+    private EchoMachineView machineHint(ServerPlayer player) {
+        if (!match.present(player) || player.isSpectator() || !data(player).life().potentiallyEscapable()) return null;
+        var candidates = new ArrayList<HintTarget>();
+        for (var target : handles.values()) {
+            var type = switch (target.kind()) {
+                case CRYSTAL -> EchoMachineView.Type.CRYSTAL;
+                case BEACON -> map.beacons().stream().anyMatch(b -> b.id().equals(target.id()) && b.region().equals("core"))
+                        ? EchoMachineView.Type.CORE_BEACON : EchoMachineView.Type.BEACON;
+                case ALTAR -> EchoMachineView.Type.ALTAR;
+                case CORE -> EchoMachineView.Type.CORE_CONSOLE;
+                case FREE_EXIT -> EchoMachineView.Type.FREE_EXIT;
+                case CRATE -> crate(target.id()).quality().equals("BLACK_MARKET") ? EchoMachineView.Type.BLACK_MARKET : EchoMachineView.Type.SUPPLY;
+                case BLACK_NODE -> EchoMachineView.Type.BLACK_NODE;
+                case BLACK_DROPOFF -> EchoMachineView.Type.BLACK_DROPOFF;
+                default -> null;
+            };
+            if (type != null) candidates.add(new HintTarget(target, type, target.pos(), target.id()));
+        }
+        candidates.add(new HintTarget(null, EchoMachineView.Type.BROKER_EXIT, EchoGateService.vec(map.brokerExit().pos()), map.brokerExit().id()));
+        candidates.add(new HintTarget(null, EchoMachineView.Type.EVACUATION_CONSOLE, EchoGateService.vec(map.evacuation().controlPos()), "evacuation"));
+        Vec3 eye = player.getEyePosition(), look = player.getLookAngle();
+        var hit = level.clip(new ClipContext(eye, eye.add(look.scale(4.5)), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        HintTarget selected = null;
+        double best = Double.MAX_VALUE;
+        for (var candidate : candidates) {
+            BlockPos pos = BlockPos.containing(candidate.pos());
+            if (!level.hasChunkAt(pos) || level.getBlockState(pos).isAir()) continue;
+            Vec3 center = Vec3.atCenterOf(pos), delta = center.subtract(eye);
+            if (delta.lengthSqr() > 4.5 * 4.5 || look.dot(delta.normalize()) < 0.25) continue;
+            var visible = level.clip(new ClipContext(eye, center, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+            if (visible.getType() != HitResult.Type.MISS && !visible.getBlockPos().equals(pos)) continue;
+            double score = delta.lengthSqr() - (hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(pos) ? 100 : 0);
+            if (score < best) { best = score; selected = candidate; }
+        }
+        if (selected == null) return null;
+        var status = machineStatus(player, selected);
+        int amount = 0, required = 0, progress = 0, remaining = 0;
+        var t = selected.target(); long now = match.matchTick();
+        if (t != null) {
+            if (t.kind() == Kind.BEACON) {
+                var b = beacons.get(t.id()); amount = b.delivered(); required = b.requiredCrystals(); progress = b.progressPermille();
+                long until = Math.max(b.lockedUntil(), b.pausedUntil());
+                if (match.faction(player.getUUID()) == EchoFaction.INTERCEPTOR) until = Math.max(until, b.nextPolluteAt());
+                remaining = hintRemaining(until, now);
+            } else if (t.kind() == Kind.CRYSTAL) remaining = hintRemaining(nodeReady.get(t.id()), now);
+            else if (t.kind() == Kind.CRATE && crateReady.get(t.id()) != Long.MAX_VALUE) remaining = hintRemaining(crateReady.get(t.id()), now);
+            else if (t.kind() == Kind.CORE) remaining = hintRemaining(gates.state().coreOpenUntil(), now);
+        } else if (selected.type() == EchoMachineView.Type.EVACUATION_CONSOLE)
+            remaining = hintRemaining(gates.state().evacuationClosedUntil(), now);
+        BlockPos pos = BlockPos.containing(selected.pos());
+        return new EchoMachineView(pos.getX(), pos.getY(), pos.getZ(), selected.type(), selected.id(), status, amount, required, progress, remaining);
+    }
+    private static int hintRemaining(long deadline, long now) { return (int) Math.max(0, Math.min(720000, deadline - now)); }
+
+    /** 只读当前事实；不调用 request/refuse，查看机器绝不会创建动作或改变错误状态。 */
+    private EchoMachineView.Status machineStatus(ServerPlayer player, HintTarget hint) {
+        var d = data(player); long now = match.matchTick();
+        if (io.wifi.starrailexpress.cca.SREGameTimeComponent.KEY.get(level).isTimeFrozen()) return EchoMachineView.Status.PAUSED;
+        if (!d.life().standing()) return EchoMachineView.Status.DOWNED;
+        if (d.controlled()) return EchoMachineView.Status.CONTROLLED;
+        if (match.bags().busy(player.getUUID()) || match.trades().busy(player.getUUID())) return EchoMachineView.Status.BUSY;
+        if (!match.phase().acceptsActions()) return EchoMachineView.Status.WRONG_PHASE;
+        if (hint.type() == EchoMachineView.Type.EVACUATION_CONSOLE) {
+            if (match.phase() != EchoPhase.EVACUATION) return EchoMachineView.Status.EVAC_WAIT;
+            if (match.faction(player.getUUID()) == EchoFaction.INTERCEPTOR)
+                return gates.state().overloadUsed() ? EchoMachineView.Status.OVERLOAD_USED : EchoMachineView.Status.OVERLOAD_READY;
+            if (!carrier(player)) return EchoMachineView.Status.WRONG_FACTION;
+            return gates.state().evacuationOpen(now) ? EchoMachineView.Status.EVAC_OPEN : EchoMachineView.Status.LOCKED;
+        }
+        if (hint.type() == EchoMachineView.Type.BROKER_EXIT) {
+            var contract = match.contracts().state(player.getUUID());
+            if (contract == null) return EchoMachineView.Status.WRONG_FACTION;
+            if (!contract.mayRetire()) return EchoMachineView.Status.CONTRACT_REQUIRED;
+            return match.contracts().retireReady(player.getUUID()) ? EchoMachineView.Status.RETIRE_READY : EchoMachineView.Status.RETIRE_WAIT;
+        }
+        var target = hint.target();
+        if (!reachable(player, target.pos(), range(player, target))) return EchoMachineView.Status.OUT_OF_RANGE;
+        if (!player.getMainHandItem().isEmpty()) return EchoMachineView.Status.EMPTY_HAND;
+        if (target.kind() != Kind.FREE_EXIT && target.kind() != Kind.BLACK_DROPOFF && match.phase() != EchoPhase.OPERATIONS)
+            return EchoMachineView.Status.WRONG_PHASE;
+        return switch (target.kind()) {
+            case CRYSTAL -> !carrier(player) ? EchoMachineView.Status.WRONG_FACTION : d.freeCargoSlot() < 0 ? EchoMachineView.Status.CARGO_FULL
+                    : now < nodeReady.get(target.id()) ? EchoMachineView.Status.COOLDOWN : EchoMachineView.Status.READY;
+            case BLACK_NODE -> !match.contracts().smuggler(player.getUUID()) ? EchoMachineView.Status.CONTRACT_REQUIRED
+                    : d.freeCargoSlot() < 0 || blackCount(player) >= 2 ? EchoMachineView.Status.CARGO_FULL
+                    : black.available(target.id(), now) ? EchoMachineView.Status.READY : EchoMachineView.Status.COOLDOWN;
+            case BLACK_DROPOFF -> !match.contracts().smuggler(player.getUUID()) ? EchoMachineView.Status.CONTRACT_REQUIRED
+                    : !match.contracts().dropoff(player.getUUID(), target.id()) ? EchoMachineView.Status.WRONG_DROPOFF
+                    : blackCount(player) == 0 ? EchoMachineView.Status.NO_RESOURCE : EchoMachineView.Status.READY;
+            case BEACON -> {
+                var b = beacons.get(target.id());
+                if (b.active()) yield EchoMachineView.Status.ACTIVE;
+                if (carrier(player)) yield !b.canSubmit() ? now < Math.max(b.lockedUntil(), b.pausedUntil()) ? EchoMachineView.Status.LOCKED : EchoMachineView.Status.CHARGING
+                        : d.cargo().isEmpty() ? EchoMachineView.Status.NO_RESOURCE : EchoMachineView.Status.READY;
+                if (match.faction(player.getUUID()) != EchoFaction.INTERCEPTOR) yield EchoMachineView.Status.WRONG_FACTION;
+                yield b.canSubmit() ? EchoMachineView.Status.NO_RESOURCE : b.canPollute(now) ? EchoMachineView.Status.READY : EchoMachineView.Status.COOLDOWN;
+            }
+            case ALTAR -> d.key() != null ? EchoMachineView.Status.KEY_LIMIT : d.inventory().emptySlot() < 0 ? EchoMachineView.Status.FULL
+                    : keys != null && keys.at(target.id()).isPresent() ? EchoMachineView.Status.READY : EchoMachineView.Status.EMPTY;
+            case CORE -> gates.state().coreOpen(now) ? EchoMachineView.Status.CORE_OPEN : d.key() == null ? EchoMachineView.Status.NO_RESOURCE
+                    : d.inventory().locked(d.key()) ? EchoMachineView.Status.KEY_LOCKED : EchoMachineView.Status.READY;
+            case CRATE -> crateReady.get(target.id()) == Long.MAX_VALUE ? EchoMachineView.Status.EMPTY
+                    : now < crateReady.get(target.id()) ? EchoMachineView.Status.COOLDOWN : EchoMachineView.Status.READY;
+            case FREE_EXIT -> EchoGateService.box(map.coreArea()).contains(player.position()) ? EchoMachineView.Status.READY : EchoMachineView.Status.WRONG_PHASE;
+            default -> EchoMachineView.Status.WRONG_PHASE;
+        };
+    }
     public void publish(boolean finished) {
         var timer=io.wifi.starrailexpress.cca.SREGameTimeComponent.KEY.get(level);
         var state=gates.state();
@@ -495,6 +605,9 @@ public final class EchoObjectiveService {
                 state.coreOpen(match.matchTick()),state.coreOpenUntil(),state.evacuationOpen(match.matchTick()),state.evacuationClosedUntil(),state.overloadUsed(),entries);
         var packet=new EchoPublicPayload(match.id(),level.dimension().location(),view);
         for(var player:level.players()) net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,packet);
+        for (var player : match.onlinePlayers()) if (match.present(player))
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,
+                    new EchoMachinePayload(match.id(), level.dimension().location(), finished ? null : machineHint(player)));
     }
     private void announce(String key,String detail) {
         Component message=Component.translatable(key,detail);

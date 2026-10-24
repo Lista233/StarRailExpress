@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.level.storage.LevelResource;
+import org.agmas.noellesroles.game.modes.echo.content.EchoMachines;
 import org.agmas.noellesroles.game.modes.echo.map.*;
 import org.agmas.noellesroles.game.modes.echo.runtime.EchoPreflight;
 import org.agmas.noellesroles.game.modes.echo.rules.EchoRosterPolicy;
@@ -68,6 +69,7 @@ public final class EchoEditorService {
                 case EDIT -> begin(player, payload.a(), false);
                 case CANCEL -> cancel(player);
                 case MARK -> mark(player, payload.a(), payload.b(), payload.c());
+                case IDENTIFY -> identify(player, payload.a(), payload.b());
                 case CORNER_A -> corner(player, true);
                 case CORNER_B -> corner(player, false);
                 case CORNER_INPUT -> cornerInput(player, payload.a(), payload.b());
@@ -173,6 +175,41 @@ public final class EchoEditorService {
         }
         state.draft().mark(kind, id, state.template(point), player.getYRot(), player.getXRot(), threshold);
         return Msg.of("echo.editor.msg.changed", kind, id, Long.toString(state.draft().revision()));
+    }
+    /**
+     * 识别准星上的回声机器并写入对应点位。
+     *
+     * <p>kind 与坐标只来自服务端重新射线，不读客户端参数。界面打开时客户端 hitResult 可能冻结，
+     * 因此这里始终取玩家当前视线。同坐标已有点位则更新，不追加重复项。不会自动保存。
+     */
+    private static Msg identify(ServerPlayer player, String requestedId, String minPlayers) throws IOException {
+        EchoMapEditState state = edit(player);
+        BlockPos pos = ray(player);
+        var machine = EchoMachines.kind(player.serverLevel().getBlockState(pos));
+        if (machine == null) {
+            return Msg.of("echo.editor.machine.not_machine", pos.toShortString());
+        }
+        String kind = EchoEditorMachineIds.kindOf(machine);
+        if (kind == null || !EchoMapDraft.KINDS.contains(kind)) {
+            return Msg.of("echo.editor.machine.not_machine", pos.toShortString());
+        }
+        int threshold = 6;
+        if (EchoEditorMachineIds.hasPlayers(kind) && minPlayers != null && !minPlayers.isBlank()) {
+            try { threshold = Integer.parseInt(minPlayers.trim()); }
+            catch (NumberFormatException invalid) { throw new IOException("minPlayers必须是6–32的整数"); }
+        }
+        var center = new EchoMapConfig.Vec(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        var template = state.template(center);
+        var existing = state.draft().points(kind);
+        String same = EchoEditorMachineIds.existingId(existing, template);
+        String id = same != null ? same : EchoEditorMachineIds.chooseId(requestedId, kind, existing, template);
+        if (id == null) throw new IOException("点位id无效，或已被另一坐标占用");
+        state.draft().mark(kind, id, template, player.getYRot(), player.getXRot(), threshold);
+        Session session = SESSIONS.get(player.getUUID());
+        if (session != null) session.kind = kind;
+        String where = pos.getX() + " " + pos.getY() + " " + pos.getZ();
+        return Msg.of(same == null ? "echo.editor.machine.marked" : "echo.editor.machine.updated",
+                kind, id, where);
     }
 
     private static Msg corner(ServerPlayer player, boolean first) throws IOException {

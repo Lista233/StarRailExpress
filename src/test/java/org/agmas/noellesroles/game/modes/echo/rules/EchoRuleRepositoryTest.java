@@ -69,7 +69,7 @@ class EchoRuleRepositoryTest {
     }
     @Test void combatUsesConfiguredChargeCooldownBleedAndRescueProtection() throws Exception {
         var rules=EchoRuleRepository.parse("{\"combat\":{\"cutterChargeSeconds\":0.1,\"cutterCooldownSeconds\":0.5,\"bleedSeconds\":2,\"rescueSeconds\":1,\"rescueProtectionSeconds\":3}}").combat();
-        var attacker=new EchoCombatState(rules); assertTrue(attacker.beginCutter(0)); assertTrue(attacker.releaseCutter(2)); assertEquals(12,attacker.snapshot().cutterReadyAt());
+        var attacker=new EchoCombatState(rules); assertTrue(attacker.beginCutter(0)); assertTrue(attacker.releaseCutter(2)); assertEquals(62,attacker.snapshot().cutterReadyAt(),"配置可以更长，但不能低于 3 秒");
         var victim=new EchoCombatState(rules); assertEquals(EchoCombatState.Hit.DOWNED,victim.hit(10,false,false)); assertEquals(50,victim.bleedUntil());
         assertTrue(victim.rescue(20)); assertEquals(80,victim.snapshot().protectedUntil()); assertEquals(EchoCombatState.Hit.IGNORED,victim.hit(79,false,false));
         var bleeding=new EchoCombatState(rules); bleeding.hit(0,false,false); assertFalse(bleeding.expireBleed(39)); assertTrue(bleeding.expireBleed(40));

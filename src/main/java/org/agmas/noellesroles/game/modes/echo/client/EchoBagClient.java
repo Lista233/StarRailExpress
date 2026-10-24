@@ -1,13 +1,8 @@
 package org.agmas.noellesroles.game.modes.echo.client;
 
 import io.wifi.starrailexpress.api.data.RoleData;
-import io.wifi.starrailexpress.client.gui.screen.ingame.RoleInventoryScreenExtension;
-import io.wifi.starrailexpress.client.gui.screen.ingame.LimitedInventoryScreen;
-import io.wifi.starrailexpress.client.gui.widget.SreButton;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-import org.agmas.noellesroles.game.modes.echo.EchoRoles;
 import org.agmas.noellesroles.game.modes.echo.inventory.EchoInventoryPayload;
 import org.agmas.noellesroles.game.modes.echo.state.*;
 import java.util.UUID;
@@ -26,12 +21,6 @@ public final class EchoBagClient {
     public static void initialize() {
         EchoRulesClient.initialize();
         EchoSpecializationClient.initialize();
-        for(EchoFaction faction:EchoFaction.values()) EchoRoles.get(faction).setInventoryScreenExtensionFactory(() -> new RoleInventoryScreenExtension() {
-            @Override public void onInventoryScreenInitTail(LimitedInventoryScreen screen) {
-                var button=new SreButton(Component.translatable("echo.ui.bag"),b -> Minecraft.getInstance().setScreen(new EchoInventoryScreen(screen)));
-                button.setX(screen.width/2-65); button.setY(Math.max(4,screen.height/2-116)); button.setWidth(130); screen.addRoleWidget(button);
-            }
-        });
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             var data=data();
             if(data==null || data.epoch()==null) { epoch=null; sequence=0; pending=0; openingPack=null; return; }

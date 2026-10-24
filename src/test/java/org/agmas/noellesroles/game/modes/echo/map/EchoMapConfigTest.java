@@ -45,7 +45,7 @@ class EchoMapConfigTest {
         var errors = EchoMapValidator.validate(map, 32);
         assertTrue(errors.contains("carrierSpawns数量"));
         assertTrue(errors.contains("interceptorSpawns数量"));
-        assertTrue(errors.contains("brokerSpawns数量"));
+        assertFalse(errors.contains("brokerSpawns数量"));
         EchoMapRepository.save(world, map, "");
         assertEquals(map, EchoMapRepository.load(world, map.mapId()));
     }
@@ -70,12 +70,12 @@ class EchoMapConfigTest {
         assertEquals(legacy, EchoMapRepository.load(world, legacy.mapId()));
     }
 
-    @Test void everyFactionLimitsExpandedMapCapacityAndOverlappingSpawnsAreRejected() throws Exception {
+    @Test void usedSpawnPoolsLimitExpandedMapCapacityAndOverlappingSpawnsAreRejected() throws Exception {
         var map = org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorPlan.toConfig(
                 org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorLayout.build(), "expanded",
                 new org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorPlan.Base(0, 64, 0));
         assertEquals(32, EchoMapValidator.spawnCapacity(map));
-        for (String field : new String[]{"carrierSpawns", "interceptorSpawns", "brokerSpawns"}) {
+        for (String field : new String[]{"carrierSpawns", "interceptorSpawns"}) {
             var root = new com.google.gson.Gson().toJsonTree(map).getAsJsonObject();
             var spawns = root.getAsJsonArray(field);
             spawns.remove(spawns.size() - 1);
@@ -90,6 +90,26 @@ class EchoMapConfigTest {
         draft.mark("carrier_spawn", "1", map.carrierSpawns().getFirst().pos(), 0, 0, 6);
         assertTrue(EchoMapValidator.validate(draft.snapshot(), 32).contains("出生点互相重叠"));
         assertThrows(IOException.class, () -> EchoMapRepository.save(world, draft.snapshot(), ""));
+    }
+
+    @Test void sharedPoolAcceptsMissingEmptyAndUnusedUnsafeLegacyBrokerSpawns() throws Exception {
+        var root=JsonParser.parseString(example()).getAsJsonObject();
+        root.remove("brokerSpawns");
+        var missing=EchoMapRepository.parse(root.toString());
+        assertTrue(missing.brokerSpawns().isEmpty());
+        assertEquals(12,EchoMapValidator.spawnCapacity(missing));
+        for(int count=6;count<=12;count++) assertTrue(EchoMapValidator.validate(missing,count).isEmpty());
+        EchoMapRepository.save(world,missing,"");
+        assertEquals(missing,EchoMapRepository.load(world,missing.mapId()));
+        var legacy=JsonParser.parseString(example()).getAsJsonObject();
+        var broker=legacy.getAsJsonArray("brokerSpawns");
+        broker.remove(1);
+        broker.get(0).getAsJsonObject().addProperty("x",0.5);
+        broker.get(0).getAsJsonObject().addProperty("z",0.5); // 未使用的旧出生点在核心内。
+        var unused=EchoMapRepository.parse(legacy.toString());
+        assertEquals(1,unused.brokerSpawns().size());
+        assertEquals(12,EchoMapValidator.spawnCapacity(unused));
+        for(int count=6;count<=12;count++) assertTrue(EchoMapValidator.validate(unused,count).isEmpty());
     }
 
     @Test void savingExpandedMapChecksTheThirtyTwoPlayerTier() throws Exception {

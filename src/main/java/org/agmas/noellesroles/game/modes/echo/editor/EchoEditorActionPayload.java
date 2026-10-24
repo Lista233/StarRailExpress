@@ -13,6 +13,8 @@ import java.util.Objects;
  * <pre>
  *   NEW / EDIT     a=mapId
  *   MARK           a=kind  b=id  c=minPlayers
+ *   IDENTIFY       a=id（可空，空则自动生成）  b=minPlayers（可空，默认 6）
+ *                  机器 kind 与坐标一律由服务端重新射线识别，不信客户端
  *   CORNER_A/B     —（取玩家准星对着的方块）
  *   CORNER_INPUT   a=a|b  b="x y z"（输入框手动设入的角点坐标）
  *   POINTS         a=kind（列出该类型全部点位：id/人数档/坐标）
@@ -30,7 +32,7 @@ public record EchoEditorActionPayload(int sequence, Op op, String a, String b, S
     public static final int MAX_ARG = 64;
 
     public enum Op {
-        NEW, EDIT, CANCEL, MARK, CORNER_A, CORNER_B, CORNER_INPUT, POINTS, POINT_META, VOLUME, REMOVE, LIST, VALIDATE, PREVIEW,
+        NEW, EDIT, CANCEL, MARK, IDENTIFY, CORNER_A, CORNER_B, CORNER_INPUT, POINTS, POINT_META, VOLUME, REMOVE, LIST, VALIDATE, PREVIEW,
         SAVE, SAVE_CONFIRM, GATE_ON, GATE_OFF, RELOAD
     }
 

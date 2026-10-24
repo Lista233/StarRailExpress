@@ -66,6 +66,7 @@ public final class EchoMatch {
     private final Map<UUID,Integer> inputCounts=new HashMap<>();
     private final EchoObjectiveService objectives;
     private final EchoCombatService combat;
+    private final org.agmas.noellesroles.game.modes.echo.action.EchoRollService rolls;
     private final org.agmas.noellesroles.game.modes.echo.inventory.EchoBagService bags;
     private final org.agmas.noellesroles.game.modes.echo.cards.EchoCardEffects cards;
     private final org.agmas.noellesroles.game.modes.echo.trade.EchoTradeService trades;
@@ -85,6 +86,7 @@ public final class EchoMatch {
         for(ServerPlayer player:players) game.addRole(player,EchoRoles.get(assignment.get(player.getUUID())),false);
         game.syncRolesNow();
         EnumMap<EchoFaction,Integer> indices=new EnumMap<>(EchoFaction.class);
+        int civilianSpawnIndex=0;
         for(ServerPlayer player:players) {
             EchoFaction faction=assignment.get(player.getUUID()); EchoContract contract=contracts.get(player.getUUID());
             var role=EchoRoles.get(faction); RoleMethodDispatcher.onInit(role,level.getServer(),player);
@@ -92,13 +94,10 @@ public final class EchoMatch {
             if(data==null) throw new IllegalStateException("回声职业数据未初始化");
             data.bind(id,contract,EchoPhase.SAFE);
             data.configureRules(rules());
-            List<EchoMapConfig.Spawn> spawns=switch(faction) {
-                case CARRIER -> prepared.map().carrierSpawns();
-                case INTERCEPTOR -> prepared.map().interceptorSpawns();
-                case BROKER -> prepared.map().brokerSpawns();
-            };
+            List<EchoMapConfig.Spawn> spawns=faction==EchoFaction.INTERCEPTOR
+                    ?prepared.map().interceptorSpawns():prepared.map().carrierSpawns();
             int index=indices.getOrDefault(faction,0); indices.put(faction,index+1);
-            var spawn=spawns.get(index);
+            var spawn=spawns.get(faction==EchoFaction.INTERCEPTOR?index:civilianSpawnIndex++%spawns.size());
             var spec=org.agmas.noellesroles.game.modes.echo.state.EchoSpecialization.starter(faction);
             // 追猎者按出场序号轮流拿职业，保证同一局的两个追猎者打法不同。
             var hunterClass=org.agmas.noellesroles.game.modes.echo.hunter.EchoHunterClass.accepts(spec)
@@ -108,10 +107,11 @@ public final class EchoMatch {
             data.projectHunterClass(hunterClass);
             data.attachCargo(cargo(player.getUUID()));
             player.teleportTo(level,spawn.x(),spawn.y(),spawn.z(),spawn.yaw(),spawn.pitch());
-            player.sendSystemMessage(Component.translatable("echo.development.started"));
+            player.sendSystemMessage(Component.translatable("echo.runtime.started"));
         }
         objectives=new EchoObjectiveService(this,level,prepared.map(),players.size());
         combat=new EchoCombatService(this,level);
+        rolls=new org.agmas.noellesroles.game.modes.echo.action.EchoRollService(this,level);
         bags=new org.agmas.noellesroles.game.modes.echo.inventory.EchoBagService(this,level);
         cards=new org.agmas.noellesroles.game.modes.echo.cards.EchoCardEffects(this,level);
         trades=new org.agmas.noellesroles.game.modes.echo.trade.EchoTradeService(this,level);
@@ -297,6 +297,7 @@ public final class EchoMatch {
                     && io.wifi.starrailexpress.cca.AreasWorldComponent.KEY.get(level).getPlayArea().contains(player.position());
             if(eligible && safeSpot(player)) member.lastSafe=player.position();
             trades.interrupt(member.uuid); objectives.cancelActor(member.uuid); member.state.cancelCharge();
+            rolls.cancel(player);
             bags.interrupt(player); contracts.suspend(member.uuid);
             while(!member.cargo.items().isEmpty()) if(!objectives.dropCarried(member.uuid,false,member.lastSafe)) throw new IllegalStateException("断线掉货失败");
             if(bags.inventory(member.uuid).items().stream().anyMatch(org.agmas.noellesroles.game.modes.echo.inventory.EchoResourceInstance::key)
@@ -316,6 +317,7 @@ public final class EchoMatch {
         member.state.depart(EchoLifeState.ELIMINATED); trades.interrupt(owner); objectives.cancelActor(owner);
         member.state.depart(EchoLifeState.ELIMINATED); trades.interrupt(owner); objectives.cancelActor(owner); member.hunter.clear();
         bags.depart(owner,member.lastSafe); contracts.depart(owner); cards.depart(owner);
+        if(member.live!=null) rolls.cancel(member.live);
         if(member.live!=null) { combat.detach(member.live); RoleData.getOptional(EchoRoleData.class,member.live).filter(d -> id.equals(d.matchId())).ifPresent(EchoRoleData::clear); }
         member.live=null;
     }
@@ -351,6 +353,7 @@ public final class EchoMatch {
         player.sendSystemMessage(Component.translatable("echo.connection.restored"));
         publishSpecialization(player);
         publishSkill(player);
+        rolls.publish(player);
     }
     private void connections() {
         for(var member:members.values()) {
@@ -392,12 +395,12 @@ public final class EchoMatch {
         member.state.depart(EchoLifeState.ESCAPED);
     }
     private boolean enqueue(ServerPlayer player,Runnable command) {
-        if(!standing(player) || bags.busy(player.getUUID()) || !phase().acceptsActions() || SREGameTimeComponent.KEY.get(level).isTimeFrozen()
+        if(!standing(player) || rolls.active(player.getUUID()) || bags.busy(player.getUUID()) || !phase().acceptsActions() || SREGameTimeComponent.KEY.get(level).isTimeFrozen()
                 || intents.size()>=128 || inputCounts.getOrDefault(player.getUUID(),0)>=12) return false;
         inputCounts.merge(player.getUUID(),1,Integer::sum); intents.addLast(new Intent(player.getUUID(),command,false)); return true;
     }
     public void inventoryRequest(ServerPlayer player,org.agmas.noellesroles.game.modes.echo.inventory.EchoInventoryPayload payload) {
-        if(result!=null || !present(player) || !id.equals(payload.matchId()) || intents.size()>=128) return;
+        if(result!=null || !present(player) || rolls.active(player.getUUID()) || !id.equals(payload.matchId()) || intents.size()>=128) return;
         if(SREGameTimeComponent.KEY.get(level).isTimeFrozen()) { bags.request(player,payload); return; }
         intents.addLast(new Intent(player.getUUID(),() -> bags.request(player,payload),true));
     }
@@ -409,6 +412,10 @@ public final class EchoMatch {
     public boolean overload(ServerPlayer player) { return !trades.busy(player.getUUID()) && enqueue(player,() -> { if(!trades.busy(player.getUUID())) objectives.overload(player); }); }
     public boolean releaseCutter(ServerPlayer player) { return enqueue(player,() -> combat.releaseCutter(player)); }
     public boolean shove(ServerPlayer player) { return enqueue(player,() -> combat.shove(player)); }
+    public boolean requestRoll(ServerPlayer player,org.agmas.noellesroles.game.modes.echo.action.EchoRollRequest request) {
+        return id.equals(request.match()) && faction(player.getUUID())==EchoFaction.CARRIER
+                && EchoRollState.validDirection(request.x(),request.z()) && enqueue(player,() -> rolls.start(player,request.x(),request.z()));
+    }
     public void cancel(ServerPlayer player,UUID actionId) {
         if(result!=null || !members.containsKey(player.getUUID())) return;
         if(SREGameTimeComponent.KEY.get(level).isTimeFrozen()) objectives.cancel(player,actionId);
@@ -440,8 +447,9 @@ public final class EchoMatch {
                 combat.tick();
                 while(!intents.isEmpty()) {
                     Intent intent=intents.removeFirst(); ServerPlayer player=level.getServer().getPlayerList().getPlayer(intent.player());
-                    if(player!=null && (intent.inventory()?present(player):standing(player) && !bags.busy(player.getUUID()))) intent.command().run();
+                    if(player!=null && (intent.inventory()?present(player) && !rolls.active(player.getUUID()):standing(player) && !rolls.active(player.getUUID()) && !bags.busy(player.getUUID()))) intent.command().run();
                 }
+                rolls.tick();
                 bags.tick();
                 trades.tick();
                 contracts.tick();
@@ -457,7 +465,7 @@ public final class EchoMatch {
                     if(phase()==EchoPhase.EVACUATION && !switched) objectives.tickEvacuation();
                     if(settlePolicy(timer.getTime())) return;
                 }
-            } else { intents.clear(); combat.restrict(); }
+            } else { intents.clear(); rolls.freeze(); combat.restrict(); }
             var boundary=clock.finish(timer.getTime(),timer.isTimeFrozen());
             if(boundary==EchoRoundClock.Boundary.OPERATIONS_STARTED) {
                 timer.setResetTime(prepared.profile().operationTicks()); timer.reset();
@@ -486,11 +494,12 @@ public final class EchoMatch {
             rows.add(new EchoResultSnapshot.PlayerResult(member.uuid,member.name,member.faction,member.state.life(),
                     member.contract,contracts.succeeded(member.uuid),online!=null&&online.level()==level,wins,member.specialization));
         }
-        result=new EchoResultSnapshot(id,prepared.map().mapId(),outcome,reason,clock.matchTick(),true,rows,rulesHash());
+        result=new EchoResultSnapshot(id,prepared.map().mapId(),outcome,reason,clock.matchTick(),EchoSessions.debug(level),rows,rulesHash());
         clock.settle(); intents.clear();
         SREGameWorldComponent.KEY.get(level).isSkillAvailable=false;
         EchoResultAdapter.apply(level,result);
-        SRE.REPLAY_MANAGER.recordCustomEvent(Component.translatable("echo.result.development",reason));
+        SRE.REPLAY_MANAGER.recordCustomEvent(Component.translatable(result.debug()?"echo.runtime.result_debug":"echo.runtime.result",reason));
+        rolls.cleanup();
         contracts.cleanup();
         try { try { trades.cleanup(); } finally { try { cards.cleanup(); } finally { try { bags.cleanup(); } finally { try { objectives.cleanup(); } finally { combat.cleanup(); } } } } }
         catch(RuntimeException failure) { Noellesroles.LOGGER.error("回声目标清理失败 {}",id,failure); }
@@ -502,7 +511,7 @@ public final class EchoMatch {
         if(!reportSaved) {
             reportSaved=true;
             try { EchoMatchReportStore.save(level.getServer().getWorldPath(LevelResource.ROOT),result); }
-            catch(IOException failure) { Noellesroles.LOGGER.error("回声开发局报告写入失败 {}",id,failure); }
+            catch(IOException failure) { Noellesroles.LOGGER.error("回声对局报告写入失败 {}",id,failure); }
         }
     }
     private void projectPhase() {
