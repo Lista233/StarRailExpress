@@ -19,10 +19,12 @@ import io.wifi.starrailexpress.customitem.CustomItemCooldownKeys;
 import io.wifi.starrailexpress.customitem.CustomItemRuntime;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import org.agmas.noellesroles.init.NRSounds;
+import org.agmas.noellesroles.utils.RoleUtils;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -190,6 +192,11 @@ public final class SceneEventManager {
     /**
      * 破坏任务激活时循环播放 BROKEN_ALARM 警报音效（约每 2 秒一次）。
      * 应在任意一个破坏任务相关 BlockEntity 的 serverTick 中调用。
+     * <p>
+     * 全场播放：与关灯（{@code SREWorldBlackoutComponent#playBlackoutSound}）一致，
+     * 逐玩家发送定位在各自位置的音效包（音量 100）。
+     * 不能改用 {@code level.playSound} 按坐标广播——音量 ≤1 时原版只会把该声音发给
+     * 坐标周围约 16 格内的玩家，离得远的玩家完全听不到，并非全场播放。
      */
     public static void tickSabotageAlarm(ServerLevel level) {
         if (!isSabotageActive(level)) return;
@@ -199,10 +206,8 @@ public final class SceneEventManager {
         if (last != null && now - last < ALARM_INTERVAL) return;
 
         ALARM_LAST_TICK.put(level.dimension(), now);
-        if (!level.players().isEmpty()) {
-            var player = level.players().get(0);
-            level.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    NRSounds.BROKEN_ALARM, SoundSource.MASTER, 0.8F, 1.0F);
+        for (ServerPlayer player : level.players()) {
+            RoleUtils.playSound(player, NRSounds.BROKEN_ALARM, SoundSource.MASTER, 100f, 1f);
         }
     }
 
