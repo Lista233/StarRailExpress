@@ -99,7 +99,7 @@ public final class EchoMapTools {
     public static int mark(CommandSourceStack source,String kind,String id,int minPlayers) throws IOException {
         var state=edit(source); var p=player(source); EchoMapConfig.Vec point;
         if(kind.endsWith("_spawn") || Set.of("spectator","free_safe","evacuation_safe","drop_anchor").contains(kind)) point=new EchoMapConfig.Vec(p.getX(),p.getY(),p.getZ());
-        else { var pos=ray(p); point=new EchoMapConfig.Vec(pos.getX()+0.5,pos.getY()+0.5,pos.getZ()+0.5); }
+        else { var pos=org.agmas.noellesroles.game.modes.echo.content.EchoMachineInteractions.root(p.serverLevel(),ray(p)); point=new EchoMapConfig.Vec(pos.getX()+0.5,pos.getY()+0.5,pos.getZ()+0.5); }
         state.draft().mark(kind,id,state.template(point),p.getYRot(),p.getXRot(),minPlayers);
         source.sendSuccess(() -> Component.translatable("echo.map.changed",kind,id,state.draft().revision()),false); return 1;
     }

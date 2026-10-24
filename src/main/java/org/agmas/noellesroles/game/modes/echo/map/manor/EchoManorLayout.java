@@ -2,6 +2,14 @@ package org.agmas.noellesroles.game.modes.echo.map.manor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorMachines.Cell;
+import org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorMachines.Machine;
+import org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorMachines.Model;
+import org.agmas.noellesroles.game.modes.echo.map.manor.EchoManorMachines.Facing;
 
 /**
  * 回声货运测试地图「回声枢纽」的纯几何布局：只描述方块种类与模式点位，不引用任何 Minecraft 类。
@@ -44,7 +52,7 @@ public final class EchoManorLayout {
         /** 假山岩体 / 苔藓面 / 工业硬地 / 金属平台 / 台地顶面 / 台地挡墙。 */
         ROCK, MOSS, CONCRETE, PLATE, TERRACE, TERRACE_WALL,
         MARKER_CRYSTAL, MARKER_BEACON, MARKER_ALTAR, MARKER_CRATE, MARKER_BLACK_CRATE,
-        MARKER_BLACK_NODE, MARKER_BLACK_DROPOFF, MARKER_BROKER, MARKER_FREE_EXIT, PANEL;
+        MARKER_BLACK_NODE, MARKER_BLACK_DROPOFF, MARKER_BROKER, MARKER_FREE_EXIT, PANEL, MACHINE_PART;
 
         private static final Kind[] VALUES = values();
 
@@ -62,7 +70,7 @@ public final class EchoManorLayout {
     public record Beacon(String id, int x, int z, String region, int minPlayers) { }
     public record Node(String id, int x, int z, int minPlayers) { }
     public record Crate(String id, int x, int z, String quality, boolean repeatable) { }
-    /** 核心入口：控制面板坐标（嵌在墙里）+ 门体半开区间。 */
+    /** 核心入口：门外平台上的控制台根坐标 + 门体半开区间。 */
     public record Door(String id, int panelX, int panelZ, Box volume) { }
     public record Box(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
         public int volume() { return (maxX - minX) * (maxY - minY) * (maxZ - minZ); }
@@ -82,7 +90,8 @@ public final class EchoManorLayout {
                          List<Point> altars, List<Crate> crates, List<Point> blackNodes,
                          List<Point> blackDropoffs, Point brokerExit, Point freeControl, SpawnPoint freeSafe,
                          List<Door> doors, Box coreArea, Point evacControl, Box evacDoor, Box evacZone,
-                         SpawnPoint evacSafe, Point dropAnchor, SpawnPoint spectator, List<Marker> markers) {
+                         SpawnPoint evacSafe, Point dropAnchor, SpawnPoint spectator, List<Marker> markers,
+                         Map<Integer, Cell> machineCells) {
 
         public static int index(int x, int y, int z) { return (y * WIDTH + x) * DEPTH + z; }
 
@@ -92,6 +101,11 @@ public final class EchoManorLayout {
         }
 
         public boolean solid(int x, int y, int z) { return at(x, y, z).solid(); }
+
+        public Cell machineAt(int x, int y, int z) {
+            if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT || z < 0 || z >= DEPTH) return null;
+            return machineCells.get(index(x, y, z));
+        }
     }
 
     // ==================== 构建 ====================
@@ -128,6 +142,8 @@ public final class EchoManorLayout {
         private final List<Point> blackDropoffs = new ArrayList<>();
         private final List<Door> doors = new ArrayList<>();
         private final List<Marker> markers = new ArrayList<>();
+        private final Map<Integer, Cell> machineCells = new HashMap<>();
+        private final Set<Integer> machineSpace = new HashSet<>();
         private Point brokerExit;
         private Point freeControl;
 
@@ -270,8 +286,6 @@ public final class EchoManorLayout {
             fill(92, 92, FEET_Y, 6, 70, 72, Kind.GATE);
             fill(108, 108, FEET_Y, 6, 70, 72, Kind.GATE);
             fill(93, 107, 9, 9, 65, 79, Kind.ROOF_DARK);
-            put(92, 5, 69, Kind.PANEL);
-            put(108, 5, 69, Kind.PANEL);
             for (int[] corner : new int[][]{{94, 66}, {106, 66}, {94, 78}, {106, 78}}) {
                 fill(corner[0], corner[0], FEET_Y, 7, corner[1], corner[1], Kind.PILLAR);
             }
@@ -290,7 +304,7 @@ public final class EchoManorLayout {
             }
         }
 
-        /** 撤离门楼：门朝西，门后是封闭检测区；控制面板嵌在门北侧墙里。 */
+        /** 撤离门楼：门朝西，门后是封闭检测区；控制台独立放在门外平台。 */
         private void evacuationGatehouse() {
             fill(150, 182, GROUND_Y, GROUND_Y, 152, 178, Kind.FLOOR);
             clear(151, 181, FEET_Y, 8, 153, 177);   // 先掏空门楼，防止假山残留
@@ -299,7 +313,6 @@ public final class EchoManorLayout {
             fill(150, 182, FEET_Y, 8, 152, 152, Kind.WALL);
             fill(150, 182, FEET_Y, 8, 178, 178, Kind.WALL);
             fill(150, 150, FEET_Y, 6, 163, 165, Kind.GATE);
-            put(150, 5, 162, Kind.PANEL);
             fill(150, 182, 9, 9, 152, 178, Kind.ROOF);
             fill(152, 180, 10, 10, 154, 176, Kind.ROOF_DARK);
             for (int z : new int[]{156, 160, 168, 172, 176}) put(182, 6, z, Kind.GLASS);
@@ -396,14 +409,60 @@ public final class EchoManorLayout {
 
         // ---------- 点位 ----------
 
-        /** 标记方块：必须踩在基准平面的实心地面上，脚与头两格为空。 */
+        /** 为完整机器与一格宽的整幅正面通道留位；只清理局部装饰，不削穿结构墙。 */
         private void marker(Kind kind, String id, int x, int z) {
-            if (!at(x, GROUND_Y, z).solid())
-                throw new IllegalArgumentException("标记点位下方没有地面: " + id + " " + x + "," + z);
-            if (at(x, FEET_Y, z) != Kind.AIR || at(x, FEET_Y + 1, z) != Kind.AIR)
-                throw new IllegalArgumentException("标记点位被建筑/地形占用: " + id + " " + x + "," + z);
-            put(x, FEET_Y, z, kind);
-            markers.add(new Marker(kind, id, x, FEET_Y, z));
+            Model model = switch (kind) {
+                case MARKER_BEACON -> id.equals("beacon/core") ? Model.CORE_BEACON : Model.BEACON;
+                case MARKER_CRYSTAL -> Model.CRYSTAL;
+                case MARKER_ALTAR -> Model.ALTAR;
+                case MARKER_CRATE -> Model.SUPPLY;
+                case MARKER_BLACK_CRATE -> Model.BLACK_MARKET;
+                case MARKER_BLACK_NODE -> Model.BLACK_NODE;
+                case MARKER_BLACK_DROPOFF -> Model.BLACK_DROPOFF;
+                case MARKER_BROKER -> Model.BROKER_EXIT;
+                case MARKER_FREE_EXIT -> Model.FREE_EXIT;
+                case PANEL -> id.equals("evac/control") ? Model.EVACUATION_CONSOLE : Model.CORE_CONSOLE;
+                default -> throw new IllegalArgumentException("不是机器: " + kind);
+            };
+            Facing facing = id.equals("core/west") || id.equals("evac/control") ? Facing.WEST
+                    : id.equals("core/east") ? Facing.EAST
+                    : id.equals("beacon/outer_b") ? Facing.SOUTH : Facing.NORTH;
+            Marker root = new Marker(kind, id, x, FEET_Y, z);
+            Machine machine = new Machine(root, model, facing);
+            boolean core = model == Model.CORE_BEACON || model == Model.BLACK_MARKET || model == Model.FREE_EXIT;
+            for (int dx = 0; dx < model.width(); dx++) for (int dz = -1; dz < model.depth(); dz++) {
+                int cx = machine.x(dx, dz), cz = machine.z(dx, dz);
+                // 通道也必须与机器位于同一区域，不能借清空占地打穿金库或撤离围墙。
+                if ((cx >= 93 && cx < 108 && cz >= 65 && cz < 80) != core
+                        || (cx >= 150 && cx <= 182 && cz >= 152 && cz <= 178)
+                        || reservedSpawn(cx, cz))
+                    throw new IllegalArgumentException("机器侵入保护区: " + id + " @" + cx + "," + cz);
+                for (int dy = 0; dy < model.height(); dy++) {
+                    int cy = FEET_Y + dy, key = Layout.index(cx, cy, cz);
+                    Kind present = at(cx, cy, cz);
+                    if (present == Kind.WALL || present == Kind.GATE || present.marker()
+                            || present == Kind.MACHINE_PART || (dz >= 0 && machineSpace.contains(key)))
+                        throw new IllegalArgumentException("机器空间冲突: " + id + " @" + cx + "," + cy + "," + cz + " " + present);
+                    machineSpace.add(key);
+                    put(cx, cy, cz, Kind.AIR);
+                }
+                if (!at(cx, GROUND_Y, cz).solid()) put(cx, GROUND_Y, cz, Kind.PLATE);
+            }
+            for (int dy = 0; dy < model.height(); dy++) for (int dz = 0; dz < model.depth(); dz++)
+                for (int dx = 0; dx < model.width(); dx++) {
+                    int part = dx + 3 * dz + 9 * dy;
+                    Cell cell = new Cell(machine, part);
+                    put(cell.x(), cell.y(), cell.z(), part == 0 ? kind : Kind.MACHINE_PART);
+                    machineCells.put(Layout.index(cell.x(), cell.y(), cell.z()), cell);
+                }
+            markers.add(root);
+        }
+
+        private boolean reservedSpawn(int x, int z) {
+            if ((x == 100 && z == 92) || (x == 146 && (z == 163 || z == 170))
+                    || (x == 100 && z == 100)) return true;
+            return java.util.stream.Stream.of(carriers, interceptors, brokers).flatMap(List::stream)
+                    .anyMatch(p -> p.x() == x && p.z() == z);
         }
 
         private void spawnCheck(String what, int x, int z) {
@@ -439,7 +498,7 @@ public final class EchoManorLayout {
             for (int[] p : brokerSpots) broker(p[0], p[1]);
 
             beacons.add(new Beacon("outer_a", 40, 96, "open", 6));
-            beacons.add(new Beacon("core", 100, 70, "core", 6));
+            beacons.add(new Beacon("core", 100, 73, "core", 6));
             beacons.add(new Beacon("outer_b", 152, 120, "open", 8));
             for (Beacon beacon : beacons) marker(Kind.MARKER_BEACON, "beacon/" + beacon.id(), beacon.x(), beacon.z());
 
@@ -463,7 +522,7 @@ public final class EchoManorLayout {
                 crates.add(new Crate(id, commonCrates[n][0], commonCrates[n][1], "COMMON", true));
                 marker(Kind.MARKER_CRATE, "crate/" + id, commonCrates[n][0], commonCrates[n][1]);
             }
-            int[][] blackMarket = {{95, 78}, {105, 78}};
+            int[][] blackMarket = {{95, 78}, {104, 78}};
             for (int n = 0; n < blackMarket.length; n++) {
                 String id = "b" + (n + 1);
                 crates.add(new Crate(id, blackMarket[n][0], blackMarket[n][1], "BLACK_MARKET", false));
@@ -482,16 +541,11 @@ public final class EchoManorLayout {
             freeControl = new Point("service_exit", 100, 68);
             marker(Kind.MARKER_FREE_EXIT, "free/" + freeControl.id(), freeControl.x(), freeControl.z());
 
-            // 控制面板已经作为墙块存在，这里只登记坐标并核对它确实在墙里。
-            doors.add(new Door("west", 92, 69, new Box(92, 4, 70, 93, 7, 73)));
-            doors.add(new Door("east", 108, 69, new Box(108, 4, 70, 109, 7, 73)));
-            for (Door door : doors) {
-                if (!at(door.panelX(), 5, door.panelZ()).solid())
-                    throw new IllegalArgumentException("核心门控制面板不在墙里: " + door.id());
-                markers.add(new Marker(Kind.PANEL, "core/" + door.id(), door.panelX(), 5, door.panelZ()));
-            }
-            if (!at(150, 5, 162).solid()) throw new IllegalArgumentException("撤离门控制面板不在墙里");
-            markers.add(new Marker(Kind.PANEL, "evac/control", 150, 5, 162));
+            // 控制台不再嵌墙：根点、完整占地和正面通道都在门外平台。
+            doors.add(new Door("west", 90, 67, new Box(92, 4, 70, 93, 7, 73)));
+            doors.add(new Door("east", 110, 66, new Box(108, 4, 70, 109, 7, 73)));
+            for (Door door : doors) marker(Kind.PANEL, "core/" + door.id(), door.panelX(), door.panelZ());
+            marker(Kind.PANEL, "evac/control", 148, 160);
         }
 
         private Layout finish() {
@@ -499,10 +553,10 @@ public final class EchoManorLayout {
                     List.copyOf(beacons), List.copyOf(crystals), List.copyOf(altars), List.copyOf(crates),
                     List.copyOf(blackNodes), List.copyOf(blackDropoffs), brokerExit, freeControl,
                     new SpawnPoint(100, 92, 180.0F), List.copyOf(doors), new Box(93, 4, 65, 108, 9, 80),
-                    new Point("evac_control", 150, 162), new Box(150, 4, 163, 151, 7, 166),
+                    new Point("evac_control", 148, 160), new Box(150, 4, 163, 151, 7, 166),
                     new Box(152, 4, 156, 178, 8, 176), new SpawnPoint(146, 163, 270.0F),
                     new Point("exit_drop", 146, 170), new SpawnPoint(100, 100, 180.0F),
-                    List.copyOf(markers));
+                    List.copyOf(markers), Map.copyOf(machineCells));
         }
     }
 }

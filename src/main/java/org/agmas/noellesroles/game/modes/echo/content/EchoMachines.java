@@ -17,7 +17,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 回声托运站机器注册表；外壳只提供视觉标识，不改变既有坐标驱动的玩法。 */
+/** 回声托运站机器注册表；每种机器仅注册一个方块与整机物品，PART 表示真实占格。 */
 public final class EchoMachines {
     public enum Kind {
         BEACON("echo_beacon"),
@@ -76,10 +76,10 @@ public final class EchoMachines {
 
     private static EchoMachineBlock register(Kind kind) {
         EchoMachineBlock block = Registry.register(BuiltInRegistries.BLOCK, kind.id(),
-                new EchoMachineBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
+                new EchoMachineBlock(kind, BlockBehaviour.Properties.of().mapColor(MapColor.METAL)
                         .strength(3.5F, 6.0F).sound(SoundType.METAL).noOcclusion()
                         .pushReaction(PushReaction.BLOCK)));
-        BlockItem item = new BlockItem(block, new Item.Properties());
+        BlockItem item = new EchoMachineItem(block, new Item.Properties());
         item.registerBlocks(Item.BY_BLOCK, item);
         Registry.register(BuiltInRegistries.ITEM, kind.id(), item);
         KINDS.put(block, kind);

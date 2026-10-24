@@ -418,6 +418,11 @@ def loot_table(bid: str) -> dict:
 
 
 def main() -> None:
+    raise SystemExit(
+        "refusing to run: generate_multiblock_models.py owns the echo machine "
+        "blockstates, part models and loot tables. This writer still emits the "
+        "old single-cell variants and would overwrite them."
+    )
     draw_textures()
     for bid, data in build_models().items():
         write_json(BLOCK_MODELS / f"{bid}.json", data)

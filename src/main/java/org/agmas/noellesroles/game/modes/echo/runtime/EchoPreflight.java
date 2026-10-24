@@ -150,6 +150,33 @@ public final class EchoPreflight {
                     || !level.getWorldBorder().isWithinBounds(pos) || (terrain && (!level.hasChunkAt(pos) || level.getBlockState(pos).isAir()))) {
                 errors.add(Component.translatable("echo.error.map_detail","invalid/overlapping objective: "+pos));
             }
+            if(terrain && level.hasChunkAt(pos)) {
+                var state=level.getBlockState(pos);
+                var machine=org.agmas.noellesroles.game.modes.echo.content.EchoMachines.kind(state);
+                if(machine!=null) {
+                    if(state.getValue(org.agmas.noellesroles.game.modes.echo.content.EchoMachineBlock.PART)!=0
+                            || !org.agmas.noellesroles.game.modes.echo.content.EchoMachineStructure.complete(level,pos)) {
+                        errors.add(Component.translatable("echo.machine.tasks.incomplete",pos.toShortString()));
+                        continue;
+                    }
+                    var facing=state.getValue(org.agmas.noellesroles.game.modes.echo.content.EchoMachineBlock.FACING);
+                    boolean core=map.coreArea().contains(point);
+                    for(var cell:org.agmas.noellesroles.game.modes.echo.content.EchoMachineStructure.cells(machine)) {
+                        var part=pos.offset(org.agmas.noellesroles.game.modes.echo.content.EchoMachineStructure.offset(cell.part(),facing));
+                        var center=new EchoMapConfig.Vec(part.getX()+0.5,part.getY()+0.5,part.getZ()+0.5);
+                        boolean gate=map.coreGate().doors().stream().anyMatch(d -> d.volume().contains(center))
+                                || map.evacuation().doorVolume().contains(center);
+                        if((!part.equals(pos) && !occupied.add(part)) || !level.getWorldBorder().isWithinBounds(part)
+                                || !areas.getPlayArea().contains(part.getX(),part.getY(),part.getZ())
+                                || !areas.getPlayArea().contains(part.getX()+0.999,part.getY()+0.999,part.getZ()+0.999)
+                                || map.coreArea().contains(center)!=core
+                                || gate || map.evacuation().zone().contains(center)) {
+                            errors.add(Component.translatable("echo.error.map_detail","invalid/overlapping machine footprint: "+part));
+                            break;
+                        }
+                    }
+                }
+            }
         }
         var anchor=map.evacuation().exitDropAnchor();
         if(!safeSpawn(level,areas,map.coreGate().freeExit().outsideSafe(),terrain) || !safeSpawn(level,areas,map.evacuation().outsideSafe(),terrain)

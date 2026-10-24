@@ -739,6 +739,7 @@ public class NoellesrolesClient implements ClientModInitializer {
             });
         });
         ClientPlayNetworking.registerGlobalReceiver(ScanAllTaskPointsPayload.ID, (payload, context) -> {
+            context.client().execute(() -> {
             Noellesroles.LOGGER.info("Recieved Tasks Points!");
             NoellesrolesClient.taskBlocks.clear();
             var tempArr = payload.taskBlocks();
@@ -750,6 +751,7 @@ public class NoellesrolesClient implements ClientModInitializer {
                     NoellesrolesClient.taskBlocks.put(set.getKey(), set.getValue());
                 }
             }
+            });
         });
         ClientPlayNetworking.registerGlobalReceiver(EnableTaskHighlightPacket.ID, (payload, context) -> {
             final var client = context.client();

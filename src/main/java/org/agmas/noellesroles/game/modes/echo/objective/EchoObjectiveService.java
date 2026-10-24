@@ -25,6 +25,8 @@ import org.agmas.noellesroles.game.modes.echo.inventory.EchoResourceLedger.Locat
 import org.agmas.noellesroles.game.modes.echo.map.EchoMapConfig;
 import org.agmas.noellesroles.game.modes.echo.runtime.EchoMatch;
 import org.agmas.noellesroles.game.modes.echo.state.*;
+import org.agmas.noellesroles.game.modes.echo.content.EchoMachineInteractions;
+import org.agmas.noellesroles.game.modes.echo.content.EchoMachineTasks;
 
 import java.util.*;
 
@@ -49,6 +51,7 @@ public final class EchoObjectiveService {
     private final Map<BlockPos,Target> targets=new HashMap<>();
     private final Map<String,Target> handles=new HashMap<>();
     private final Map<String,EchoBeaconState> beacons=new LinkedHashMap<>();
+    private final Map<UUID,ServerPlayer> taskRecipients=new HashMap<>();
     private final Map<String,Long> nodeReady=new HashMap<>(),crateReady=new HashMap<>();
     private final Map<String,Long> submissionHighlights=new HashMap<>();
     private final Map<UUID,Resource> resources=new HashMap<>();
@@ -93,16 +96,24 @@ public final class EchoObjectiveService {
         for(var d:drops.all()) if(d.kind()==EchoDropService.Kind.BLACK_CRYSTAL && !drops.missing(d) && match.matchTick()<d.expiresAt() && canPickupBlack(player,d.instanceId())) result.put("drop:"+d.dropId(),d.pos());
         return result;
     }
+    /** 只有每台机器的配置主点，不携带库存、契约分配或个人进度。 */
+    public HashMap<BlockPos,Integer> taskPoints() {
+        var points=new HashMap<BlockPos,Integer>();
+        for(var pos:targets.keySet()) points.put(EchoMachineInteractions.root(level,pos),EchoMachineTasks.TYPE);
+        points.put(BlockPos.containing(EchoGateService.vec(map.brokerExit().pos())),EchoMachineTasks.TYPE);
+        points.put(BlockPos.containing(EchoGateService.vec(map.evacuation().controlPos())),EchoMachineTasks.TYPE);
+        return points;
+    }
     public boolean allActive() { return beacons.values().stream().allMatch(EchoBeaconState::active); }
     /** 目标卡只修改既有目标状态；坐标仅用于查找已配置的交互点。 */
     public boolean cardEffect(ServerPlayer player,org.agmas.noellesroles.game.modes.echo.cards.EchoCardDefinition card,Vec3 point) {
         if(match.phase()!=EchoPhase.OPERATIONS) throw new IllegalStateException("WRONG_PHASE");
         if(!Double.isFinite(point.x) || !Double.isFinite(point.y) || !Double.isFinite(point.z)) throw new IllegalStateException("NO_TARGET");
-        Target target=targets.get(BlockPos.containing(point));
+        Target target=targets.get(EchoMachineInteractions.root(level,BlockPos.containing(point)));
         Kind kind=card.target()==org.agmas.noellesroles.game.modes.echo.cards.EchoCardDefinition.Target.BEACON?Kind.BEACON:Kind.CORE;
         if(target==null || target.kind()!=kind) throw new IllegalStateException("NO_TARGET");
         double range=card.params().getOrDefault("range",3D);
-        if(player.getEyePosition().distanceToSqr(target.pos().add(0,0.5,0))>range*range) throw new IllegalStateException("OUT_OF_RANGE");
+        if(player.getEyePosition().distanceToSqr(EchoMachineInteractions.aim(level,target.pos(),player.getEyePosition()))>range*range) throw new IllegalStateException("OUT_OF_RANGE");
         if(!reachable(player,target.pos(),range)) throw new IllegalStateException("NO_LOS");
         long now=match.matchTick();
         if(kind==Kind.CORE) {
@@ -156,7 +167,7 @@ public final class EchoObjectiveService {
     }
     public void grantReward(ServerPlayer player,PackQuality quality,String fact) { reward(player,quality,fact); }
     public void useBlock(ServerPlayer player,BlockPos pos) {
-        Target target=targets.get(pos);
+        Target target=targets.get(EchoMachineInteractions.root(level,pos));
         if(target==null) { cancelActor(player); return; }
         request(player,target);
     }
@@ -172,7 +183,7 @@ public final class EchoObjectiveService {
         if(!eligible(player,target)) { cancelActor(player); refuse(player,target); return; }
         double range=range(player,target);
         if(!reachable(player,target.pos(),range)) {
-            cancelActor(player); data(player).projectInteractionError(player.getEyePosition().distanceToSqr(target.pos().add(0,0.5,0))>range*range?"OUT_OF_RANGE":"NO_LOS",match.matchTick()+40); return;
+            cancelActor(player); data(player).projectInteractionError(player.getEyePosition().distanceToSqr(EchoMachineInteractions.aim(level,target.pos(),player.getEyePosition()))>range*range?"OUT_OF_RANGE":"NO_LOS",match.matchTick()+40); return;
         }
         data(player).projectInteractionError("",0);
         int duration=switch(target.kind()) {
@@ -263,10 +274,7 @@ public final class EchoObjectiveService {
     }
     private double range(Target target) { return target.kind()==Kind.DROP?2:target.kind()==Kind.RESCUE?rules.combat().rescueRange():3; }
     public static boolean reachable(ServerPlayer player,Vec3 point,double range) {
-        Vec3 aim=point.add(0,0.5,0);
-        if(player.getEyePosition().distanceToSqr(aim)>range*range) return false;
-        var hit=player.level().clip(new ClipContext(player.getEyePosition(),aim,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,player));
-        return hit.getType()==HitResult.Type.MISS || hit.getBlockPos().equals(BlockPos.containing(point));
+        return EchoMachineInteractions.reachable(player.level(),player,point,range);
     }
     public void tickOperations() {
         long now=match.matchTick();
@@ -513,11 +521,11 @@ public final class EchoObjectiveService {
         for (var candidate : candidates) {
             BlockPos pos = BlockPos.containing(candidate.pos());
             if (!level.hasChunkAt(pos) || level.getBlockState(pos).isAir()) continue;
-            Vec3 center = Vec3.atCenterOf(pos), delta = center.subtract(eye);
+            Vec3 center = EchoMachineInteractions.aim(level,candidate.pos(),eye), delta = center.subtract(eye);
             if (delta.lengthSqr() > 4.5 * 4.5 || look.dot(delta.normalize()) < 0.25) continue;
             var visible = level.clip(new ClipContext(eye, center, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
-            if (visible.getType() != HitResult.Type.MISS && !visible.getBlockPos().equals(pos)) continue;
-            double score = delta.lengthSqr() - (hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(pos) ? 100 : 0);
+            if (visible.getType() != HitResult.Type.MISS && !EchoMachineInteractions.root(level,visible.getBlockPos()).equals(pos)) continue;
+            double score = delta.lengthSqr() - (hit.getType() == HitResult.Type.BLOCK && EchoMachineInteractions.root(level,hit.getBlockPos()).equals(pos) ? 100 : 0);
             if (score < best) { best = score; selected = candidate; }
         }
         if (selected == null) return null;
@@ -608,6 +616,11 @@ public final class EchoObjectiveService {
         for (var player : match.onlinePlayers()) if (match.present(player))
             net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,
                     new EchoMachinePayload(match.id(), level.dimension().location(), finished ? null : machineHint(player)));
+        // 首次/重连与低频刷新走已有任务点协议，绕过旧地图扫描缓存；结束时显式清空。
+        for(var player:level.players()) if(finished || taskRecipients.put(player.getUUID(),player)!=player || level.getGameTime()%100==0)
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,
+                    new org.agmas.noellesroles.packet.ScanAllTaskPointsPayload(finished?new HashMap<>():taskPoints()));
+        if(finished) taskRecipients.clear();
     }
     private void announce(String key,String detail) {
         Component message=Component.translatable(key,detail);

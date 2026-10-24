@@ -715,6 +715,11 @@ def TEX_DIR() -> Path:
 
 
 def main() -> None:
+    raise SystemExit(
+        "refusing to run: generate_multiblock_models.py owns the echo machine "
+        "blockstates, part models and loot tables. This writer still emits the "
+        "old single-cell variants and would overwrite them."
+    )
     write_models()
     write_textures()
     print(f"wrote {len(IDS)} terminals into {ASSET}")

@@ -170,7 +170,7 @@ public final class EchoEditorService {
         if (kind.endsWith("_spawn") || Set.of("spectator", "free_safe", "evacuation_safe", "drop_anchor").contains(kind)) {
             point = new EchoMapConfig.Vec(player.getX(), player.getY(), player.getZ());
         } else {
-            BlockPos pos = ray(player);
+            BlockPos pos = org.agmas.noellesroles.game.modes.echo.content.EchoMachineInteractions.root(player.serverLevel(),ray(player));
             point = new EchoMapConfig.Vec(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
         }
         state.draft().mark(kind, id, state.template(point), player.getYRot(), player.getXRot(), threshold);
@@ -184,7 +184,7 @@ public final class EchoEditorService {
      */
     private static Msg identify(ServerPlayer player, String requestedId, String minPlayers) throws IOException {
         EchoMapEditState state = edit(player);
-        BlockPos pos = ray(player);
+        BlockPos pos = org.agmas.noellesroles.game.modes.echo.content.EchoMachineInteractions.root(player.serverLevel(),ray(player));
         var machine = EchoMachines.kind(player.serverLevel().getBlockState(pos));
         if (machine == null) {
             return Msg.of("echo.editor.machine.not_machine", pos.toShortString());

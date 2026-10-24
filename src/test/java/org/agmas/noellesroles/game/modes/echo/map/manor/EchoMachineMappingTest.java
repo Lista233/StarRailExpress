@@ -2,6 +2,7 @@ package org.agmas.noellesroles.game.modes.echo.map.manor;
 
 import net.minecraft.core.Direction;
 import org.agmas.noellesroles.game.modes.echo.content.EchoMachines.Kind;
+import org.agmas.noellesroles.game.modes.echo.content.EchoMachineStructure;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -46,7 +47,7 @@ class EchoMachineMappingTest {
                     EchoManorScene.machineKind(layout, beacon.x(), EchoManorLayout.FEET_Y, beacon.z()));
         }
         assertEquals(Kind.EVACUATION_CONSOLE, EchoManorScene.machineKind(layout,
-                layout.evacControl().x(), 5, layout.evacControl().z()));
+                layout.evacControl().x(), EchoManorLayout.FEET_Y, layout.evacControl().z()));
     }
 
     @Test
@@ -62,12 +63,11 @@ class EchoMachineMappingTest {
         // 面板正面必须位于门外，不能朝着封闭金库或撤离检测区；坐标取自布局本身。
         for (var door : layout.doors()) {
             assertEquals(door.panelX() < layout.coreArea().minX() ? Direction.WEST : Direction.EAST,
-                    EchoManorScene.machineFacing(layout, door.panelX(), 5, door.panelZ()), "core/" + door.id());
-            assertEquals(EchoManorLayout.Kind.GATE, layout.at(door.panelX(), EchoManorLayout.FEET_Y, door.panelZ() + 1),
-                    "core/" + door.id() + " 门体不是铁块");
+                    EchoManorScene.machineFacing(layout, door.panelX(), EchoManorLayout.FEET_Y, door.panelZ()), "core/" + door.id());
+            assertTrue(door.panelX() < door.volume().minX() || door.panelX() >= door.volume().maxX());
         }
         assertEquals(Direction.WEST, EchoManorScene.machineFacing(layout,
-                layout.evacControl().x(), 5, layout.evacControl().z()));
+                layout.evacControl().x(), EchoManorLayout.FEET_Y, layout.evacControl().z()));
     }
 
     @Test
@@ -76,17 +76,46 @@ class EchoMachineMappingTest {
         for (int y = 0; y < EchoManorLayout.HEIGHT; y++) {
             for (int x = 0; x < EchoManorLayout.WIDTH; x++) {
                 for (int z = 0; z < EchoManorLayout.DEPTH; z++) {
-                    if (!layout.at(x, y, z).marker()) {
+                    if (!layout.at(x, y, z).marker() && layout.at(x, y, z) != EchoManorLayout.Kind.MACHINE_PART) {
                         assertNull(EchoManorScene.machineKind(layout, x, y, z));
                     }
                 }
             }
         }
-        for (var door : layout.doors()) {
-            assertEquals(EchoManorLayout.Kind.GATE,
-                    layout.at(door.panelX(), EchoManorLayout.FEET_Y, door.panelZ() + 1), "core/" + door.id());
+        var gates = new java.util.ArrayList<>(layout.doors().stream().map(EchoManorLayout.Door::volume).toList());
+        gates.add(layout.evacDoor());
+        for (var gate : gates) for (int x = gate.minX(); x < gate.maxX(); x++)
+            for (int y = gate.minY(); y < gate.maxY(); y++) for (int z = gate.minZ(); z < gate.maxZ(); z++) {
+                assertEquals(EchoManorLayout.Kind.GATE, layout.at(x, y, z));
+                assertNull(EchoManorScene.machineKind(layout, x, y, z));
+            }
+    }
+
+    @Test
+    void pureFootprintsAndEveryPartMatchThePublicStructureContract() {
+        var layout = EchoManorLayout.build();
+        for (var model : EchoManorMachines.Model.values()) {
+            Kind kind = Kind.valueOf(model.name());
+            var size = EchoMachineStructure.size(kind);
+            assertEquals(model.width(), size.width());
+            assertEquals(model.height(), size.height());
+            assertEquals(model.depth(), size.depth());
+            assertEquals(model.width() * model.height() * model.depth(), EchoMachineStructure.cells(kind).size());
+            for (var facing : EchoManorMachines.Facing.values()) {
+                Direction direction = Direction.valueOf(facing.name());
+                for (var cell : EchoMachineStructure.cells(kind)) {
+                    var offset = EchoMachineStructure.offset(cell.part(), direction);
+                    assertEquals(facing.dx(cell.x(), cell.z()), offset.getX());
+                    assertEquals(cell.y(), offset.getY());
+                    assertEquals(facing.dz(cell.x(), cell.z()), offset.getZ());
+                }
+            }
         }
-        assertEquals(EchoManorLayout.Kind.GATE,
-                layout.at(layout.evacControl().x(), EchoManorLayout.FEET_Y, layout.evacControl().z() + 1));
+        for (var cell : layout.machineCells().values()) {
+            assertEquals(Kind.valueOf(cell.machine().model().name()),
+                    EchoManorScene.machineKind(layout, cell.x(), cell.y(), cell.z()));
+            assertEquals(Direction.valueOf(cell.machine().facing().name()),
+                    EchoManorScene.machineFacing(layout, cell.x(), cell.y(), cell.z()));
+        }
     }
 }

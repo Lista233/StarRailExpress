@@ -254,13 +254,16 @@ public final class EchoManorGenerator {
             int x = rest % EchoManorLayout.WIDTH;
             int y = rest / EchoManorLayout.WIDTH;
             BlockPos pos = current.templateOrigin.offset(x, y, z);
-            BlockState desired = EchoManorScene.state(current.layout, x, y, z);
+            BlockState desired = current.layout.machineAt(x,y,z)!=null ? net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()
+                    : EchoManorScene.state(current.layout, x, y, z);
             if (current.level.getBlockState(pos).equals(desired)) continue;
-            current.level.setBlock(pos, desired, EchoManorScene.WRITE_FLAGS);
+            org.agmas.noellesroles.game.modes.echo.content.EchoMachineStructure.mutate(() ->
+                    current.level.setBlock(pos, desired, EchoManorScene.WRITE_FLAGS));
             current.level.getLightEngine().checkBlock(pos);
             current.written++;
         }
         if (current.index < current.total()) return;
+        writeMachines(current,current.templateOrigin,false);
         current.index = 0;
         current.phase = Phase.LOAD_PASTE;
         send(current.source, Component.translatable("echo.manor.built", current.written));
@@ -274,19 +277,42 @@ public final class EchoManorGenerator {
             int rest = n / EchoManorLayout.DEPTH;
             int x = rest % EchoManorLayout.WIDTH;
             int y = rest / EchoManorLayout.WIDTH;
-            BlockPos from = current.templateOrigin.offset(x, y, z);
-            BlockState state = current.level.getBlockState(from);
+            // 预览、模板与实战区使用同一映射（包括所有 PART），不从可能被编辑的半成品反读。
+            BlockState state = current.layout.machineAt(x,y,z)!=null ? net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()
+                    : EchoManorScene.state(current.layout, x, y, z);
             BlockPos to = current.pasteOrigin.offset(x, y, z);
             if (current.level.getBlockState(to).equals(state)) continue;
-            current.level.setBlock(to, state, EchoManorScene.WRITE_FLAGS);
+            org.agmas.noellesroles.game.modes.echo.content.EchoMachineStructure.mutate(() ->
+                    current.level.setBlock(to, state, EchoManorScene.WRITE_FLAGS));
             current.level.getLightEngine().checkBlock(to);
             current.pasted++;
         }
         if (current.index < current.total()) return;
+        writeMachines(current,current.pasteOrigin,true);
         current.index = 0;
         current.phase = Phase.CONFIGURE;
         ejectPlayers(current);
         send(current.source, Component.translatable("echo.manor.pasted", current.pasted));
+    }
+
+    /** 地形全部完成后同步写齐机器，既不连拆旧结构，也不让分帧半成品被定时自检清理。 */
+    private static void writeMachines(Job current,BlockPos origin,boolean paste) {
+        org.agmas.noellesroles.game.modes.echo.content.EchoMachineStructure.mutate(() -> {
+            for(var marker:current.layout.markers()) {
+                var kind=EchoManorScene.machineKind(current.layout,marker.x(),marker.y(),marker.z());
+                var facing=EchoManorScene.machineFacing(current.layout,marker.x(),marker.y(),marker.z());
+                for(var cell:org.agmas.noellesroles.game.modes.echo.content.EchoMachineStructure.cells(kind)) {
+                    var offset=org.agmas.noellesroles.game.modes.echo.content.EchoMachineStructure.offset(cell.part(),facing);
+                    int x=marker.x()+offset.getX(),y=marker.y()+offset.getY(),z=marker.z()+offset.getZ();
+                    var pos=origin.offset(x,y,z);
+                    var desired=EchoManorScene.state(current.layout,x,y,z);
+                    if(current.level.getBlockState(pos).equals(desired)) continue;
+                    current.level.setBlock(pos,desired,EchoManorScene.WRITE_FLAGS);
+                    current.level.getLightEngine().checkBlock(pos);
+                    if(paste) current.pasted++; else current.written++;
+                }
+            }
+        });
     }
     /** 粘贴可能把方块写进站在实战区里的玩家；先把他们抬到地图正中上方，避免被埋。 */
     private static void ejectPlayers(Job current) {

@@ -107,12 +107,13 @@ class EchoManorLayoutTest {
         }
         assertEquals(List.of(), problems);
 
-        // 每个标记方块都必须真的落在脚层或墙里，并且标记 id 唯一。
+        // 每个标记方块都是脚层的 part=0；部件绝不能增加目标点数量。
         Set<String> ids = new HashSet<>();
         for (Marker marker : layout.markers()) {
             assertTrue(marker.kind().marker(), marker.id());
             assertTrue(ids.add(marker.id()), "重复标记 id: " + marker.id());
-            assertTrue(marker.y() == EchoManorLayout.FEET_Y || marker.kind() == Kind.PANEL, marker.id());
+            assertEquals(EchoManorLayout.FEET_Y, marker.y(), marker.id());
+            assertEquals(0, layout.machineAt(marker.x(), marker.y(), marker.z()).part(), marker.id());
         }
         assertEquals(points.size(), layout.markers().size());
     }
@@ -182,6 +183,73 @@ class EchoManorLayoutTest {
         assertArrayEquals(EchoManorLayout.build().cells(), EchoManorLayout.build().cells());
     }
 
+    @Test
+    void everyMachineHasACompleteUniqueSolidFootprintAndClearFront() {
+        Layout layout = EchoManorLayout.build();
+        Set<Integer> occupied = new HashSet<>();
+        assertEquals(33, layout.markers().size());
+        assertEquals(404, layout.machineCells().size());
+        for (Marker root : layout.markers()) {
+            var machine = layout.machineAt(root.x(), root.y(), root.z()).machine();
+            Set<Integer> parts = new HashSet<>();
+            int roots = 0;
+            boolean core = machine.model() == EchoManorMachines.Model.CORE_BEACON
+                    || machine.model() == EchoManorMachines.Model.BLACK_MARKET
+                    || machine.model() == EchoManorMachines.Model.FREE_EXIT;
+            for (int y = 0; y < machine.model().height(); y++)
+                for (int z = 0; z < machine.model().depth(); z++) for (int x = 0; x < machine.model().width(); x++) {
+                    int cx = machine.x(x, z), cy = root.y() + y, cz = machine.z(x, z);
+                    var cell = layout.machineAt(cx, cy, cz);
+                    assertNotNull(cell, root.id());
+                    assertEquals(machine, cell.machine(), root.id());
+                    assertEquals(x + 3 * z + 9 * y, cell.part(), root.id());
+                    assertTrue(parts.add(cell.part()), root.id());
+                    assertTrue(occupied.add(Layout.index(cx, cy, cz)), root.id());
+                    assertTrue(layout.solid(cx, cy, cz), root.id());
+                    assertEquals(core, layout.coreArea().contains(cx + 0.5, cy + 0.5, cz + 0.5), root.id());
+                    assertFalse(layout.evacZone().contains(cx + 0.5, cy + 0.5, cz + 0.5), root.id());
+                    assertFalse(layout.evacDoor().contains(cx + 0.5, cy + 0.5, cz + 0.5), root.id());
+                    for (Door door : layout.doors()) assertFalse(door.volume().contains(cx + 0.5, cy + 0.5, cz + 0.5), root.id());
+                    if (cell.part() == 0) {
+                        roots++;
+                        assertEquals(root.kind(), layout.at(cx, cy, cz), root.id());
+                    } else {
+                        assertEquals(Kind.MACHINE_PART, layout.at(cx, cy, cz), root.id());
+                        assertFalse(layout.at(cx, cy, cz).marker(), root.id());
+                    }
+                }
+            assertEquals(1, roots, root.id());
+            for (int x = 0; x < machine.model().width(); x++) {
+                int cx = machine.x(x, -1), cz = machine.z(x, -1);
+                assertTrue(layout.solid(cx, root.y() - 1, cz), root.id());
+                assertFalse(layout.solid(cx, root.y(), cz), root.id());
+                assertFalse(layout.solid(cx, root.y() + 1, cz), root.id());
+            }
+        }
+        assertEquals(layout.machineCells().keySet(), occupied);
+        // 单元表不能漏掉任何被画成机器的格子，也不能将普通场景误列为机器。
+        for (int y = 0; y < EchoManorLayout.HEIGHT; y++) for (int x = 0; x < EchoManorLayout.WIDTH; x++)
+            for (int z = 0; z < EchoManorLayout.DEPTH; z++)
+                assertEquals(layout.at(x, y, z).marker() || layout.at(x, y, z) == Kind.MACHINE_PART,
+                        layout.machineAt(x, y, z) != null);
+    }
+
+    @Test
+    void safePointsAndCoreBoundaryRemainUntouched() {
+        Layout layout = EchoManorLayout.build();
+        for (var safe : List.of(layout.freeSafe(), layout.evacSafe())) {
+            assertTrue(layout.solid(safe.x(), EchoManorLayout.GROUND_Y, safe.z()));
+            assertFalse(layout.solid(safe.x(), EchoManorLayout.FEET_Y, safe.z()));
+            assertFalse(layout.solid(safe.x(), EchoManorLayout.FEET_Y + 1, safe.z()));
+        }
+        assertFalse(layout.solid(layout.dropAnchor().x(), EchoManorLayout.FEET_Y, layout.dropAnchor().z()));
+        for (int y = 4; y <= 8; y++) for (int x = 92; x <= 108; x++) for (int z = 64; z <= 80; z++) {
+            if (x != 92 && x != 108 && z != 64 && z != 80) continue;
+            assertTrue(layout.solid(x, y, z), "核心边界缺口 " + x + "," + y + "," + z);
+            assertNull(layout.machineAt(x, y, z));
+        }
+    }
+
     // ==================== 测试用步行图 ====================
 
     private record Goal(String id, int x, int y, int z, boolean exact) { }
@@ -196,10 +264,10 @@ class EchoManorLayoutTest {
                 .forEach(c -> goals.add(new Goal("crate/" + c.id(), c.x(), EchoManorLayout.FEET_Y, c.z(), false)));
         layout.blackNodes().forEach(n -> goals.add(new Goal("black/" + n.id(), n.x(), EchoManorLayout.FEET_Y, n.z(), false)));
         layout.blackDropoffs().forEach(d -> goals.add(new Goal("drop/" + d.id(), d.x(), EchoManorLayout.FEET_Y, d.z(), false)));
-        layout.doors().forEach(d -> goals.add(new Goal("core/" + d.id(), d.panelX(), 5, d.panelZ(), false)));
+        layout.doors().forEach(d -> goals.add(new Goal("core/" + d.id(), d.panelX(), EchoManorLayout.FEET_Y, d.panelZ(), false)));
         goals.add(new Goal("free_safe", layout.freeSafe().x(), EchoManorLayout.FEET_Y, layout.freeSafe().z(), true));
         goals.add(new Goal("evac_safe", layout.evacSafe().x(), EchoManorLayout.FEET_Y, layout.evacSafe().z(), true));
-        goals.add(new Goal("evac_control", layout.evacControl().x(), 5, layout.evacControl().z(), false));
+        goals.add(new Goal("evac_control", layout.evacControl().x(), EchoManorLayout.FEET_Y, layout.evacControl().z(), false));
         goals.add(new Goal("broker_exit", layout.brokerExit().x(), EchoManorLayout.FEET_Y, layout.brokerExit().z(), false));
         for (int n = 0; n < layout.carriers().size(); n++)
             goals.add(new Goal("carrier/" + n, layout.carriers().get(n).x(), EchoManorLayout.FEET_Y, layout.carriers().get(n).z(), true));

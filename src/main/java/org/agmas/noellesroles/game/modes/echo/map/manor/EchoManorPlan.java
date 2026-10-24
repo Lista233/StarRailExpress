@@ -50,6 +50,13 @@ public final class EchoManorPlan {
                 base.x() + box.maxX(), base.y() + box.maxY(), base.z() + box.maxZ());
     }
 
+    /** 控制台高度与真实 part=0 同源，不能继续沿用旧嵌墙面板的 y=5。 */
+    private static EchoMapConfig.Vec machineRoot(Base base, Layout layout, int x, int z) {
+        var cell = layout.machineAt(x, EchoManorLayout.FEET_Y, z);
+        if (cell == null || cell.part() != 0) throw new IllegalArgumentException("缺少机器根点: " + x + "," + z);
+        return vecAt(base, x, cell.machine().root().y(), z);
+    }
+
     /** 生成侧文件配置；调用方负责再跑 {@link #validate} 与落盘。 */
     public static EchoMapConfig toConfig(Layout layout, String mapId, Base base) throws IOException {
         EchoMapDraft draft = EchoMapDraft.empty(mapId);
@@ -77,12 +84,12 @@ public final class EchoManorPlan {
         draft.mark("broker_exit", layout.brokerExit().id(), vec(base, layout.brokerExit().x(), layout.brokerExit().z()), 0.0F, 0.0F, 6);
         draft.mark("free_control", layout.freeControl().id(), vec(base, layout.freeControl().x(), layout.freeControl().z()), 0.0F, 0.0F, 6);
         draft.mark("free_safe", "free_safe", feet(base, layout.freeSafe()), layout.freeSafe().yaw(), 0.0F, 6);
-        draft.mark("evacuation_control", layout.evacControl().id(), vecAt(base, layout.evacControl().x(), 5, layout.evacControl().z()), 0.0F, 0.0F, 6);
+        draft.mark("evacuation_control", layout.evacControl().id(), machineRoot(base, layout, layout.evacControl().x(), layout.evacControl().z()), 0.0F, 0.0F, 6);
         draft.mark("evacuation_safe", "evacuation_safe", feet(base, layout.evacSafe()), layout.evacSafe().yaw(), 0.0F, 6);
         draft.mark("drop_anchor", "drop_anchor", vec(base, layout.dropAnchor().x(), layout.dropAnchor().z()), 0.0F, 0.0F, 6);
 
         for (Door door : layout.doors()) {
-            draft.mark("core_control", door.id(), vecAt(base, door.panelX(), 5, door.panelZ()), 0.0F, 0.0F, 6);
+            draft.mark("core_control", door.id(), machineRoot(base, layout, door.panelX(), door.panelZ()), 0.0F, 0.0F, 6);
             draft.volume("core_door", door.id(), box(base, door.volume()));
         }
         draft.volume("core_area", "main", box(base, layout.coreArea()));
