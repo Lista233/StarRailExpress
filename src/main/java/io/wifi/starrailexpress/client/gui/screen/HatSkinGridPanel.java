@@ -74,6 +74,7 @@ public class HatSkinGridPanel extends AbstractWidget {
     private static final int SCROLL_THUMB_HL = 0xAAD4AF37;
 
     private final SREPlayerSkinsComponent skinsComponent;
+    private final String skinType;
     private final Consumer<String> onHatSelected;
     private final List<HatCard> cards = new ArrayList<>();
 
@@ -91,8 +92,15 @@ public class HatSkinGridPanel extends AbstractWidget {
 
     public HatSkinGridPanel(int x, int y, int width, int height,
             SREPlayerSkinsComponent skinsComponent, Consumer<String> onHatSelected, String searchFilter) {
+        this(x, y, width, height, skinsComponent, "hat", onHatSelected, searchFilter);
+    }
+
+    public HatSkinGridPanel(int x, int y, int width, int height,
+            SREPlayerSkinsComponent skinsComponent, String skinType,
+            Consumer<String> onHatSelected, String searchFilter) {
         super(x, y, width, height, Component.empty());
         this.skinsComponent = skinsComponent;
+        this.skinType = skinType == null || skinType.isBlank() ? "hat" : skinType;
         this.onHatSelected = onHatSelected;
         rebuild(searchFilter);
     }
@@ -104,11 +112,11 @@ public class HatSkinGridPanel extends AbstractWidget {
 
     public final void rebuild(String filter) {
         cards.clear();
-        this.equippedHat = skinsComponent.getEquippedSkin("hat");
+        this.equippedHat = skinsComponent.getEquippedSkin(skinType);
 
         cards.add(new HatCard("default", null, 0xFF9AA0AA, true));
 
-        Map<String, ItemSkinManager.Skin> hatSkins = ItemSkinManager.getSkins("hat");
+        Map<String, ItemSkinManager.Skin> hatSkins = ItemSkinManager.getSkins(skinType);
         List<Map.Entry<String, ItemSkinManager.Skin>> sorted = new ArrayList<>(hatSkins.entrySet());
         sorted.sort(Comparator
                 .comparing((Map.Entry<String, ItemSkinManager.Skin> e) -> !isUnlocked(e.getKey()))
@@ -118,9 +126,11 @@ public class HatSkinGridPanel extends AbstractWidget {
             if ("default".equals(name)) {
                 continue;
             }
+            Item fallback = "hat".equals(skinType) ? Items.LEATHER_HELMET : Items.LEATHER;
+            String namespace = "hat".equals(skinType) ? HAT_ITEM_NAMESPACE : "sre_cosmetics";
             Item item = BuiltInRegistries.ITEM
-                    .getOptional(ResourceLocation.fromNamespaceAndPath(HAT_ITEM_NAMESPACE, name))
-                    .orElse(Items.LEATHER_HELMET);
+                    .getOptional(ResourceLocation.fromNamespaceAndPath(namespace, name))
+                    .orElse(fallback);
             int color = entry.getValue() != null ? entry.getValue().getColor() : 0xFFFFFFFF;
             cards.add(new HatCard(name, new ItemStack(item), color, isUnlocked(name)));
         }
@@ -138,7 +148,7 @@ public class HatSkinGridPanel extends AbstractWidget {
     }
 
     private boolean isUnlocked(String skinName) {
-        return "default".equals(skinName) || skinsComponent.isSkinUnlockedForItemType("hat", skinName);
+        return "default".equals(skinName) || skinsComponent.isSkinUnlockedForItemType(skinType, skinName);
     }
 
     private int columns() {
@@ -374,10 +384,15 @@ public class HatSkinGridPanel extends AbstractWidget {
 
         Component displayName() {
             if ("default".equals(skinName)) {
-                return Component.translatable("screen.sre.skins.no_hat");
+                String noneKey = switch (skinType) {
+                    case "backpack" -> "screen.sre.skins.no_backpack";
+                    case "hand_accessory" -> "screen.sre.skins.no_hand";
+                    default -> "screen.sre.skins.no_hat";
+                };
+                return Component.translatable(noneKey);
             }
             return Component.translatableWithFallback(
-                    "screen.sre.skins.hat." + skinName.toLowerCase(java.util.Locale.ROOT) + ".name",
+                    "screen.sre.skins." + skinType + "." + skinName.toLowerCase(java.util.Locale.ROOT) + ".name",
                     formatName(skinName));
         }
 

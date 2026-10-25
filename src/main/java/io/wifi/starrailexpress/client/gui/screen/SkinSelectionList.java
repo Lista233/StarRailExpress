@@ -70,7 +70,7 @@ public class SkinSelectionList extends ObjectSelectionList<SkinSelectionList.Ski
     private static final int TEXT_LOCKED = 0xFF5A5340;
 
     private boolean draggingScrollbar = false;
-    private final String searchFilter;
+    private String searchFilter;
 
     /** Suffix appended when a string is truncated. */
     private static final String ELLIPSIS = "...";
@@ -87,10 +87,15 @@ public class SkinSelectionList extends ObjectSelectionList<SkinSelectionList.Ski
         this.itemTypeName = getItemTypeName(itemType);
         this.skinsComponent = skinsComponent;
         this.onSkinSelected = onSkinSelected;
-        this.searchFilter = searchFilter != null ? searchFilter.toLowerCase() : "";
-
+        this.searchFilter = searchFilter != null ? searchFilter.toLowerCase(java.util.Locale.ROOT) : "";
         collectAvailableSkins();
+        rebuild(this.searchFilter);
+    }
 
+    /** 按关键词重筛已收集的皮肤，不重建控件，搜索框可以保持焦点。 */
+    public void rebuild(String filter) {
+        this.searchFilter = filter != null ? filter.toLowerCase(java.util.Locale.ROOT) : "";
+        clearEntries();
         for (String skinName : availableSkins) {
             this.addEntry(new SkinEntry(skinName));
         }
@@ -109,12 +114,10 @@ public class SkinSelectionList extends ObjectSelectionList<SkinSelectionList.Ski
             return 0;
         });
         this.children().addFirst(new SkinEntry("default"));
-
-        // 搜索过滤
         if (!this.searchFilter.isEmpty()) {
             this.children().removeIf(e -> {
                 if ("default".equals(e.skinName)) return false;
-                return !e.skinName.toLowerCase().contains(this.searchFilter);
+                return !e.skinName.toLowerCase(java.util.Locale.ROOT).contains(this.searchFilter);
             });
         }
     }
@@ -240,11 +243,8 @@ public class SkinSelectionList extends ObjectSelectionList<SkinSelectionList.Ski
     }
 
     public void refresh() {
-        this.clearEntries();
         collectAvailableSkins();
-        for (String skinName : availableSkins) {
-            this.addEntry(new SkinEntry(skinName));
-        }
+        rebuild(this.searchFilter);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════
