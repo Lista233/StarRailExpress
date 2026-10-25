@@ -82,9 +82,14 @@ public class BoomManiacRole extends NormalRole {
 
     /** 飞行时间 3 的小型球状烟花火箭（参考网警商店的烟花构造）。 */
     public static ItemStack createBoomFirework() {
+        return createBoomFirework(FireworkExplosion.Shape.SMALL_BALL);
+    }
+
+    /** 指定形状的烟花火箭（飞行时间 3，白色，参考网警商店的烟花构造）。 */
+    public static ItemStack createBoomFirework(FireworkExplosion.Shape shape) {
         ItemStack rocket = Items.FIREWORK_ROCKET.getDefaultInstance();
         rocket.set(DataComponents.FIREWORKS, new Fireworks(FIREWORK_FLIGHT, List.of(
-                new FireworkExplosion(FireworkExplosion.Shape.SMALL_BALL,
+                new FireworkExplosion(shape,
                         new IntArrayList(new int[] { 0xFFFFFF }),
                         new IntArrayList(), false, false))));
         return rocket;
