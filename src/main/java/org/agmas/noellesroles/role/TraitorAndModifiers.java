@@ -53,6 +53,7 @@ import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.component.DeathPenaltyComponent;
 import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.packet.BroadcastMessageS2CPacket;
+import org.agmas.noellesroles.role.touhou.THLostForestRoles;
 import org.agmas.noellesroles.role.touhou.THMiscRoles;
 import org.agmas.noellesroles.utils.RoleUtils;
 import pro.fazeclan.river.stupid_express.constants.SEModifiers;
@@ -283,8 +284,8 @@ public class TraitorAndModifiers {
 
     // ==================== 初始化方法 ====================
     public static void init() {
-        // 起义军修饰符排除巫毒师职业
-        REBEL.cannotBeAppliedTo = new HashSet<>(List.of(ModRoles.VOODOO));
+        // 起义军修饰符排除巫毒师职业与藤原妹红
+        REBEL.cannotBeAppliedTo = new HashSet<>(List.of(ModRoles.VOODOO, THLostForestRoles.MOKOU));
 
         // 侏儒与体型类/双子修饰符互斥（与 TINY/TALL 共用同一套互斥机制）
         DWARF.addTwoWayOpposingModifier(SEModifiers.TINY, SEModifiers.TALL, SEModifiers.TWIN_CHILDREN);
@@ -334,12 +335,13 @@ public class TraitorAndModifiers {
                 player.getAttribute(Attributes.GRAVITY).addPermanentModifier(ANTI_NEWTON_GRAVITY_MODIFIER);
             }
 
-            // === 起义军 - 仅在平民阵营时生效，且不给巫毒师 ===
+            // === 起义军 - 仅在平民阵营时生效，且不给巫毒师与藤原妹红 ===
             if (modifier.equals(REBEL)) {
                 SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(player.level());
                 if (gameWorld != null && gameWorld.isRunning()) {
-                    // 巫毒师不获得起义军修饰符；起义军只对平民阵营生效（RoleTeam 权威判定）
+                    // 巫毒师、藤原妹红不获得起义军修饰符；起义军只对平民阵营生效（RoleTeam 权威判定）
                     if (gameWorld.getRole(player) == ModRoles.VOODOO
+                            || gameWorld.getRole(player) == THLostForestRoles.MOKOU
                             || !isCivilianTeam(gameWorld, player)) {
                         worldModifierComponent.removeModifier(player.getUUID(), REBEL);
                     }

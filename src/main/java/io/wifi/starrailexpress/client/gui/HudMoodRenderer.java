@@ -61,13 +61,25 @@ public class HudMoodRenderer {
     // 预计算的颜色常量
     private static final int KILLER_BAR_COLOR = Mth.hsvToRgb(0F, 1.0F, 0.6F);
     private static final int PSYCHO_COLOR = Mth.hsvToRgb(0F, 1.0F, 0.5F);
+    /**
+     * 心情条的固定长度（像素）。
+     * <p>
+     * 心情条长度曾绑定任务文本宽度（{@code moodTextWidth - 8}），导致任务名短时心情条很短、
+     * 任务名长时心情条很长。现改为固定长度，心情值只决定填充比例。
+     * <p>
+     * 取值推导（按原公式 {@code moodTextWidth - 8}，以「吃东西」任务为基准）：
+     * 任务文本 = 前缀 + 任务名，即「你可以假装去」+「吃零食」=「你可以假装去吃零食」，共 9 个汉字；
+     * Minecraft 汉字（unihex 16px 字形）宽度为 9px/字，故 moodTextWidth = 9 × 9 = 81，
+     * 心情条全长 = 81 - 8 = 73。
+     * （平民侧前缀「你感觉想去」为 8 个汉字，对应长度为 8 × 9 - 8 = 64，取较长者 73。）
+     */
+    public static final float MOOD_BAR_WIDTH = 73f;
     public static Random random = new Random();
     public static float arrowProgress = 1f;
     public static float moodRender = 0f;
     /** 心情条填充比例（= mood / 心情上限，夹取到 0~1），默认上限 1.0 时与 moodRender 等价。 */
     public static float moodRatio = 0f;
     public static float moodOffset = 0f;
-    public static float moodTextWidth = 0f;
     public static float moodAlpha = 0f;
     private static int hudBottom = 6;
 
@@ -144,7 +156,6 @@ public class HudMoodRenderer {
         
         if (maxRenderer != null) {
             moodOffset = Mth.lerp(delta / 8, moodOffset, maxRenderer.offset);
-            moodTextWidth = Mth.lerp(delta / 8, moodTextWidth, textRenderer.width(maxRenderer.text));
         }
 
         SRERole role = gameWorldComponent.getRole(player);
@@ -275,7 +286,7 @@ public class HudMoodRenderer {
         context.pose().pushPose();
         context.pose().translate(0, 10 * moodOffset, 0);
         context.pose().translate(26, 8 + textRenderer.lineHeight, 0);
-        context.pose().scale((moodTextWidth - 8) * moodRatio, 1, 1);
+        context.pose().scale(MOOD_BAR_WIDTH * moodRender, 1, 1);
         // 使用传入的 color 参数，保留原有的 alpha 计算逻辑
         int finalColor = (color & 0x00FFFFFF) | ((int) (moodAlpha * 255) << 24);
         context.fill(0, 0, 1, 1, finalColor);
@@ -296,7 +307,7 @@ public class HudMoodRenderer {
         context.pose().pushPose();
         context.pose().translate(0, 10 * moodOffset, 0);
         context.pose().translate(26, 8 + textRenderer.lineHeight, 0);
-        context.pose().scale((moodTextWidth - 8) * moodRatio, 1, 1);
+        context.pose().scale(MOOD_BAR_WIDTH * moodRender, 1, 1);
         // 使用传入的 color 参数，如果 color 为 0 或默认值则回退到 KILLER_BAR_COLOR，保留原有的 alpha 计算逻辑
         int baseColor = color != 0 ? color : KILLER_BAR_COLOR;
         int finalColor = (baseColor & 0x00FFFFFF) | ((int) (moodAlpha * 255) << 24);

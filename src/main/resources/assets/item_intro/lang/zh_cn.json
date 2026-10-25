@@ -68,7 +68,7 @@
   "item.noellesroles.diving_boots.desc": "潜水靴子，穿戴时获得深海探索者3。",
   "item.noellesroles.fake_knife.desc": "假刀，外观像真刀，可以举起，但无法造成击杀。",
   "item.noellesroles.sp_knife.desc": "退伍军人职业的专属匕首。",
-  "item.noellesroles.yinyang_sword.desc": "黑白的武器。左键：黑白粒子突进6格击杀。右键：前摇1秒释放4格AOE击杀。",
+  "item.noellesroles.yinyang_sword.desc": "黑白的武器。Q键：突进6格。右键：前摇1秒后释放4格AOE击杀。",
   "item.noellesroles.fake_revolver.desc": "假枪，外观像真枪，只能射击五次，且无法造成任何击杀。",
   "item.noellesroles.fake_bat.desc": "假球棒，外观像真球棒但无法造成伤害。",
   "item.noellesroles.fake_psycho_mode.desc": "假疯狂模式，用于迷惑他人，魔术师职业专属。",
