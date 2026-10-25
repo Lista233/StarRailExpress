@@ -42,6 +42,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemCooldowns;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.FireworkExplosion;
 import net.minecraft.world.level.Level;
 import org.agmas.harpymodloader.Harpymodloader;
 import org.agmas.harpymodloader.component.WorldModifierComponent;
@@ -56,6 +57,7 @@ import org.agmas.noellesroles.role_data.killer.StalkerRoleData;
 import org.agmas.noellesroles.role_data.killer.TrapperRoleData;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
+import org.agmas.noellesroles.game.roles.killer.boom_maniac.BoomManiacRole;
 import org.agmas.noellesroles.role.TraitorAndModifiers;
 import org.agmas.noellesroles.role.bouns.BounsRoles;
 import org.agmas.noellesroles.role.touhou.THRedHouseRoles;
@@ -957,8 +959,10 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
         } else if (role == ModRoles.TARTAGLIA) {
             player.addItem(new ItemStack(Items.ARROW, 64));
         } else if (role == ModRoles.BOOM_MANIAC) {
-            player.addItem(new ItemStack(Items.FIREWORK_ROCKET, 64));
-            player.addItem(new ItemStack(Items.FIREWORK_ROCKET, 64));
+            ItemStack rocket = BoomManiacRole.createBoomFirework(FireworkExplosion.Shape.LARGE_BALL);
+            rocket.setCount(64);
+            player.addItem(rocket);
+            player.addItem(rocket.copy());
         } else if (role == BounsRoles.PROGRAMMER) {
             player.addItem(new ItemStack(FunnyItems.TERMINAL, 4));
         }
