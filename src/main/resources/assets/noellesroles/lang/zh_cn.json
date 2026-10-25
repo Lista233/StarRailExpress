@@ -845,7 +845,7 @@
   "item.noellesroles.fake_knife": "假刀",
   "item.noellesroles.monokuma_revolver": "左轮手枪",
   "item.noellesroles.yinyang_sword": "阴阳剑",
-  "item.noellesroles.yinyang_sword.tooltip": "右键蓄力1秒释放4格AOE击杀\n左键冲刺6格击杀",
+  "item.noellesroles.yinyang_sword.tooltip": "右键蓄力1秒释放4格AOE击杀\nQ键冲刺6格",
   "mob_effect.noellesroles.monokuma_frenzy": "黑白狂暴",
   "item.noellesroles.boxing_glove": "拳套",
   "item.noellesroles.boxing_glove.tooltip": "蓄力0.4秒后攻击，命中使目标眩晕并封印物品1.5秒",
