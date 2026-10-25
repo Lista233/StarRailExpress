@@ -48,6 +48,10 @@ import net.minecraft.sounds.SoundSource;
  * <li>玩家当前装配的 {@link ItemSkinManager.SkinTypes#MUSIC_BOX} 皮肤在 {@link MusicBoxTracks} 里登记过曲目。</li>
  * </ul>
  *
+ * <p>结算音效不走本类的循环播放，而是由 {@code RoundTextRenderer} 通过
+ * {@link #equippedSettlementSound(boolean)} 取用：音乐盒登记了结算成功 / 失败音效就替换默认钢琴音，
+ * 否则（含没装配音乐盒）走默认结算音效。</p>
+ *
  * <p>做法与 {@code CommandBlockAmbientSound} / {@code OutsideSoundManager} 一致：用
  * {@link MyBackgroundAmbientLoop} 的播放谓词控制启停，音效挂在本地玩家身上、AMBIENT 声源、
  * relative 定位，因此无论玩家在地图哪里都以同样的小音量听到。曲线切换时旧曲淡出、新曲淡入。</p>
@@ -103,6 +107,26 @@ public final class MusicBoxAmbientSound {
             CURRENT.set(null);
             playingSkin = null;
         });
+    }
+
+    /**
+     * 玩家装配的音乐盒在对局结算时该放的音效（替换默认的结算钢琴音）。
+     * <p>只依赖「自己装配的音乐盒」：没装配音乐盒、或该音乐盒没有登记对应结算音效时返回
+     * {@code null}，调用方据此回落到默认结算音效。</p>
+     *
+     * @param win 本局是否胜利
+     * @return 结算音效；没有可替换的音效时返回 {@code null}
+     */
+    public static SoundEvent equippedSettlementSound(boolean win) {
+        Minecraft client = Minecraft.getInstance();
+        String skin = equippedMusicBox(client);
+        if (skin == null || "default".equalsIgnoreCase(skin)) {
+            return null;
+        }
+        ResourceLocation soundId = win
+                ? MusicBoxTracks.getWinSound(skin)
+                : MusicBoxTracks.getLoseSound(skin);
+        return soundId == null ? null : SoundEvent.createVariableRangeEvent(soundId);
     }
 
     /** 当前该播放哪首曲目对应的音乐盒皮肤；返回 {@code null} 表示不该播放。 */
