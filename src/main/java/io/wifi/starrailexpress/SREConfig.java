@@ -44,8 +44,6 @@ public class SREConfig implements ConfigData {
     public int defaultStartTimeForMurder = 10;
 
     @ConfigEntry.Category(value = "gamemodes")
-    public boolean enableRepairMode = false;
-    @ConfigEntry.Category(value = "gamemodes")
     public boolean enableNoLimitLoversInLoverMode = false;
     @ConfigEntry.Category(value = "gamemodes")
     @Tooltip

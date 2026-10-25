@@ -69,6 +69,7 @@ import org.agmas.noellesroles.role_data.innocence.SaltedFishRoleData;
 import org.agmas.noellesroles.role_data.killer.BloodFeudistRoleData;
 import org.agmas.noellesroles.role_data.killer.DIORoleData;
 import org.agmas.noellesroles.role_data.killer.DelayerRoleData;
+import org.agmas.noellesroles.role_data.killer.EmbalmerRoleData;
 import org.agmas.noellesroles.role_data.killer.MaChenXuRoleData;
 import org.agmas.noellesroles.game.roles.killer.manipulator.InControlCCA;
 import org.agmas.noellesroles.role_data.innocence.BuilderRoleData;
@@ -78,6 +79,7 @@ import org.agmas.noellesroles.role_data.vigilante.MagicApprenticeRoleData;
 import org.agmas.noellesroles.role_data.innocence.FortunetellerRoleData;
 import org.agmas.noellesroles.role_data.neutral.AmonRoleData;
 import org.agmas.noellesroles.role_data.neutral.CandleBearerRoleData;
+import org.agmas.noellesroles.role_data.neutral.DaywalkerRoleData;
 import org.agmas.noellesroles.role_data.neutral.CuckooRoleData;
 import org.agmas.noellesroles.role_data.neutral.EchoListenerRoleData;
 import org.agmas.noellesroles.role_data.neutral.RecorderRoleData;
@@ -419,6 +421,37 @@ public class ModRolesInitialEventRegister {
         // 技能 1「命运的启示」(G)：近距离查看准星目标最近 3 次杀人方式
         // 技能 2「重启」(潜行+技能键)：随机死因死亡脱离，回房间 + 短暂无敌
         // 网警技能：将主手物品收进副手；副手原有物品必须放入快捷栏才能完成交换。
+        // 嬉命人：两个技能（G 键发动当前技能，V 键在技能间切换）
+        // 技能一「变身派对」：全场玩家互相交换皮肤并随机改变音调（冷却由统一技能系统管理，HUD 统一展示）
+        // 技能二「调色盘」：8 格球形范围内所有玩家与玩家尸体各染一层随机 RGB，持续 3 分钟
+        RoleSkill.register(ModRoles.EMBALMER,
+                RoleSkill.skill(SRE.id("embalmer_masquerade"),
+                        "skill.noellesroles.embalmer.masquerade",
+                        context -> {
+                            ServerPlayer player = context.player();
+                            if (player.isSpectator() || !GameUtils.isPlayerAliveAndSurvival(player)) {
+                                return false;
+                            }
+                            return EmbalmerRoleData.triggerMasquerade(player);
+                        }).cooldownTicks(EmbalmerRoleData.MASQUERADE_COOLDOWN).showOnHud(true).announceToSelf(false).build(),
+                RoleSkill.skill(SRE.id("embalmer_palette"),
+                        "skill.noellesroles.embalmer.palette",
+                        context -> {
+                            ServerPlayer player = context.player();
+                            if (player.isSpectator() || !GameUtils.isPlayerAliveAndSurvival(player)) {
+                                return false;
+                            }
+                            return org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerPaletteManager
+                                    .activate(player);
+                        }).cooldownSeconds(60).showOnHud(true).announceToSelf(false).build());
+
+        // 嬉命人两个功能的服务端管理器（语音互换 / 调色盘）
+        org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerVoiceSwapManager.register();
+        org.agmas.noellesroles.game.roles.killer.embalmer.EmbalmerPaletteManager.register();
+
+        // 反重力方块：接触翻转重力方向（服务端权威 + 客户端同步）
+        org.agmas.noellesroles.content.effects.GravityFlipManager.register();
+
         RoleSkill.register(ModRoles.NET_COP,
                 RoleSkill.skill(SRE.id("net_cop_swap_hands"),
                         "skill.noellesroles.net_cop.swap_hands",
@@ -1037,6 +1070,19 @@ public class ModRolesInitialEventRegister {
                         return false;
                     return comp.useAbility();
                 }).build());
+
+        // 逐日者技能注册：释放逐日时刻（消耗所有逐日时刻使局内时间快进对应数值）
+        // 冷却（150秒）与逐日时刻数值由 DaywalkerRoleData 内部管理，HUD 由 DaywalkerHud 自绘
+        RoleSkill.register(ModRoles.DAYWALKER, RoleSkill.skill(
+                SRE.id("daywalker_release_moments"),
+                "skill.noellesroles.daywalker.release_moments",
+                context -> {
+                    ServerPlayer player = context.player();
+                    var comp = RoleData.getNullable(DaywalkerRoleData.class, player);
+                    if (comp == null)
+                        return false;
+                    return comp.useSkill();
+                }).announceToSelf(false).build());
 
         // 破魔师技能注册：沉默50格外非杀手玩家，冷却130秒
         RoleSkill.register(ModRoles.SPELLBREAKER, RoleSkill.skill(
