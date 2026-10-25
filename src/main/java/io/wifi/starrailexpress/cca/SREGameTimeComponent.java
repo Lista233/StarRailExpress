@@ -35,7 +35,12 @@ public class SREGameTimeComponent implements AutoSyncedComponent, CommonTickingC
     /** 游戏开始（计时器启动）时的世界 gameTime，用于「开局冷却」基准，不受击杀加时影响。 */
     public long startWorldTick = 0;
     public boolean timeFrozen = false;
-    public boolean levelGameTimeFrozen = false;
+    /**
+     * 危险操作，所以改为private保留
+     * 
+     * @param frozen
+     */
+    protected boolean levelGameTimeFrozen = false;
     protected long tickCount = 0;
 
     public SREGameTimeComponent(Level world) {
@@ -63,11 +68,25 @@ public class SREGameTimeComponent implements AutoSyncedComponent, CommonTickingC
         return this.startWorldTick;
     }
 
-    public void setLevelGameTimeFrozen(boolean frozen) {
+    /**
+     * 危险操作，所以改为protected作为内部类保留
+     * 
+     * @param frozen
+     */
+    protected void setLevelGameTimeFrozen(boolean frozen) {
         setLevelGameTimeFrozen(frozen, true);
     }
 
-    public void setLevelGameTimeFrozen(boolean frozen, boolean sync) {
+    public boolean isLevelGameTimeFrozen(){
+        return levelGameTimeFrozen;
+    }
+
+    /**
+     * 危险操作，所以改为private保留
+     * 
+     * @param frozen
+     */
+    private void setLevelGameTimeFrozen(boolean frozen, boolean sync) {
         levelGameTimeFrozen = frozen;
         if (sync)
             sync();

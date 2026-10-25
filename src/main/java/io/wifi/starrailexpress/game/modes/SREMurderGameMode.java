@@ -889,7 +889,7 @@ public class SREMurderGameMode extends GameMode {
 
     private static boolean shouldPausePassiveMoneyGiven(ServerLevel serverWorld) {
         var cca = SREGameTimeComponent.KEY.get(serverWorld);
-        return cca.levelGameTimeFrozen || serverWorld.tickRateManager().isFrozen();
+        return cca.isTimeFrozen();
     }
 
     public GameUtils.WinStatus allowGameEnd(ServerLevel serverWorld, GameUtils.WinStatus winStatus,

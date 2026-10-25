@@ -343,7 +343,7 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
 
     /** 被动金币：让商店经济在 10 分钟的短局内同样可运转 */
     private void tickPassiveMoney(ServerLevel serverWorld, SREGameWorldComponent gameWorldComponent) {
-        if (SREGameTimeComponent.KEY.get(serverWorld).levelGameTimeFrozen) {
+        if (SREGameTimeComponent.KEY.get(serverWorld).isTimeFrozen()) {
             return;
         }
         int balanceToAdd = GameConstants.getPassiveMoneyTicker().apply(serverWorld.getGameTime());
