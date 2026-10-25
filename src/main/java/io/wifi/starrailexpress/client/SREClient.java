@@ -215,6 +215,8 @@ public class SREClient implements ClientModInitializer {
     public static boolean hasCustomSkinLoaderAndNeedToWarn = false;
     public static HPManager handParticleManager;
     public static Map<Player, Vec3> particleMap;
+    /** 副手单独一份枪口位置，避免副手的枪覆盖主手记录。 */
+    public static Map<Player, Vec3> offhandParticleMap;
     public static Map<UUID, OptionalInt> cachedHighLightMap = new ConcurrentHashMap<>();
     private static boolean previousMyTurn = false;
     private static boolean prevGameRunning;
@@ -337,6 +339,7 @@ public class SREClient implements ClientModInitializer {
         // Initialize ScreenParticle
         handParticleManager = new HPManager();
         particleMap = new HashMap<>();
+        offhandParticleMap = new HashMap<>();
         // Custom Baked Models
         ModelLoadingPlugin.register(new GeneralModelLoadingPlugin());
         // 自定义列车物品「模型地址」指向的模型（资源包里没被引用的模型默认不会烘焙）
