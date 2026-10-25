@@ -173,6 +173,8 @@ public class ItemSkinManager {
         public static final String BAT = "bat";
         public static final String GRENADE = "grenade";
         public static final String HAT = "hat";
+        /** 音乐盒：装配后在对局中循环播放对应曲目，曲目表见 {@link MusicBoxTracks}。 */
+        public static final String MUSIC_BOX = "music_box";
     }
 
     protected static final HashMap<String, HashMap<String, Skin>> skinMap = new HashMap<>();
@@ -197,7 +199,9 @@ public class ItemSkinManager {
 
     static {
         // 初始化皮肤类型ID映射（顺序固定，确保服务端和客户端一致）
-        String[] typeOrder = { SkinTypes.KNIFE, SkinTypes.REVOLVER, SkinTypes.BAT, SkinTypes.GRENADE, SkinTypes.HAT };
+        // 新增类型只能追加到末尾，否则会打乱已同步的整数 ID
+        String[] typeOrder = { SkinTypes.KNIFE, SkinTypes.REVOLVER, SkinTypes.BAT, SkinTypes.GRENADE, SkinTypes.HAT,
+                SkinTypes.MUSIC_BOX };
         for (int i = 0; i < typeOrder.length; i++) {
             registerType(typeOrder[i]);
         }

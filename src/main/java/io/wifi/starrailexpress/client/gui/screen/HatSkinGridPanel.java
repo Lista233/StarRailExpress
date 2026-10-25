@@ -126,11 +126,7 @@ public class HatSkinGridPanel extends AbstractWidget {
             if ("default".equals(name)) {
                 continue;
             }
-            Item fallback = "hat".equals(skinType) ? Items.LEATHER_HELMET : Items.LEATHER;
-            String namespace = "hat".equals(skinType) ? HAT_ITEM_NAMESPACE : "sre_cosmetics";
-            Item item = BuiltInRegistries.ITEM
-                    .getOptional(ResourceLocation.fromNamespaceAndPath(namespace, name))
-                    .orElse(fallback);
+            Item item = iconFor(name);
             int color = entry.getValue() != null ? entry.getValue().getColor() : 0xFFFFFFFF;
             cards.add(new HatCard(name, new ItemStack(item), color, isUnlocked(name)));
         }
@@ -149,6 +145,21 @@ public class HatSkinGridPanel extends AbstractWidget {
 
     private boolean isUnlocked(String skinName) {
         return "default".equals(skinName) || skinsComponent.isSkinUnlockedForItemType(skinType, skinName);
+    }
+
+    /**
+     * 卡片图标：帽子 / 饰品用各自模组注册的物品，
+     * 音乐盒没有对应物品，统一用唱片机图标。
+     */
+    private Item iconFor(String skinName) {
+        if (ItemSkinManager.SkinTypes.MUSIC_BOX.equals(skinType)) {
+            return Items.JUKEBOX;
+        }
+        String namespace = "hat".equals(skinType) ? HAT_ITEM_NAMESPACE : "sre_cosmetics";
+        Item fallback = "hat".equals(skinType) ? Items.LEATHER_HELMET : Items.LEATHER;
+        return BuiltInRegistries.ITEM
+                .getOptional(ResourceLocation.fromNamespaceAndPath(namespace, skinName))
+                .orElse(fallback);
     }
 
     private int columns() {
@@ -254,7 +265,10 @@ public class HatSkinGridPanel extends AbstractWidget {
         graphics.fill(getX(), getY() + height - 1, getX() + width, getY() + height, PANEL_BORDER);
 
         if (cards.size() <= 1) {
-            Component hint = Component.translatable("screen.sre.skins.hat_empty");
+            String emptyKey = ItemSkinManager.SkinTypes.MUSIC_BOX.equals(skinType)
+                    ? "screen.sre.skins.music_box_empty"
+                    : "screen.sre.skins.hat_empty";
+            Component hint = Component.translatable(emptyKey);
             graphics.drawCenteredString(Minecraft.getInstance().font, hint,
                     getX() + width / 2, getY() + height / 2 - 4, TEXT_EMPTY);
         }
@@ -387,6 +401,7 @@ public class HatSkinGridPanel extends AbstractWidget {
                 String noneKey = switch (skinType) {
                     case "backpack" -> "screen.sre.skins.no_backpack";
                     case "hand_accessory" -> "screen.sre.skins.no_hand";
+                    case "music_box" -> "screen.sre.skins.no_music_box";
                     default -> "screen.sre.skins.no_hat";
                 };
                 return Component.translatable(noneKey);

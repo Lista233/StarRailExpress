@@ -516,6 +516,8 @@ public class SREClient implements ClientModInitializer {
         // ───── 场景背景音效系统 ─────
         // 列车内部（看不到天空时，仅 train 类型生效）
         OutsideSoundManager.registerEvents();
+        // 音乐盒：装配后在地图无背景音、非命令方块事件局时循环播放
+        MusicBoxAmbientSound.register();
 
         // Caching components
         ClientTickEvents.START_WORLD_TICK.register(clientWorld -> {

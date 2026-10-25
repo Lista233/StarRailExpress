@@ -89,8 +89,13 @@ public class SkinManagementScreen extends Screen {
             return "backpack".equals(id) || "hand_accessory".equals(id);
         }
 
+        /** 音乐盒同样只是一组可装配的皮肤，复用卡片网格。 */
+        boolean isMusicBoxTab() {
+            return ItemSkinManager.SkinTypes.MUSIC_BOX.equals(id);
+        }
+
         boolean isGridTab() {
-            return isHatTab() || isAccessoryTab();
+            return isHatTab() || isAccessoryTab() || isMusicBoxTab();
         }
 
         boolean isNameTagTab() {
@@ -220,6 +225,11 @@ public class SkinManagementScreen extends Screen {
                 Component.translatable("screen.sre.skins.hat_title"), Items.LEATHER_HELMET));
         addAccessoryTab("backpack", "screen.sre.skins.backpack", Items.LEATHER_CHESTPLATE);
         addAccessoryTab("hand_accessory", "screen.sre.skins.hand_accessory", Items.LEATHER);
+        // 音乐盒标签（曲目由内容模组注册，没有音乐盒皮肤时不显示）
+        if (ItemSkinManager.getSkins().containsKey(ItemSkinManager.SkinTypes.MUSIC_BOX)) {
+            categories.add(new CategoryTabData(ItemSkinManager.SkinTypes.MUSIC_BOX,
+                    Component.translatable("screen.sre.skins.music_box_title"), Items.JUKEBOX));
+        }
         // 名片（称号）标签
         categories.add(new CategoryTabData("name_tag",
                 Component.translatable("screen.sre.skins.name_tag_title"), Items.NAME_TAG));
@@ -674,6 +684,10 @@ public class SkinManagementScreen extends Screen {
             return ItemStack.EMPTY;
         }
         CategoryTabData selectedTab = categories.get(selectedCategory);
+        if (selectedTab.isMusicBoxTab()) {
+            // 音乐盒不是手持物品，预览里不摆道具
+            return ItemStack.EMPTY;
+        }
         if (selectedTab.isGridTab() || selectedTab.isNameTagTab()) {
         }
         ItemStack preview = new ItemStack(selectedTab.iconItem);
