@@ -42,11 +42,14 @@ import net.minecraft.sounds.SoundSource;
  * 播放条件（每次 tick 重新判定，任一不满足即淡出停止）：
  * <ul>
  * <li>对局进行中（状态为 {@code INITIATING} / {@code ACTIVE}，进入结算即停声）；</li>
- * <li>地图配置未启用背景音（{@code AreasSettings#haveOutsideSound} 为 false）；</li>
  * <li>当局不是命令方块事件局（{@link CommandBlockProgressClient#isShowing()} 为 false，
  * 该局背景音由 {@code CommandBlockAmbientSound} 负责）；</li>
  * <li>玩家当前装配的 {@link ItemSkinManager.SkinTypes#MUSIC_BOX} 皮肤在 {@link MusicBoxTracks} 里登记过曲目。</li>
  * </ul>
+ *
+ * <p>音乐盒优先于地图自带背景音：音乐盒一旦开始播放，{@code OutsideSoundManager} 会让位静音
+ * （见 {@link #overridesSceneSound()}），地图背景音淡出、卸下音乐盒后自动恢复。
+ * 命令方块事件局例外——那一局由事件音乐负责，音乐盒不播、地图背景音保持原样。</p>
  *
  * <p>结算音效不走本类的循环播放，而是由 {@code RoundTextRenderer} 通过
  * {@link #equippedSettlementSound(boolean)} 取用：音乐盒登记了结算成功 / 失败音效就替换默认钢琴音，
@@ -110,6 +113,15 @@ public final class MusicBoxAmbientSound {
     }
 
     /**
+     * 当前是否由音乐盒接管场景背景音。
+     * <p>装配了带对局音效的音乐盒、且对局正在进行（非命令方块事件局）时为 {@code true}，
+     * 此时地图自带的背景音（{@code OutsideSoundManager}）应静音让位。</p>
+     */
+    public static boolean overridesSceneSound() {
+        return playingMusicBox(Minecraft.getInstance()) != null;
+    }
+
+    /**
      * 玩家装配的音乐盒在对局结算时该放的音效（替换默认的结算钢琴音）。
      * <p>只依赖「自己装配的音乐盒」：没装配音乐盒、或该音乐盒没有登记对应结算音效时返回
      * {@code null}，调用方据此回落到默认结算音效。</p>
@@ -141,7 +153,7 @@ public final class MusicBoxAmbientSound {
         return skin.toLowerCase(Locale.ROOT);
     }
 
-    /** 播放条件：对局进行中、地图无背景音、非命令方块事件局。 */
+    /** 播放条件：对局进行中、非命令方块事件局（地图自带背景音会让位给音乐盒）。 */
     private static boolean shouldPlay(Minecraft client) {
         if (client.player == null || client.level == null) {
             return false;
@@ -152,11 +164,7 @@ public final class MusicBoxAmbientSound {
         if (SREClient.areaComponent == null || SREClient.areaComponent.areasSettings == null) {
             return false;
         }
-        // 地图已经配置了背景音时让位给场景背景音
-        if (SREClient.areaComponent.areasSettings.haveOutsideSound) {
-            return false;
-        }
-        // 命令方块事件局有自己的环境音
+        // 命令方块事件局有自己的环境音，音乐盒让位
         return !CommandBlockProgressClient.isShowing();
     }
 
