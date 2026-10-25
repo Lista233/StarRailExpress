@@ -533,9 +533,9 @@ public class SREMurderGameMode extends GameMode {
 
         // ===== 领袖特判 =====
         // 领袖需要一个「能被它招募」的职业作为追随者，即：
-        //   1) 非杀手方中立（type 2，排除 isInnocent / canUseKiller / 亡命徒 / 假史蒂夫 / 非教父的 mafia 家族）；
-        //   2) 其中「好人方中立」（isNeutralForInnocent）只有失忆患者(amnesiac)与初学者(initiate)可被招募，
-        //      其余好人方中立职业一律不可。
+        // 1) 非杀手方中立（type 2，排除 isInnocent / canUseKiller / 亡命徒 / 假史蒂夫 / 非教父的 mafia 家族）；
+        // 2) 其中「好人方中立」（isNeutralForInnocent）只有失忆患者(amnesiac)与初学者(initiate)可被招募，
+        // 其余好人方中立职业一律不可。
         // 若本次抽选出的中立职业中，除领袖外没有任何可招募对象，说明本局领袖必然空放技能，
         // 将其从池中移除，并补抽等量的中立职业（排除领袖），保证中立名额数量不变。
         long leaderDrawn = assignedNatures.stream()
@@ -781,8 +781,7 @@ public class SREMurderGameMode extends GameMode {
         boolean civilianAlive = false;
         boolean killerAlive = false;
         boolean anyAlive = false;
-        // 时停（tickRateManager 冻结）期间 getGameTime 不再推进，若恰好落在发放节拍上会每 tick 重复发钱，故一并拦截
-        if (!SREGameTimeComponent.KEY.get(serverWorld).isTimeFrozen()) {
+        if (!shouldPausePassiveMoneyGiven(serverWorld)) {
             for (ServerPlayer player : serverWorld.players()) {
                 // passive money
                 if (gameWorldComponent.canAutoAddMoney(player)) {
@@ -882,6 +881,11 @@ public class SREMurderGameMode extends GameMode {
                     winStatus);
             GameUtils.stopGame(serverWorld);
         }
+    }
+
+    private static boolean shouldPausePassiveMoneyGiven(ServerLevel serverWorld) {
+        var cca = SREGameTimeComponent.KEY.get(serverWorld);
+        return cca.isTimeFrozen();
     }
 
     public GameUtils.WinStatus allowGameEnd(ServerLevel serverWorld, GameUtils.WinStatus winStatus,
