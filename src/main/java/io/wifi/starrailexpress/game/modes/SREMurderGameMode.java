@@ -781,7 +781,8 @@ public class SREMurderGameMode extends GameMode {
         boolean civilianAlive = false;
         boolean killerAlive = false;
         boolean anyAlive = false;
-        if (!SREGameTimeComponent.KEY.get(serverWorld).levelGameTimeFrozen) {
+        // 时停（tickRateManager 冻结）期间 getGameTime 不再推进，若恰好落在发放节拍上会每 tick 重复发钱，故一并拦截
+        if (!SREGameTimeComponent.KEY.get(serverWorld).isTimeFrozen()) {
             for (ServerPlayer player : serverWorld.players()) {
                 // passive money
                 if (gameWorldComponent.canAutoAddMoney(player)) {
