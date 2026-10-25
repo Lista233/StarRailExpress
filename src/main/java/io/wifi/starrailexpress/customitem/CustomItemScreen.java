@@ -837,6 +837,8 @@ public class CustomItemScreen extends CustomEditorScreen {
             config.saveToDefaultPath();
             CustomItemLoader.reloadClient();
             CustomItemRenderer.clearCache();
+            // 刚填的「模型地址」还没被烘焙过：自动重载一次资源（等价于 F3+T）把它烘焙上
+            io.wifi.starrailexpress.client.model.CustomItemModelPlugin.rebakeIfNeeded();
         } catch (Exception ignored) {
         }
         var server = minecraft.getSingleplayerServer();

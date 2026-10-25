@@ -16,6 +16,7 @@
 package org.agmas.noellesroles.handler.utils;
 
 import org.agmas.noellesroles.commands.BroadcastCommand;
+import org.agmas.noellesroles.component.DefibrillatorComponent;
 import org.agmas.noellesroles.role.bouns.BounsRoles;
 import org.agmas.noellesroles.role.bouns.roles.BeeFamilyRole;
 import org.agmas.noellesroles.role_data.neutral.BeeFamilyRoleData;
@@ -40,6 +41,7 @@ import io.wifi.starrailexpress.event.OnPlayerDeathWithKiller;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.game.GameUtils.WinStatus;
+import io.wifi.starrailexpress.game.modes.funny.SREThreeWayWarGameMode;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.minecraft.ChatFormatting;
@@ -228,6 +230,11 @@ public class BeeFamilyManager {
                     }
                     MoneyUtils.addToBalance(player, -BeeFamilyManager.BEE_QUEEN_SELECT_QUEEN_PRICE);
                     roledata.markSuccessor(marktargetplayer.getUUID());
+                    // 继承人将在蜂后死亡时被复活：其尸体在那之前不可被他人交互/复活
+                    PlayerBodyEntity markedBody = DefibrillatorComponent.findPlayerBodyEntity(marktargetplayer);
+                    if (markedBody != null) {
+                        markedBody.setNonInteractable(true);
+                    }
                     return true;
                 }).noCastCCA(true)
                         .withTarget()
@@ -267,6 +274,14 @@ public class BeeFamilyManager {
                                 .withStyle(ChatFormatting.RED),
                         true);
                 return InteractionResult.PASS;
+            }
+            // 主人即将被复活的尸体不可交互
+            if (PlayerBodyEntityComponent.KEY.get(body).nonInteractable) {
+                player.displayClientMessage(
+                        Component.translatable("message.noellesroles.corpse.pending_revive")
+                                .withStyle(ChatFormatting.RED),
+                        true);
+                return InteractionResult.CONSUME;
             }
             if (!gameWorldComponent.isSkillAvailable) {
                 // 技能不可用
@@ -339,6 +354,12 @@ public class BeeFamilyManager {
             RoleUtils.changeRole(revived, selectedRole);
             GameUtils.revivePlayer(revived, body.getX(), body.getY(), body.getZ());
             body.discard(); // like it never existed
+
+            // 三方会战专属：蜂后复活出的工蜂资金减少 70%
+            if (selectedRole == BounsRoles.BEE_WORKER && SREThreeWayWarGameMode.isActive(level)) {
+                SREPlayerShopComponent shop = SREPlayerShopComponent.KEY.get(revived);
+                shop.setBalance((int) (shop.balance * SREThreeWayWarGameMode.BEE_WORKER_REVIVE_MONEY_KEEP));
+            }
 
             RoleUtils.sendWelcomeAnnouncement(revived);
             if (!(beforeRole instanceof BeeFamilyRole))

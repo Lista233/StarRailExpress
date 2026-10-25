@@ -22,7 +22,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Player;
 import org.agmas.noellesroles.packet.MafiaActionC2SPacket;
 import org.agmas.noellesroles.role.ModRoles;
 import io.wifi.starrailexpress.api.TMMRoles;
@@ -30,12 +29,17 @@ import io.wifi.starrailexpress.api.TMMRoles;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 public class GodfatherRecruitScreen extends Screen {
     private final List<SRERole> familyRoles = new ArrayList<>();
 
-    public GodfatherRecruitScreen() {
+    /** 打开 UI 时瞄准到的招募目标（技能键按下时锁定，点击按钮时招募他）。 */
+    private final UUID target;
+
+    public GodfatherRecruitScreen(UUID target) {
         super(Component.translatable("screen.noellesroles.godfather.recruit"));
+        this.target = target;
     }
 
     @Override
@@ -85,8 +89,10 @@ public class GodfatherRecruitScreen extends Screen {
 
     private void sendRecruit(String rolePath) {
         Minecraft client = Minecraft.getInstance();
-        if (client.crosshairPickEntity instanceof Player target && client.player != null) {
-            ClientPlayNetworking.send(new MafiaActionC2SPacket(MafiaActionC2SPacket.RECRUIT_ROLE, target.getUUID(), rolePath));
+        // 使用打开 UI 时锁定的目标：招募范围远超原版准星拾取距离，
+        // 点击时再按准星重选会把范围内瞄准到的人漏掉
+        if (target != null && client.player != null) {
+            ClientPlayNetworking.send(new MafiaActionC2SPacket(MafiaActionC2SPacket.RECRUIT_ROLE, target, rolePath));
         }
         onClose();
     }

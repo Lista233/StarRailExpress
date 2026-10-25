@@ -19,6 +19,7 @@ import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.cca.*;
 import io.wifi.starrailexpress.compat.TrainVoicePlugin;
+import io.wifi.starrailexpress.content.entity.PlayerBodyEntity;
 import io.wifi.starrailexpress.event.OnPlayerDeathWithKiller;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.index.TMMItems;
@@ -55,6 +56,13 @@ public record PlayerStatsBeforeRefugee(Vec3 pos, int money, ListTag inventory, V
                     refugeeComponent.addPendingRevival(victim.getUUID(), pos.x(), pos.y() + 1, pos.z());
                 } else {
                     refugeeComponent.addPendingRevival(victim.getUUID(), victim.getX(), victim.getY(), victim.getZ());
+                }
+                // 亡命徒倒计时结束后该玩家会被复活：其尸体在复活前不可被他人交互
+                if (victim instanceof ServerPlayer serverVictim) {
+                    PlayerBodyEntity body = GameUtils.findPlayerBodyEntity(serverVictim);
+                    if (body != null) {
+                        body.setNonInteractable(true);
+                    }
                 }
             }
         });

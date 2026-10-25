@@ -19,16 +19,25 @@ import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.RoleComponent;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import io.wifi.starrailexpress.content.item.CocktailItem;
 import io.wifi.starrailexpress.game.GameConstants;
 import net.minecraft.core.HolderLookup.Provider;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.HoneyBottleItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.PotionItem;
+import net.minecraft.world.item.UseAnim;
 
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.role.touhou.roles.THUtsuhoRole;
+import pro.fazeclan.river.stupid_express.constants.SEItems;
 import org.ladysnake.cca.api.v3.component.ComponentKey;
 import org.ladysnake.cca.api.v3.component.ComponentRegistry;
 import org.ladysnake.cca.api.v3.component.tick.ClientTickingComponent;
@@ -41,9 +50,44 @@ public class FoodDrinkGlowComponent implements RoleComponent, ServerTickingCompo
     //
     public static final ComponentKey<FoodDrinkGlowComponent> KEY = ComponentRegistry.getOrCreate(
             Noellesroles.id("food_drink"), FoodDrinkGlowComponent.class);
+
+    /** 饮料标签：数据包 / 其它模组把自家的饮品加进这个标签，就会被当成「喝东西」处理。 */
+    private static final TagKey<Item> DRINK_TAG = TagKey.create(Registries.ITEM,
+            ResourceLocation.fromNamespaceAndPath(Noellesroles.MOD_ID, "food_drink"));
+
     private final Player player;
     // 玩家 | 类型
     public HashMap<String, Integer> pendingSenders = new HashMap<>();
+
+    /**
+     * 全项目唯一的「这玩意儿是不是饮料」判定。
+     * <p>
+     * 以前每一处都自己写 {@code instanceof CocktailItem || instanceof PotionItem || instanceof HoneyBottleItem}，
+     * 于是只要不是本模组注册的饮品（其它模组的饮料、牛奶桶、自定义饮品……）就一律被当成「吃」，
+     * 走 {@link #playerEat} 而不是 {@link #playerDrink}，核能地狱鸦的辐射怎么喝都清不掉。
+     * 现在统一按三条规则判定，任一满足即视为饮料：
+     * <ol>
+     * <li>本模组的 {@link CocktailItem}（含子类）；</li>
+     * <li>原版 {@link HoneyBottleItem} / {@link PotionItem}——显式判定，不依赖使用动画；</li>
+     * <li>使用原版 {@link UseAnim#DRINK} 饮用动画的其它物品（牛奶桶 / 其它模组的饮品）；</li>
+     * <li>{@code noellesroles:food_drink} 或 {@code stupid_express:drinks} 标签内的物品。</li>
+     * </ol>
+     */
+    public static boolean isDrink(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        if (stack.getItem() instanceof CocktailItem) {
+            return true;
+        }
+        if (stack.getItem() instanceof HoneyBottleItem || stack.getItem() instanceof PotionItem) {
+            return true;
+        }
+        if (stack.getUseAnimation() == UseAnim.DRINK) {
+            return true;
+        }
+        return stack.is(DRINK_TAG) || stack.is(SEItems.DRINKS);
+    }
 
     /**
      * 0: Drink

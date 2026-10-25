@@ -15,11 +15,12 @@
 
 package org.agmas.noellesroles.content.item;
 
-import io.wifi.starrailexpress.cca.SREAbilityPlayerComponent;
 import io.wifi.starrailexpress.cca.SREPlayerMoodComponent;
 import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
 import io.wifi.starrailexpress.cca.SREPlayerTaskComponent;
 import io.wifi.starrailexpress.cca.SREPlayerTaskComponent.TrainTask;
+import io.wifi.starrailexpress.customitem.CustomItemCooldownKeys;
+import io.wifi.starrailexpress.customitem.CustomItemRuntime;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -39,12 +40,17 @@ import org.agmas.noellesroles.ModDataComponentTypes;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.scene.SceneTaskManager;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
 public class ChefFoodItem extends Item {
+    /** 「减少物品冷却」效果的上限：至多减少 3 秒 */
+    private static final int MAX_COOLDOWN_REDUCE_SECONDS = 3;
+    private static final int MAX_COOLDOWN_REDUCE_TICKS = MAX_COOLDOWN_REDUCE_SECONDS * 20;
+
     private static Properties __warp_init(Properties properties) {
         var tag = new CompoundTag();
         var listTag = new ListTag();
@@ -75,7 +81,10 @@ public class ChefFoodItem extends Item {
                 for (Map.Entry<Integer, Float> entry : effects.entrySet()) {
                     int type = entry.getKey();
                     float duration = Math.min(entry.getValue(), 120f);
-                    int seconds = (int) duration;
+                    // 非整数时长（如减少物品冷却的 0.5 秒）保留一位小数，避免被 (int) 截断成 0
+                    String seconds = duration == (int) duration
+                            ? String.valueOf((int) duration)
+                            : String.format("%.1f", duration);
                     tooltipComponents.add(getEffectComponent(type, seconds));
                 }
             }
@@ -83,7 +92,7 @@ public class ChefFoodItem extends Item {
         super.appendHoverText(stack, context, tooltipComponents, tooltipFlag);
     }
 
-    private static Component getEffectComponent(int type, int seconds) {
+    private static Component getEffectComponent(int type, String seconds) {
         ChatFormatting color = getEffectColor(type);
         Component component = switch (type) {
             case 1 -> Component.translatable("item.noellesroles.cooked_food.effect.glowing", seconds);
@@ -122,7 +131,7 @@ public class ChefFoodItem extends Item {
         Noellesroles.LOGGER.info("Size" + map.size());
         // buff1 发光
         // buff2 回san
-        // buff3 减少技能冷却
+        // buff3 减少物品冷却
         // buff4 速度1
         // buff5 跳过当前任务
         // buff6 夜视
@@ -161,17 +170,36 @@ public class ChefFoodItem extends Item {
                         mm.setMood(nowMood);
                     }
                     break;
-                case 3:
-                    if (livingEntity instanceof Player p) {
-                        SREAbilityPlayerComponent pa = SREAbilityPlayerComponent.KEY.get(p);
-                        if (pa.cooldown > 0) {
-                            pa.cooldown -= duration;
-                            if (pa.cooldown < 0)
-                                pa.cooldown = 0;
+                case 3: {
+                    // 减少物品冷却：duration 是「秒」，冷却是「tick」，直接相减会差 20 倍。
+                    // 至多减少 MAX_COOLDOWN_REDUCE_SECONDS 秒；不减角色技能冷却（SREAbilityPlayerComponent）。
+                    // 自定义物品的冷却键是未注册物品，交给 CustomItemRuntime 单独处理 + 同步。
+                    final int reduceTicks = Math.min(Math.round(duration * 20), MAX_COOLDOWN_REDUCE_TICKS);
+                    if (reduceTicks > 0 && livingEntity instanceof Player p) {
+                        final net.minecraft.world.item.ItemCooldowns cooldowns = p.getCooldowns();
+                        if (!cooldowns.cooldowns.isEmpty()) {
+                            for (net.minecraft.world.item.Item item : new ArrayList<>(cooldowns.cooldowns.keySet())) {
+                                if (CustomItemCooldownKeys.isCustomKey(item)) {
+                                    continue;
+                                }
+                                final var instance = cooldowns.cooldowns.get(item);
+                                if (instance == null) {
+                                    continue;
+                                }
+                                final int next = instance.endTime - cooldowns.tickCount - reduceTicks;
+                                if (next <= 0) {
+                                    cooldowns.removeCooldown(item);
+                                } else {
+                                    cooldowns.addCooldown(item, next);
+                                }
+                            }
                         }
-                        pa.sync();
+                        if (p instanceof net.minecraft.server.level.ServerPlayer sp) {
+                            CustomItemRuntime.reduceCooldowns(sp, reduceTicks);
+                        }
                     }
                     break;
+                }
                 case 4:
                     livingEntity.addEffect(new MobEffectInstance(
                             MobEffects.MOVEMENT_SPEED,
@@ -186,7 +214,9 @@ public class ChefFoodItem extends Item {
                     // 跳过当前任务：只刷新任务本身，绝不走「任务完成」奖励流程
                     // （不发任务奖励金币、不加理智——跳过不算完成任务）。
                     var mm2 = SREPlayerTaskComponent.KEY.maybeGet(livingEntity).orElse(null);
-                    if (mm2 != null) {
+                    // 只有当前实际拥有任务时才跳过；没有任务就什么都不做，
+                    // 不额外刷新出一个新任务（否则等于白送一个任务）。
+                    if (mm2 != null && !mm2.tasks.isEmpty()) {
                         mm2.tasks.clear();
                         // 与其它「清空任务」实现保持一致：重置并列任务相关状态，
                         // 否则残留的 parallelTaskGenerated 会让下一个真正完成的任务

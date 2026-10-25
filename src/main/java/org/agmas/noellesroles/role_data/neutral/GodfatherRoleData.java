@@ -33,6 +33,12 @@ import java.util.*;
 
 public class GodfatherRoleData extends SimpleRoleData {
 
+    /**
+     * 招募瞄准范围（格）：按下技能键时，仅当准星指向该范围内的玩家才打开发招募 UI。
+     * 客户端门禁与服务端权威校验共用此常量。
+     */
+    public static final double RECRUIT_RANGE = 5.0;
+
     public final Set<UUID> familyMembers = new HashSet<>();
     public final Map<UUID, ResourceLocation> previousRoles = new HashMap<>();
     public int loadedBullets = 0;

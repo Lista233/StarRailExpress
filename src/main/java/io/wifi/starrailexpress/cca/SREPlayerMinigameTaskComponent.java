@@ -15,6 +15,8 @@
 
 package io.wifi.starrailexpress.cca;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.RoleComponent;
@@ -368,6 +370,7 @@ public class SREPlayerMinigameTaskComponent implements RoleComponent, ServerTick
                 SREPlayerTaskComponent.KEY.get(sp).applyMoodEquivalentCompletion(sp, quest);
             }
         }
+        ProgressionDataManager.onMinigameTaskComplete(sp, blockMinigameId);
         this.sync();
         return true;
     }

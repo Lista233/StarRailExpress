@@ -67,6 +67,14 @@ public class RoleSelectionHandler {
                         true);
                 return InteractionResult.PASS;
             }
+            // 主人即将被复活的尸体不可交互
+            if (PlayerBodyEntityComponent.KEY.get(victim).nonInteractable) {
+                player.displayClientMessage(
+                        Component.translatable("message.noellesroles.corpse.pending_revive")
+                                .withStyle(ChatFormatting.RED),
+                        true);
+                return InteractionResult.PASS;
+            }
             if (!gameWorldComponent.isSkillAvailable) {
                 // 技能不可用
                 player.displayClientMessage(

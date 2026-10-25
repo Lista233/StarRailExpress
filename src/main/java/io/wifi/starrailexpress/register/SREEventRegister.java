@@ -15,6 +15,8 @@
 
 package io.wifi.starrailexpress.register;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import org.agmas.noellesroles.init.RoleShopHandler;
 
 import com.google.gson.JsonObject;
@@ -81,6 +83,7 @@ public class SREEventRegister {
             net.exmo.sre.planecrash.PlaneCrashManager.onGameStarted(serverLevel);
             boolean planeIntro = !deferIntro && net.exmo.sre.planecrash.PlaneCrashManager.startIntro(serverLevel);
             for (ServerPlayer player : serverLevel.players()) {
+                ProgressionDataManager.onPlayMap(player, mapId);
                 // The authoritative map id also drives the opening briefing when no map vote was used.
                 PacketTracker.sendToClient(player, new OnGameStartedPayload(mapId));
                 // 轮选模式职业尚未确定，开场镜头延后到 OnGameTrueStarted

@@ -15,6 +15,8 @@
 
 package org.agmas.noellesroles.game.roles.killer.dream;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import io.wifi.starrailexpress.api.RoleComponent;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.event.OnGameEnd;
@@ -126,7 +128,13 @@ public class VirtualShieldComponent implements RoleComponent {
         if (!GameUtils.isPlayerAliveAndSurvival(sp)) {
             return -1;
         }
-        return applyShield(currentShield() + amount);
+        int before = currentShield();
+        int next = applyShield(before + amount);
+        int gained = next - before;
+        if (gained > 0) {
+            ProgressionDataManager.onShieldGained(sp, "virtual", gained);
+        }
+        return next;
     }
 
     /** 直接设置虚拟护盾（不生效于不存活 / 非服务端玩家）。 */

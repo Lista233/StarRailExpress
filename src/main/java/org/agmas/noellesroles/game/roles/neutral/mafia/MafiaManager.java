@@ -131,6 +131,13 @@ public final class MafiaManager {
                 return;
             if (comp.familyMembers.size() >= comp.recruitLimit)
                 return;
+            // 招募范围（服务端权威）：UI 打开期间目标可能已经走开，超范围一律拒绝
+            double range = org.agmas.noellesroles.role_data.neutral.GodfatherRoleData.RECRUIT_RANGE;
+            if (player.distanceToSqr(tgt) > range * range) {
+                player.displayClientMessage(net.minecraft.network.chat.Component
+                        .translatable("message.noellesroles.godfather.out_of_range"), true);
+                return;
+            }
             if (!isRecruitable(tgt)) {
                 player.displayClientMessage(net.minecraft.network.chat.Component
                         .translatable("message.noellesroles.godfather.cannot_recruit"), true);

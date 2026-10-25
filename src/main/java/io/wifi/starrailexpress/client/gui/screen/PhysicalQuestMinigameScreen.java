@@ -600,8 +600,19 @@ public class PhysicalQuestMinigameScreen extends Screen {
             case MIX_DRINK -> {
                 if (dragging != null) {
                     if (inRect(mouseX, mouseY, cupX - 8, cupY - 8, 64, 74)) {
-                        dragging.used = true;
-                        cupLoaded = ingredients.stream().allMatch(i -> i.used);
+                        // 必须按顺序（冰 → 海带 → 金苹果）放入调酒杯：
+                        // 只有下一份应放的材料会被消耗，放错顺序的材料归回原位而不是消失
+                        int expectedIndex = -1;
+                        for (int i = 0; i < ingredients.size(); i++) {
+                            if (!ingredients.get(i).used) {
+                                expectedIndex = i;
+                                break;
+                            }
+                        }
+                        if (ingredients.indexOf(dragging) == expectedIndex) {
+                            dragging.used = true;
+                            cupLoaded = ingredients.stream().allMatch(i -> i.used);
+                        }
                     }
                     dragging = null;
                 }

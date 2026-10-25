@@ -15,7 +15,9 @@
 
 package io.wifi.starrailexpress.game.modes.funny;
 
+import io.wifi.starrailexpress.api.RoleSkill;
 import io.wifi.starrailexpress.api.SRERole;
+import io.wifi.starrailexpress.cca.SREAbilityPlayerComponent;
 import io.wifi.starrailexpress.cca.SREGameRoundEndComponent;
 import io.wifi.starrailexpress.cca.SREGameTimeComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
@@ -27,11 +29,15 @@ import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.game.GameUtils.WinStatus;
 import io.wifi.starrailexpress.game.modes.SREMurderGameMode;
 import io.wifi.starrailexpress.progression.ProgressionDataManager;
+import io.wifi.starrailexpress.util.TickTimer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.level.Level;
 import org.agmas.harpymodloader.Harpymodloader;
 import org.agmas.harpymodloader.component.WorldModifierComponent;
 import org.agmas.harpymodloader.events.ModdedRoleAssigned;
@@ -62,12 +68,20 @@ import java.util.UUID;
  * <li>教父组：教父 → 家族侍卫 → 家族教徒 → 家族保姆 → 家族保护伞（循环）</li>
  * <li>蜜蜂组：蜂后 → 马蜂；组内大于等于 5 人时再生成一个蜂后，其余为马蜂</li>
  * <li>兔兔组：全员兔兔万岁</li>
- * <li>辅助组：林家子弟（仅 1 个）→ 领袖（最多 3 个）→ 荷官商人 → 香霖堂主（后三者循环）</li>
+ * <li>辅助组：林家子弟（仅 1 个）→ 领袖（最多 3 个）→ 荷官商人 → 香霖堂主 → 小偷 → 鹈鹕
+ * （后五者循环）</li>
  * </ul>
  *
  * <p>结算：教父组、蜜蜂组、兔兔组是三方会战的三方，彼此对立，各组沿用其职业自身的独立胜利条件，
  * 任一方达成胜利条件时即按该方单独结算。辅助组不属于三方中的任何一方，是支援方，不以击败其他组
  * 为目标，只按自身职业的判定结算（如林家子弟花光开局资金即获胜）。
+ *
+ * <p>本模式专属效果（不作用于其它模式）：
+ * <ul>
+ * <li>兔兔万岁的技能冷却固定为 {@value #RABBIT_SKILL_COOLDOWN_SECONDS} 秒</li>
+ * <li>所有存活玩家每 30 秒发光 8 秒</li>
+ * <li>蜂后复活出的工蜂资金减少 70%；开局生成的工蜂初始资金减少 50%</li>
+ * </ul>
  */
 public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
 
@@ -86,6 +100,24 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
     /** 辅助组中领袖职业的生成上限 */
     private static final int SUPPORT_LEADER_LIMIT = 3;
 
+    /** 本模式下兔兔万岁的技能冷却（秒） */
+    public static final int RABBIT_SKILL_COOLDOWN_SECONDS = 5;
+
+    /** 本模式下兔兔万岁的技能冷却（tick） */
+    private static final int RABBIT_SKILL_COOLDOWN_TICKS = RABBIT_SKILL_COOLDOWN_SECONDS * 20;
+
+    /** 本模式下所有存活玩家的发光间隔（tick，30 秒） */
+    private static final int GLOW_INTERVAL_TICKS = 30 * 20;
+
+    /** 本模式下所有存活玩家每次发光的持续时长（tick，8 秒） */
+    private static final int GLOW_DURATION_TICKS = 8 * 20;
+
+    /** 本模式下蜂后复活出的工蜂保留的资金比例（减少 70%） */
+    public static final float BEE_WORKER_REVIVE_MONEY_KEEP = 0.3F;
+
+    /** 本模式下开局生成的工蜂保留的初始资金比例（减少 50%） */
+    public static final float BEE_WORKER_STARTING_MONEY_KEEP = 0.5F;
+
     /** 教父组循环分配顺序：教父 → 家族侍卫 → 家族教徒 → 家族保姆 → 家族保护伞 */
     private static final SRERole[] GODFATHER_SQUAD_CYCLE = {
             ModRoles.GODFATHER,
@@ -95,11 +127,13 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
             ModRoles.PARASOL
     };
 
-    /** 辅助组循环分配顺序：领袖 → 荷官商人 → 香霖堂主（林家子弟固定占第一位） */
+    /** 辅助组循环分配顺序：领袖 → 荷官商人 → 香霖堂主 → 小偷 → 鹈鹕（林家子弟固定占第一位） */
     private static final SRERole[] SUPPORT_SQUAD_CYCLE = {
             ModRoles.LEADER,
             THMountainRoles.NITORI,
-            THHumanVillageRoles.RINNOSUKE
+            THHumanVillageRoles.RINNOSUKE,
+            ModRoles.THIEF,
+            ModRoles.PELICAN
     };
 
     /** 本局玩家所属分组 */
@@ -107,6 +141,14 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
 
     public SREThreeWayWarGameMode(ResourceLocation identifier) {
         super(identifier, DEFAULT_TIME_IN_MINUTES, MIN_PLAYER_COUNT);
+    }
+
+    /** 当前对局是否为本模式：供本模式专属效果（如工蜂资金削减）跨模块判定使用 */
+    public static boolean isActive(Level level) {
+        if (level == null) {
+            return false;
+        }
+        return SREGameWorldComponent.KEY.get(level).getGameMode() instanceof SREThreeWayWarGameMode;
     }
 
     @Override
@@ -162,7 +204,12 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
             if (gameWorldComponent.isRole(player, ModRoles.LIN_FAMILY)) {
                 continue;
             }
-            SREPlayerShopComponent.KEY.get(player).setBalance(STARTING_GOLD);
+            int gold = STARTING_GOLD;
+            // 本模式专属：开局生成的工蜂初始资金减少 50%
+            if (gameWorldComponent.isRole(player, BounsRoles.BEE_WORKER)) {
+                gold = (int) (gold * BEE_WORKER_STARTING_MONEY_KEEP);
+            }
+            SREPlayerShopComponent.KEY.get(player).setBalance(gold);
         }
     }
 
@@ -209,7 +256,7 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
             squadOfPlayer.put(player.getUUID(), Squad.RABBIT);
         }
 
-        // 辅助组：首位固定林家子弟，其后按 领袖 → 荷官商人 → 香霖堂主 循环，领袖最多 3 个
+        // 辅助组：首位固定林家子弟，其后按 领袖 → 荷官商人 → 香霖堂主 → 小偷 → 鹈鹕 循环，领袖最多 3 个
         int leaderCount = 0;
         int cycleCursor = 0;
         for (int i = 0; i < squadSize + supportExtra; i++) {
@@ -262,6 +309,7 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
         }
 
         tickPassiveMoney(serverWorld, gameWorldComponent);
+        tickRabbitSkillCooldown(serverWorld, gameWorldComponent);
 
         boolean anyAlive = false;
         for (ServerPlayer player : serverWorld.players()) {
@@ -308,6 +356,56 @@ public class SREThreeWayWarGameMode extends SREBaseCustomizationGameMode {
             }
             SREPlayerShopComponent.KEY.get(player).addToBalance(balanceToAdd);
         }
+    }
+
+    /**
+     * 本模式专属：兔兔万岁的技能冷却固定为 {@value #RABBIT_SKILL_COOLDOWN_SECONDS} 秒。
+     * 技能本身仍按注册时的冷却计时，这里每 tick 把剩余冷却钳制到上限，从而只在本模式生效。
+     */
+    private void tickRabbitSkillCooldown(ServerLevel serverWorld, SREGameWorldComponent gameWorldComponent) {
+        for (ServerPlayer player : serverWorld.players()) {
+            if (!GameUtils.isPlayerAliveAndSurvival(player)
+                    || !gameWorldComponent.isRole(player, BounsRoles.RABBIT_WANSUI)) {
+                continue;
+            }
+            SREAbilityPlayerComponent ability = SREAbilityPlayerComponent.KEY.get(player);
+            boolean changed = false;
+            for (RoleSkill.Definition definition : RoleSkill.getDefinitions(BounsRoles.RABBIT_WANSUI)) {
+                if (definition.cooldownTicks() <= RABBIT_SKILL_COOLDOWN_TICKS) {
+                    continue;
+                }
+                SREAbilityPlayerComponent.SkillState state = ability.getSkillState(definition.id());
+                if (state.cooldown > RABBIT_SKILL_COOLDOWN_TICKS) {
+                    state.cooldown = RABBIT_SKILL_COOLDOWN_TICKS;
+                    changed = true;
+                }
+            }
+            if (!changed) {
+                continue;
+            }
+            if (ability.cooldown > RABBIT_SKILL_COOLDOWN_TICKS) {
+                ability.cooldown = RABBIT_SKILL_COOLDOWN_TICKS;
+            }
+            ability.sync();
+        }
+    }
+
+    /** 本模式专属定时器：所有存活玩家每 30 秒发光 8 秒 */
+    @Override
+    protected void initTickTimers(ServerLevel serverWorld, SREGameWorldComponent gameWorldComponent,
+            List<ServerPlayer> players) {
+        tickTimers.add(new TickTimer(GLOW_INTERVAL_TICKS, false, tickTimer -> {
+            for (ServerPlayer player : serverWorld.players()) {
+                if (!GameUtils.isPlayerAliveAndSurvival(player)) {
+                    continue;
+                }
+                if (player.hasEffect(MobEffects.GLOWING)) {
+                    player.removeEffect(MobEffects.GLOWING);
+                }
+                player.addEffect(new MobEffectInstance(MobEffects.GLOWING, GLOW_DURATION_TICKS, 1, false,
+                        false));
+            }
+        }));
     }
 
     /**

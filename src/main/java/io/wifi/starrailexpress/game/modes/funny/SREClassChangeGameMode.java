@@ -410,6 +410,10 @@ public class SREClassChangeGameMode extends SREMurderGameMode {
 
             // --- 触发新角色事件（内部会自动调用 RoleInitialItems.addInitialItemsForRole 发放默认物品） ---
             ModdedRoleAssigned.EVENT.invoker().assignModdedRole(player, newRole);
+
+            // 立即把职业同步给客户端：保证旧职业的模仿外观（猪/番茄/熊猫/悦灵/骷髅等）
+            // 与角色判定在转职瞬间一并刷新，避免职业包滞后导致外观残留。
+            gameWorldComponent.syncRoles();
         }
 
         // --- 同步角色组件 ---

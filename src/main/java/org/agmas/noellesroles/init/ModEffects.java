@@ -1062,6 +1062,28 @@ public class ModEffects {
     }
 
     /**
+     * 项目内统一判断玩家是否处于「里世界」（含未现形冤魂的维度）中。
+     *
+     * <p>
+     * 命中任意一种里世界实现：
+     * <ul>
+     * <li>怀旧者里世界 / 归途旅人「旧日渡口·末班车」拉入的玩家：{@link #NOSTALGIST_BACKWORLD}</li>
+     * <li>布袋鬼里世界（本人与被标记的好人玩家）：{@link #BACKWORLD_OUTLINE} / {@link #OTHERWORLD_AURA}</li>
+     * <li>未现形的冤魂：持有冤魂维度标记 {@link #WRAITH_DIMENSION} 且没有现形标记
+     * {@link #WRAITH_MANIFEST}（显形后即回到现界，不再命中）</li>
+     * </ul>
+     * 里世界内的玩家与现界互相隔绝，涉及「能否与现界玩家交互」的判定（如炸弹的递交 / 接收）
+     * 应统一走此方法。
+     */
+    public static boolean isInBackworldOrWraithDimension(LivingEntity entity) {
+        return entity.hasEffect(BACKWORLD_OUTLINE)
+                || entity.hasEffect(NOSTALGIST_BACKWORLD)
+                || entity.hasEffect(OTHERWORLD_AURA)
+                || (entity.hasEffect(WRAITH_DIMENSION)
+                        && !entity.hasEffect(WRAITH_MANIFEST));
+    }
+
+    /**
      * 初始化所有药水效果
      */
     public static boolean pierceDeath = false;

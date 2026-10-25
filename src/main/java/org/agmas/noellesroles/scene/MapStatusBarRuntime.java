@@ -15,10 +15,11 @@
 
 package org.agmas.noellesroles.scene;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import io.wifi.starrailexpress.cca.AreasWorldComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.cca.SREPlayerMoodComponent;
-import io.wifi.starrailexpress.content.item.CocktailItem;
 import io.wifi.starrailexpress.game.GameConstants;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.game.data.MapStatusBarType;
@@ -27,11 +28,8 @@ import io.wifi.starrailexpress.index.tag.TMMBlockTags;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -43,12 +41,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.agmas.noellesroles.component.FoodDrinkGlowComponent;
 import org.agmas.noellesroles.content.block.scene.StoveBlock;
 import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.init.ModSceneBlocks;
 import org.agmas.noellesroles.packet.MapStatusBarSyncS2CPacket;
-import pro.fazeclan.river.stupid_express.constants.SEItems;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -57,8 +55,6 @@ import java.util.UUID;
 
 public final class MapStatusBarRuntime {
     public static final int MAX_VALUE = 20;
-    private static final TagKey<Item> NOELLES_DRINKS = TagKey.create(Registries.ITEM,
-            ResourceLocation.fromNamespaceAndPath("noellesroles", "food_drink"));
     private static final Map<UUID, State> STATES = new HashMap<>();
 
     private MapStatusBarRuntime() {
@@ -210,7 +206,7 @@ public final class MapStatusBarRuntime {
         if (level.isClientSide || !(user instanceof ServerPlayer player)) {
             return;
         }
-        if (isDrink(stack)) {
+        if (FoodDrinkGlowComponent.isDrink(stack)) {
             // 一瓶水恢复10点口渴值，其他饮料恢复4点
             int amount = stack.is(ModItems.A_BOTTLE_OF_WATER) ? 10 : 4;
             add(player, MapStatusBarType.THIRST, amount);
@@ -231,6 +227,7 @@ public final class MapStatusBarRuntime {
             state.reset(type);
         }
         state.change(delta);
+        ProgressionDataManager.onStatusBarRestored(player, type.name(), delta);
         if (state.value <= 0 && type != MapStatusBarType.POLLUTION) {
             killByStatus(player, type);
             STATES.remove(player.getUUID());
@@ -481,14 +478,6 @@ public final class MapStatusBarRuntime {
     private static boolean isSpendingSprint(ServerPlayer player) {
         Vec3 movement = player.getDeltaMovement();
         return player.isSprinting() && movement.x * movement.x + movement.z * movement.z > 0.01D;
-    }
-
-    private static boolean isDrink(ItemStack stack) {
-        return stack.getItem() instanceof CocktailItem
-                || stack.getItem() instanceof PotionItem
-                || stack.getItem() instanceof HoneyBottleItem
-                || stack.is(NOELLES_DRINKS)
-                || stack.is(SEItems.DRINKS);
     }
 
     /** 检查玩家是否在淋浴头下方（参考洗澡任务的检测方式） */

@@ -12,6 +12,7 @@
     "modifier.twin_children.TwinChildrenShareMinigameMixin",
     "modifier.twin_children.TwinChildrenAttachMixin",
     "modifier.twin_children.TwinChildrenPlayerMixin",
+    "modifier.twin_children.TwinChildrenTeleportMixin",
     "modifier.twin_children.TwinChildrenMountableMixin",
     "modifier.twin_children.TwinChildrenToiletMixin"
   ],

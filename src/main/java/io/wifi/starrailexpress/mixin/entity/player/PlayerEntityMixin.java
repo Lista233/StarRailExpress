@@ -15,6 +15,9 @@
 
 package io.wifi.starrailexpress.mixin.entity.player;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+import net.minecraft.server.level.ServerPlayer;
+
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -190,6 +193,7 @@ public abstract class PlayerEntityMixin extends LivingEntity implements PlayerSt
 
                 if (this.isSprinting()) {
                     sprintingTicks = Math.max(sprintingTicks - 1, 0);
+                    ProgressionDataManager.onStaminaConsumed((ServerPlayer) (Object) this, 1);
                 } else {
                     sprintingTicks = Math.min(sprintingTicks + staminaRecoveryRate, maxSprintTimeWithEffects);
                 }

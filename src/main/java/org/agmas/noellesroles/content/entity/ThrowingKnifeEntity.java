@@ -65,6 +65,17 @@ public class ThrowingKnifeEntity extends AbstractArrow {
         return false;
     }
 
+    /**
+     * 水下不减速：原版 {@link AbstractArrow} 每 tick 会把速度乘 {@code 0.6}（见
+     * {@code AbstractArrow#tick} 里的 {@code getWaterInertia()}），飞刀 / 手里剑入水后几 tick
+     * 就几乎静止、直接掉在地上。这里改回 {@code 1F} 让它保持匀速直线飞行，
+     * 与飞斧、投掷竹子、弹幕的处理保持一致。
+     */
+    @Override
+    protected float getWaterInertia() {
+        return 1F;
+    }
+
     @Override
     public void playerTouch(Player player) {
     }

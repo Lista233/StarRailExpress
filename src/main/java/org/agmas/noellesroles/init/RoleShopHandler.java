@@ -1140,6 +1140,14 @@ public class RoleShopHandler {
                 }
             });
 
+            // 开锁器 - 配置价格
+            HUNTER_SHOP.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(),
+                    SREConfig.instance().lockpickPrice, ShopEntry.Type.TOOL));
+
+            // 撬棍 - 配置价格
+            HUNTER_SHOP.add(new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(),
+                    SREConfig.instance().crowbarPrice, ShopEntry.Type.TOOL));
+
             // 关灯 - 配置价格
             HUNTER_SHOP.add(ShopContent.getBlackoutShopEntry());
 

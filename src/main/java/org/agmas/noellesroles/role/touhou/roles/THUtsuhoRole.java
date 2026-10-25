@@ -84,7 +84,7 @@ public class THUtsuhoRole extends TouhouRole {
 
             if (!GameUtils.isPlayerAliveAndSurvival(p)) {
                 needclear.add(puid);
-                return;
+                continue;
             }
             UtsuhoNeedDrinkInfo info = entry.getValue();
             long boomTime = info.time();

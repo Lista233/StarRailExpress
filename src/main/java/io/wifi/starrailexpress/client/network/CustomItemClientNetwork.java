@@ -69,6 +69,9 @@ public class CustomItemClientNetwork {
             writeToLocalConfig(fullJson);
             CustomItemLoader.reloadClient();
             io.wifi.starrailexpress.client.render.item.CustomItemRenderer.clearCache();
+            // 同步里可能有新的「模型地址」：它们的模型 json 还没被烘焙过，
+            // 这里触发一次自动重载（等价于 F3+T），否则渲染只会退回默认模型
+            io.wifi.starrailexpress.client.model.CustomItemModelPlugin.rebakeIfNeeded();
         } catch (Exception e) {
             SRE.LOGGER.error("[CustomItem-Client] Failed to apply synced content", e);
         }

@@ -31,6 +31,7 @@ import io.wifi.starrailexpress.game.modes.SREMurderGameMode;
 import io.wifi.starrailexpress.util.SRENetworkMessageUtils;
 import io.wifi.starrailexpress.util.TrueFalseResult;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.exmo.sre.meeting.MeetingManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -349,6 +350,16 @@ public final class FakeSteveDirector {
                 continue;
             }
             if (GameUtils.isPlayerAliveAndSurvival(player)) {
+                // 会议期间：伪人作为参会者坐在自己的席位上，AI 完全暂停（不移动、不行为、
+                // 不判定卡住）。控制类效果照旧刷新，避免禁言/禁聊在会议中失效。
+                if (MeetingManager.isActive()) {
+                    applyControl(player);
+                    FakeSteveMotionController.clear(player, session.agents.get(id));
+                    // 卡住追踪每 tick 重置：坐在位置上不动不该被累计成卡住，
+                    // 也不会在散会瞬间因为「一整场会议没动」触发保底传送。
+                    FakeSteveAi.resetStuckTracking(player, session.agents.get(id), level.getGameTime());
+                    continue;
+                }
                 if (session.huntPhase) {
                     enforcePermanentPsycho(player);
                 }

@@ -503,6 +503,11 @@ public class CookingGameScreen extends AbstractPixelScreen implements InvNoMoveS
             // 创建时长百分比：根据时长边界计算具体时长，并利用此百分比作为缩放
             float buffTimePercentage = randomSource.nextFloat();
             float buffTime = (BUFF_SECONDS.second - BUFF_SECONDS.first) * buffTimePercentage + BUFF_SECONDS.first;
+            // 「减少物品冷却」（buffID 3）固定给 3/6 秒：该效果上限 3 秒，
+            // 要接到 6 个食材才叠满，避免玩家轻易吃满上限
+            if (buffID == COOLDOWN_REDUCE_BUFF_ID) {
+                buffTime = COOLDOWN_REDUCE_SECONDS;
+            }
             int scale = (int) ((foodScaleBounds.second - foodScaleBounds.first) * buffTimePercentage
                     + foodScaleBounds.first);
             foods.add(new FoodCard(
@@ -733,6 +738,14 @@ public class CookingGameScreen extends AbstractPixelScreen implements InvNoMoveS
      * </p>
      */
     private static final Pair<Integer, Integer> BUFF_BOUNDS = new Pair<>(-3, 8);
+    /** 「减少物品冷却」的 buff id（见 ChefFoodItem 的 case 3）。 */
+    private static final int COOLDOWN_REDUCE_BUFF_ID = 3;
+    /**
+     * 「减少物品冷却」食材每次提供的秒数：3 / 6 = 0.5 秒。
+     * <p>
+     * 菜肴该效果至多减少 3 秒，按 6 个食材叠满来填，玩家不会轻易吃满上限。
+     */
+    private static final float COOLDOWN_REDUCE_SECONDS = 3f / 6f;
     /** 食材大小基础范围：与时长有关，此处填写的单位为材质像素单位，在初始化中会被转换为屏幕像素单位（*pixelSize) */
     private static final Pair<Integer, Integer> FOOD_SCALE_BOUNDS = new Pair<>(-5, 5);
     /** buff持续时间范围，可以为负数 */

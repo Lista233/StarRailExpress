@@ -15,6 +15,8 @@
 
 package io.wifi.starrailexpress.cca;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.RoleComponent;
 import io.wifi.starrailexpress.game.GameConstants;
@@ -94,6 +96,8 @@ public class SREWeakArmorPlayerComponent implements RoleComponent, ServerTicking
      */
     public void giveWeakArmor(int durationTicks, Set<ResourceLocation> blockedReasons, boolean blockAll) {
         this.weakArmor += 1;
+        if (this.player instanceof ServerPlayer sp)
+            ProgressionDataManager.onShieldGained(sp, "weak", 1);
         if (this.weakArmor == 1) {
             // 第一层：设置持续时间、死亡原因与 blockAll 标记
             this.weakArmorTicks = durationTicks;
@@ -175,6 +179,8 @@ public class SREWeakArmorPlayerComponent implements RoleComponent, ServerTicking
         if (this.weakArmor <= 0 || layers <= 0)
             return;
         this.weakArmor += layers;
+        if (layers > 0 && this.player instanceof ServerPlayer sp)
+            ProgressionDataManager.onShieldGained(sp, "weak", layers);
         this.sync();
     }
 
