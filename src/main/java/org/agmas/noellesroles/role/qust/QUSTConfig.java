@@ -121,10 +121,16 @@ public class QUSTConfig implements ConfigData {
     /** 击退剑商店价格 */
     public int minigameMasterKnockbackSwordPrice = 150;
 
-    /** 完成小游戏奖励金币数 */
-    public int minigameMasterCoinReward = 20;
+    /** 完成小游戏的基础金币奖励（未单独分档的小游戏） */
+    public int minigameMasterCoinReward = 35;
 
-    /** 完成华容道奖励金币数 */
+    /** 低档小游戏奖励金币数（三张牌、水果忍者、记忆游戏、抓娃娃、管道小鸟、数学题、颜色分类、连连看、翻牌配对） */
+    public int minigameMasterLowTierCoinReward = 50;
+
+    /** 中档小游戏奖励金币数（扫雷） */
+    public int minigameMasterMidTierCoinReward = 75;
+
+    /** 券刷到华容道完成后的奖励金币数 */
     public int minigameMasterKlotskiCoinReward = 250;
 
     /** 华容道挑战价格（通关可直接赢得比赛） */
@@ -137,10 +143,12 @@ public class QUSTConfig implements ConfigData {
     public double minigameMasterSelfCompleteSanRestore = 0.1;
 
     /** 达人自己完成多少个小游戏后发放一次里程碑金币（计数随局清零） */
+    @ConfigSync(shouldSync = true)
     public int minigameMasterTicketComboCount = 4;
 
     /** 达人自己完成小游戏每满一次里程碑数量的额外金币奖励 */
-    public int minigameMasterTicketComboCoinReward = 40;
+    @ConfigSync(shouldSync = true)
+    public int minigameMasterTicketComboCoinReward = 50;
 
     // ==================== 超级记录员 (Super Recorder / 超级记录员_时星) ====================
 

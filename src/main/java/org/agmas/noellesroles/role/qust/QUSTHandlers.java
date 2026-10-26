@@ -390,13 +390,19 @@ public class QUSTHandlers {
                             return;
                         }
 
-                        // 普通小游戏：根据小游戏注册信息中的难度决定奖励金额
+                        // 普通小游戏：按奖励档位从配置读取金币数（服主可动态调整）
                         String minigameId = payload.minigameId();
                         QUSTConfig cfg = QUSTConfig.instance();
                         var minigame = io.wifi.starrailexpress.content.minigame.QuestMinigames.get(minigameId);
-                        int reward = minigame != null
-                                ? minigame.coinReward()
-                                : cfg.minigameMasterCoinReward;
+                        var tier = minigame != null
+                                ? minigame.tier()
+                                : io.wifi.starrailexpress.content.minigame.QuestMinigame.RewardTier.BASE;
+                        int reward = switch (tier) {
+                            case LOW -> cfg.minigameMasterLowTierCoinReward;
+                            case MID -> cfg.minigameMasterMidTierCoinReward;
+                            case KLOTSKI -> cfg.minigameMasterKlotskiCoinReward;
+                            case BASE -> cfg.minigameMasterCoinReward;
+                        };
                         io.wifi.starrailexpress.cca.SREPlayerShopComponent.KEY.get(player).addToBalance(reward);
 
                         // 里程碑：达人自己用券完成的小游戏每满 N 个额外奖励 M 金币（计数随局清零）

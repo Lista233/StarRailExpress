@@ -21,19 +21,28 @@ import net.minecraft.network.chat.Component;
  * 小游戏任务点的小游戏接口（纯服务端安全）
  * 只存储小游戏的 ID 和显示名称，不引用任何客户端类
  *
- * @param coinReward 小游戏达人完成该小游戏后获得的金币数
+ * @param tier 奖励档位；具体金币数在发放时从 {@code QUSTConfig} 读取，便于服主动态调整
  */
-public record QuestMinigame(String id, Component displayName, int coinReward) {
+public record QuestMinigame(String id, Component displayName, RewardTier tier) {
 
-    /** 默认金币奖励（普通难度小游戏） */
-    public static final int DEFAULT_COIN_REWARD = 20;
-
-    public static QuestMinigame of(String id, String translationKey) {
-        return new QuestMinigame(id, Component.translatable(translationKey), DEFAULT_COIN_REWARD);
+    /** 小游戏达人完成小游戏的金币档位（金额由 QUSTConfig 配置） */
+    public enum RewardTier {
+        /** 基础档：未单独分档的小游戏 */
+        BASE,
+        /** 低档：三张牌、水果忍者、记忆游戏等 */
+        LOW,
+        /** 中档：扫雷 */
+        MID,
+        /** 华容道（券刷到） */
+        KLOTSKI
     }
 
-    /** 指定自定义金币奖励 */
-    public static QuestMinigame of(String id, String translationKey, int coinReward) {
-        return new QuestMinigame(id, Component.translatable(translationKey), coinReward);
+    public static QuestMinigame of(String id, String translationKey) {
+        return new QuestMinigame(id, Component.translatable(translationKey), RewardTier.BASE);
+    }
+
+    /** 指定奖励档位 */
+    public static QuestMinigame of(String id, String translationKey, RewardTier tier) {
+        return new QuestMinigame(id, Component.translatable(translationKey), tier);
     }
 }

@@ -36,9 +36,9 @@ public class QuestMinigames {
     public static final QuestMinigame KEY_MAKING = register(
             QuestMinigame.of("key_making", "minigame.starrailexpress.key_making"));
 
-    /** 数学题小游戏 */
+    /** 数学题小游戏（低档奖励） */
     public static final QuestMinigame MATH = register(
-            QuestMinigame.of("math", "minigame.starrailexpress.math"));
+            QuestMinigame.of("math", "minigame.starrailexpress.math", QuestMinigame.RewardTier.LOW));
 
     /** 烹饪小游戏 */
     public static final QuestMinigame COOKING = register(
@@ -89,9 +89,9 @@ public class QuestMinigames {
     /** 接住食材（ban - 不在小游戏券中刷出） */
     public static final QuestMinigame SLICE_FOOD = register(
             QuestMinigame.of("slice_food", "minigame.starrailexpress.slice_food"));
-    /** 三张牌（30金币） */
+    /** 三张牌（低档奖励） */
     public static final QuestMinigame THREE_CARDS = register(
-            QuestMinigame.of("three_cards", "minigame.starrailexpress.three_cards", 30));
+            QuestMinigame.of("three_cards", "minigame.starrailexpress.three_cards", QuestMinigame.RewardTier.LOW));
     public static final QuestMinigame BREAK_JAR = register(
             QuestMinigame.of("break_jar", "minigame.starrailexpress.break_jar"));
     public static final QuestMinigame ZONE_CALIBRATION = register(
@@ -105,13 +105,13 @@ public class QuestMinigames {
     public static final QuestMinigame TYPING = register(
             QuestMinigame.of("typing", "minigame.starrailexpress.typing"));
 
-    /** 管道小鸟（Flappy Bird） */
+    /** 管道小鸟（Flappy Bird，低档奖励） */
     public static final QuestMinigame PIPE_BIRD = register(
-            QuestMinigame.of("pipe_bird", "minigame.starrailexpress.pipe_bird"));
+            QuestMinigame.of("pipe_bird", "minigame.starrailexpress.pipe_bird", QuestMinigame.RewardTier.LOW));
 
-    /** 水果忍者（30金币） */
+    /** 水果忍者（低档奖励） */
     public static final QuestMinigame FRUIT_NINJA = register(
-            QuestMinigame.of("fruit_ninja", "minigame.starrailexpress.fruit_ninja", 30));
+            QuestMinigame.of("fruit_ninja", "minigame.starrailexpress.fruit_ninja", QuestMinigame.RewardTier.LOW));
 
     /** 打老鼠 */
     public static final QuestMinigame MOUSE_WHACK = register(
@@ -121,43 +121,43 @@ public class QuestMinigames {
     public static final QuestMinigame BRICK_BREAKER = register(
             QuestMinigame.of("brick_breaker", "minigame.starrailexpress.brick_breaker"));
 
-    /** 找零钱 */
+    /** 找零钱（ban - 不在小游戏券中刷出） */
     public static final QuestMinigame MAKE_CHANGE = register(
             QuestMinigame.of("make_change", "minigame.starrailexpress.make_change"));
 
     /** 贪吃蛇（ban - 不在小游戏券中刷出） */
     public static final QuestMinigame SNAKE = register(
             QuestMinigame.of("snake", "minigame.starrailexpress.snake"));
-    /** 扫雷（75金币） */
+    /** 扫雷（中档奖励） */
     public static final QuestMinigame MINESWEEPER = register(
-            QuestMinigame.of("minesweeper", "minigame.starrailexpress.minesweeper", 75));
-    /** 记忆游戏（30金币） */
+            QuestMinigame.of("minesweeper", "minigame.starrailexpress.minesweeper", QuestMinigame.RewardTier.MID));
+    /** 记忆游戏（低档奖励） */
     public static final QuestMinigame SIMON_SAYS = register(
-            QuestMinigame.of("simon_says", "minigame.starrailexpress.simon_says", 30));
+            QuestMinigame.of("simon_says", "minigame.starrailexpress.simon_says", QuestMinigame.RewardTier.LOW));
     /** 2048 */
     public static final QuestMinigame GAME_2048 = register(
             QuestMinigame.of("game_2048", "minigame.starrailexpress.game_2048"));
     /** 接蛋（ban - 不在小游戏券中刷出） */
     public static final QuestMinigame CATCH_EGGS = register(
             QuestMinigame.of("catch_eggs", "minigame.starrailexpress.catch_eggs"));
-    /** 颜色分类（50金币） */
+    /** 颜色分类（低档奖励） */
     public static final QuestMinigame COLOR_SORT = register(
-            QuestMinigame.of("color_sort", "minigame.starrailexpress.color_sort", 50));
+            QuestMinigame.of("color_sort", "minigame.starrailexpress.color_sort", QuestMinigame.RewardTier.LOW));
     /** 猜数字 */
     public static final QuestMinigame GUESS_NUMBER = register(
             QuestMinigame.of("guess_number", "minigame.starrailexpress.guess_number"));
     /** 反应测试 */
     public static final QuestMinigame REACTION_TEST = register(
             QuestMinigame.of("reaction_test", "minigame.starrailexpress.reaction_test"));
-    /** 连连看（50金币） */
+    /** 连连看（低档奖励） */
     public static final QuestMinigame LINK_MATCH = register(
-            QuestMinigame.of("link_match", "minigame.starrailexpress.link_match", 50));
+            QuestMinigame.of("link_match", "minigame.starrailexpress.link_match", QuestMinigame.RewardTier.LOW));
     /** 俄罗斯方块（ban - 不在小游戏券中刷出） */
     public static final QuestMinigame TETRIS = register(
             QuestMinigame.of("tetris", "minigame.starrailexpress.tetris"));
-    /** 翻牌配对（50金币） */
+    /** 翻牌配对（低档奖励） */
     public static final QuestMinigame MEMORY_MATCH = register(
-            QuestMinigame.of("memory_match", "minigame.starrailexpress.memory_match", 50));
+            QuestMinigame.of("memory_match", "minigame.starrailexpress.memory_match", QuestMinigame.RewardTier.LOW));
     /** 接管道 */
     public static final QuestMinigame PIPE_CONNECT = register(
             QuestMinigame.of("pipe_connect", "minigame.starrailexpress.pipe_connect"));
@@ -173,17 +173,18 @@ public class QuestMinigames {
     /** 平衡天平 */
     public static final QuestMinigame BALANCE_SCALE = register(
             QuestMinigame.of("balance_scale", "minigame.starrailexpress.balance_scale"));
-    /** 华容道（券刷到完成给300金币；挑战物品路径走 QUSTHandlers 独立逻辑） */
+    /** 华容道（券刷到走华容道奖励档；挑战物品路径走 QUSTHandlers 独立逻辑） */
     public static final QuestMinigame KLOTSKI = register(
-            QuestMinigame.of("klotski", "minigame.starrailexpress.klotski", 300));
+            QuestMinigame.of("klotski", "minigame.starrailexpress.klotski", QuestMinigame.RewardTier.KLOTSKI));
     /** 黄金矿工（ban - 不在小游戏券中刷出） */
     public static final QuestMinigame GOLD_MINER = register(
             QuestMinigame.of("gold_miner", "minigame.starrailexpress.gold_miner"));
+    /** 一笔画（ban - 不在小游戏券中刷出） */
     public static final QuestMinigame ONE_STROKE = register(
             QuestMinigame.of("one_stroke", "minigame.starrailexpress.one_stroke"));
-    /** 抓娃娃（30金币） */
+    /** 抓娃娃（低档奖励） */
     public static final QuestMinigame CLAW_MACHINE = register(
-            QuestMinigame.of("claw_machine", "minigame.starrailexpress.claw_machine", 30));
+            QuestMinigame.of("claw_machine", "minigame.starrailexpress.claw_machine", QuestMinigame.RewardTier.LOW));
     public static final QuestMinigame BALLOON_SNIPER = register(
             QuestMinigame.of("balloon_sniper", "minigame.starrailexpress.balloon_sniper"));
     public static final QuestMinigame EXTINGUISH_FIRE = register(

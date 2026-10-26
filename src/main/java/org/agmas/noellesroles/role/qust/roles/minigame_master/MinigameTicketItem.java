@@ -37,7 +37,9 @@ public class MinigameTicketItem extends Item {
             "game_24",         // 24点
             "snake",           // 贪吃蛇
             "lights_out",      // 点灯
-            "catch_eggs"       // 接蛋游戏
+            "catch_eggs",      // 接蛋游戏
+            "make_change",     // 找零钱
+            "one_stroke"       // 一笔画
     );
 
     public MinigameTicketItem(Properties properties) {
