@@ -112,6 +112,12 @@ public class SREEventRegister {
                 io.wifi.starrailexpress.shop.ShopPriceSyncServer.resyncAll(serverLevel.getServer());
             }
         });
+        // 开局：为所有选择了「随机」皮肤的物品类型重新抽取一次（结果同步给客户端用于渲染）
+        OnGameStarted.EVENT.register(serverLevel -> {
+            for (net.minecraft.server.level.ServerPlayer player : serverLevel.players()) {
+                io.wifi.starrailexpress.cca.SREPlayerSkinsComponent.KEY.get(player).rollAllRandomSkins();
+            }
+        });
     }
 
     /**

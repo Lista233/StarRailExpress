@@ -113,10 +113,12 @@ public class SkinSelectionList extends ObjectSelectionList<SkinSelectionList.Ski
             }
             return 0;
         });
+        // 「未装备」固定第一位，「随机」固定第二位（不参与排序与搜索过滤）
         this.children().addFirst(new SkinEntry("default"));
+        this.children().add(1, new SkinEntry(ItemSkinManager.RANDOM_SKIN));
         if (!this.searchFilter.isEmpty()) {
             this.children().removeIf(e -> {
-                if ("default".equals(e.skinName)) return false;
+                if ("default".equals(e.skinName) || ItemSkinManager.isRandomSkin(e.skinName)) return false;
                 return !e.skinName.toLowerCase(java.util.Locale.ROOT).contains(this.searchFilter);
             });
         }
@@ -264,13 +266,17 @@ public class SkinSelectionList extends ObjectSelectionList<SkinSelectionList.Ski
         public SkinEntry(String skinName) {
             this.skinName = skinName;
             int sskinColor = java.awt.Color.WHITE.getRGB();
-            if (itemType.getItem() instanceof SkinableItem it) {
+            if (ItemSkinManager.isRandomSkin(skinName)) {
+                // 「随机」用金色区别于「未装备」
+                sskinColor = 0xFFD4AF37;
+            } else if (itemType.getItem() instanceof SkinableItem it) {
                 var skin = ItemSkinManager.Skin.fromString(it.getItemSkinType(), skinName);
                 if (skin != null)
                     sskinColor = skin.getColor();
             }
             this.skinColor = sskinColor;
-            this.isUnlocked = skinName.equals("default")
+            // 「随机」恒可选：未拥有任何皮肤时开局会回退到未装备
+            this.isUnlocked = skinName.equals("default") || ItemSkinManager.isRandomSkin(skinName)
                     || skinsComponent.isSkinUnlockedForItemType(itemTypeName, skinName);
             updateCurrentSkin();
         }
@@ -339,8 +345,16 @@ public class SkinSelectionList extends ObjectSelectionList<SkinSelectionList.Ski
             int textX = iconX + iconSize / 2 - 8;
             int textY = iconY + iconSize / 2 - 8;
             ItemStack skinedItem = itemType.copy();
-            skinedItem.set(SREDataComponentTypes.SKIN, this.skinName);
+            if (!ItemSkinManager.isRandomSkin(this.skinName)) {
+                skinedItem.set(SREDataComponentTypes.SKIN, this.skinName);
+            }
             g.renderFakeItem(skinedItem, textX, textY);
+
+            // 「随机」叠一个问号，避免和「未装备」图标一模一样
+            if (ItemSkinManager.isRandomSkin(this.skinName)) {
+                var font = Minecraft.getInstance().font;
+                g.drawCenteredString(font, Component.literal("?"), textX + 8, textY + 4, 0xFFFFF4DC);
+            }
 
             int borderColor = isCurrent ? 0xFFD4AF37 : 0x80FFFFFF;
             drawRoundedRectBorder(g, iconX, iconY, iconSize, iconSize, 0, borderColor);
@@ -361,15 +375,22 @@ public class SkinSelectionList extends ObjectSelectionList<SkinSelectionList.Ski
             var rl = ResourceLocation.tryParse(itemTypeName);
             String itemTypeKey = (rl != null) ? rl.getPath() : itemTypeName;
 
-            Component displayName = Component.translatableWithFallback(
-                    "screen.sre.skins." + itemTypeKey + "." + skinLowerName + ".name",
-                    formatSkinName(skinLowerName));
-
-            Component description = !isUnlocked
-                    ? Component.translatable("screen.sre.skins.locked")
-                    : Component.translatableWithFallback(
-                            "screen.sre.skins." + itemTypeKey + "." + skinLowerName + ".desc",
-                            formatSkinName(skinLowerName));
+            Component displayName;
+            Component description;
+            if (ItemSkinManager.isRandomSkin(this.skinName)) {
+                displayName = Component.translatableWithFallback("screen.sre.skins.random", "Random");
+                description = Component.translatableWithFallback("screen.sre.skins.random.desc",
+                        "A random owned skin each round");
+            } else {
+                displayName = Component.translatableWithFallback(
+                        "screen.sre.skins." + itemTypeKey + "." + skinLowerName + ".name",
+                        formatSkinName(skinLowerName));
+                description = !isUnlocked
+                        ? Component.translatable("screen.sre.skins.locked")
+                        : Component.translatableWithFallback(
+                                "screen.sre.skins." + itemTypeKey + "." + skinLowerName + ".desc",
+                                formatSkinName(skinLowerName));
+            }
 
             Component idText = Component.literal("ID: " + skinName);
 

@@ -313,6 +313,20 @@ public interface TMMItems {
 
         SkinableItem.add(TMMItems.BAT);
 
+        // 以下为扩展的可换肤物品。注意：共用一个皮肤类型的物品只登记一次（皮肤按类型存储），
+        // 例如 noellesroles:desperado_gun 与 derringer 共用 derringer 皮肤、
+        // noellesroles:inferior_lockpick 与 lockpick 共用 lockpick 皮肤。
+        SkinableItem.add(ModItems.SHORT_SHOTGUN);
+        SkinableItem.add(TMMItems.DERRINGER);
+        SkinableItem.add(TMMItems.LOCKPICK);
+        SkinableItem.add(TMMItems.CROWBAR);
+        SkinableItem.add(TMMItems.BODY_BAG);
+        SkinableItem.add(TMMItems.NOTE);
+        SkinableItem.add(TMMItems.FIRECRACKER);
+        SkinableItem.add(TMMItems.LETTER);
+        SkinableItem.add(ModItems.HANDCUFFS);
+        SkinableItem.add(ModItems.LOCK_ITEM);
+
         // 注册蓄力物品
         ChargeableItemRegistry.register(TMMItems.KNIFE, new KnifeChargeableItem());
         ChargeableItemRegistry.register(TMMItems.GRENADE, new GrenadeChargeableItem());

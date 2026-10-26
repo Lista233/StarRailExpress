@@ -78,6 +78,9 @@ public class GeneralModel implements UnbakedModel, BakedModel {
                         settings);
                 if (skin.getName() == "default")
                     continue;
+                // 皮肤已注册但模型文件还没放进来时跳过，避免渲染时 NPE（正常回退到默认模型）
+                if (bakedModel == null)
+                    continue;
                 if (bakeModels.containsKey(skin.getName()))
                     bakeModels.get(skin.getName()).put(variant, bakedModel);
                 else {

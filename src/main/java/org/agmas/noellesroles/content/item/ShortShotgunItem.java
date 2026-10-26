@@ -44,7 +44,8 @@ import org.agmas.noellesroles.init.NRSounds;
 
 import java.util.List;
 
-public class ShortShotgunItem extends Item implements HeldLikeBat, TrainWeapon {
+public class ShortShotgunItem extends io.wifi.starrailexpress.content.item.SkinableItem
+        implements HeldLikeBat, TrainWeapon {
     /** 最小蓄力时间：0.2秒 = 4刻 */
     private static final int MIN_CHARGE_TICKS = 4;
     private static final int MAX_CHARGE_TICKS = 40;
@@ -56,6 +57,11 @@ public class ShortShotgunItem extends Item implements HeldLikeBat, TrainWeapon {
 
     public ShortShotgunItem(Item.Properties settings) {
         super(settings);
+    }
+
+    @Override
+    public String getItemSkinType() {
+        return io.wifi.starrailexpress.util.ItemSkinManager.SkinTypes.SHORT_SHOTGUN;
     }
 
     @Override

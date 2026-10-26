@@ -15,6 +15,7 @@
 
 package io.wifi.starrailexpress.util;
 
+import io.wifi.starrailexpress.cca.SREPlayerSkinsComponent;
 import io.wifi.starrailexpress.content.item.Colors;
 import io.wifi.starrailexpress.content.item.SkinableItem;
 import io.wifi.starrailexpress.data.PlayerSkinEconomyManager;
@@ -25,8 +26,11 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * 皮肤管理工具类，用于处理物品皮肤相关的操作
@@ -175,7 +179,23 @@ public class ItemSkinManager {
         public static final String HAT = "hat";
         /** 音乐盒：装配后在对局中循环播放对应曲目，曲目表见 {@link MusicBoxTracks}。 */
         public static final String MUSIC_BOX = "music_box";
+        // === 以下为后续扩展的可换肤物品（类型名与物品注册名一致） ===
+        public static final String SHORT_SHOTGUN = "short_shotgun";
+        /** 德林加手枪：亡命徒德林加手枪（desperado_gun）共用同一皮肤类型。 */
+        public static final String DERRINGER = "derringer";
+        /** 开锁器：劣质开锁器（inferior_lockpick）共用同一皮肤类型。 */
+        public static final String LOCKPICK = "lockpick";
+        public static final String CROWBAR = "crowbar";
+        public static final String BODY_BAG = "body_bag";
+        public static final String NOTE = "note";
+        public static final String FIRECRACKER = "firecracker";
+        public static final String LETTER = "letter";
+        public static final String HANDCUFFS = "handcuffs";
+        public static final String LOCK = "lock";
     }
+
+    /** 皮肤选择项中的「随机」伪皮肤名：每次开局从该类型已拥有的皮肤中随机抽取。 */
+    public static final String RANDOM_SKIN = "random";
 
     protected static final HashMap<String, HashMap<String, Skin>> skinMap = new HashMap<>();
     // 皮肤类型ID映射（type name → int ID），用于网络包的高效同步
@@ -201,7 +221,10 @@ public class ItemSkinManager {
         // 初始化皮肤类型ID映射（顺序固定，确保服务端和客户端一致）
         // 新增类型只能追加到末尾，否则会打乱已同步的整数 ID
         String[] typeOrder = { SkinTypes.KNIFE, SkinTypes.REVOLVER, SkinTypes.BAT, SkinTypes.GRENADE, SkinTypes.HAT,
-                SkinTypes.MUSIC_BOX };
+                SkinTypes.MUSIC_BOX,
+                SkinTypes.SHORT_SHOTGUN, SkinTypes.DERRINGER, SkinTypes.LOCKPICK, SkinTypes.CROWBAR,
+                SkinTypes.BODY_BAG, SkinTypes.NOTE, SkinTypes.FIRECRACKER, SkinTypes.LETTER,
+                SkinTypes.HANDCUFFS, SkinTypes.LOCK };
         for (int i = 0; i < typeOrder.length; i++) {
             registerType(typeOrder[i]);
         }
@@ -254,10 +277,92 @@ public class ItemSkinManager {
      */
     public static String getEquippedSkin(Player player, ItemStack itemStack) {
         // ItemStack数据优先级高于玩家自身
+        String skinName;
         if (itemStack.has(SREDataComponentTypes.SKIN)) {
-            return itemStack.get(SREDataComponentTypes.SKIN);
+            skinName = itemStack.get(SREDataComponentTypes.SKIN);
+        } else {
+            skinName = PlayerSkinEconomyManager.getEquippedSkin(player, itemStack);
         }
-        return PlayerSkinEconomyManager.getEquippedSkin(player, itemStack);
+        return resolveRandomSkin(player, getItemTypeName(itemStack), skinName);
+    }
+
+    /** 判断某个皮肤名是否为「随机」。 */
+    public static boolean isRandomSkin(String skinName) {
+        return skinName != null && RANDOM_SKIN.equalsIgnoreCase(skinName);
+    }
+
+    /**
+     * 把「随机」解析成本局实际使用的皮肤名。
+     * <p>
+     * 解析结果由 {@code SREPlayerSkinsComponent#getResolvedSkin} 提供（开局时服务端抽取并同步），
+     * 若尚未抽取则回退到未装备。
+     */
+    public static String resolveRandomSkin(Player player, String itemTypeName, String skinName) {
+        if (!isRandomSkin(skinName)) {
+            return skinName;
+        }
+        if (player == null) {
+            return "default";
+        }
+        try {
+            String resolved = SREPlayerSkinsComponent.KEY.get(player).getResolvedSkin(itemTypeName);
+            if (resolved != null && !resolved.isBlank() && !isRandomSkin(resolved)) {
+                return resolved;
+            }
+        } catch (Exception ignored) {
+            // 组件尚未挂载（例如极早期渲染），回退到未装备
+        }
+        return "default";
+    }
+
+    /**
+     * 从玩家在该类型下已拥有的皮肤中随机挑一个（不含未装备）。
+     *
+     * @return 抽中的皮肤名；若一个都没有则返回 {@code default}
+     */
+    public static String pickRandomUnlockedSkin(Player player, String itemTypeName) {
+        List<String> pool = new ArrayList<>();
+        if (player != null) {
+            try {
+                Map<String, Boolean> unlocked = SREPlayerSkinsComponent.KEY.get(player)
+                        .getUnlockedSkinsForItemType(itemTypeName);
+                for (Map.Entry<String, Boolean> entry : unlocked.entrySet()) {
+                    String name = entry.getKey();
+                    if (name == null || name.isBlank() || "default".equalsIgnoreCase(name) || isRandomSkin(name)) {
+                        continue;
+                    }
+                    if (Boolean.TRUE.equals(entry.getValue()) && !pool.contains(name)) {
+                        pool.add(name);
+                    }
+                }
+            } catch (Exception ignored) {
+                // 组件缺失时按「无已拥有皮肤」处理
+            }
+        }
+        if (player == null || pool.isEmpty()) {
+            return "default";
+        }
+        return pool.get(player.getRandom().nextInt(pool.size()));
+    }
+
+    /**
+     * 玩家是否对该物品类型选择了「随机」。
+     */
+    public static boolean isRandomSelected(Player player, String itemTypeName) {
+        if (player == null) {
+            return false;
+        }
+        return isRandomSkin(PlayerSkinEconomyManager.getEquippedSkinForItemType(player, itemTypeName));
+    }
+
+    /**
+     * 为实体渲染准备一个带皮肤的 ItemStack 副本。
+     */
+    public static ItemStack applySkinToStack(ItemStack base, String skinName) {
+        ItemStack stack = base.copy();
+        String skin = (skinName == null || skinName.isBlank()) ? "default" : skinName;
+        stack.set(SREDataComponentTypes.SKIN, skin);
+        return stack;
     }
 
     /**
