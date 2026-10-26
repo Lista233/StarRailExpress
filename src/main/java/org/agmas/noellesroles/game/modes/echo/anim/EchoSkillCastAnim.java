@@ -38,7 +38,7 @@ public final class EchoSkillCastAnim {
             case STEADY_HAUL -> Style.PRESS;
             case SWIFT_PICK -> Style.SNATCH;
             case LOCK_ON -> Style.SCAN;
-            case SURGE -> Style.SLAM;
+            case STALL_BURST -> Style.SLAM;
             case DARK_CACHE -> Style.CONCEAL;
             case BROKER_DEAL -> Style.OFFER;
             case REND_DASH -> Style.CLAW;

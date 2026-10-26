@@ -26,7 +26,7 @@ class EchoTradeStateTest {
     }
     @Test void fullBagsExchangeOnlyAfterBothConfirmSameVersionAndCommitOnce() {
         var ia=give(a,"sound_key"); var ib=give(b,"short_dash");
-        for(int n=0;n<5;n++) { give(a,"short_dash"); give(b,"stabilizer"); }
+        for(int n=0;n<5;n++) { give(a,"short_dash"); give(b,"steady_flow"); }
         var t=editing(); quote(t,a,ia.instanceId()); quote(t,b,ib.instanceId());
         var locations=ledger.snapshot(); assertEquals("",t.layoutError());
         assertFalse(t.confirm(a.owner(),t.version(),a.revision(),0)); assertEquals(locations,ledger.snapshot());
@@ -40,13 +40,13 @@ class EchoTradeStateTest {
         var ia=give(a,"short_dash"); var t=editing(); quote(t,a,ia.instanceId());
         assertFalse(t.confirm(a.owner(),t.version(),a.revision(),0)); assertTrue(t.confirm(b.owner(),t.version(),b.revision(),0));
         assertTrue(b.find(ia.instanceId()).isPresent()); assertTrue(t.committed().orElseThrow().fromB().isEmpty());
-        var another=give(a,"short_dash"); for(int n=0;n<5;n++) give(b,"stabilizer");
+        var another=give(a,"short_dash"); for(int n=0;n<5;n++) give(b,"steady_flow");
         var full=editing(); quote(full,a,another.instanceId()); var old=ledger.snapshot();
         assertEquals("FULL",full.layoutError()); assertThrows(IllegalStateException.class,() -> full.confirm(a.owner(),full.version(),a.revision(),0)); assertEquals(old,ledger.snapshot());
         full.cancel(full.id()); assertFalse(a.locked(another.instanceId()));
     }
     @Test void offerChangeAndUnrelatedInventoryMutationClearBothConfirmations() {
-        var ia=give(a,"short_dash"); var ia2=give(a,"stabilizer"); var ib=give(b,"short_dash");
+        var ia=give(a,"short_dash"); var ia2=give(a,"steady_flow"); var ib=give(b,"short_dash");
         var t=editing(); quote(t,a,ia.instanceId()); quote(t,b,ib.instanceId());
         assertFalse(t.confirm(a.owner(),t.version(),a.revision(),0)); long old=t.version();
         quote(t,b); assertTrue(t.version()>old); assertFalse(t.confirmed(a.owner()));
@@ -56,7 +56,7 @@ class EchoTradeStateTest {
         assertThrows(IllegalStateException.class,() -> t.confirm(b.owner(),stale,b.revision(),0)); assertFalse(t.confirmed(a.owner())); assertTrue(t.version()>old);
     }
     @Test void invalidQuoteDoesNotReleasePreviousOrBoundPackLock() {
-        var ia=give(a,"short_dash"); var other=give(a,"stabilizer"); UUID binding=UUID.randomUUID(); a.lock(other.instanceId(),binding,a.revision());
+        var ia=give(a,"short_dash"); var other=give(a,"steady_flow"); UUID binding=UUID.randomUUID(); a.lock(other.instanceId(),binding,a.revision());
         var t=editing(); quote(t,a,ia.instanceId()); var before=a.snapshot();
         assertThrows(IllegalStateException.class,() -> quote(t,a,other.instanceId())); assertEquals(before,a.snapshot());
         assertThrows(IllegalStateException.class,() -> quote(t,a,ia.instanceId(),ia.instanceId())); assertEquals(before,a.snapshot());

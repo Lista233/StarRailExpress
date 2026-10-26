@@ -104,7 +104,7 @@ public final class EchoMachineClient {
                 return Component.translatable("echo.machine.status." + resource);
             }
             boolean paused = EchoHud.view() != null && EchoHud.view().state().paused();
-            if (machine.remaining() > 0 && (machine.status() == EchoMachineView.Status.COOLDOWN || machine.status() == EchoMachineView.Status.LOCKED || machine.status() == EchoMachineView.Status.CORE_OPEN))
+            if (machine.remaining() > 0 && (machine.status() == EchoMachineView.Status.COOLDOWN || machine.status() == EchoMachineView.Status.STALLED || machine.status() == EchoMachineView.Status.CORE_OPEN))
                 return Component.translatable("echo.machine.timer", Component.translatable(machine.status().key()), machine.seconds(age, paused));
             return Component.translatable(machine.status().key());
         }
@@ -115,7 +115,7 @@ public final class EchoMachineClient {
             case CORE_CONSOLE -> "unlock";
             case FREE_EXIT -> "leave";
             case BLACK_DROPOFF -> "deliver_black";
-            case BEACON, CORE_BEACON -> EchoBagClient.data() != null && EchoBagClient.data().faction() == EchoFaction.INTERCEPTOR ? "pollute" : "submit";
+            case BEACON, CORE_BEACON -> EchoBagClient.data() != null && EchoBagClient.data().faction() == EchoFaction.INTERCEPTOR ? "stall" : "submit";
             default -> "interact";
         };
         return Component.translatable("echo.machine.action." + action, client.options.keyUse.getTranslatedKeyMessage());

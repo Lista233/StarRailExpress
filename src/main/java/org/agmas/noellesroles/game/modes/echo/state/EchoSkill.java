@@ -8,7 +8,8 @@ public enum EchoSkill {
     SWIFT_PICK(EchoSpecialization.SCOUT, 1200, 200, true),
     /** 狩猎本能：持续增益（不是一次性），窗口内锁定充满、加速、免后摇、蓄力压缩。 */
     LOCK_ON(EchoSpecialization.HUNTER, 1500, 60, false),
-    SURGE(EchoSpecialization.SABOTEUR, 1600, 200, true),
+    /** 破坏者「迟滞脉冲」：一次性窗口，让下一座充能中的信标停住更久，但不扣进度。 */
+    STALL_BURST(EchoSpecialization.SABOTEUR, 1600, 200, true),
     DARK_CACHE(EchoSpecialization.SMUGGLER, 1800, 240, true),
     BROKER_DEAL(EchoSpecialization.FIXER, 1200, 0, false),
     /**

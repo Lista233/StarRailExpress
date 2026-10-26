@@ -51,7 +51,7 @@ class EchoSceneStateTest {
         s.depart(owner); assertTrue(s.all().isEmpty()); assertTrue(s.dueSounds(100).isEmpty());
     }
     @Test void totalProjectionBoundRejectsWholePair() {
-        var s=new EchoSceneState(); var light=spec(Kind.POLLUTION,0,100,-1);
+        var s=new EchoSceneState(); var light=spec(Kind.STALL,0,100,-1);
         for(int i=0;i<63;i++) assertTrue(s.add(UUID.randomUUID(),List.of(light),0));
         assertFalse(s.add(UUID.randomUUID(),List.of(light,light),0)); assertEquals(63,s.all().size());
         s.clear(); assertTrue(s.all().isEmpty());

@@ -71,10 +71,16 @@ public final class EchoCardEffects {
         long now=match.matchTick(); var state=state(player.getUUID()); int rank=c.tier()==EchoCardDefinition.Tier.UPGRADED?2:1;
         return switch(c.shortId()) {
             case "silent_collector","silent_rig" -> state.add(Marker.SILENCE,new Mark(c.id(),now+ticks(c,"durationTicks"),ticks(c,"charges"),0,false,0),now);
-            case "pollution_accelerator","strong_pollution" -> state.add(Marker.POLLUTION,new Mark(c.id(),now+ticks(c,"durationTicks"),ticks(c,"charges"),ticks(c,"channelTicks"),c.shortId().equals("strong_pollution"),0),now);
             case "trade_offer","trade_pact" -> state.add(Marker.TRADE,new Mark(c.id(),now+ticks(c,"durationTicks"),ticks(c,"charges"),ticks(c,"offerTicks"),false,param(c,"range")),now);
             case "short_dash","long_dash" -> state.boost(new Boost(c.id(),rank,now+ticks(c,"durationTicks"),param(c,"speedBonus")),now);
-            case "stabilizer","purifier","purge_stabilizer","overload_pulse","door_wedge","sound_key","master_key" -> match.objectives().cardEffect(player,c,request.point());
+            case "steady_flow","beacon_boost","overdrive_beacon","stall_pulse","stall_surge","door_wedge","sound_key","master_key"
+                    -> match.objectives().cardEffect(player,c,request.point());
+            case "cargo_raid" -> {
+                var victim=target(player,request.second(),param(c,"range"));
+                if(match.faction(victim.getUUID())==EchoFaction.INTERCEPTOR) reject("NO_TARGET");
+                if(!match.objectives().dropCarried(victim.getUUID(),false,victim.position())) reject("NO_RESOURCE");
+                victim.sendSystemMessage(Component.translatable("echo.signal.cargo_raided")); yield true;
+            }
             case "team_radar","team_scan" -> {
                 if(!signals.canReplace(player.getUUID(),"radar",ticks(c,"durationTicks"))) yield false;
                 var wolves=signals.wolves(player,param(c,"range"));
@@ -133,7 +139,7 @@ public final class EchoCardEffects {
         Vec3 p=image?player.position():scenes.ground(player,request.point(),param(c,"range"));
         var kind=image?EchoSceneState.Kind.IMAGE:id.equals("silent_dummy")?EchoSceneState.Kind.SILENT_DUMMY:dummy?EchoSceneState.Kind.DUMMY:
                 id.startsWith("false_")?EchoSceneState.Kind.SUBMISSION:id.equals("forged_dispatch")?EchoSceneState.Kind.DISPATCH:
-                request.option()==0?EchoSceneState.Kind.POLLUTION:EchoSceneState.Kind.SUBMISSION;
+                request.option()==0?EchoSceneState.Kind.STALL:EchoSceneState.Kind.SUBMISSION;
         if(id.equals("forged_signal") && request.option()!=0 && request.option()!=1) reject("NO_TARGET");
         int duration=image?ticks(c,"imageTicks"):dummy?ticks(c,"durationTicks"):id.startsWith("false_")?ticks(c,"highlightTicks"):ticks(c,"durationTicks");
         List<EchoSceneState.Spec> specs=new ArrayList<>();
@@ -162,16 +168,6 @@ public final class EchoCardEffects {
     }
     public boolean silent(UUID owner) { return state(owner).mark(Marker.SILENCE,match.matchTick()).isPresent(); }
     public boolean consumeSilence(UUID owner) { return state(owner).consume(Marker.SILENCE,match.matchTick()); }
-    public int pollutionTicks(UUID owner) {
-        if(match.skillPendingActive(owner,org.agmas.noellesroles.game.modes.echo.state.EchoSkill.SURGE)) return 40;
-        int base=state(owner).mark(Marker.POLLUTION,match.matchTick()).map(Mark::channelTicks).orElse(match.rules().beacon().pollutionChannelTicks());
-        var player=match.connectedPlayer(owner);
-        var data=player==null?null:RoleData.getNullable(EchoRoleData.class,player);
-        return data==null?base:data.pollutionTicks(base);
-    }
-    public boolean strongPollution(UUID owner) { return state(owner).mark(Marker.POLLUTION,match.matchTick()).map(Mark::strong).orElse(false)
-            || match.skillPendingActive(owner,org.agmas.noellesroles.game.modes.echo.state.EchoSkill.SURGE); }
-    public void consumePollution(UUID owner) { state(owner).consume(Marker.POLLUTION,match.matchTick()); }
     public void updateSpeed(ServerPlayer player) {
         var data=RoleData.getNullable(EchoRoleData.class,player); var speed=player.getAttribute(Attributes.MOVEMENT_SPEED);
         if(speed==null || data==null) return;

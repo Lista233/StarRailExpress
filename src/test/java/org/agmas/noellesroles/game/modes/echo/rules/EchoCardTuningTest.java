@@ -13,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class EchoCardTuningTest {
     private static final String PREFIX="noellesroles:echo/";
     @Test void strictPerCardWhitelistBoundsAndRelationshipsRejectIgnoredValues() {
-        for(String card:List.of("\"missing\":{}","\"stabilizer\":{\"layers\":2}","\"purifier\":{\"unlock\":0}",
-                "\"sound_key\":{\"openSeconds\":16}","\"strong_pollution\":{\"rollback\":0.5}","\"door_wedge\":{\"extendSeconds\":7}",
+        for(String card:List.of("\"missing\":{}","\"steady_flow\":{\"clearStall\":2}","\"beacon_boost\":{\"boostPermille\":0}",
+                "\"sound_key\":{\"openSeconds\":16}","\"stall_pulse\":{\"stallSeconds\":30}","\"door_wedge\":{\"extendSeconds\":7}",
                 "\"key_disruptor\":{\"dropKey\":0}","\"pack_hook\":{\"packs\":2}","\"short_dash\":{\"durationTicks\":80}",
                 "\"short_dash\":{\"durationSeconds\":0.01}","\"short_dash\":{\"speedBonus\":0.6}","\"short_dash\":{\"weight\":0}",
                 "\"short_dash\":{\"weight\":1.1}","\"short_dash\":{\"speedBonus\":1e999}","\"team_radar\":{\"range\":129}",
@@ -51,14 +51,12 @@ class EchoCardTuningTest {
         assertEquals(60D,EchoCardRegistry.require(PREFIX+"short_dash").params().get("durationTicks"));
     }
     @Test void coreAliasesAreTheSingleSourceForEffectiveCardDescriptionsAndRuntime() throws Exception {
-        var rules=EchoRuleRepository.parse("{\"gate\":{\"coreOpenSeconds\":16,\"masterOpenSeconds\":22,\"wedgeExtraSeconds\":6,\"wedgeMaxSeconds\":30},\"beacon\":{\"fastPollutionSeconds\":1,\"strongRollback\":0.6,\"pulsePauseSeconds\":7}}");
+        var rules=EchoRuleRepository.parse("{\"gate\":{\"coreOpenSeconds\":16,\"masterOpenSeconds\":22,\"wedgeExtraSeconds\":6,\"wedgeMaxSeconds\":30},\"beacon\":{\"stallSeconds\":7}}");
         assertEquals(320D,rules.card(PREFIX+"sound_key").params().get("openTicks"));
         assertEquals(440D,rules.card(PREFIX+"master_key").params().get("openTicks"));
         assertEquals(120D,rules.card(PREFIX+"door_wedge").params().get("extendTicks"));
         assertEquals(600D,rules.card(PREFIX+"door_wedge").params().get("maxOpenTicks"));
-        assertEquals(20D,rules.card(PREFIX+"strong_pollution").params().get("channelTicks"));
-        assertEquals(0.6,rules.card(PREFIX+"strong_pollution").params().get("rollback"));
-        assertEquals(140D,rules.card(PREFIX+"overload_pulse").params().get("pauseTicks"));
+        assertEquals(140D,rules.card(PREFIX+"stall_pulse").params().get("stallTicks"));
     }
     @Test void actualPackDrawUsesConfiguredWeightsAndCachesFrozenDefinitions() throws Exception {
         var rules=EchoRuleRepository.parse("{\"cards\":{\"silent_collector\":{\"weight\":100,\"durationSeconds\":9}}}");

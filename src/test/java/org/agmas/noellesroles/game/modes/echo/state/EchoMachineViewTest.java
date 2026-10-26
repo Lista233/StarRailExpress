@@ -43,7 +43,7 @@ class EchoMachineViewTest {
             if (expected == null) expected = new HashSet<>(lang.keySet()); else assertEquals(expected, lang.keySet());
             for (var type : EchoMachineView.Type.values()) assertTrue(lang.has(type.nameKey()), type.nameKey());
             for (var status : EchoMachineView.Status.values()) assertTrue(lang.has(status.key()), status.key());
-            for (String action : new String[]{"collect", "key", "search", "unlock", "leave", "deliver_black", "submit", "pollute", "interact", "overload"})
+            for (String action : new String[]{"collect", "key", "search", "unlock", "leave", "deliver_black", "submit", "stall", "interact", "overload"})
                 assertTrue(lang.has("echo.machine.action." + action), action);
             for (var entry : lang.entrySet()) assertFalse(entry.getValue().getAsString().isBlank(), entry.getKey());
         }

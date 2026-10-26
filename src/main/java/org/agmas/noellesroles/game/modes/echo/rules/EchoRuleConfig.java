@@ -9,8 +9,7 @@ public record EchoRuleConfig(Logistics logistics,Beacon beacon,Gate gate,Combat 
                             int crystalGroundTicks,int keyGroundTicks,int resourceGroundTicks,int blackCollectTicks,
                             int blackDeliverTicks,int blackRecoveryTicks,int blackGroundTicks,double bonusPackChance) { }
     public record Beacon(int requiredCrystals,int chargeTicks,double escortBonus,int maxEscorts,double escortRange,
-                         int pollutionChannelTicks,int fastPollutionTicks,int pollutionLockTicks,int pollutionIntervalTicks,
-                         double rollback,double strongRollback,int pulsePauseTicks) { }
+                         int stallTicks,int stallIntervalTicks) { }
     public record Gate(int coreOpenTicks,int wedgeExtraTicks,int wedgeMaxTicks,int masterOpenTicks,int evacuationDwellTicks,
                        int overloadTicks,double overloadRange) { }
     public record Combat(int cutterChargeTicks,int cutterCooldownTicks,double cutterRange,int shoveCooldownTicks,
@@ -36,7 +35,7 @@ public record EchoRuleConfig(Logistics logistics,Beacon beacon,Gate gate,Combat 
         public record Porter(int cargoCapacityBonus,double cargoPenaltyDelta) { }
         public record Scout(int cargoCapacityBonus,double collectSpeed) { }
         public record Hunter(double cutterChargeSpeed,double cutterCooldownSpeed) { }
-        public record Saboteur(double pollutionSpeed,double cutterCooldownSpeed) { }
+        public record Saboteur(double stallSpeed,double cutterCooldownSpeed) { }
         public record Smuggler(double blackCollectSpeed) { }
         public record Fixer(int tradeRangeBonus,double proposalCooldownSpeed) { }
         public Specialization {
@@ -45,7 +44,7 @@ public record EchoRuleConfig(Logistics logistics,Beacon beacon,Gate gate,Combat 
             capacityBonus(porter.cargoCapacityBonus()); capacityBonus(scout.cargoCapacityBonus());
             delta(porter.cargoPenaltyDelta());
             speed(scout.collectSpeed()); speed(hunter.cutterChargeSpeed()); speed(hunter.cutterCooldownSpeed());
-            speed(saboteur.pollutionSpeed()); speed(saboteur.cutterCooldownSpeed());
+            speed(saboteur.stallSpeed()); speed(saboteur.cutterCooldownSpeed());
             speed(smuggler.blackCollectSpeed()); speed(fixer.proposalCooldownSpeed());
             if(fixer.tradeRangeBonus()<0 || fixer.tradeRangeBonus()>4) throw new IllegalArgumentException("fixer.tradeRangeBonus超出0..4");
         }
@@ -62,7 +61,7 @@ public record EchoRuleConfig(Logistics logistics,Beacon beacon,Gate gate,Combat 
     }
     public static final EchoRuleConfig DEFAULT=new EchoRuleConfig(
             new Logistics(2,0.10,80,400,20,20,1200,40,60,1800,1200,900,2400,80,40,1200,600,0.10),
-            new Beacon(3,2000,0.20,3,6,80,40,400,900,0.20,0.40,100),
+            new Beacon(3,2000,0.20,3,6,400,900),
             new Gate(300,100,500,400,40,600,12),
             new Combat(12,50,2.75,500,25,160,1350,100,120,60,200,2.5,2.5),
             new Draft(30,200,400,0.5,new Distribution(0.85,0.15,0),new Distribution(0,1,0),new Distribution(0.7,0.3,0),new Distribution(0,0.7,0.3),new Distribution(0.5,0.4,0.1)),
@@ -75,12 +74,10 @@ public record EchoRuleConfig(Logistics logistics,Beacon beacon,Gate gate,Combat 
         org.agmas.noellesroles.game.modes.echo.cards.EchoCardRegistry.all().forEach(c -> cards.apply(c,gate,beacon));
         bounded(logistics.capacity(),1,4,"logistics.capacity"); probability(logistics.cargoPenalty()); probability(logistics.bonusPackChance());
         bounded(beacon.requiredCrystals(),1,12,"beacon.requiredCrystals"); bounded(beacon.maxEscorts(),0,8,"beacon.maxEscorts");
-        probability(beacon.escortBonus()); probability(beacon.rollback()); probability(beacon.strongRollback());
-        if(beacon.strongRollback()<beacon.rollback()) throw new IllegalArgumentException("强污染回退不能小于普通污染");
-        if(beacon.fastPollutionTicks()>beacon.pollutionChannelTicks()) throw new IllegalArgumentException("加速污染不得慢于普通污染");
+        probability(beacon.escortBonus());
+        bounded(beacon.stallTicks(),1,72000,"beacon.stallTicks"); bounded(beacon.stallIntervalTicks(),1,72000,"beacon.stallIntervalTicks");
         if(combat.rescueTicks()>=combat.bleedTicks()) throw new IllegalArgumentException("救援时长必须短于流血时长");
         if(combat.environmentProtectionTicks()<combat.environmentControlTicks()) throw new IllegalArgumentException("环境保护不得短于环境控制");
-        if(beacon.pollutionIntervalTicks()<beacon.pollutionLockTicks()+beacon.pollutionChannelTicks()) throw new IllegalArgumentException("污染间隔必须不少于封锁加引导时长");
         if(gate.wedgeMaxTicks()<Math.max(gate.coreOpenTicks(),gate.masterOpenTicks())) throw new IllegalArgumentException("门撑上限不得短于基础/高级开门");
         // 固定人数档最短撤离窗为60秒，配置不改变01的主胜负/人数档。
         if(gate.overloadTicks()>=1200) throw new IllegalArgumentException("过载必须短于最短撤离窗60秒");

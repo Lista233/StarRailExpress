@@ -25,14 +25,16 @@
 
 ## 2. 托运者基础卡（9 张）
 
+> 现行：污染机制已下线，原稳定剂/净化器改为稳流阀/信标助推，详见 [22](22-pollution-future.md)。
+
 | ID / 名称 | 系列 / 品质 / weight / 方式 | 目标与效果 | 失败/叠加/反制 | 服务执行点 |
 |---|---|---|---|---|
 | `silent_collector` 静默采集器 | SILENCE / C / 12 / A | 自身；下一次成功普通采集或提交无本次声光；标记 60 秒 | 不隐藏持续携带声纹、充能或公共数字进度；已有标记拒绝 | `CardService → ActionService` 成功提交事件 |
 | `decoy_dummy` 替身假人 | DECOY / C / 10 / A | LOS 地面 <=6 格；假人持续 15 秒，每 3 秒发 24 格采集声 | 不是真玩家、不能挡攻击/占点/贡献；被狼近距使用可提前拆除 | `DecoyService` |
 | `short_dash` 短距冲刺 | MOBILITY / C / 12 / A | 自身，3 秒移动 +25% | 与高级机动不叠；搬货减速仍算；不能解除控制 | `StatusService` |
 | `cargo_lining` 晶体夹层 | LOGISTICS / R / 7 / P | 货槽上限 3，搬货减速改为 -5% | 同类只取最高；丢弃/交易后超额掉货；不隐藏回声 | `InventoryService → StatusService` |
-| `stabilizer` 稳定剂 | COUNTER / C / 10 / A | 作业期信标 <=3 格；附一次免回退层，直到消耗/本局结束 | 未满料也可附；已 ACTIVE/已有层拒绝；不挡污染封锁 | `ObjectiveService` |
-| `purifier` 净化器 | COUNTER / R / 7 / A | 作业期已封锁信标 <=3 格，立即解封 | 未封锁拒绝；不恢复进度、不清目标污染冷却或脉冲暂停 | `ObjectiveService` |
+| `steady_flow` 稳流阀 | COUNTER / C / 10 / A | 作业期充能中信标 <=3 格；清除迟滞，进度不变 | 没有迟滞/已 ACTIVE 拒绝；不扣卡 | `ObjectiveService` |
+| `beacon_boost` 信标助推 | COUNTER / R / 7 / A | 作业期充能中信标 <=3 格；直接推进 10% 进度 | 未满料/已 ACTIVE 拒绝；不扣卡 | `ObjectiveService` |
 | `team_radar` 团队雷达 | INTEL / R / 6 / A | 自身周围 20 格内真狼，轮廓 3 秒，仅使用者看 | 至少一名目标才成功；非持续跟踪扫描，新进范围不补；伪装不骗该真实扫描 | `SignalService` |
 | `sound_key` 声纹钥匙 | ACCESS / R / 5 / K | 作业期核心门控制器 <=3 格；开全组 15 秒 | KEY；三阵营可用；已开门不消费；自身照常钥匙脉冲 | `GateService + ResourceLedger` |
 | `door_wedge` 门撑 | ACCESS / C / 8 / A | 作业期正在开放的核心门 <=3 格；加 5 秒，但截止不超过 now+25 秒 | 非 KEY；三阵营可用；关闭/已到上限/撤离期拒绝；不能作用中央撤离门 | `GateService` |
@@ -42,13 +44,13 @@
 | ID / 名称 | 系列 / 品质 / weight / 方式 | 目标与效果 | 失败/叠加/反制 | 服务执行点 |
 |---|---|---|---|---|
 | `crystal_sniff` 晶体嗅探 | TRACKING / C / 12 / A | 最近普通晶体携带者，跨地图查找，持续 5 秒，每秒更新八向扇区，仅本人 | 无货主拒绝；不含黑晶/地面/倒地者；静默假人可暂时诱导；不发玩家姓名/坐标 | `SignalService` |
-| `pollution_accelerator` 污染加速 | SABOTAGE / C / 10 / A | 自身下一次成功污染引导改为 2 秒，标记 60 秒 | 不叠；取消污染不耗标记；不减少信标 45 秒冷却 | `CardService → ActionService` |
-| `overload_pulse` 过载脉冲 | SABOTAGE / R / 7 / A | 作业期 CHARGING 信标 <=8 格，暂停 5 秒 | 已暂停拒绝；可与封锁并行但不加总；ACTIVE 无效，不关撤离门 | `ObjectiveService` |
+| `stall_pulse` 迟滞脉冲 | SABOTAGE / C / 10 / A | 作业期充能中信标 <=8 格；迟滞 20 秒 | 已 ACTIVE/未满料/已在迟滞中拒绝；不扣任何进度 | `ObjectiveService` |
+| `cargo_raid` 截货 | SABOTAGE / R / 7 / A | LOS 非狼站立玩家 <=5 格；震落其货槽里一枚晶体 | 对方无货/超距/无 LOS 拒绝；不扣卡 | `ObjectiveService` |
 | `false_echo` 假回声 | DECOY / C / 10 / A | LOS 地面 <=12 格，伪造一次全图提交声与 3 秒假高亮 | 明确是音视幻象；不增提交数、不发包、不激活契约；该玩家假提交 15 秒 CD | `SignalService` |
 | `hunt_mark` 猎杀标记 | HUNT / R / 6 / A | LOS 非狼站立玩家 <=12 格，12 秒内每 4 秒给本人一次 1 秒目标轮廓 | 目标获“被标记”提示；施术者也向目标显轮廓 1 秒；无伤害加成；同目标不重复叠标记 | `StatusService + SignalService` |
 | `key_disruptor` 通行破坏器 | SABOTAGE / R / 6 / A | LOS 非狼站立携钥玩家 <=10 格，强制掉落其 KEY | 无 KEY 拒绝；取消受害者相关报价再掉落，不复制钥匙；不能毁钥匙/穿墙偷卡 | `TradeService → InventoryService` |
 
-过载关门不在卡池中；它是 03 的截流阵营一次固有能力。猎杀标记完全去掉“加几心”，保持两次机会制自洽。
+过载关门不在卡池中；它是 03 的截流阵营一次固有能力。猎杀标记完全去掉“加几心”，保持两次机会制自洽。原污染加速/过载脉冲已替换为迟滞脉冲/截货。
 
 ## 4. 投机客基础卡（6 张）
 
@@ -58,7 +60,7 @@
 | `faction_mask` 阵营伪装 | DISGUISE / R / 6 / A | 自身；30 秒对正常客户端显示为观察者友方色 | 不进真队友列表、不改声纹/雷达/真实权限；攻击或有效受击解除；只能骗表现 | `SignalService` 每观察者投影 |
 | `afterimage` 残影 | SELF_PRESERVE / C / 12 / A | 自身；原地假影 4 秒，本人移动 +20% 持续 3 秒 | 不无敌、不消货物脉冲；假影不阻挡；不能在倒地/控制中使用 | `DecoyService + StatusService` |
 | `black_sniff` 黑晶嗅探 | SALVAGE / C / 10 / A | 最近可由本人拾取的黑晶或地面黑市包，48 格内方向高亮 8 秒 | 非走私商只找黑市包；不搜别人的背包；无目标拒绝 | `SignalService` |
-| `forged_signal` 伪造信号 | FORGERY / C / 10 / A | LOS 地面 <=12 格；选择假污染光或假提交声，持续 3 秒/响一次 | 假污染不封锁、不进公共信标状态；同定义 15 秒 CD，不能伪造网络真实事件 | `SignalService` |
+| `forged_signal` 伪造信号 | FORGERY / C / 10 / A | LOS 地面 <=12 格；选择假迟滞光或假提交声，持续 3 秒/响一次 | 假光不迟滞、不进公共信标状态；同定义 15 秒 CD，不能伪造网络真实事件 | `SignalService` |
 | `pack_hook` 偷包钩爪 | SALVAGE / R / 6 / A | LOS 非本人站立玩家 <=5 格，随机转移一包未绑定、未锁定物资包 | 先校验自己容纳，再抽目标包；对同一目标 30 秒 CD；无包/满包不消耗，不暴露其全库存 | `InventoryService` 原子转移 |
 
 ## 5. 高级卡与唯一配方（16 张）
@@ -71,18 +73,18 @@
 | `CARRIER:DECOY` | `silent_dummy` 静默假人 | A，LOS 地面 <=6 格，20 秒无声假人；20 格内狼嗅探在前 5 秒优先指向它 | 只误导嗅探扇区，不改真实货主、雷达、契约；被发现可近距拆，`DecoyService/SignalService` |
 | `CARRIER:MOBILITY` | `long_dash` 疾跑 | A，自身，5 秒移动 +35% | 已有同级/更强机动拒绝；不解控，`StatusService` |
 | `CARRIER:LOGISTICS` | `cargo_harness` 稳态货架 | P，货槽上限 4，搬货减速 0 | 搬货仍发声纹；只取最高物流被动；离格处理溢出，`InventoryService` |
-| `CARRIER:COUNTER` | `purge_stabilizer` 净化稳定剂 | A，作业期非 ACTIVE 信标 <=3 格，先解封再附一层免回退 | 已无封锁且已有层则拒绝；不清脉冲与污染 CD，`ObjectiveService` |
+| `CARRIER:COUNTER` | `overdrive_beacon` 信标超载 | A，作业期充能中信标 <=3 格，推进 15% 并清除迟滞 | 两者都不可用时拒绝，`ObjectiveService` |
 | `CARRIER:INTEL` | `team_scan` 团队扫描 | A，自身周围 28 格真狼轮廓 5 秒，仅本人 | 无狼拒绝、目标快照与雷达相同；名字不全图广播，`SignalService` |
 | `SHARED:ACCESS` | `master_key` 万能钥匙 | K，三阵营可用；作业期核心门 <=3 格，开 20 秒并给本人显示门内 12 格真狼轮廓 2 秒 | KEY；只有开门成功才消费；门内无狼仍开门成功；不叠已有开放时长，`GateService/SignalService` |
 | `INTERCEPTOR:TRACKING` | `global_pulse` 全图脉冲 | A，查最近最多三名普通货主，8 秒，每秒八向扇区，仅本人 | 无目标拒绝；前 5 秒可受静默假人误导；仍不发身份/精确坐标，`SignalService` |
-| `INTERCEPTOR:SABOTAGE` | `strong_pollution` 强污染 | A，自身下一次污染引导 2 秒、回退 40 个百分点，标记 60 秒 | 与已有任一污染增益互斥；稳定层可挡全部回退，锁和 CD 不变，`ActionService/ObjectiveService` |
+| `INTERCEPTOR:SABOTAGE` | `stall_surge` 强迟滞 | A，作业期充能中信标 <=8 格，迟滞 45 秒 | 与普通迟滞同一计时器，不叠加；已 ACTIVE 拒绝，`ObjectiveService` |
 | `INTERCEPTOR:DECOY` | `false_dispatch` 双重假回声 | A，LOS 两个地面点各 <=12 格且相距 >=6 格，相隔 2 秒各播一次假提交 | 两点创建时全校验；第二声用固定点不跟玩家；共享假提交 15 秒 CD，`SignalService` |
 | `INTERCEPTOR:HUNT` | `hunt_pressure` 猎杀压迫 | A，LOS 非狼站立玩家 <=12 格，目标减速 10% 持续 8 秒；给两名狼目标轮廓 4 秒，施术者向目标显形 2 秒 | 不加伤害、不缩保护；已有猎杀标记则拒绝；减速作为一个状态源，`StatusService/SignalService` |
 | `BROKER:TRADE` | `trade_pact` 双向商约 | A，自身，60 秒内两笔提案可 16 格、各持续 60 秒 | 与已有交易增益互斥；真实确认/库存容量照常验证，`TradeService` |
 | `BROKER:DISGUISE` | `double_mask` 双面面具 | A，自身友方色伪装 45 秒，附一次抑制本人的钥匙方向脉冲 | 抑制后该次数消失；黑晶/拾荒微光不抑制；攻击/受击解除全部，`SignalService` |
 | `BROKER:SELF_PRESERVE` | `residual_veil` 残影幕 | A，自身移动 +25% 持续 4 秒，原地假影 6 秒 | 不无敌、不真隐身、不减攻击 CD、不阻声纹，`StatusService/DecoyService` |
 | `BROKER:SALVAGE` | `salvage_magnet` 拾荒磁场 | A，48 格内最近可拾黑晶/地面黑市包方向高亮 20 秒；同时可把 LOS 4 格内最近一包地面物资收入背包 | 无任何目标拒绝；满包仍可有高亮，但不得销毁地面包；不吸玩家库存，`SignalService/InventoryService` |
-| `BROKER:FORGERY` | `forged_dispatch` 伪造调度 | A，LOS 地面 <=12 格，同时一次假提交声+5 秒假污染光 | 共享伪造信号 15 秒 CD；不改任何目标数字，`SignalService` |
+| `BROKER:FORGERY` | `forged_dispatch` 伪造调度 | A，LOS 地面 <=12 格，同时一次假提交声+5 秒假迟滞光 | 共享伪造信号 15 秒 CD；不改任何目标数字，`SignalService` |
 
 ## 6. 效果交互与生命周期
 
@@ -92,7 +94,7 @@
 4. 诱饵最多每玩家同时两个；新卡到上限拒绝，不能覆盖旧诱饵仍收卡。全场最多 24 个，结束时按 matchId 清除。假影不能被救援或计入存活。
 5. 假回声与伪造调度故意让正常玩家通过声光判断；公共目标 HUD 仍是真实状态，可通过核实识破。不会给客户端一个 `isFake=false` 然后相信它推进目标。
 6. 被动、标记、门撑、稳定层、假信号各有唯一 effectId 和来源；下线除绑定包/契约进度外，短期战斗增益按原截止推进，不能重连续时。成功退场和淘汰清掉本人剩余持续效果。
-7. 撤离阶段不能用只作用作业目标的污染、稳定、净化、钥匙或门撑；这些卡仍可交易/丢弃。开包池不依“附近是否有目标”变化；玩家需要承担抽到当前不适用卡的取舍。
+7. 撤离阶段不能用只作用作业目标的迟滞、稳流、助推、钥匙或门撑；这些卡仍可交易/丢弃。开包池不依“附近是否有目标”变化；玩家需要承担抽到当前不适用卡的取舍。
 
 ## 7. 定义校验与验收
 

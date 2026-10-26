@@ -48,14 +48,14 @@ class EchoInventoryTest {
     }
     @Test void sameDefinitionDifferentInstancesCraftInFullBagWithoutThirdSlot() {
         var a=card("short_dash"); var b=card("short_dash"); give(bag,a); give(bag,b);
-        for(int n=0;n<4;n++) give(bag,card("stabilizer")); assertEquals(-1,bag.emptySlot());
+        for(int n=0;n<4;n++) give(bag,card("steady_flow")); assertEquals(-1,bag.emptySlot());
         var output=bag.craft(a.instanceId(),b.instanceId(),EchoFaction.CARRIER,bag.revision());
         assertEquals("noellesroles:echo/long_dash",output.definitionId()); assertEquals(0,bag.slot(output.instanceId()));
         assertEquals(5,bag.items().size()); assertTrue(ledger.find(a.instanceId()).orElseThrow().terminal());
         assertTrue(ledger.find(b.instanceId()).orElseThrow().terminal());
     }
     @Test void invalidCraftAndStaleRevisionAreZeroMutation() {
-        var a=card("short_dash"); var b=card("stabilizer"); give(bag,a); give(bag,b);
+        var a=card("short_dash"); var b=card("steady_flow"); give(bag,a); give(bag,b);
         var snapshot=bag.snapshot(); var locations=ledger.snapshot();
         assertThrows(IllegalStateException.class,() -> bag.craft(a.instanceId(),b.instanceId(),EchoFaction.CARRIER,bag.revision()));
         assertThrows(IllegalStateException.class,() -> bag.craft(a.instanceId(),a.instanceId(),EchoFaction.CARRIER,bag.revision()));
@@ -65,7 +65,7 @@ class EchoInventoryTest {
     @Test void fullBagsCanAtomicallyExchangeOneForOneIncludingPackAndKey() {
         var other=new EchoInventory(UUID.randomUUID(),ledger); var a=card("sound_key"); var b=pack(EchoDraftService.PackQuality.COMMON);
         give(bag,a); give(other,b);
-        for(int n=0;n<5;n++) { give(bag,card("short_dash")); give(other,card("stabilizer")); }
+        for(int n=0;n<5;n++) { give(bag,card("short_dash")); give(other,card("steady_flow")); }
         UUID trade=UUID.randomUUID(); bag.lock(a.instanceId(),trade,bag.revision()); other.lock(b.instanceId(),trade,other.revision());
         EchoInventory.exchange(bag,List.of(a.instanceId()),bag.revision(),other,List.of(b.instanceId()),other.revision(),trade);
         assertTrue(bag.find(b.instanceId()).isPresent()); assertTrue(other.find(a.instanceId()).isPresent());

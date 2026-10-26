@@ -141,7 +141,7 @@ id在同一列表唯一，跨引用按类型区分。点位数组上限各128，
 
 主Areas图必须：`gameModes=["echo_freight"]`、initialItems为空、会议/摇铃关闭、小游戏任务关闭、场景任务为空、无随机开局灾害、无额外职业/修饰符强制项；地图设置中的水/禁区检测要与02环境救援规则兼容。不是把这些规则写在 sidecar 就能覆盖已有主图字段，预检逐项检查实际 Areas 设置。
 
-`rules.json` 首发允许覆盖03–05的数值，不覆盖01人数配额/主胜负或自由执行代码。配置域为 `logistics、beacon、gate、combat、draft、signals、trade、cards`；时间使用秒并精确转整数tick。配置开局冻结，reload仅下一局生效。关系校验包含污染间隔/引导/封锁、容量、门撑、过载、救援、概率与每卡参数关系。
+`rules.json` 首发允许覆盖03–05的数值，不覆盖01人数配额/主胜负或自由执行代码。配置域为 `logistics、beacon、gate、combat、draft、signals、trade、cards`；时间使用秒并精确转整数tick。配置开局冻结，reload仅下一局生效。关系校验包含迟滞时长/共享间隔、容量、门撑、过载、救援、概率与每卡参数关系。
 
 ## 6. 预检与路线验收
 
@@ -218,7 +218,7 @@ PASSED只授权当前一次初始化；FAILED/异常/硬等待超时取消开局
 | trade | range、offerSeconds、proposalCooldownSeconds；默认3格、20秒、15秒 |
 | specialization | 六个专长各一组：porter(cargoCapacityBonus,cargoPenaltyDelta)、scout(cargoCapacityBonus,collectSpeed)、hunter(cutterChargeSpeed,cutterCooldownSpeed)、saboteur(pollutionSpeed,cutterCooldownSpeed)、smuggler(blackCollectSpeed)、fixer(tradeRangeBonus,proposalCooldownSpeed) |
 
-基础域与专长共87项数字。概率和必须为1，普通/稀有包不得引入史诗、稀有首位保持稀有、黑市首位不允许普通。污染间隔不得短于封锁+普通引导；加速污染不能更慢，强污染回退不能更少；门撑上限不得短于基础/高级开门，过载小于60秒；救援短于流血，环境保护不短于环境控制；开包速度倍率0.5–1。物流被动不会因基线变大反而降容量/加重减速。
+基础域与专长共87项数字。概率和必须为1，普通/稀有包不得引入史诗、稀有首位保持稀有、黑市首位不允许普通。单次迟滞必须短于共享间隔；门撑上限不得短于基础/高级开门，过载小于60秒；救援短于流血，环境保护不短于环境控制；开包速度倍率0.5–1。物流被动不会因基线变大反而降容量/加重减速。
 
 配置在预检读取并由EchoMatch持有不可变快照，运行中不再次读取。reload仅下一局生效；有效hash包括全部37卡实际参数与权重，以及六个专长的数值。完整默认值见EchoRuleConfig.DEFAULT、EchoRuleRepository.example()和rules.example.json。逐卡白名单见下节，专长语义见[12](12-specializations.md)；未知或未实际支持的字段仍拒绝。
 
@@ -261,6 +261,6 @@ PASSED只授权当前一次初始化；FAILED/异常/硬等待超时取消开局
 | forged_signal / forged_dispatch | range、durationSeconds、cooldownSeconds |
 | pack_hook | range、targetCooldownSeconds |
 
-唯一来源：sound_key/master_key开门时间与door_wedge时长仍在gate域；污染引导/强回退与脉冲暂停仍在beacon域。禁止在cards重复写这些别名，防止效果与说明矛盾。layers/unlock/dropKey/packs为固定机制，不开放伪配置。猎杀轮廓不能长于刷新间隔，假人诱导不能长于存续，两点最小间距不能超过两倍可选距离。
+唯一来源：sound_key/master_key开门时间与door_wedge时长仍在gate域；迟滞时长与共享间隔仍在beacon域。禁止在cards重复写这些别名，防止效果与说明矛盾。dropKey/packs/cargo为固定机制，不开放伪配置。猎杀轮廓不能长于刷新间隔，假人诱导不能长于存续，两点最小间距不能超过两倍可选距离。
 
 客户端初次绑定/重连单独接收一次相同冻结快照；高频库存、信号同步不重复发送37张卡表。规则未到禁用写操作。卡牌详情/候选/交易提示显示无默认数字的机制说明与本局实际参数，代理选点距离和物流被动也读同一份有效定义。已绑定包保留首次抽出的定义，取消或配置文件改动不重抽、不刷新截止。

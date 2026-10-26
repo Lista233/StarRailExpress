@@ -76,12 +76,20 @@ def icon(card, faction, series, upgraded):
             box((24, 15, 27, 22), GOLD)
             line((14, 18, 18, 18), GOLD)
     elif series == 'COUNTER':
-        if card in ('stabilizer', 'purge_stabilizer'):
-            d.polygon(((16, 6), (24, 10), (23, 18), (16, 25), (9, 18), (8, 10)), outline=ink)
-            line((12, 15, 15, 19, 21, 12), CREAM)
-        if card == 'purifier':
-            d.polygon(((16, 6), (23, 17), (23, 21), (20, 25), (12, 25), (9, 21), (9, 17)), outline=ink)
-            line((12, 19, 15, 22, 21, 16), CREAM)
+        if card in ('steady_flow', 'overdrive_beacon'):
+            # 稳流阀：管道 + 顺时针箭头，超载再加双箭头。
+            line((7, 12, 25, 12), ink)
+            line((7, 20, 25, 20), ink)
+            line((10, 8, 10, 24), ink)
+            line((22, 8, 22, 24), ink)
+            line((12, 16, 18, 16, 16, 13), CREAM)
+            if card == 'overdrive_beacon':
+                line((12, 24, 20, 24, 18, 21), CREAM)
+        elif card == 'beacon_boost':
+            # 信标助推：塔身 + 上升箭头。
+            d.polygon(((16, 6), (21, 14), (19, 24), (13, 24), (11, 14)), outline=ink)
+            line((16, 22, 16, 11, 13, 14), CREAM)
+            line((19, 11, 13, 11), CREAM)
         if upgraded:
             line((24, 18, 24, 26), GOLD)
             line((20, 22, 28, 22), GOLD)
@@ -118,17 +126,29 @@ def icon(card, faction, series, upgraded):
             d.ellipse((6, 12, 9, 15), fill=ink)
             d.ellipse((23, 17, 26, 20), fill=ink)
     elif series == 'SABOTAGE':
-        if card in ('pollution_accelerator', 'strong_pollution'):
-            line((12, 6, 20, 6), CREAM)
-            line((13, 6, 13, 13, 8, 22, 10, 25, 22, 25, 24, 22, 19, 13, 19, 6), CREAM)
-            d.polygon(((11, 19), (21, 19), (23, 23), (9, 23)), fill=ink)
-            if upgraded:
-                line((24, 7, 21, 12, 26, 12, 23, 17), GOLD)
-            else:
-                d.ellipse((15, 14, 17, 16), fill=ink)
-        elif card == 'overload_pulse':
-            ring((6, 6, 26, 26), ink)
-            line((18, 7, 11, 17, 17, 17, 13, 26, 23, 13, 17, 13, 18, 7), CREAM)
+        if card == 'stall_pulse':
+            # 迟滞脉冲：沙漏 + 中断符号。
+            line((11, 6, 21, 6), CREAM)
+            line((11, 25, 21, 25), CREAM)
+            line((12, 7, 20, 24), ink)
+            line((20, 7, 12, 24), ink)
+            line((8, 16, 14, 16), GOLD)
+        elif card == 'stall_surge':
+            # 强迟滞：双沙漏叠层。
+            line((9, 5, 17, 5), CREAM)
+            line((9, 16, 17, 16), CREAM)
+            line((10, 6, 16, 15), ink)
+            line((16, 6, 10, 15), ink)
+            line((15, 17, 23, 17), CREAM)
+            line((15, 27, 23, 27), CREAM)
+            line((16, 18, 22, 26), ink)
+            line((22, 18, 16, 26), ink)
+        elif card == 'cargo_raid':
+            # 截货：货箱被钩子勾走。
+            box((8, 14, 22, 26), ink)
+            line((10, 20, 20, 20), CREAM)
+            line((15, 6, 15, 12, 21, 8), CREAM)
+            d.ellipse((20, 5, 24, 9), outline=ink)
         else:
             ring((5, 6, 15, 16), CREAM)
             line((13, 15, 24, 26), CREAM)

@@ -18,7 +18,7 @@ public record EchoPublicPayload(UUID match,ResourceLocation dimension,EchoPublic
         b.writeVarInt(s.beacons().size());
         for(var v:s.beacons()) {
             b.writeUtf(v.id(),64); b.writeVarInt(v.delivered()); b.writeVarInt(v.required()); b.writeVarInt(v.progress());
-            b.writeBoolean(v.active()); b.writeBoolean(v.stable()); b.writeVarLong(v.lockedUntil()); b.writeVarLong(v.pausedUntil());
+            b.writeBoolean(v.active()); b.writeVarLong(v.stalledUntil());
             b.writeBoolean(v.position()!=null);
             if(v.position()!=null) { b.writeDouble(v.position().x()); b.writeDouble(v.position().y()); b.writeDouble(v.position().z()); }
             b.writeVarLong(v.submissionUntil());
@@ -32,9 +32,9 @@ public record EchoPublicPayload(UUID match,ResourceLocation dimension,EchoPublic
         var beacons=new ArrayList<EchoPublicState.Beacon>(size);
         for(int n=0;n<size;n++) {
             String name=b.readUtf(64); int delivered=b.readVarInt(),required=b.readVarInt(),progress=b.readVarInt();
-            boolean active=b.readBoolean(),stable=b.readBoolean(); long locked=b.readVarLong(),pausedUntil=b.readVarLong();
+            boolean active=b.readBoolean(); long stalled=b.readVarLong();
             var point=b.readBoolean()?new EchoPublicState.Point(b.readDouble(),b.readDouble(),b.readDouble()):null;
-            beacons.add(new EchoPublicState.Beacon(name,delivered,required,progress,active,stable,locked,pausedUntil,point,b.readVarLong()));
+            beacons.add(new EchoPublicState.Beacon(name,delivered,required,progress,active,stalled,point,b.readVarLong()));
         }
         return new EchoPublicPayload(match,dimension,new EchoPublicState(phase,tick,remaining,paused,escaped,quota,core,coreUntil,evacuation,closed,used,beacons));
     });

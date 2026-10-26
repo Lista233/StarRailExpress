@@ -128,13 +128,10 @@ public final class EchoObjectiveService {
         }
         var beacon=beacons.get(target.id());
         return switch(card.shortId()) {
-            case "stabilizer" -> beacon.stabilize();
-            case "purifier" -> beacon.purify(now);
-            case "purge_stabilizer" -> {
-                if(beacon.active() || now>=beacon.lockedUntil() && beacon.stable()) yield false;
-                beacon.purify(now); beacon.stabilize(); yield true;
-            }
-            case "overload_pulse" -> beacon.pause(now,rules.beacon().pulsePauseTicks());
+            // 加速卡：立即按百分比推进充能，不改变投料与已启动事实。
+            case "beacon_boost","overdrive_beacon" -> beacon.boost(now,(int)card.params().getOrDefault("boostPermille",0D).doubleValue());
+            // 迟滞卡：截流者让充能停住一段时间，已积累进度不受影响。
+            case "stall_pulse","stall_surge" -> beacon.stall(now,(int)card.params().getOrDefault("stallTicks",0D).doubleValue());
             default -> false;
         };
     }
@@ -194,7 +191,7 @@ public final class EchoObjectiveService {
             case BLACK_DROPOFF -> match.skillPendingActive(player.getUUID(),org.agmas.noellesroles.game.modes.echo.state.EchoSkill.DARK_CACHE)
                     ?instant(player.getUUID(),org.agmas.noellesroles.game.modes.echo.state.EchoSkill.DARK_CACHE)
                     :rules.logistics().blackDeliverTicks();
-            case BEACON -> carrier(player)?rules.logistics().submitTicks():match.cards().pollutionTicks(player.getUUID());
+            case BEACON -> carrier(player)?rules.logistics().submitTicks():stallTicks(player);
             case ALTAR -> rules.logistics().altarTicks();
             case RESCUE -> rules.combat().rescueTicks();
             case CRATE -> crate(target.id()).quality().equals("COMMON")?rules.logistics().crateSearchTicks():rules.logistics().blackMarketSearchTicks();
@@ -232,6 +229,13 @@ public final class EchoObjectiveService {
     private int instant(UUID owner,org.agmas.noellesroles.game.modes.echo.state.EchoSkill skill) {
         match.consumeSkillPending(owner,skill); return 1;
     }
+    /** 迟滞引导时长：破坏者专长按倍率缩短；「迟滞脉冲」窗口内下一次更快。 */
+    private int stallTicks(ServerPlayer player) {
+        int base = data(player).stallTicks(rules.beacon().stallTicks());
+        if (match.skillPendingActive(player.getUUID(),org.agmas.noellesroles.game.modes.echo.state.EchoSkill.STALL_BURST))
+            return instant(player.getUUID(),org.agmas.noellesroles.game.modes.echo.state.EchoSkill.STALL_BURST);
+        return base;
+    }
     private void refuse(ServerPlayer player,Target target) {
         var d=data(player); String reason;
         if(!d.life().standing()) reason="DOWNED";
@@ -266,7 +270,7 @@ public final class EchoObjectiveService {
             case BLACK_DROPOFF -> match.contracts().dropoff(player.getUUID(),target.id()) && blackCount(player)>0;
             case CRYSTAL -> match.phase()==EchoPhase.OPERATIONS && carrier(player) && data.freeCargoSlot()>=0 && now>=nodeReady.get(target.id());
             case BEACON -> match.phase()==EchoPhase.OPERATIONS && (carrier(player)?!data.cargo().isEmpty()&&beacons.get(target.id()).canSubmit()
-                    : match.faction(player.getUUID())==EchoFaction.INTERCEPTOR&&beacons.get(target.id()).canPollute(now));
+                    : match.faction(player.getUUID())==EchoFaction.INTERCEPTOR&&beacons.get(target.id()).canStall(now));
             case ALTAR -> match.phase()==EchoPhase.OPERATIONS && keys!=null && keys.at(target.id()).filter(id -> match.bags().canPickup(player,id)).isPresent();
             case CORE -> match.phase()==EchoPhase.OPERATIONS && data.key()!=null && !data.inventory().locked(data.key()) && !gates.state().coreOpen(now);
             case CRATE -> match.phase()==EchoPhase.OPERATIONS && now>=crateReady.get(target.id());
@@ -341,9 +345,8 @@ public final class EchoObjectiveService {
                         submissionHighlights.put(target.id(),now+200);
                         EchoAudio.submission(match,target.pos());
                     }
-                } else if(beacon.pollute(now,match.cards().strongPollution(player.getUUID()))) {
-                    match.cards().consumePollution(player.getUUID());
-                    reward(player,PackQuality.BLACK_MARKET,"pollute:"+target.id()); announce("echo.goal.polluted",target.id()); burst(target.pos()); nearby(target.pos(),SoundEvents.RESPAWN_ANCHOR_CHARGE,24);
+                } else if(beacon.stall(now,rules.beacon().stallTicks())) {
+                    reward(player,PackQuality.BLACK_MARKET,"stall:"+target.id()); announce("echo.goal.stalled",target.id()); burst(target.pos()); nearby(target.pos(),SoundEvents.RESPAWN_ANCHOR_CHARGE,24);
                 }
             }
             case ALTAR -> keys.at(target.id()).flatMap(id -> drops.all().stream().filter(d -> d.instanceId().equals(id)).findFirst()).ifPresent(drop -> pickup(player,drop));
@@ -535,8 +538,7 @@ public final class EchoObjectiveService {
         if (t != null) {
             if (t.kind() == Kind.BEACON) {
                 var b = beacons.get(t.id()); amount = b.delivered(); required = b.requiredCrystals(); progress = b.progressPermille();
-                long until = Math.max(b.lockedUntil(), b.pausedUntil());
-                if (match.faction(player.getUUID()) == EchoFaction.INTERCEPTOR) until = Math.max(until, b.nextPolluteAt());
+                long until = b.stalledUntil();
                 remaining = hintRemaining(until, now);
             } else if (t.kind() == Kind.CRYSTAL) remaining = hintRemaining(nodeReady.get(t.id()), now);
             else if (t.kind() == Kind.CRATE && crateReady.get(t.id()) != Long.MAX_VALUE) remaining = hintRemaining(crateReady.get(t.id()), now);
@@ -561,7 +563,7 @@ public final class EchoObjectiveService {
             if (match.faction(player.getUUID()) == EchoFaction.INTERCEPTOR)
                 return gates.state().overloadUsed() ? EchoMachineView.Status.OVERLOAD_USED : EchoMachineView.Status.OVERLOAD_READY;
             if (!carrier(player)) return EchoMachineView.Status.WRONG_FACTION;
-            return gates.state().evacuationOpen(now) ? EchoMachineView.Status.EVAC_OPEN : EchoMachineView.Status.LOCKED;
+            return gates.state().evacuationOpen(now) ? EchoMachineView.Status.EVAC_OPEN : EchoMachineView.Status.STALLED;
         }
         if (hint.type() == EchoMachineView.Type.BROKER_EXIT) {
             var contract = match.contracts().state(player.getUUID());
@@ -586,10 +588,10 @@ public final class EchoObjectiveService {
             case BEACON -> {
                 var b = beacons.get(target.id());
                 if (b.active()) yield EchoMachineView.Status.ACTIVE;
-                if (carrier(player)) yield !b.canSubmit() ? now < Math.max(b.lockedUntil(), b.pausedUntil()) ? EchoMachineView.Status.LOCKED : EchoMachineView.Status.CHARGING
+                if (carrier(player)) yield !b.canSubmit() ? now < b.stalledUntil() ? EchoMachineView.Status.STALLED : EchoMachineView.Status.CHARGING
                         : d.cargo().isEmpty() ? EchoMachineView.Status.NO_RESOURCE : EchoMachineView.Status.READY;
                 if (match.faction(player.getUUID()) != EchoFaction.INTERCEPTOR) yield EchoMachineView.Status.WRONG_FACTION;
-                yield b.canSubmit() ? EchoMachineView.Status.NO_RESOURCE : b.canPollute(now) ? EchoMachineView.Status.READY : EchoMachineView.Status.COOLDOWN;
+                yield b.canSubmit() ? EchoMachineView.Status.NO_RESOURCE : b.canStall(now) ? EchoMachineView.Status.READY : EchoMachineView.Status.COOLDOWN;
             }
             case ALTAR -> d.key() != null ? EchoMachineView.Status.KEY_LIMIT : d.inventory().emptySlot() < 0 ? EchoMachineView.Status.FULL
                     : keys != null && keys.at(target.id()).isPresent() ? EchoMachineView.Status.READY : EchoMachineView.Status.EMPTY;
@@ -607,7 +609,7 @@ public final class EchoObjectiveService {
         var entries=beacons.entrySet().stream().map(e -> {
             var b=e.getValue();
             var p=handles.get("BEACON:"+e.getKey()).pos();
-            return new EchoPublicState.Beacon(e.getKey(),b.delivered(),b.requiredCrystals(),b.progressPermille(),b.active(),b.stable(),b.lockedUntil(),b.pausedUntil(),new EchoPublicState.Point(p.x,p.y,p.z),submissionHighlights.getOrDefault(e.getKey(),0L));
+            return new EchoPublicState.Beacon(e.getKey(),b.delivered(),b.requiredCrystals(),b.progressPermille(),b.active(),b.stalledUntil(),new EchoPublicState.Point(p.x,p.y,p.z),submissionHighlights.getOrDefault(e.getKey(),0L));
         }).toList();
         var view=new EchoPublicState(finished?EchoPhase.FINISHED:match.phase(),match.matchTick(),Math.max(0,timer.getTime()),timer.isTimeFrozen(),Math.toIntExact(match.escapedCount()),match.escapeQuota(),
                 state.coreOpen(match.matchTick()),state.coreOpenUntil(),state.evacuationOpen(match.matchTick()),state.evacuationClosedUntil(),state.overloadUsed(),entries);

@@ -27,8 +27,8 @@ class EchoSkillStateTest {
 
     @Test void pendingEffectIsConsumedExactlyOnceAndExpiryRefundsNothing() {
         EchoSkillState state = new EchoSkillState();
-        // LOCK_ON 已改为持续增益（狩猎本能），这里改用仍然是一次性的 SURGE 验证 pending 语义。
-        EchoSkill skill = EchoSkill.SURGE;
+        // LOCK_ON 已改为持续增益（狩猎本能），这里改用仍然是一次性的 STALL_BURST 验证 pending 语义。
+        EchoSkill skill = EchoSkill.STALL_BURST;
         assertFalse(state.consumePending(skill, 0), "没有窗口时不能消耗");
         assertTrue(state.activate(skill, 10));
         assertTrue(state.pendingActive(skill, 20));
@@ -56,10 +56,10 @@ class EchoSkillStateTest {
 
     @Test void expireAndClearDropWindowsWithoutTouchingRemainingCooldownOrder() {
         EchoSkillState state = new EchoSkillState();
-        assertTrue(state.activate(EchoSkill.SURGE, 0));
-        state.expire(EchoSkill.SURGE.windowTicks());
+        assertTrue(state.activate(EchoSkill.STALL_BURST, 0));
+        state.expire(EchoSkill.STALL_BURST.windowTicks());
         assertEquals(0, state.pendingUntil());
-        assertEquals(EchoSkill.SURGE.cooldownTicks(), state.readyAt());
+        assertEquals(EchoSkill.STALL_BURST.cooldownTicks(), state.readyAt());
         state.clear();
         assertEquals(0, state.readyAt());
         assertEquals(0, state.buffUntil());

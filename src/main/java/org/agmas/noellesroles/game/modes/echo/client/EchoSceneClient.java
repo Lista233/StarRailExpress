@@ -56,7 +56,7 @@ public final class EchoSceneClient {
                     model.renderToBuffer(pose,BUFFER.getBuffer(RenderType.entityTranslucent(skin.texture())),LightTexture.FULL_BRIGHT,OverlayTexture.NO_OVERLAY,tint);
                     pose.popPose();
                 } else {
-                    boolean purple=s.kind().pollution();
+                    boolean purple=s.kind().stall();
                     var lines=BUFFER.getBuffer(RenderType.lines());
                     float r=purple?0.8F:0.3F,g=purple?0.2F:1F,b=purple?0.95F:0.7F;
                     double width=0.3+0.12*Math.sin((data.projectedTick()-s.start())*0.15);
@@ -83,7 +83,7 @@ public final class EchoSceneClient {
             for(var s:data.scenes()) if(!s.kind().decoy() && s.active(data.projectedTick()) && client.player.distanceToSqr(EchoSceneService.vec(s.point()))<=32*32) {
                 for(int i=0;i<4;i++) {
                     double angle=(data.projectedTick()-s.start())*0.1+i*Math.PI/2;
-                    client.level.addParticle(s.kind().pollution()?ParticleTypes.WITCH:ParticleTypes.END_ROD,s.point().x()+Math.cos(angle)*0.6,s.point().y()+0.2+i*0.55,s.point().z()+Math.sin(angle)*0.6,0,0.03,0);
+                    client.level.addParticle(s.kind().stall()?ParticleTypes.WITCH:ParticleTypes.END_ROD,s.point().x()+Math.cos(angle)*0.6,s.point().y()+0.2+i*0.55,s.point().z()+Math.sin(angle)*0.6,0,0.03,0);
                 }
             }
         });

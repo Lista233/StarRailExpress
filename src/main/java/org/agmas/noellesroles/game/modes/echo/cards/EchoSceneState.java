@@ -5,10 +5,11 @@ import java.util.*;
 /** 有界幻象台账；没有实体、碰撞、资源或任务身份，时间只接受比赛tick。 */
 public final class EchoSceneState {
     public enum Kind {
-        DUMMY, SILENT_DUMMY, IMAGE, SUBMISSION, POLLUTION, DISPATCH;
+        DUMMY, SILENT_DUMMY, IMAGE, SUBMISSION, STALL, DISPATCH;
         public boolean decoy() { return this==DUMMY || this==SILENT_DUMMY || this==IMAGE; }
         public boolean submission() { return this==SUBMISSION || this==DISPATCH; }
-        public boolean pollution() { return this==POLLUTION || this==DISPATCH; }
+        /** 假迟滞光：只影响观感，不改变任何信标状态。 */
+        public boolean stall() { return this==STALL || this==DISPATCH; }
     }
     public record Point(double x,double y,double z) {
         public Point { if(!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) throw new IllegalArgumentException("无效场景位置"); }

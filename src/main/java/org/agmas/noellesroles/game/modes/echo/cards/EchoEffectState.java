@@ -4,7 +4,8 @@ import java.util.*;
 
 /** 只接受比赛tick的个人效果台账；取消动作不消费标记，升级不叠强度。 */
 public final class EchoEffectState {
-    public enum Marker { SILENCE, POLLUTION, TRADE }
+    /** 污染标记已随污染机制下线，见 docs/echo-freight/22-pollution-future.md。 */
+    public enum Marker { SILENCE, TRADE }
     public record Mark(String source,long until,int charges,int channelTicks,boolean strong,double range) {
         public Mark { if(until<0 || charges<1) throw new IllegalArgumentException("无效标记"); }
     }

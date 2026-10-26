@@ -32,8 +32,8 @@
 
 | 专长 | 定位 | 效果 | 取舍 |
 |---|---|---|---|
-| `hunter` 猎手（默认） | 正面压制 | 截流器蓄力 ×0.85；截流器冷却 ×0.9 | 污染效率不提升 |
-| `saboteur` 破坏者 | 拖延节奏 | 污染引导 ×0.75 | 截流器冷却 ×1.2 |
+| `hunter` 猎手（默认） | 正面压制 | 截流器蓄力 ×0.85；截流器冷却 ×0.9 | 迟滞引导不加速 |
+| `saboteur` 破坏者 | 拖延节奏 | 迟滞引导 ×0.75（更快卡住信标） | 截流器冷却 ×1.2 |
 
 ### 2.3 投机客 BROKER
 
@@ -47,7 +47,7 @@
 - 货槽：`最终容量 = clamp(规则基线 + 专长加值, 1, 4)`，再与物流卡被动取较大值（卡牌仍只取最高，不与专长重复相加）。
 - 搬货减速：先取规则基线与物流卡被动的较小值，再加专长增量，最后 clamp 到 `[0, 1]`。
 - 采集引导：`ticks = max(1, round(collectTicks × collectSpeed))`；黑晶采集同理用 `blackCollectSpeed`。
-- 污染引导：`ticks = max(1, round(fastPollutionTicks × pollutionSpeed))`，只影响截流者自己的引导，不改变信标共享冷却。
+- 迟滞引导：`ticks = max(1, round(stallTicks × stallSpeed))`，只影响截流者自己的引导；迟滞时长本身由 `beacon.stallTicks` 决定。
 - 截流器蓄力/冷却：作用在该成员的冻结 `Combat` 副本上（`cutterChargeTicks`、`cutterCooldownTicks` 各乘倍率），客户端显示同一份有效值。
 - 交易范围/提案冷却：`EchoTradeService` 的默认值改为读取有效专长；交易卡增益仍覆盖默认值（范围取较大、期限取较长）。
 
@@ -112,7 +112,7 @@ repair 的做法是临时选角房 + 座位 + 第三人称正面 + 减速；Echo
 | `EchoMatch.rules()` | 冻结的 `EchoRuleConfig` 含 `specialization` 域 |
 | `EchoRoleData.capacity/cargoPenalty` | 叠加专长增量后 clamp |
 | `EchoCombatState` | 使用专长调整后的蓄力/冷却（该成员自己的冻结副本） |
-| `EchoObjectiveService` | 普通采集、黑晶采集、污染引导使用专长倍率 |
+| `EchoObjectiveService` | 普通采集、黑晶采集、迟滞引导使用专长倍率 |
 | `EchoTradeService` | 默认范围/提案冷却使用专长值；卡牌增益仍优先 |
 | `EchoResultSnapshot` | 记录每名玩家的专长 ID，便于赛后复盘 |
 | 客户端 | `EchoSpecializationScreen`、`EchoOpeningClient` 与本人投影同源显示有效数值 |
@@ -128,7 +128,7 @@ repair 的做法是临时选角房 + 座位 + 第三人称正面 + 减速；Echo
   "porter":{"cargoCapacityBonus":1,"cargoPenaltyDelta":-0.03},
   "scout":{"cargoCapacityBonus":-1,"collectSpeed":0.8},
   "hunter":{"cutterChargeSpeed":0.85,"cutterCooldownSpeed":0.9},
-  "saboteur":{"pollutionSpeed":0.75,"cutterCooldownSpeed":1.2},
+  "saboteur":{"stallSpeed":0.75,"cutterCooldownSpeed":1.2},
   "smuggler":{"blackCollectSpeed":0.8},
   "fixer":{"tradeRangeBonus":2,"proposalCooldownSpeed":0.6}
 }}
@@ -176,7 +176,7 @@ repair 的做法是临时选角房 + 座位 + 第三人称正面 + 减速；Echo
 1. 默认专长：未选择时 `starter` 生效。
 2. 窗口边界：deadline 前可改、deadline 后拒绝、暂停不推进。
 3. 非法选项/跨阵营/重放拒绝，且不写状态。
-4. 数值生效：容量 clamp、减速叠加、采集/黑晶/污染/蓄力/冷却倍率、交易范围与冷却。
+4. 数值生效：容量 clamp、减速叠加、采集/黑晶/迟滞/蓄力/冷却倍率、交易范围与冷却。
 5. 规则边界：未知字段、越界倍率、非法容量加值被拒绝；默认值与示例一致。
 6. 结果快照包含专长；旧快照缺字段时回退默认。
 7. 三语键完整（专长名、描述、界面、错误）。

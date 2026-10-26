@@ -13,23 +13,27 @@ class EchoObjectiveRulesTest {
             int expected=(int)Math.ceil(2000D/(1+0.2*escorts));
             for(int tick=0;tick<expected-1;tick++) assertFalse(beacon.tick(tick,escorts));
             assertTrue(beacon.tick(expected-1,escorts)); assertTrue(beacon.active()); assertEquals(1000,beacon.progressPermille());
-            assertFalse(beacon.pollute(expected,false));
+            assertFalse(beacon.stall(expected,20));
         }
     }
-    @Test void pollutionLockAndSharedCooldownSurvivePurifyAndStableLayer() {
+    @Test void stallPausesChargingWithoutDeductingProgress() {
         EchoBeaconState beacon=new EchoBeaconState(); for(int n=0;n<3;n++) beacon.submit();
         for(int n=0;n<1000;n++) beacon.tick(n,0);
-        assertEquals(500,beacon.progressPermille()); assertTrue(beacon.stabilize()); assertFalse(beacon.stabilize());
-        assertTrue(beacon.pollute(1000,false)); assertEquals(500,beacon.progressPermille()); assertFalse(beacon.stable());
-        assertFalse(beacon.tick(1001,3)); assertTrue(beacon.purify(1001)); assertFalse(beacon.canPollute(1001));
-        assertTrue(beacon.pollute(1900,true)); assertEquals(100,beacon.progressPermille());
-        assertFalse(beacon.pollute(1900,false)); assertEquals(2800,beacon.nextPolluteAt());
+        assertEquals(500,beacon.progressPermille());
+        assertTrue(beacon.stall(1000,400)); assertEquals(500,beacon.progressPermille(),"迟滞不扣任何已积累进度");
+        assertFalse(beacon.canStall(1000),"迟滞中不能重复施加");
+        for(int tick=1000;tick<1400;tick++) assertFalse(beacon.tick(tick,3));
+        assertEquals(500,beacon.progressPermille());
+        assertTrue(beacon.canStall(1400));
+        beacon.tick(1400,0); beacon.tick(1401,0); assertTrue(beacon.progressPermille()>500,"迟滞结束后恢复增长");
     }
-    @Test void pulseAndLockOverlapInsteadOfAddingDurations() {
-        EchoBeaconState beacon=new EchoBeaconState(); for(int n=0;n<3;n++) beacon.submit();
-        assertTrue(beacon.pollute(0,false)); assertTrue(beacon.pause(0,100));
-        for(int tick=0;tick<400;tick++) assertFalse(beacon.tick(tick,3));
-        assertEquals(0,beacon.progressPermille()); beacon.tick(400,3); beacon.tick(401,3); assertTrue(beacon.progressPermille()>0);
+    @Test void boostAdvancesChargingButNeverStartsUnfedBeacon() {
+        EchoBeaconState beacon=new EchoBeaconState(); assertFalse(beacon.boost(0,500),"未满料不能加速");
+        for(int n=0;n<3;n++) beacon.submit();
+        assertTrue(beacon.boost(0,500)); assertEquals(500,beacon.progressPermille());
+        assertTrue(beacon.boost(1,500)); assertTrue(beacon.active());
+        assertFalse(beacon.boost(2,100),"已启动不能再加速");
+        assertFalse(beacon.stall(2,400),"已启动不能被迟滞");
     }
     @Test void overloadOnceKeepsCoreOpenAndReopensAfterExactlyThirtySeconds() {
         EchoGateState gates=new EchoGateState();

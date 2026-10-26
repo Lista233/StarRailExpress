@@ -43,7 +43,7 @@
 | `porter` | 稳载 `steady_haul` | 8 秒内搬货减速归零，且货槽临时 +1（最终仍 ≤4） | 90 秒 |
 | `scout` | 速取 `swift_pick` | 10 秒内下一次普通晶体采集引导立即完成（1 tick） | 60 秒 |
 | `hunter` | 锁定 `lock_on` | 10 秒内下一次截流器蓄力压缩到 1 tick | 75 秒 |
-| `saboteur` | 过载污染 `surge` | 10 秒内下一次污染固定 40 tick，并按强污染结算 | 80 秒 |
+| `saboteur` | 迟滞脉冲 `stall_burst` | 10 秒内下一次迟滞信标瞬发，并停住更久；不扣进度 | 80 秒 |
 | `smuggler` | 暗格 `dark_cache` | 12 秒内下一次黑市交货瞬发，且搬货减速归零 | 90 秒 |
 | `fixer` | 撮合 `broker_deal` | 立即对交易范围 +4 格内的准星玩家发起提案，无视提案冷却 | 60 秒 |
 
@@ -52,7 +52,7 @@
 **状态机**：
 
 - 每个成员持有 `skillReadyAt`、一次性挂起效果 `(pending, until)`、持续增益 `(buff, until)`。
-- 一次性效果在满足条件时消耗：采集完成、截流器释放、污染完成；到期未用自动失效，**不退冷却**。
+- 一次性效果在满足条件时消耗：采集完成、截流器释放、迟滞完成；到期未用自动失效，**不退冷却**。
 - 持续增益按比赛 tick 推进，暂停冻结。
 - 技能冷却写入终局快照的专长旁，便于复盘。
 
@@ -61,7 +61,7 @@
 - 稳载与物流卡被动叠加后仍 clamp：容量 ≤4、减速 ≥0。
 - 速取只影响普通晶体采集，不影响黑晶、提交、救援、拆包。
 - 锁定只免蓄力与减半该次冷却，不改变射线、范围、命中判定与两次机会。
-- 过载污染不改信标共享冷却、封锁时长与脉冲暂停。
+- 迟滞脉冲只缩短引导，不改变迟滞时长本身，也永不扣除已积累进度。
 - 暗格不阻止契约进度、不隐藏公共信标数字；被攻击仍会掉黑晶。
 - 撮合仍要求真实距离（基础范围+4）、视线、双方站立、库存可容纳。
 
@@ -154,7 +154,7 @@
 | 开局物品 | `GameUtils.baseInitialize` 在回声模式跳过 `TMMItems.KEY`、`LETTER_ITEM` 与赞助玩偶；服务器每 5 tick `enforceTool` 清空 3–8 槽并把 `selected` clamp 到 2 | `GameUtils`、`EchoCombatService.enforceTool` |
 | 技能状态机 | `EchoSkill`（6 技能：冷却/窗口/pending 标记）+ `EchoSkillState`（ready/activate/consumePending/buffActive/pendingActive/expire/clear） | `state/EchoSkill`、`state/EchoSkillState` |
 | 技能释放 | 右键信物 → `EchoMatch.useSkill`：阶段、站立、canAct、冷却、撮合目标逐项判定，失败不进冷却 | `content/EchoSkillItem`、`EchoMatch.useSkill` |
-| 技能效果 | 稳载（容量 +1、减速归零）、速取（晶体瞬发）、锁定（蓄力 1 tick）、涌动（污染 40 tick + 强污染）、暗格（黑市交货瞬发 + 减速归零）、撮合（范围 +4、无视提案冷却） | `EchoRoleData.capacity/cargoPenalty/cutterChargeTicks`、`EchoObjectiveService.instant`、`EchoCardEffects.pollutionTicks`、`EchoCombatService.releaseCutter`、`EchoTradeService.skillDeal` |
+| 技能效果 | 稳载（容量 +1、减速归零）、速取（晶体瞬发）、锁定（狩猎本能）、涌动（迟滞瞬发）、暗格（黑市交货瞬发 + 减速归零）、撮合（范围 +4、无视提案冷却） | `EchoRoleData.capacity/cargoPenalty/cutterChargeTicks`、`EchoObjectiveService.instant`、`EchoObjectiveService.stallTicks`、`EchoCombatService.releaseCutter`、`EchoTradeService.skillDeal` |
 | 五边形 HUD | 右侧居中 46×46（高 <240 时 38×38），扫描行填充五边形 + Bresenham 描边，24×24 图标，冷却自下而上覆盖 + 秒数，就绪呼吸描边 | `client/EchoSkillHud` |
 | 屏幕演出 | 上/下 `fillGradient` + 左右 8 段 alpha 条带近似暗角；受伤 0.10 呼吸、倒地 0.22 + 压暗 + 心跳节奏、受控冷蓝 0.08、撤离 0.35 白闪 600ms | `client/EchoScreenFx` |
 | 呼吸/心跳 | 倒地 40/20 tick 心跳 + 60 tick 呼吸；受创 160 tick 咳嗽 + 120 tick 呼吸；本地 `forUI` 播放 | `client/EchoAtmosphereClient` |

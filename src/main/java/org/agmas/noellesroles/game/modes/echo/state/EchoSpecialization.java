@@ -59,8 +59,9 @@ public enum EchoSpecialization {
         return this == SMUGGLER ? rules.smuggler().blackCollectSpeed() : 1;
     }
 
-    public double pollutionSpeed(EchoRuleConfig.Specialization rules) {
-        return this == SABOTEUR ? rules.saboteur().pollutionSpeed() : 1;
+    /** 破坏者让迟滞引导更快；迟滞本身不扣任何已积累进度。 */
+    public double stallSpeed(EchoRuleConfig.Specialization rules) {
+        return this == SABOTEUR ? rules.saboteur().stallSpeed() : 1;
     }
 
     public double cutterChargeSpeed(EchoRuleConfig.Specialization rules) {

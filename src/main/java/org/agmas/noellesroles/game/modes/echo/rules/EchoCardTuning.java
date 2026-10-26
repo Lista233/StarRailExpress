@@ -6,7 +6,7 @@ import java.util.*;
 /** 每卡数值白名单；保存内部tick差异，不允许配置改变效果类型或资源语义。 */
 public record EchoCardTuning(Map<String,Map<String,Double>> overrides) {
     public static final EchoCardTuning EMPTY=new EchoCardTuning(Map.of());
-    private static final Set<String> FIXED=Set.of("layers","unlock","dropKey","packs");
+    private static final Set<String> FIXED=Set.of("dropKey","packs","cargo");
     public EchoCardTuning {
         var normalized=new TreeMap<String,Map<String,Double>>();
         for(var entry:overrides.entrySet()) {
@@ -27,8 +27,9 @@ public record EchoCardTuning(Map<String,Map<String,Double>> overrides) {
         return switch(card.shortId()) {
             case "sound_key","master_key" -> key.equals("openTicks");
             case "door_wedge" -> key.equals("extendTicks") || key.equals("maxOpenTicks");
-            case "pollution_accelerator","strong_pollution" -> key.equals("channelTicks") || key.equals("rollback");
-            case "overload_pulse" -> key.equals("pauseTicks");
+            // 迟滞时长由 beacon 域统一配置，逐卡只允许调范围。
+            case "stall_pulse","stall_surge" -> key.equals("stallTicks");
+            case "beacon_boost","overdrive_beacon" -> key.equals("boostPermille");
             default -> false;
         };
     }
@@ -42,7 +43,9 @@ public record EchoCardTuning(Map<String,Map<String,Double>> overrides) {
         else if(key.equals("weight")) { min=1; max=10000; integer=true; }
         else if(key.equals("cargoCapacity")) { min=1; max=4; integer=true; }
         else if(key.equals("maxTargets")) { min=1; max=3; integer=true; }
+        else if(key.equals("boostPermille")) { min=1; max=1000; integer=true; }
         else if(key.equals("charges") || key.equals("suppressedKeyPulses")) { min=1; max=8; integer=true; }
+        else if(key.equals("clearStall")) { min=1; max=1; integer=true; }
         else if(key.equals("speedBonus")) { min=0.01; max=0.5; }
         else if(key.equals("speedPenalty") || key.equals("cargoPenalty")) { min=0; max=1; }
         else if(key.toLowerCase(Locale.ROOT).endsWith("range") || key.equals("minSeparation")) { min=0.5; max=128; }
@@ -56,12 +59,13 @@ public record EchoCardTuning(Map<String,Map<String,Double>> overrides) {
             case "sound_key" -> params.put("openTicks",(double)gate.coreOpenTicks());
             case "master_key" -> params.put("openTicks",(double)gate.masterOpenTicks());
             case "door_wedge" -> { params.put("extendTicks",(double)gate.wedgeExtraTicks()); params.put("maxOpenTicks",(double)gate.wedgeMaxTicks()); }
-            case "pollution_accelerator","strong_pollution" -> { params.put("channelTicks",(double)beacon.fastPollutionTicks()); if(base.shortId().equals("strong_pollution")) params.put("rollback",beacon.strongRollback()); }
-            case "overload_pulse" -> params.put("pauseTicks",(double)beacon.pulsePauseTicks());
+            case "stall_pulse" -> params.put("stallTicks",(double)beacon.stallTicks());
             default -> { }
         }
         var changes=overrides.getOrDefault(base.shortId(),Map.of());
         changes.forEach((key,value) -> { if(!key.equals("weight")) params.put(key,value); });
+        if(base.shortId().equals("stall_pulse") && params.get("stallTicks")>=beacon.stallIntervalTicks()) throw new IllegalArgumentException("单次迟滞必须短于共享间隔");
+        if(base.shortId().equals("stall_surge") && params.get("stallTicks")>beacon.stallIntervalTicks()) throw new IllegalArgumentException("强迟滞不得超过共享间隔");
         if(base.shortId().equals("hunt_mark") && params.get("outlineTicks")>params.get("intervalTicks")) throw new IllegalArgumentException("猎杀轮廓不得长于刷新间隔");
         if(base.shortId().equals("silent_dummy") && params.get("deceptionTicks")>params.get("durationTicks")) throw new IllegalArgumentException("假人诱导不得长于假人持续");
         if(base.shortId().equals("false_dispatch") && params.get("minSeparation")>2*params.get("range")) throw new IllegalArgumentException("双点间距超过可选范围");

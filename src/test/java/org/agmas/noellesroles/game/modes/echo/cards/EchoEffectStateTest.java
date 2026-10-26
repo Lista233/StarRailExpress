@@ -14,10 +14,10 @@ class EchoEffectStateTest {
         assertFalse(s.consume(Marker.SILENCE,104));
     }
     @Test void exactDeadlineExpiresWithoutRefundOrRefresh() {
-        var s=new EchoEffectState(); assertTrue(s.add(Marker.POLLUTION,new Mark("strong",1200,1,40,true,0),0));
+        var s=new EchoEffectState(); assertTrue(s.add(Marker.TRADE,new Mark("pact",1200,1,40,false,16),0));
         for(int i=0;i<100;i++) s.expire(100); // 暂停期间重复同一tick，不按墙钟到期。
-        assertTrue(s.mark(Marker.POLLUTION,1199).orElseThrow().strong());
-        assertTrue(s.mark(Marker.POLLUTION,1200).isEmpty()); assertFalse(s.consume(Marker.POLLUTION,1200));
+        assertEquals(16,s.mark(Marker.TRADE,1199).orElseThrow().range());
+        assertTrue(s.mark(Marker.TRADE,1200).isEmpty()); assertFalse(s.consume(Marker.TRADE,1200));
     }
     @Test void pendingMarkerRejectsAnySecondMarkerIncludingUpgrade() {
         var s=new EchoEffectState(); assertTrue(s.add(Marker.SILENCE,new Mark("base",1200,1,0,false,0),0));

@@ -80,7 +80,7 @@ public final class EchoHud {
                 int left = x + 5 + i * (pw - 10) / count;
                 int right = x + 5 + (i + 1) * (pw - 10) / count - 4;
                 var b = s.beacons().get(i);
-                boolean blocked = b.lockedUntil() > tick || b.pausedUntil() > tick;
+                boolean blocked = b.stalled(tick);
                 int color = b.active() ? GREEN : blocked ? RED : TEXT;
                 int progress = b.active() ? 1000 : Math.max(0, Math.min(999, b.progress()));
                 row(g, tr("compact.beacon", i + 1, b.delivered(), b.required(), progress / 10), left, y + 17, right - left, color);

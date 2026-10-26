@@ -38,7 +38,7 @@
 | `inventory/EchoInventoryService`、`EchoResourceLedger` | 所有权/槽位事务、被动重算、掉落、tombstone | 提示文字和角色分配 |
 | `cards/EchoCardRegistry`、`EchoCardEffects`、`EchoDraftService` | 37 定义、16 配方、效果映射、抽包和 offer | 事件里铺 37 个身份分支 |
 | `trade/EchoTradeService` | 报价锁、双方确认、最终布局模拟与原子成交 | 普通商店经济 |
-| `objective/EchoObjectiveService`、`EchoGateService` | 晶簇、信标、污染、门、撤离检测与复原 | 直接修改私人库存数组 |
+| `objective/EchoObjectiveService`、`EchoGateService` | 晶簇、信标、迟滞、门、撤离检测与复原 | 直接修改私人库存数组 |
 | `combat/EchoCombatService`、`status/EchoStatusService` | 有效命中、倒地救援、控制抗性、速度/短期效果 | 真阵营修改和全局清药效 |
 | `contract/EchoContractService`、`signal/EchoSignalService`、`EchoDecoyService` | 读成功事件推进契约；按接收者投影声光/假人 | 把假信号当真实目标进度 |
 | `map/EchoMapRepository`、`EchoMapValidator`、`command/EchoCommand` | 模式配置加载、预检、工具与权限 | 动态重注册内容 |

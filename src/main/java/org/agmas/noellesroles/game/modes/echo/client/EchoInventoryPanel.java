@@ -38,6 +38,14 @@ public final class EchoInventoryPanel {
         return d.phase().acceptsActions() && d.life().standing() && !d.controlled() && !paused()
                 && !offered(d) && !channeling(d) && !EchoBagClient.waiting();
     }
+    /**
+     * 谁需要交易入口：投机客（契约要真实成交）、正在进行交易的一方、以及包里已有钥匙的托运者
+     * （钥匙贩子必须把钥匙交给托运者，对方得能接受）。其余玩家不显示交易按钮。
+     */
+    private boolean tradeRelevant(EchoRoleData d) {
+        if (d.faction() == EchoFaction.BROKER || d.trade() != null) return true;
+        return d.items().stream().anyMatch(i -> i.kind() == EchoResourceInstance.Kind.KEY);
+    }
     private EchoResourceInstance primary() {
         var d = data();
         return d == null || selected.isEmpty() ? null : d.items().stream().filter(i -> i.instanceId().equals(selected.getFirst())).findFirst().orElse(null);
@@ -83,14 +91,22 @@ public final class EchoInventoryPanel {
             return;
         }
         int x = layout.x(), y = layout.y(), w = layout.width();
-        int navW = (w - 26) / 3;
         boolean idle = !EchoBagClient.waiting() && !offered(d) && !channeling(d);
-        button(Component.translatable(d.trade() == null ? "echo.trade.title" : "echo.trade.active"), x + 8, y + 26, navW, 18,
-                () -> client.setScreen(new EchoTradeScreen(screen))).active = idle;
-        var contract = button(Component.translatable("echo.contract.title"), x + 13 + navW, y + 26, navW, 18,
+        // 导航按钮按需排列：交易只给需要它的玩家（投机客 / 交易中 / 持钥匙的托运者）。
+        boolean trade = tradeRelevant(d);
+        int navCount = trade ? 3 : 2;
+        int navW = (w - 26) / navCount;
+        int navX = x + 8;
+        if (trade) {
+            button(Component.translatable(d.trade() == null ? "echo.trade.title" : "echo.trade.active"), navX, y + 26, navW, 18,
+                    () -> client.setScreen(new EchoTradeScreen(screen))).active = idle;
+            navX += 5 + navW;
+        }
+        var contract = button(Component.translatable("echo.contract.title"), navX, y + 26, navW, 18,
                 () -> client.setScreen(new EchoContractScreen(screen)));
         contract.active = d.contract() != null && idle;
-        var spec = button(Component.translatable("echo.spec.title"), x + 18 + 2 * navW, y + 26, navW, 18,
+        navX += 5 + navW;
+        var spec = button(Component.translatable("echo.spec.title"), navX, y + 26, navW, 18,
                 () -> EchoSpecializationClient.open(client));
         spec.active = idle && EchoSpecializationClient.view() != null && !EchoSpecializationClient.view().locked();
         for (int n = 0; n < 9; n++) screen.addRoleWidget(new HotbarSlot(n));

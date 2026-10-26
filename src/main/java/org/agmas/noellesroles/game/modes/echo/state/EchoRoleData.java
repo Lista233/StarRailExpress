@@ -186,7 +186,7 @@ public final class EchoRoleData extends SimpleRoleData {
     }
     public int collectTicks(int base) { return EchoSpecialization.scaled(base,specialization().collectSpeed(rules.specialization())); }
     public int blackCollectTicks(int base) { return EchoSpecialization.scaled(base,specialization().blackCollectSpeed(rules.specialization())); }
-    public int pollutionTicks(int base) { return EchoSpecialization.scaled(base,specialization().pollutionSpeed(rules.specialization())); }
+    public int stallTicks(int base) { return EchoSpecialization.scaled(base,specialization().stallSpeed(rules.specialization())); }
     public int tradeRangeBonus() { return specialization().tradeRangeBonus(rules.specialization()); }
     public double proposalCooldownSpeed() { return specialization().proposalCooldownSpeed(rules.specialization()); }
     public int freeCargoSlot() { return cargo().size()<capacity()?cargo().size():-1; }
