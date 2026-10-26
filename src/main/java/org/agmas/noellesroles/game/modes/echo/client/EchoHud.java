@@ -26,11 +26,12 @@ public final class EchoHud {
         EchoMachineClient.initialize();
         EchoFacilityMapClient.initialize();
         EchoRollClient.initialize();
+        EchoRepairClient.initialize();
+        EchoShopClient.initialize();
         EchoScreenFx.initialize();
         EchoSkillHud.initialize();
         EchoAtmosphereClient.initialize();
         org.agmas.noellesroles.game.modes.echo.anim.EchoHuntClient.initialize();
-        EchoHuntHud.initialize();
         EchoHuntFxClient.initialize();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if(view==null) return;
