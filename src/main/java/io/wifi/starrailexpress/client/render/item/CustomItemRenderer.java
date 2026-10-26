@@ -17,6 +17,7 @@ package io.wifi.starrailexpress.client.render.item;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.customitem.CustomItemData;
 import io.wifi.starrailexpress.customitem.CustomItemLoader;
 import net.fabricmc.api.EnvType;
@@ -39,10 +40,12 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.locale.Language;
 import org.joml.Matrix4f;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -54,7 +57,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <ol>
  * <li><b>PACK 资源包贴图</b>：{@link CustomItemData#packTexturePath}，{@code ns:item/x} 与
  * {@code ns:textures/item/x.png} 两种写法都支持，直接从资源包取贴图渲染（不需要进图集），
- * 画成前后两层 = 1 像素厚。</li>
+ * 画成前后两层 + 四面侧壁 = 1 像素厚的实体。</li>
  * <li><b>ANIMATED 导入动态贴图</b>：{@link CustomItemData#animatedTextures}（帧数不限）按
  * {@link CustomItemData#animatedFrameTicks} 循环，每帧都是上面那种平面贴图。</li>
  * <li><b>MODEL 导入立体贴图</b>：{@link CustomItemData#inheritItemTexture} 填物品 id，
@@ -88,10 +91,15 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
     /** 解析成功的继承贴图缓存（key = 物品 id）。 */
     private static final Map<String, TextureAtlasSprite> INHERITED_SPRITE_CACHE = new ConcurrentHashMap<>();
 
+    /** 已经提醒过「模型地址没烘焙上」的原始字符串（避免每帧刷屏日志）。 */
+    private static final Set<String> MODEL_WARNED = ConcurrentHashMap.newKeySet();
+
     /** 配置变化后清空缓存（客户端同步 / 资源重载时调用）。 */
     public static void clearCache() {
         PACK_TEXTURE_CACHE.clear();
         INHERITED_SPRITE_CACHE.clear();
+        MODEL_WARNED.clear();
+        io.wifi.starrailexpress.client.model.AutoSideWallModel.clearCache();
     }
 
     /** 兜底外观：没有配置资源包贴图、也没写材质继承时显示这个物品的贴图（石头）。 */
@@ -495,12 +503,17 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
     }
 
     /**
-     * 「模型地址」→ 烘焙模型。
+     * 「模型地址」→ 烘焙模型（已自动补好侧壁）。
      *
      * <p>
      * 模型来自资源包 {@code assets/<ns>/models/<path>.json}，由
      * {@link io.wifi.starrailexpress.client.model.CustomItemModelPlugin} 登记成 Fabric extra model
      * 后在资源加载阶段烘焙；这里按 {@code standalone} 取（取不到再试 {@code inventory}）。
+     *
+     * <p>
+     * 取到的模型会交给 {@link io.wifi.starrailexpress.client.model.AutoSideWallModel} 包一层：
+     * 模型 json 写成平面（0 厚度 element / 两张互不相连的面）时自动补 1 像素厚的四面侧壁，
+     * 外观与不填模型地址时的默认模型一致，不需要作者在资源包里手写 6 个面。
      *
      * @return 解析不出来 / 还没烘焙（例如刚改了地址还没重载资源）返回 null，交给调用方兜底
      */
@@ -519,8 +532,18 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
         for (String variant : new String[] { "fabric_resource", "inventory" }) {
             BakedModel model = minecraft.getModelManager().getModel(new ModelResourceLocation(id, variant));
             if (model != null && model != missing) {
-                return model;
+                // 资源包模型 json 常把物品写成「一张平面」（0 厚度的 element / 两张互不相连的面），
+                // 从侧面看像纸片、和默认模型（1 像素厚 + 四面侧壁）不一致；这里用包装类
+                // 自动补一圈 1 像素厚的侧壁，规则见 AutoSideWallModel
+                return io.wifi.starrailexpress.client.model.AutoSideWallModel.wrap(id, model);
             }
+        }
+        // 取不到 = 路径写错 / 模型没被烘焙（模型烘焙只在资源加载阶段发生）。提醒一次，
+        // 否则用户只会看到「物品变成默认模型（一像素厚的方块贴了张贴图）」而完全不知道为什么。
+        if (MODEL_WARNED.add(modelPath)) {
+            String pattern = Language.getInstance().getOrDefault("sre.custom_item.warn.model_not_resolved",
+                    "Model address \"%s\" cannot be resolved (wrong path / not baked yet); item fell back to default model");
+            SRE.LOGGER.warn("[CustomItem] " + String.format(pattern, modelPath));
         }
         return null;
     }
@@ -772,7 +795,7 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
     private static final float LAYER_OFFSET = 0.5F / 16.0F;
 
     /**
-     * 在 [0,1]² 平面上画一个 item/generated 风格的物品（<b>前后两层</b>）。
+     * 在 [0,1]² 平面上画一个 item/generated 风格的物品（<b>前后两层 + 四面侧壁</b>）。
      *
      * <p>
      * 只画 z=0.5 的单个平面时，物品是一张没有厚度的纸片（比 1 像素还薄），而且从背面看是空的。
@@ -786,6 +809,12 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
      * 物品栏里能看到的是 z 较小的那一层，所以那一层必须是 (0,0,-1)：给反了整张贴图会暗掉 60%
      * （实测颜色 = 贴图 × 0.40，看起来就是「物品栏里比正常暗一大截」）。
      * 世界里 ±Z 两层的亮度相同（都是 0.74），所以这样给法不影响手持 / 掉落物的观感。
+     *
+     * <p>
+     * <b>侧壁不能省</b>：前后两层之间那 1 像素的厚度如果完全不画几何，从侧面看就是
+     * 「两张互不相连的物品图片浮在空中」，而不是一个厚度为 1 像素的实体。原版
+     * {@code item/generated} 的那个 element 是带 6 个面的，这里把 4 个侧面补齐，
+     * 侧壁的 UV 取贴图对应的<b>那条边</b>（退化 UV），于是颜色沿高度/宽度方向自然过渡。
      */
     private static void drawQuad(PoseStack poseStack, MultiBufferSource buffers, RenderType renderType,
             float u0, float v0, float u1, float v1, int light, int overlay) {
@@ -814,5 +843,45 @@ public class CustomItemRenderer implements BuiltinItemRendererRegistry.DynamicIt
                 .setOverlay(overlay).setLight(light).setNormal(pose, 0.0F, 0.0F, 1.0F);
         consumer.addVertex(matrix, 0.0F, 1.0F, back).setColor(255, 255, 255, 255).setUv(u0, v0)
                 .setOverlay(overlay).setLight(light).setNormal(pose, 0.0F, 0.0F, 1.0F);
+
+        // ── 四面侧壁：把前后两层连成一个 1 像素厚的实体 ──
+        // 顶点顺序按「(v1-v0)×(v2-v0) = 朝外法线」给出，保证正面朝外、不被背面剔除。
+        // 侧壁的 UV 是退化 UV（整条边共用同一个 u 或 v），颜色沿边自然渐变。
+        // ① 左边 x=0，法线 (-1,0,0)，采样贴图左边那一列
+        consumer.addVertex(matrix, 0.0F, 1.0F, front).setColor(255, 255, 255, 255).setUv(u0, v0)
+                .setOverlay(overlay).setLight(light).setNormal(pose, -1.0F, 0.0F, 0.0F);
+        consumer.addVertex(matrix, 0.0F, 0.0F, front).setColor(255, 255, 255, 255).setUv(u0, v1)
+                .setOverlay(overlay).setLight(light).setNormal(pose, -1.0F, 0.0F, 0.0F);
+        consumer.addVertex(matrix, 0.0F, 0.0F, back).setColor(255, 255, 255, 255).setUv(u0, v1)
+                .setOverlay(overlay).setLight(light).setNormal(pose, -1.0F, 0.0F, 0.0F);
+        consumer.addVertex(matrix, 0.0F, 1.0F, back).setColor(255, 255, 255, 255).setUv(u0, v0)
+                .setOverlay(overlay).setLight(light).setNormal(pose, -1.0F, 0.0F, 0.0F);
+        // ② 右边 x=1，法线 (+1,0,0)，采样贴图右边那一列
+        consumer.addVertex(matrix, 1.0F, 0.0F, front).setColor(255, 255, 255, 255).setUv(u1, v1)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 1.0F, 0.0F, 0.0F);
+        consumer.addVertex(matrix, 1.0F, 1.0F, front).setColor(255, 255, 255, 255).setUv(u1, v0)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 1.0F, 0.0F, 0.0F);
+        consumer.addVertex(matrix, 1.0F, 1.0F, back).setColor(255, 255, 255, 255).setUv(u1, v0)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 1.0F, 0.0F, 0.0F);
+        consumer.addVertex(matrix, 1.0F, 0.0F, back).setColor(255, 255, 255, 255).setUv(u1, v1)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 1.0F, 0.0F, 0.0F);
+        // ③ 顶边 y=1，法线 (0,+1,0)，采样贴图最上面那一行
+        consumer.addVertex(matrix, 1.0F, 1.0F, front).setColor(255, 255, 255, 255).setUv(u1, v0)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 0.0F, 1.0F, 0.0F);
+        consumer.addVertex(matrix, 0.0F, 1.0F, front).setColor(255, 255, 255, 255).setUv(u0, v0)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 0.0F, 1.0F, 0.0F);
+        consumer.addVertex(matrix, 0.0F, 1.0F, back).setColor(255, 255, 255, 255).setUv(u0, v0)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 0.0F, 1.0F, 0.0F);
+        consumer.addVertex(matrix, 1.0F, 1.0F, back).setColor(255, 255, 255, 255).setUv(u1, v0)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 0.0F, 1.0F, 0.0F);
+        // ④ 底边 y=0，法线 (0,-1,0)，采样贴图最下面那一行
+        consumer.addVertex(matrix, 0.0F, 0.0F, front).setColor(255, 255, 255, 255).setUv(u0, v1)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 0.0F, -1.0F, 0.0F);
+        consumer.addVertex(matrix, 1.0F, 0.0F, front).setColor(255, 255, 255, 255).setUv(u1, v1)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 0.0F, -1.0F, 0.0F);
+        consumer.addVertex(matrix, 1.0F, 0.0F, back).setColor(255, 255, 255, 255).setUv(u1, v1)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 0.0F, -1.0F, 0.0F);
+        consumer.addVertex(matrix, 0.0F, 0.0F, back).setColor(255, 255, 255, 255).setUv(u0, v1)
+                .setOverlay(overlay).setLight(light).setNormal(pose, 0.0F, -1.0F, 0.0F);
     }
 }

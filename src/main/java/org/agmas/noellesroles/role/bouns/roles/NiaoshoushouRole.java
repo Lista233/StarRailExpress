@@ -7,6 +7,7 @@
 
 package org.agmas.noellesroles.role.bouns.roles;
 
+import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.EggRole;
 import io.wifi.starrailexpress.cca.SREWorldBlackoutComponent;
 import io.wifi.starrailexpress.game.GameConstants;
@@ -86,9 +87,11 @@ public class NiaoshoushouRole extends EggRole {
         shop.add(new ShopEntry(ModItems.NIAOSHOU_SHOU_MISSILE.getDefaultInstance(), 350,
                 ShopEntry.Type.WEAPON));
         // 还是给个贵的要死的开锁器吧。。。
-        shop.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(), 300,
+        shop.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(),
+                (int) Math.round(SREConfig.instance().lockpickPrice * 3.75f),
                 ShopEntry.Type.TOOL));
-        shop.add(new ShopEntry(ModItems.AREA_BLACKOUT.getDefaultInstance(), 175,
+        shop.add(new ShopEntry(ModItems.AREA_BLACKOUT.getDefaultInstance(),
+                SREConfig.instance().blackoutPrice * 175 / 120,
                 ShopEntry.Type.TOOL) {
             @Override
             public boolean onBuy(@NotNull Player player) {

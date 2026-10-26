@@ -37,13 +37,14 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.agmas.noellesroles.config.NoellesRolesConfig;
 import org.agmas.noellesroles.game.roles.killer.dream.DreamHealthComponent;
+import org.agmas.noellesroles.katana.KatanaHandler;
 import org.agmas.noellesroles.role_data.killer.DreamRoleData;
 
 
 import java.util.List;
 
 /**
- * Dream（梦魇）的铁斧。
+ * Dream（Dream）的铁斧。
  *
  * <ul>
  * <li>12 点耐久，每次命中消耗 1 点；第二次购买半价（见商店注册）。</li>
@@ -92,6 +93,11 @@ public class DreamAxeItem extends Item implements SREItemProperties.LeftClickHur
                     .withStyle(ChatFormatting.RED), true);
             return false;
         }
+        // 格挡判定：武士刀格挡有效窗口优先，其次防暴盾牌
+        if (KatanaHandler.tryBlockAttack(target, attacker)
+                || RiotShieldHandler.tryBlockAttack(target, attacker)) {
+            return false;
+        }
 
         var config = NoellesRolesConfig.HANDLER.instance();
         boolean berserk = DreamRoleData.isBerserk(attacker);
@@ -115,9 +121,7 @@ public class DreamAxeItem extends Item implements SREItemProperties.LeftClickHur
 
         // 存活则受伤反馈 + 击退 + 眩晕：1s / 狂暴 2s（视野受限：普通 0 级，狂暴 1 级）
         if (GameUtils.isPlayerAliveAndSurvival(target)) {
-            // 原版轻微伤害：红屏受击动画 + 受伤音效 + 自带击退（伤害本身不参与击杀判定）
-            target.invulnerableTime = 0;
-            target.hurt(target.damageSources().playerAttack(attacker), 1.0F);
+            SpecialWeaponHitFeedback.melee(attacker, target, attacker.isSprinting());
             double stunSeconds = berserk ? config.dreamBerserkStunSeconds : config.dreamAxeStunSeconds;
             DreamRoleData.applyStun(target, (int) Math.round(stunSeconds * 20), berserk ? 1 : 0);
         }

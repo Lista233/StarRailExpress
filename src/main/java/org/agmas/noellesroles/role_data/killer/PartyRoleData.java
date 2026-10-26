@@ -19,6 +19,7 @@ import io.wifi.starrailexpress.api.data.RoleDataContext;
 import io.wifi.starrailexpress.api.impl.SimpleRoleData;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
+import io.wifi.starrailexpress.customitem.CustomItemRuntime;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderLookup.Provider;
@@ -164,19 +165,26 @@ public class PartyRoleData extends SimpleRoleData {
             net.minecraft.world.entity.projectile.FireworkRocketEntity fre = new net.minecraft.world.entity.projectile.FireworkRocketEntity(level, sp.getX(), sp.getY()+1.0D, sp.getZ(), rocket);
             level.addFreshEntity(fre);
 
-            // 刷新杀手物品冷却
-            HashSet<Item> copy = new HashSet<>(sp.getCooldowns().cooldowns.keySet());
-            for (Item item : copy) {
-                sp.getCooldowns().removeCooldown(item);
+            // 刷新武器/物品冷却：仅杀手方阵营生效，好人方阵营（及其它阵营）不生效
+            if (gw != null && gw.isKillerTeam(sp) && !gw.isInnocentTeam(sp)) {
+                // 自定义列车物品的冷却键是未注册 Item，原版同步包发不出去：
+                // 必须走 CustomItemRuntime.clearCooldowns（清原版冷却表 + 单独向客户端同步解除），
+                // 否则客户端 HUD 仍显示冷却、客户端 isOnCooldown 判定继续拦截使用
+                CustomItemRuntime.clearCooldowns(sp);
+                // 其余物品（原版物品 / 模组物品）直接清原版冷却表，同步包由原版自动发
+                HashSet<Item> copy = new HashSet<>(sp.getCooldowns().cooldowns.keySet());
+                for (Item item : copy) {
+                    sp.getCooldowns().removeCooldown(item);
+                }
             }
         }
 
-        // 发放金币
+        // 发放金币：仅杀手（isKiller，不含杀手方中立），派对狂 125，其余杀手 60
         for (Player p : players) {
             if (!(p instanceof ServerPlayer sp)) continue;
             if (sp.isSpectator()) continue;
             var role = gw.getRole(sp);
-            if (role != null && role.canUseKiller()) {
+            if (role != null && role.isKiller()) {
                 SREPlayerShopComponent shop = SREPlayerShopComponent.KEY.get(sp);
                 if (gw.isRole(sp, ModRoles.PARTY_KILLER)) {
                     shop.addToBalance(125);

@@ -15,6 +15,8 @@
 
 package org.agmas.noellesroles.utils;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import io.wifi.starrailexpress.SRE;
@@ -72,6 +74,7 @@ import org.agmas.harpymodloader.modded_murder.PlayerRoleWeightManager;
 import org.agmas.harpymodloader.modifiers.HMLModifiers;
 import org.agmas.harpymodloader.modifiers.SREModifier;
 import org.agmas.noellesroles.role.ModRoles;
+import org.agmas.noellesroles.role_data.innocence.DisabledPatientRoleData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -153,7 +156,8 @@ public class RoleUtils extends MCItemsUtils {
     /**
      * 清除玩家身上的所有药水效果。
      *
-     * <p>不要直接调用 {@code LivingEntity#removeAllEffects()}：原版实现在迭代
+     * <p>
+     * 不要直接调用 {@code LivingEntity#removeAllEffects()}：原版实现在迭代
      * {@code activeEffects} 这个 {@link java.util.HashMap} 的 {@code values()} 时回调
      * {@code onEffectRemoved}，而 {@code ServerPlayerEntityMixin} 会在这里派发
      * {@code SimpleMobEffect#onEffectEnded}。只要该回调顺带移除了<b>另一个</b>效果
@@ -161,7 +165,8 @@ public class RoleUtils extends MCItemsUtils {
      * {@code USED_BANED}），HashMap 的 modCount 就会变化，下一次 {@code Iterator#remove()}
      * 直接抛 {@link java.util.ConcurrentModificationException}，并在死亡流程中把服务器线程打崩。
      *
-     * <p>这里改为先对效果列表做快照，再按 {@link LivingEntity#removeEffect(net.minecraft.core.Holder)}
+     * <p>
+     * 这里改为先对效果列表做快照，再按 {@link LivingEntity#removeEffect(net.minecraft.core.Holder)}
      * 逐个移除：该重载不会触发 {@code onEffectRemoved}，因此回调期间对效果表的任何增删都不会
      * 再与迭代器冲突；快照中的效果若已被回调移除，用 {@code getEffect} 跳过即可，语义与原版一致。
      */
@@ -345,6 +350,65 @@ public class RoleUtils extends MCItemsUtils {
             ModifierRemoved.EVENT.invoker().removeModifier(player, modifier);
     }
 
+    /**
+     * 通用适配判断：修饰符能否应用在目标职业上。
+     *
+     * <p>同时覆盖原版标记与自定义修饰符的字段：平民专属（{@code civilianOnly}）、
+     * 杀手专属（{@code killerOnly}）、按职业黑/白名单（{@code cannotBeAppliedTo} /
+     * {@code canOnlyBeAppliedTo}）以及按阵营黑/白名单
+     * （{@code cannotBeAppliedToTeams} / {@code canOnlyBeAppliedToTeams}）。</p>
+     *
+     * @param modifier 修饰符，{@code null} 时返回 false
+     * @param role     目标职业，{@code null} 时返回 false
+     */
+    public static boolean isModifierApplicable(SREModifier modifier, SRERole role) {
+        if (modifier == null || role == null) {
+            return false;
+        }
+        if (modifier.civilianOnly && !role.isInnocent()) {
+            return false;
+        }
+        if (modifier.killerOnly && !role.canUseKiller()) {
+            return false;
+        }
+        if (modifier.cannotBeAppliedTo != null && modifier.cannotBeAppliedTo.contains(role)) {
+            return false;
+        }
+        if (modifier.canOnlyBeAppliedTo != null && !modifier.canOnlyBeAppliedTo.isEmpty()
+                && !modifier.canOnlyBeAppliedTo.contains(role)) {
+            return false;
+        }
+        return modifier.isTeamApplicable(role);
+    }
+
+    /**
+     * 一键排除：清掉玩家身上所有不适用于目标职业的修饰符。
+     *
+     * <p>换阵营后调用（例如命令方块事件里平民变成「异常」中立空壳），
+     * 避免只对旧阵营生效的修饰符（平民专属、按职业/阵营限制的自定义修饰符）跟到新职业上。
+     * 判定逻辑见 {@link #isModifierApplicable}，对自定义修饰符同样生效。</p>
+     *
+     * @return 被清除的修饰符数量
+     */
+    public static int removeInapplicableModifiers(Player player, SRERole role) {
+        if (player == null || role == null) {
+            return 0;
+        }
+        final var wmc = WorldModifierComponent.getInstance(player);
+        List<SREModifier> toRemove = new ArrayList<>();
+        for (SREModifier modifier : wmc.getModifiers(player)) {
+            if (modifier == null || isModifierApplicable(modifier, role)) {
+                continue;
+            }
+            toRemove.add(modifier);
+        }
+        for (SREModifier modifier : toRemove) {
+            // 走事件：让各修饰符的移除回调（属性还原、组件清理）正常执行
+            removeModifier(player, modifier, false, true);
+        }
+        return toRemove.size();
+    }
+
     public static void removeAllModifiers(Player player) {
         removeAllModifiers(player, false);
     }
@@ -393,6 +457,13 @@ public class RoleUtils extends MCItemsUtils {
         SREGameWorldComponent gameWorldComponent = SREGameWorldComponent.KEY.get(player.level());
         // 删除旧职业
         var oldRole = gameWorldComponent.getRole(player);
+        if (oldRole != null && role != null && player instanceof ServerPlayer sp) {
+            var oldId = oldRole.identifier();
+            var newId = role.identifier();
+            if (oldId != null && newId != null && !oldId.equals(newId)) {
+                ProgressionDataManager.onRoleChanged(sp, newId.toString());
+            }
+        }
         if (oldRole != null) {
             if (clearOldItems) {
                 var cacheItems = new ArrayList<ItemStack>();
@@ -408,6 +479,7 @@ public class RoleUtils extends MCItemsUtils {
                             player.getInventory().removeItem(itemStack);
                         });
             }
+            DisabledPatientRoleData.clearGrantedEffects(player);
             if (!noEventCall)
                 ((ModdedRoleRemoved) ModdedRoleRemoved.EVENT.invoker()).removeModdedRole(player, oldRole);
         }
@@ -436,14 +508,17 @@ public class RoleUtils extends MCItemsUtils {
         }
         // 触发事件
         if (player instanceof ServerPlayer sp) {
-            if (!noEventCall)
+            if (!noEventCall) {
                 (ModdedRoleAssigned.EVENT.invoker()).assignModdedRole(sp, role);
-            else {
+            } else {
                 // 还是需要初始化一下RoleData类
                 {
                     final var cca = SRERoleDataPlayerComponent.KEY.get(player);
                     cca.init();
                 }
+            }
+            if (GameUtils.shouldGiveSpectatorsDeathPenalty(player)) {
+                GameUtils.pendingReJudgeSpectatorsPenalty();
             }
         }
     }

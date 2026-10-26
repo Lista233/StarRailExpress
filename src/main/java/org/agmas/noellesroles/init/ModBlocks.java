@@ -40,8 +40,6 @@ import org.agmas.noellesroles.content.block_entity.*;
 import org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsBlock;
 import org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsBlockEntity;
 import org.agmas.noellesroles.role.qust.roles.aimlabs.AimlabsCountBlock;
-import net.exmo.sre.repair.content.block.*;
-import net.exmo.sre.repair.content.block_entity.*;
 
 import static io.wifi.starrailexpress.index.TMMBlocks.DARK_STEEL;
 
@@ -95,30 +93,8 @@ public interface ModBlocks {
     Block DEVIL_ROULETTE_TABLE = registerBlockMultiTab("devil_roulette_table",
             new DevilRouletteTable(),
             BLOCK_CREATIVE_GROUP, ModSceneBlocks.SCENE_CREATIVE_GROUP);
-    Block REPAIR_STATION = registerBlock("repair_station",
-            new RepairStationBlock(
-                    BlockBehaviour.Properties.ofFullCopy(DARK_STEEL).lightLevel(state -> 3)));
-    Block HUNTER_CAGE = registerBlock("hunter_cage",
-            new HunterCageBlock(
-                    BlockBehaviour.Properties.ofFullCopy(DARK_STEEL).noOcclusion().strength(4.0F)));
-    Block REPAIR_EXIT_GATE = registerBlock("repair_exit_gate",
-            new RepairExitGateBlock(
-                    BlockBehaviour.Properties.ofFullCopy(DARK_STEEL).noOcclusion().strength(5.0F)));
-    Block REPAIR_SUPPLY_CRATE = registerBlock("repair_supply_crate",
-            new RepairSupplyCrateBlock(BlockBehaviour.Properties.ofFullCopy(DARK_STEEL).strength(2.5F)));
-    Block REPAIR_PALLET = registerBlock("repair_pallet",
-            new RepairPalletBlock(
-                    BlockBehaviour.Properties.ofFullCopy(DARK_STEEL).strength(1.2F).noOcclusion()));
-    Block HUNTER_SNARE = registerBlock("hunter_snare",
-            new HunterSnareBlock(
-                    BlockBehaviour.Properties.ofFullCopy(DARK_STEEL).strength(0.6F).noOcclusion()));
     Block FLARE_BLOCK = registerBlock("flare_block",
             new FlareBlock());
-    Block HOTBAR_STORAGE = registerBlockMultiTab("repair_hotbar_storage",
-            new HotbarStorageBlock(Block.Properties.ofFullCopy(Blocks.CHEST)
-                    .strength(2.5F)
-                    .sound(SoundType.WOOD)),
-            BLOCK_CREATIVE_GROUP, ModSceneBlocks.SCENE_CREATIVE_GROUP);
     Block SUPPLY_CRATE_BLOCK = registerBlockMultiTab("supply_crate",
             new SupplyCrateBlock(BlockBehaviour.Properties.ofFullCopy(DARK_STEEL).noOcclusion()),
             BLOCK_CREATIVE_GROUP, ModSceneBlocks.SCENE_CREATIVE_GROUP);
@@ -132,18 +108,6 @@ public interface ModBlocks {
             "devil_roulette_table",
             BlockEntityType.Builder.of(DevilRouletteTableEntity::new,
                     new Block[] { ModBlocks.DEVIL_ROULETTE_TABLE }));
-    BlockEntityType<RepairStationBlockEntity> REPAIR_STATION_BLOCK_ENTITY = blockEntityRegistrar.create(
-            "repair_station",
-            BlockEntityType.Builder.of(RepairStationBlockEntity::new, ModBlocks.REPAIR_STATION));
-    BlockEntityType<HunterCageBlockEntity> HUNTER_CAGE_BLOCK_ENTITY = blockEntityRegistrar.create(
-            "hunter_cage",
-            BlockEntityType.Builder.of(HunterCageBlockEntity::new, ModBlocks.HUNTER_CAGE));
-    public static final BlockEntityType<HotbarStorageBlockEntity> HOTBAR_STORAGE_BLOCK_ENTITY_BLOCK_ENTITY_TYPE = Registry
-            .register(
-                    BuiltInRegistries.BLOCK_ENTITY_TYPE,
-                    Noellesroles.id("repair_hotbar_storage"),
-                    BlockEntityType.Builder.of(HotbarStorageBlockEntity::new, HOTBAR_STORAGE)
-                            .build(null));
 
     // Kill blocks (OP utilities)
     @SuppressWarnings("unchecked")
@@ -154,6 +118,36 @@ public interface ModBlocks {
     Block KILL_BLOCK_PANEL = blockRegistrar.createWithItem("kill_block_panel",
             new KillBlockPanel(BlockBehaviour.Properties.of().strength(-1.0f, 3600000.0f).noOcclusion()),
             CreativeModeTabs.OP_BLOCKS, ModSceneBlocks.SCENE_CREATIVE_GROUP);
+
+    // 厨师的「客户端」食物盘 / 饮料盘。
+    // 只注册方块、不给 BlockItem：它们由服务端发 S2C 包让客户端 setBlock 画出来，
+    // 不该被玩家在创造模式 legit 放置（服务端并不承认它们的存在）。
+    // 放在所有其它字段之后声明，避开接口字段的初始化顺序问题。
+    Block CHEF_FOOD_TRAY = registerBlockOnly("chef_food_tray", new ChefTrayBlock.Food(chefTrayProperties()));
+    Block CHEF_DRINK_TRAY = registerBlockOnly("chef_drink_tray", new ChefTrayBlock.Drink(chefTrayProperties()));
+
+    /**
+     * 厨师盘子的方块实体：承载「盘里装着什么」，由 {@code ChefPlateRenderer} 渲染。
+     *
+     * <p>必须是一个独立类型：{@code BlockEntity} 构造函数会校验 {@code type.isValid(state)}，
+     * 原版的 {@code trainmurdermystery:beverage_plate} 只接受 {@code food_platter} / {@code drink_tray}，
+     * 用厨师的方块状态去 new 它会直接抛异常。
+     *
+     * <p>声明在两个方块字段之后，接口字段按声明顺序初始化，保证 {@code of(...)} 能拿到方块。
+     */
+    BlockEntityType<ChefPlateBlockEntity> CHEF_TRAY_BLOCK_ENTITY = blockEntityRegistrar.create(
+            "chef_tray",
+            BlockEntityType.Builder.of(ChefPlateBlockEntity::new, CHEF_FOOD_TRAY, CHEF_DRINK_TRAY));
+
+    private static BlockBehaviour.Properties chefTrayProperties() {
+        return BlockBehaviour.Properties.of()
+                .noOcclusion()
+                .noCollission()
+                .instabreak()
+                .noLootTable()
+                .strength(-1.0F, 3600000.0F)
+                .sound(SoundType.WOOD);
+    }
 
     static void initialize() {
         Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, BLOCK_CREATIVE_GROUP, FabricItemGroup.builder()
@@ -202,5 +196,15 @@ public interface ModBlocks {
     @SuppressWarnings("unchecked")
     public static <T extends Block> T registerOpBlock(String id, T block) {
         return blockRegistrar.createWithItem(id, block, CreativeModeTabs.OP_BLOCKS);
+    }
+
+    /**
+     * 只注册方块、不附带 BlockItem，也不进任何创造分页。
+     *
+     * <p>用于「只由客户端画出来、服务端不承认存在」的方块（如厨师的客户端食物盘/饮料盘）。
+     * 这些方块没有物品形态，不能被玩家 legit 放置。
+     */
+    public static <T extends Block> T registerBlockOnly(String id, T block) {
+        return Registry.register(BuiltInRegistries.BLOCK, Noellesroles.id(id), block);
     }
 }

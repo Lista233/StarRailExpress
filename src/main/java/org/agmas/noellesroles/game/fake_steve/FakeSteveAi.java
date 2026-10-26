@@ -18,6 +18,7 @@ package org.agmas.noellesroles.game.fake_steve;
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.RoleSkill;
+import io.wifi.starrailexpress.cca.AreasWorldComponent;
 import io.wifi.starrailexpress.cca.DynamicShopComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.cca.SREPlayerPsychoComponent;
@@ -496,6 +497,25 @@ public class FakeSteveAi {
         if (state.taskType != null) {
             FakeSteveTaskPlanner.abandon(body, state);
         }
+    }
+
+    /**
+     * 重置「卡住」追踪（会议暂停等场景调用）：清空位移采样与卡死锚点。
+     *
+     * <p>
+     * AI 暂停期间身体坐在会议席位上不动，若不清会被 {@link #updateStuck} 累计成卡住，
+     * 并会在恢复后的第一次 {@link #rescueIfStuck} 因「锚点太久没更新」触发保底传送。
+     * 两个采样器都以「时间戳为 0」表示未初始化，下一次调用会自行重新锚定。
+     */
+    static void resetStuckTracking(ServerPlayer body, FakeSteveAgentState state, long now) {
+        state.stuckTicks = 0;
+        state.lastMoveTick = 0L;
+        state.stuckAnchorTick = 0L;
+        state.lastMoveX = body.getX();
+        state.lastMoveY = body.getY();
+        state.lastMoveZ = body.getZ();
+        state.stuckAnchorX = body.getX();
+        state.stuckAnchorZ = body.getZ();
     }
 
     /** A body that wants to move but does not is recalculated instead of grinding. */
@@ -1881,8 +1901,24 @@ public class FakeSteveAi {
     }
 
     private static boolean needsVerticalSwim(ServerPlayer body, double targetY) {
+        // 「禁止游泳」的地图里，落水本应被环境判定击杀（CANNOT_SWIM）。但伪人 AI 会主动
+        // 保持上浮（wantsJumpOrSwim 持续按跳跃 + driveVerticalSwim），让身体始终浮在水面、
+        // 眼睛不入水，于是 isUnderWater() 恒为 false，落水死亡永远不触发。这里直接放弃上浮，
+        // 让身体正常下沉，交由 SREGameWorldComponent#playerEnvironmentDetection 正常判死。
+        if (isSwimmingBanned(body)) {
+            return false;
+        }
         return FakeStevePathPolicy.shouldHoldSwim(inWater(body), body.onGround(),
                 body.getY(), targetY);
+    }
+
+    /** 当前地图是否禁止游泳：任一水下 / 深水 / 游泳判定被关闭，落水即会被环境检测击杀。 */
+    private static boolean isSwimmingBanned(ServerPlayer body) {
+        var areas = AreasWorldComponent.KEY.get(body.level()).areasSettings;
+        if (areas == null) {
+            return false;
+        }
+        return !areas.canSimpleSwim || !areas.canUnderWater || !areas.allowInDeepWater;
     }
 
     private static boolean wantsJumpOrSwim(ServerLevel level, ServerPlayer body,

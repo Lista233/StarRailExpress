@@ -15,6 +15,7 @@
 
 package org.agmas.noellesroles.role_data.innocence;
 
+import io.wifi.starrailexpress.api.data.RoleData;
 import io.wifi.starrailexpress.api.data.RoleDataContext;
 import io.wifi.starrailexpress.api.impl.SimpleRoleData;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
@@ -32,6 +33,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.player.Player;
 import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.utils.MoneyUtils;
@@ -87,11 +89,30 @@ public class DisabledPatientRoleData extends SimpleRoleData {
 
     @Override
     public void clear() {
-        if (player instanceof ServerPlayer sp) {
-            removeGrantedEffects(sp);
-        }
+        clearGrantedEffects(player);
         this.nextGrantTick = 0L;
         this.grantedIds.clear();
+    }
+
+    /**
+     * 移除本局已发放的全部永久负面效果，但保留计时器与发放记录。
+     *
+     * <p>供转职链路兜底调用：职业移除的常规清理走 {@code ModdedRoleRemoved} 事件 →
+     * {@code RoleData#clear()}，但部分转职（如教父死亡还原家族成员、蜜蜂家族失败还原）
+     * 出于避免副作用的考虑显式传了 {@code noEventCall=true}，那条路径上事件根本不会触发，
+     * 负面效果就会一直跟着玩家。清理动作本身是幂等的，正常路径下重复调用无副作用。
+     */
+    public static void clearGrantedEffects(Player player) {
+        if (player == null) {
+            return;
+        }
+        var data = RoleData.getNullable(DisabledPatientRoleData.class, player);
+        if (data == null) {
+            return;
+        }
+        if (player instanceof ServerPlayer sp) {
+            data.removeGrantedEffects(sp);
+        }
     }
 
     @Override
@@ -181,6 +202,43 @@ public class DisabledPatientRoleData extends SimpleRoleData {
         }
     }
 
+    /**
+     * 按残疾患者同一份权重表随机挑一种残疾，并只施加 {@code durationTicks}。
+     *
+     * <p>供命令方块的「命令注入」事件复用，避免另写一份效果表。
+     *
+     * @return 成功施加时返回 true
+     */
+    public static boolean applyRandomTemporary(ServerPlayer player, int durationTicks) {
+        if (player == null || durationTicks <= 0) {
+            return false;
+        }
+        Disability picked = pickWeighted(player);
+        if (picked == null) {
+            return false;
+        }
+        picked.applyTemporary(player, durationTicks);
+        return true;
+    }
+
+    private static Disability pickWeighted(ServerPlayer player) {
+        int totalWeight = 0;
+        for (Disability disability : Disability.values()) {
+            totalWeight += disability.weight;
+        }
+        if (totalWeight <= 0) {
+            return null;
+        }
+        int roll = player.getRandom().nextInt(totalWeight);
+        for (Disability disability : Disability.values()) {
+            roll -= disability.weight;
+            if (roll < 0) {
+                return disability;
+            }
+        }
+        return null;
+    }
+
     public enum Disability {
         BLINDNESS("blindness", 10, spec(MobEffects.BLINDNESS, 0)),
         DARKNESS("darkness", 10, spec(MobEffects.DARKNESS, 0)),
@@ -250,6 +308,31 @@ public class DisabledPatientRoleData extends SimpleRoleData {
                 player.addEffect(ModEffects.of(
                         spec.effect(),
                         EFFECT_DURATION,
+                        spec.amplifier(),
+                        true,
+                        false,
+                        true));
+            }
+        }
+
+        /**
+         * 命令方块「命令注入」用：按同一份权重表随机挑一种残疾，但只持续
+         * {@code durationTicks}，不像职业那样永久生效。已经带有同级或更久的
+         * 同名效果时不降级覆盖。
+         */
+        public void applyTemporary(ServerPlayer player, int durationTicks) {
+            if (durationTicks <= 0) {
+                return;
+            }
+            for (EffectSpec spec : this.effects) {
+                var current = player.getEffect(spec.effect());
+                if (current != null && current.getAmplifier() >= spec.amplifier()
+                        && (current.isInfiniteDuration() || current.getDuration() >= durationTicks)) {
+                    continue;
+                }
+                player.addEffect(ModEffects.of(
+                        spec.effect(),
+                        durationTicks,
                         spec.amplifier(),
                         true,
                         false,

@@ -4,9 +4,7 @@ import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.cca.DynamicShopComponent;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.util.ShopEntry;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import org.agmas.noellesroles.utils.RoleUtils;
 import org.jetbrains.annotations.NotNull;
@@ -26,8 +24,8 @@ public class MascotShopEntry extends ShopEntry {
 
     private boolean applyOnlyCanBuyOne(@NotNull Player player) {
         DynamicShopComponent dynamicShop = DynamicShopComponent.KEY.get(player);
-        ResourceLocation ItemId = BuiltInRegistries.ITEM.getKey(this.stack().getItem());
-        int purchaseCount = dynamicShop.getPurchaseCount(ItemId);
+        String itemId = DynamicShopComponent.keyOf(this.stack());
+        int purchaseCount = dynamicShop.getPurchaseCount(itemId);
 
         if (purchaseCount >= 1) {
             Component message = Component.translatable("message.mascot.cant_buy");
@@ -35,7 +33,7 @@ public class MascotShopEntry extends ShopEntry {
             return false;
         } else {
             RoleUtils.insertStackInFreeSlot(player, this.stack().copy());
-            dynamicShop.recordPurchase(ItemId);
+            dynamicShop.recordPurchase(itemId);
         }
         return true;
     }

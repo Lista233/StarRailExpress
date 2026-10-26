@@ -23,7 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.content.item.DictatorBookItem;
 import org.agmas.noellesroles.content.item.JudgmentSwordItem;
-import org.agmas.noellesroles.content.item.WatchmanShopEntry;
+import org.agmas.noellesroles.content.item.SteppedPriceShopEntry;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
 import org.agmas.noellesroles.role_data.vigilante.DictatorRoleData;
@@ -82,7 +82,7 @@ public class DictatorRole extends NormalRole {
     public List<ShopEntry> getShopEntries() {
         return List.of(
                 // 裁决之剑：150 金币，每购买一次涨价 25 金币
-                new WatchmanShopEntry(ModItems.JUDGMENT_SWORD, 150, 25, ShopEntry.Type.TOOL),
+                new SteppedPriceShopEntry(ModItems.JUDGMENT_SWORD, 150, 25, ShopEntry.Type.TOOL),
                 // 独裁之书：150 金币，仅能购买一次
                 new ShopEntry(ModItems.DICTATOR_BOOK.getDefaultInstance(), 150, ShopEntry.Type.TOOL) {
                     @Override
@@ -106,13 +106,19 @@ public class DictatorRole extends NormalRole {
                 });
     }
 
-    /** 独裁官死亡时掉落两把左轮手枪。 */
+    /**
+     * 独裁官死亡时掉落两把左轮手枪。
+     *
+     * <p>
+     * 注意只额外掉落 <b>一把</b>：开局自带的那把左轮属于 {@code shouldDropOnDeath} 物品，
+     * 会由死亡掉落流程（{@code NRDeathEvents} 对枪械的清点重掉）正常掉落一把；
+     * 这里再补掉一把，总计恰好两把。此前直接掉两把会变成 1（自带）+ 2（额外）= 3 把。
+     */
     @Override
     public void onDeath(Player victim, boolean spawnBody, @Nullable Player killer,
             ResourceLocation deathReason, boolean forceDeath) {
         super.onDeath(victim, spawnBody, killer, deathReason, forceDeath);
         if (victim instanceof ServerPlayer serverPlayer) {
-            serverPlayer.drop(TMMItems.REVOLVER.getDefaultInstance().copy(), false);
             serverPlayer.drop(TMMItems.REVOLVER.getDefaultInstance().copy(), false);
         }
     }

@@ -15,7 +15,11 @@
 
 package org.agmas.noellesroles.game.roles.killer.dream;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import io.wifi.starrailexpress.api.RoleComponent;
+import io.wifi.starrailexpress.cca.SREArmorPlayerComponent;
+import io.wifi.starrailexpress.cca.SREWeakArmorPlayerComponent;
 import io.wifi.starrailexpress.game.GameUtils;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -23,6 +27,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
+import io.wifi.starrailexpress.event.OnGameEnd;
 import org.agmas.harpymodloader.events.GameInitializeEvent;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.config.NoellesRolesConfig;
@@ -31,8 +36,12 @@ import org.jetbrains.annotations.Nullable;
 import org.ladysnake.cca.api.v3.component.ComponentKey;
 import org.ladysnake.cca.api.v3.component.ComponentRegistry;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
- * Dream（梦魇）虚拟血量组件 —— 挂在<b>所有玩家</b>身上。
+ * Dream（Dream）虚拟血量组件 —— 挂在<b>所有玩家</b>身上。
  *
  * <p>
  * 在所有人眼中每名玩家默认都有 {@code dreamMaxHealth}（默认 20）滴血；
@@ -55,11 +64,44 @@ public class DreamHealthComponent implements RoleComponent {
             ResourceLocation.fromNamespaceAndPath(Noellesroles.MOD_ID, "dream_health"),
             DreamHealthComponent.class);
 
+    /**
+     * 因虚拟血量归零而被判死的玩家：uuid -> 判死时的游戏时间。
+     * 供护士尸体透视判定（见 {@code NurseRole.onBodySpawn}），
+     * 这样不必逐个枚举武器死因，后续新增虚拟血量武器也能自动覆盖。
+     */
+    private static final Map<UUID, Long> VIRTUAL_HEALTH_DEATH_MARKS = new ConcurrentHashMap<>();
+
+    /**
+     * 一次性消费「该玩家是否刚刚因虚拟血量归零而死」的标记。
+     *
+     * @param uuid     玩家 UUID
+     * @param gameTime 当前游戏时间（服务端）
+     * @return 该玩家是否刚因虚拟血量归零而死
+     */
+    public static boolean consumeVirtualHealthDeath(UUID uuid, long gameTime) {
+        if (uuid == null) {
+            return false;
+        }
+        Long marked = VIRTUAL_HEALTH_DEATH_MARKS.remove(uuid);
+        if (marked == null) {
+            return false;
+        }
+        long delta = gameTime - marked;
+        // 只认「刚刚」打标的死亡，避免陈旧标记影响该玩家之后的其它死法
+        return delta >= 0 && delta <= 40;
+    }
+
     static {
         // 开局重置所有玩家的虚拟血量（本组件不绑定职业 componentKey，自行挂开局事件）
         GameInitializeEvent.EVENT.register((serverLevel, gameWorldComponent, players) -> {
             for (ServerPlayer p : serverLevel.getServer().getPlayerList().getPlayers()) {
                 KEY.get(p).initWhenNecessary();
+            }
+        });
+        // 游戏结束时重置所有玩家的虚拟血量，避免残留到下一局
+        OnGameEnd.EVENT.register((serverLevel, gameWorldComponent) -> {
+            for (ServerPlayer p : serverLevel.getServer().getPlayerList().getPlayers()) {
+                KEY.get(p).init();
             }
         });
     }
@@ -128,13 +170,25 @@ public class DreamHealthComponent implements RoleComponent {
         init(true);
     }
 
+    /** 是否启用「脱战自动回血」（配置项 {@code dreamHealthRegenEnabled}，默认关闭）。 */
+    public static boolean regenEnabled() {
+        return NoellesRolesConfig.HANDLER.instance().dreamHealthRegenEnabled;
+    }
+
     /**
-     * 按游戏时间推算当前血量：脱战 30s 后每秒恢复 1 点，直至回满。
+     * 按游戏时间推算当前血量。
+     *
+     * <p>脱战回血开关（{@link #regenEnabled()}）开启时：脱战
+     * {@code dreamHealthRegenDelaySeconds} 秒后每秒恢复 1 点，直至回满；
+     * 关闭时：保持受伤后的血量，不再随时间自动回升（仍可用康复药丸 / 康复试剂等手段恢复）。
      */
     public int getEffectiveHealth(long gameTime) {
         int max = maxHealth();
         if (baseHealth >= max || lastHurtGameTime <= 0) {
             return Math.min(baseHealth, max);
+        }
+        if (!regenEnabled()) {
+            return Mth.clamp(baseHealth, 0, max);
         }
         long regenStart = lastHurtGameTime + regenDelayTicks();
         if (gameTime <= regenStart) {
@@ -150,24 +204,95 @@ public class DreamHealthComponent implements RoleComponent {
     }
 
     /**
-     * 被 Dream 的铁斧命中：扣虚拟血量，归零则判死并归属攻击者。
+     * 被 Dream 的铁斧命中：<b>先扣虚拟护盾</b>，剩余伤害才扣虚拟血量；归零则判死并归属攻击者。
      *
-     * @return 是否实际造成了伤害
+     * @return 是否实际造成了伤害（护盾全部吸收时也算造成了伤害，只是不掉血）
      */
     public boolean hurt(@Nullable ServerPlayer attacker, int damage, ResourceLocation deathReason) {
+        return hurt(attacker, damage, deathReason, false, false);
+    }
+
+    /**
+     * 被 Dream 的铁斧命中：<b>先扣虚拟护盾</b>，剩余伤害才扣虚拟血量；归零则判死并归属攻击者。
+     *
+     * <p>
+     * {@code ignoreAllShields} 为 true 时本次伤害<b>无视全部护盾</b>（用于 Dream 重锤）：
+     * 虚拟护盾不参与吸收、点数保持不变；若这一击足以致死，普通护盾（含限时护盾）
+     * 与弱效护盾也会在判死前被清空，不会替玩家挡下这次死亡
+     * （参考狙击枪 50 格外的穿透处理）。
+     *
+     * @param ignoreAllShields true 时本次伤害无视<b>全部</b>护盾
+     * @return 是否实际造成了伤害（护盾全部吸收时也算造成了伤害，只是不掉血）
+     */
+    public boolean hurt(@Nullable ServerPlayer attacker, int damage, ResourceLocation deathReason,
+            boolean ignoreAllShields) {
+        return hurt(attacker, damage, deathReason, ignoreAllShields, ignoreAllShields);
+    }
+
+    /**
+     * 被 Dream 的铁斧命中：<b>先扣虚拟护盾</b>，剩余伤害才扣虚拟血量；归零则判死并归属攻击者。
+     *
+     * @param ignoreVirtualShield true 时虚拟护盾<b>不参与吸收</b>，伤害直接扣在虚拟血量上
+     *        （虚拟护盾点数保持不变）
+     * @param pierceOtherShields  true 时若这一击足以致死，会在判死前清空普通护盾（含限时护盾）
+     *        与弱效护盾，即连普通护盾一并穿透；false 则只无视虚拟护盾，
+     *        普通护盾仍按原有死亡管线结算
+     * @return 是否实际造成了伤害（护盾全部吸收时也算造成了伤害，只是不掉血）
+     */
+    public boolean hurt(@Nullable ServerPlayer attacker, int damage, ResourceLocation deathReason,
+            boolean ignoreVirtualShield, boolean pierceOtherShields) {
         if (!(player instanceof ServerPlayer sp) || damage <= 0) {
             return false;
         }
         if (!GameUtils.isPlayerAliveAndSurvival(sp)) {
             return false;
         }
+        if (attacker != null && !org.agmas.noellesroles.game.command_block.CommandBlockCombat.allowsHimStrike(attacker, sp)) {
+            return false;
+        }
+        if (sp.hasEffect(org.agmas.noellesroles.init.ModEffects.INVINCIBLE)
+                && org.agmas.noellesroles.game.command_block.DreadlordRole.isDreadlord(sp)) {
+            return false;
+        }
+        // 武士刀格挡：所有走虚拟血量的「特殊原版武器」（Dream 铁斧 / 钻石剑 / 重锤、矛、武士刀……）
+        // 统一在这里先过一遍格挡判定，命中格挡窗口就放弃本次伤害（消耗武士刀 1 点耐久）。
+        // 放在这个总入口而不是逐个武器里写，后续新增同类武器会自动生效。
+        if (attacker != null && org.agmas.noellesroles.katana.KatanaHandler.tryBlockAttack(sp, attacker)) {
+            return false;
+        }
+        if (attacker != null && attacker != sp
+                && org.agmas.noellesroles.game.command_block.CommandBlockDirector.isActive(sp.serverLevel())
+                && io.wifi.starrailexpress.cca.SREGameWorldComponent.KEY.get(sp.level())
+                        .isRole(sp, org.agmas.noellesroles.role.ModRoles.ENTITY_NULL)) {
+            var data = io.wifi.starrailexpress.api.data.RoleData.getNullable(
+                    org.agmas.noellesroles.role_data.killer.EntityNullRoleData.class, sp);
+            if (data != null && data.deferHit(sp,
+                    () -> hurt(attacker, damage, deathReason, ignoreVirtualShield, pierceOtherShields))) {
+                return true;
+            }
+        }
+        if (attacker != null) {
+            ProgressionDataManager.onVirtualDamageDealt(attacker, damage);
+        }
+        // 虚拟护盾只抵挡虚拟血量伤害：先在这里吸收，掉多少血由吸收后的剩余伤害决定
+        int remaining = ignoreVirtualShield ? damage
+                : VirtualShieldComponent.KEY.get(sp).absorbVirtualDamage(damage);
+        if (remaining <= 0) {
+            // 护盾把这次伤害全吃掉了：不掉血、不致死，但伤害确实生效（护盾可能被打空）
+            return true;
+        }
         long gameTime = sp.level().getGameTime();
         int current = getEffectiveHealth(gameTime);
-        baseHealth = current - damage;
+        baseHealth = current - remaining;
         lastHurtGameTime = gameTime;
         if (baseHealth <= 0) {
             baseHealth = 0;
             sync();
+            // 打标：本条命是「虚拟血量归零」判死的（护士尸体透视据此判定，不依赖具体死因）
+            VIRTUAL_HEALTH_DEATH_MARKS.put(sp.getUUID(), gameTime);
+            if (pierceOtherShields) {
+                clearAllShields(sp);
+            }
             GameUtils.killPlayer(sp, true, attacker, deathReason);
             return true;
         }
@@ -176,8 +301,27 @@ public class DreamHealthComponent implements RoleComponent {
     }
 
     /**
+     * 清空玩家身上的普通护盾（含限时护盾）与弱效护盾。
+     *
+     * <p>仅供「无视护盾」的伤害在判死前调用：护盾既不会替玩家挡下这次死亡，
+     * 也不会在死亡结算里被白白消耗一层（与狙击枪 50 格外穿透的处理一致）。
+     */
+    private static void clearAllShields(ServerPlayer player) {
+        SREArmorPlayerComponent armor = SREArmorPlayerComponent.KEY.get(player);
+        if (armor.getArmor() > 0) {
+            // clearTimedArmor=true：常驻护盾与限时护盾一并清空
+            armor.setArmor(0, true);
+        }
+        SREWeakArmorPlayerComponent weakArmor = SREWeakArmorPlayerComponent.KEY.get(player);
+        if (weakArmor.getWeakArmor() > 0) {
+            weakArmor.clear();
+        }
+    }
+
+    /**
      * 扣除虚拟血量但始终保留 1 点，不通过 death reason 使玩家死亡。
      * 用于烟花弩的范围溅射伤害；精确命中目标的击杀由烟花弩自身单独处理。
+     * 与 {@link #hurt} 一样<b>先扣虚拟护盾</b>。
      */
     public boolean hurtWithoutKilling(@Nullable ServerPlayer attacker, int damage) {
         if (!(player instanceof ServerPlayer sp) || damage <= 0) {
@@ -186,9 +330,13 @@ public class DreamHealthComponent implements RoleComponent {
         if (!GameUtils.isPlayerAliveAndSurvival(sp)) {
             return false;
         }
+        int remaining = VirtualShieldComponent.KEY.get(sp).absorbVirtualDamage(damage);
+        if (remaining <= 0) {
+            return true;
+        }
         long gameTime = sp.level().getGameTime();
         int current = getEffectiveHealth(gameTime);
-        int appliedDamage = Math.min(damage, Math.max(0, current - 1));
+        int appliedDamage = Math.min(remaining, Math.max(0, current - 1));
         if (appliedDamage <= 0) {
             return false;
         }
@@ -228,6 +376,57 @@ public class DreamHealthComponent implements RoleComponent {
         }
         sync();
         return true;
+    }
+
+    /**
+     * 读取当前虚拟血量（按游戏时间推算后的实际值）。
+     */
+    public int currentHealth() {
+        if (player == null) {
+            return maxHealth();
+        }
+        return getEffectiveHealth(player.level().getGameTime());
+    }
+
+    /**
+     * 直接增加 / 减少虚拟血量，结果夹在 {@code [0, 上限]}，<b>不触发死亡判定</b>。
+     *
+     * @param delta 变化量，正数为增加、负数为减少
+     * @return 变化后的血量；未生效（非服务端玩家 / 玩家不存活）时返回 -1
+     */
+    public int addHealth(int delta) {
+        if (!(player instanceof ServerPlayer sp) || !GameUtils.isPlayerAliveAndSurvival(sp)) {
+            return -1;
+        }
+        long gameTime = sp.level().getGameTime();
+        return applyHealth(getEffectiveHealth(gameTime) + delta, gameTime);
+    }
+
+    /**
+     * 直接设置虚拟血量，结果夹在 {@code [0, 上限]}，<b>不触发死亡判定</b>。
+     *
+     * @param value 目标血量
+     * @return 设置后的血量；未生效（非服务端玩家 / 玩家不存活）时返回 -1
+     */
+    public int setHealth(int value) {
+        if (!(player instanceof ServerPlayer sp) || !GameUtils.isPlayerAliveAndSurvival(sp)) {
+            return -1;
+        }
+        return applyHealth(value, sp.level().getGameTime());
+    }
+
+    /** 写入血量并重置懒回血基线（与 {@link #restore(int)} 保持一致的处理）。 */
+    private int applyHealth(int value, long gameTime) {
+        int max = maxHealth();
+        int next = Mth.clamp(value, 0, max);
+        baseHealth = next;
+        if (next >= max) {
+            lastHurtGameTime = 0; // 回满：进入默认满血态
+        } else {
+            lastHurtGameTime = gameTime;
+        }
+        sync();
+        return next;
     }
 
     // ── NBT 同步 ───────────────────────────────────────────────

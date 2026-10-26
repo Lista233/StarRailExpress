@@ -24,6 +24,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import org.agmas.noellesroles.init.NRSounds;
+import pro.fazeclan.river.stupid_express.StupidExpress;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -113,6 +114,20 @@ public final class SpeakerTracks {
         mod(tracks, NRSounds.MUSIC_INDOOR, "music_indoor");
         mod(tracks, NRSounds.FLOWER_OUTDOOR, "flower_outdoor");
         mod(tracks, TMMSounds.AMBIENT_TRAIN_INSIDE, "train_inside");
+        // 环境音（与地图背景音效类型对齐的两个风暴循环）
+        mod(tracks, NRSounds.SAND_STORM, "sand_storm");
+        mod(tracks, NRSounds.SNOW_STORM, "snow_storm");
+        // 长音乐（完整单曲 / 长循环）
+        mod(tracks, NRSounds.ODO, "odo");
+        mod(tracks, StupidExpress.SOUND_REGUGEE, "refugee_music");
+        mod(tracks, NRSounds.GONGXI_FACAI, "gongxifacai");
+        mod(tracks, NRSounds.LEVEL, "level");
+        // 逐日者终末追逐音乐 / 心情 / 命令方块事件环境音
+        mod(tracks, NRSounds.DAYWALKER, "daywalker");
+        mod(tracks, NRSounds.MOOD, "mood");
+        mod(tracks, NRSounds.COMMAND_BLOCK, "command_block");
+        mod(tracks, NRSounds.COMMAND_BLOCK_2, "command_block_2");
+        mod(tracks, NRSounds.COMMAND_BLOCK_3, "command_block_3");
         return List.copyOf(tracks);
     }
 

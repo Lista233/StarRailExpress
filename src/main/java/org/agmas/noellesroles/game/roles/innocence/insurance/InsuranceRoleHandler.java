@@ -57,6 +57,10 @@ public final class InsuranceRoleHandler {
     private static boolean allowDeath(net.minecraft.world.entity.player.Player victim, ResourceLocation deathReason) {
         if (!(victim instanceof ServerPlayer player)) return true;
         if (deathReason == null || deathReason.equals(GameConstants.DeathReasons.SHOT_INNOCENT)) return true;
+        // 强制死亡（forcekill）无论如何都挡不住：GameMode#killPlayer 会忽略这里的 false 照常处死玩家。
+        // 因此必须在这里直接放行——不能消耗保险、不能赔付、更不能播报「成功抵挡」，
+        // 否则回放里会留下「保险抵挡成功」的条目，而玩家其实已经死了。
+        if (io.wifi.starrailexpress.game.GameUtils.isForcedDeathInProgress()) return true;
 
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);

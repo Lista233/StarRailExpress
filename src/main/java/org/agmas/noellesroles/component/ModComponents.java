@@ -21,7 +21,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import org.agmas.noellesroles.ConfigWorldComponent;
 import org.agmas.noellesroles.Noellesroles;
-import net.exmo.sre.repair.component.RepairRolePlayerComponent;
 import org.agmas.noellesroles.content.entity.DoomedSinnerBodyEntity;
 import org.agmas.noellesroles.game.roles.killer.manipulator.InControlCCA;
 import org.agmas.noellesroles.game.roles.neutral.puppeteer.PuppeteerPlayerComponent;
@@ -59,8 +58,11 @@ public class ModComponents implements EntityComponentInitializer, WorldComponent
       ResourceLocation.fromNamespaceAndPath(Noellesroles.MOD_ID, "ability"),
       SREAbilityPlayerComponent.class);
 
-  /** Dream（梦魇）：全员虚拟血量（默认 20 滴血，只被 Dream 铁斧扣除）。 */
+  /** Dream（Dream）：全员虚拟血量（默认 20 滴血，只被 Dream 铁斧扣除）。 */
   public static final ComponentKey<org.agmas.noellesroles.game.roles.killer.dream.DreamHealthComponent> DREAM_HEALTH = org.agmas.noellesroles.game.roles.killer.dream.DreamHealthComponent.KEY;
+
+  /** 虚拟护盾（虚拟血量前面的点数条护盾）。 */
+  public static final ComponentKey<org.agmas.noellesroles.game.roles.killer.dream.VirtualShieldComponent> VIRTUAL_SHIELD = org.agmas.noellesroles.game.roles.killer.dream.VirtualShieldComponent.KEY;
 
   public static final ComponentKey<PuppeteerPlayerComponent> PUPPETEER = ComponentRegistry.getOrCreate(
       ResourceLocation.fromNamespaceAndPath(Noellesroles.MOD_ID, "puppeteer"),
@@ -86,10 +88,6 @@ public class ModComponents implements EntityComponentInitializer, WorldComponent
 
   // 氦气变声组件 - 独立同步给所有玩家
   public static final ComponentKey<HeliumBuzzPlayerComponent> HELIUM_BUZZ = HeliumBuzzPlayerComponent.KEY;
-
-  public static final ComponentKey<RepairRolePlayerComponent> REPAIR_ROLES = ComponentRegistry.getOrCreate(
-      ResourceLocation.fromNamespaceAndPath(Noellesroles.MOD_ID, "repair_roles"),
-      RepairRolePlayerComponent.class);
 
   // 疫使组件 - 杀手方中立阵营，病毒感染
   public static final ComponentKey<InfectedPlayerComponent> INFECTED = ComponentRegistry.getOrCreate(
@@ -168,10 +166,6 @@ public class ModComponents implements EntityComponentInitializer, WorldComponent
         .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
         .end(GhostStateComponent::new);
 
-    registry.beginRegistration(Player.class, REPAIR_ROLES)
-        .respawnStrategy(RespawnCopyStrategy.ALWAYS_COPY)
-        .end(RepairRolePlayerComponent::new);
-
     // 注册疫使组件 - 杀手方中立阵营，病毒感染
     registry.beginRegistration(Player.class, INFECTED)
         .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
@@ -230,6 +224,11 @@ public class ModComponents implements EntityComponentInitializer, WorldComponent
     registry.beginRegistration(Player.class, DREAM_HEALTH)
         .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
         .end(org.agmas.noellesroles.game.roles.killer.dream.DreamHealthComponent::new);
+
+    // 注册虚拟护盾：挂在所有玩家身上，随虚拟血量一并初始化和清空
+    registry.beginRegistration(Player.class, VIRTUAL_SHIELD)
+        .respawnStrategy(RespawnCopyStrategy.NEVER_COPY)
+        .end(org.agmas.noellesroles.game.roles.killer.dream.VirtualShieldComponent::new);
 
     // ==================== 示例：注册更多组件 ====================
     //

@@ -15,6 +15,8 @@
 
 package io.wifi.starrailexpress.register;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import org.agmas.noellesroles.init.RoleShopHandler;
 
 import com.google.gson.JsonObject;
@@ -35,6 +37,7 @@ import io.wifi.starrailexpress.game.data.ServerMapConfig;
 import io.wifi.starrailexpress.game.modes.SREMurderGameMode;
 import io.wifi.starrailexpress.game.modes.funny.SRERoleRotationGameMode;
 import io.wifi.starrailexpress.game.modes.funny.SRERoleRotationSingleSelectGameMode;
+import io.wifi.starrailexpress.game.modes.funny.SREVolunteerOpenSelectGameMode;
 import io.wifi.starrailexpress.network.*;
 import io.wifi.starrailexpress.scenery.server.SceneAssetServer;
 import net.exmo.sre.sync.MysqlPlayerDataStore;
@@ -80,6 +83,7 @@ public class SREEventRegister {
             net.exmo.sre.planecrash.PlaneCrashManager.onGameStarted(serverLevel);
             boolean planeIntro = !deferIntro && net.exmo.sre.planecrash.PlaneCrashManager.startIntro(serverLevel);
             for (ServerPlayer player : serverLevel.players()) {
+                ProgressionDataManager.onPlayMap(player, mapId);
                 // The authoritative map id also drives the opening briefing when no map vote was used.
                 PacketTracker.sendToClient(player, new OnGameStartedPayload(mapId));
                 // 轮选模式职业尚未确定，开场镜头延后到 OnGameTrueStarted
@@ -106,6 +110,12 @@ public class SREEventRegister {
             if (io.wifi.starrailexpress.customrole.CustomRoleLoader.rebuildShops() > 0) {
                 // 商店条目变了：价格表是按商店内容构建并缓存的，让客户端也重新拉一次
                 io.wifi.starrailexpress.shop.ShopPriceSyncServer.resyncAll(serverLevel.getServer());
+            }
+        });
+        // 开局：为所有选择了「随机」皮肤的物品类型重新抽取一次（结果同步给客户端用于渲染）
+        OnGameStarted.EVENT.register(serverLevel -> {
+            for (net.minecraft.server.level.ServerPlayer player : serverLevel.players()) {
+                io.wifi.starrailexpress.cca.SREPlayerSkinsComponent.KEY.get(player).rollAllRandomSkins();
             }
         });
     }
@@ -243,14 +253,21 @@ public class SREEventRegister {
         });
     }
 
-    /** 轮选（闪电轮抽 / 单选）在 OnGameStarted 时职业尚未确定，开场镜头应延后。 */
+    /** 轮选（闪电轮抽 / 单选）与志愿海选在 OnGameStarted 时职业尚未确定，开场镜头应延后。 */
     private static boolean defersIntroUntilRolesChosen(ServerLevel serverLevel) {
         var mode = SREGameWorldComponent.KEY.get(serverLevel).getGameMode();
         return mode instanceof SRERoleRotationGameMode
-                || mode instanceof SRERoleRotationSingleSelectGameMode;
+                || mode instanceof SRERoleRotationSingleSelectGameMode
+                || mode instanceof SREVolunteerOpenSelectGameMode;
     }
 
     private static void sendDefaultIntroIfParticipant(ServerPlayer player) {
+        // 回响托运站由模式自己发一条开局运镜（追捕方 → 逃脱方 → 设施 → 回到本人），
+        // 这里跳过默认的「远处俯视玩家」镜头，避免两条轨道互相抢占导演。
+        if (SREGameWorldComponent.KEY.get(player.serverLevel()).getGameMode()
+                instanceof org.agmas.noellesroles.game.modes.echo.EchoGameMode) {
+            return;
+        }
         if (player.gameMode.getGameModeForPlayer() == GameType.ADVENTURE) {
             net.exmo.sre.camera.AdvancedCameraCommand.sendIntro(player,
                     net.exmo.sre.camera.AdvancedCameraCommand.DEFAULT_INTRO_DURATION,

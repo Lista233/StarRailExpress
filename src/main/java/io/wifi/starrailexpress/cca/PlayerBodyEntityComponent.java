@@ -42,6 +42,11 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
     public boolean vultured = false;
     public boolean wisadelHarvested = false; // 维什戴尔已汲取过该尸体的魂灵（每具尸体只能汲取一次）
     public boolean isFakeBody = false; // 葬仪伪造的尸体标记
+    /**
+     * 不可交互标记：尸体主人死亡后存在复活逻辑（即将被复活）时为 true，通常为 false。
+     * 处于该状态的尸体无法被其它职业复活、无法被骸骨之书复活、也无法被打开物品栏（含殡仪员）。
+     */
+    public boolean nonInteractable = false;
     public PlayerBodyEntity playerBodyEntity;
 
     private String ownerName;
@@ -60,6 +65,20 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
     // ---------- 物品容器访问 ----------
     public PlayerBodyEntityContainer getCorpseInventory() {
         return corpseInventory;
+    }
+
+    /**
+     * 设置不可交互标记（主人即将被复活的尸体禁止被他人交互/复活）。
+     */
+    public void setNonInteractable(boolean value) {
+        setNonInteractable(value, true);
+    }
+
+    public void setNonInteractable(boolean value, boolean sync) {
+        this.nonInteractable = value;
+        if (sync && !playerBodyEntity.level().isClientSide) {
+            sync();
+        }
     }
 
     public String getOwnerName() {
@@ -129,6 +148,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
         this.vultured = false;
         this.wisadelHarvested = false;
         this.isFakeBody = false;
+        this.nonInteractable = false;
         this.killer = null;
         this.conspiratorEvidence = null;
         this.deathReason = "";
@@ -157,6 +177,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
         tag.putBoolean("vultured", vultured);
         tag.putBoolean("wisadelHarvested", wisadelHarvested);
         tag.putBoolean("isFakeBody", isFakeBody);
+        tag.putBoolean("nonInteractable", nonInteractable);
         if (killer != null) {
             tag.putUUID("Killer", killer);
         }
@@ -199,6 +220,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
         this.vultured = tag.getBoolean("vultured");
         this.wisadelHarvested = tag.getBoolean("wisadelHarvested");
         this.isFakeBody = tag.getBoolean("isFakeBody");
+        this.nonInteractable = tag.getBoolean("nonInteractable");
 
         if (tag.hasUUID("Killer")) {
             killer = tag.getUUID("Killer");
@@ -251,6 +273,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
         tag.putBoolean("vultured", vultured);
         tag.putBoolean("wisadelHarvested", wisadelHarvested);
         tag.putBoolean("isFakeBody", isFakeBody);
+        tag.putBoolean("nonInteractable", nonInteractable);
         if (killer != null) {
             tag.putUUID("Killer", killer);
         }
@@ -274,6 +297,7 @@ public class PlayerBodyEntityComponent implements RoleComponent, ServerTickingCo
         this.vultured = tag.contains("vultured") && tag.getBoolean("vultured");
         this.wisadelHarvested = tag.contains("wisadelHarvested") && tag.getBoolean("wisadelHarvested");
         this.isFakeBody = tag.contains("isFakeBody") && tag.getBoolean("isFakeBody");
+        this.nonInteractable = tag.contains("nonInteractable") && tag.getBoolean("nonInteractable");
         if (tag.hasUUID("Killer")) {
             killer = tag.getUUID("Killer");
         } else {

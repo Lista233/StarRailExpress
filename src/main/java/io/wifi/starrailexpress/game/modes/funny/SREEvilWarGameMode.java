@@ -42,6 +42,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemCooldowns;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.FireworkExplosion;
 import net.minecraft.world.level.Level;
 import org.agmas.harpymodloader.Harpymodloader;
 import org.agmas.harpymodloader.component.WorldModifierComponent;
@@ -56,6 +57,7 @@ import org.agmas.noellesroles.role_data.killer.StalkerRoleData;
 import org.agmas.noellesroles.role_data.killer.TrapperRoleData;
 import org.agmas.noellesroles.init.ModItems;
 import org.agmas.noellesroles.role.ModRoles;
+import org.agmas.noellesroles.game.roles.killer.boom_maniac.BoomManiacRole;
 import org.agmas.noellesroles.role.TraitorAndModifiers;
 import org.agmas.noellesroles.role.bouns.BounsRoles;
 import org.agmas.noellesroles.role.touhou.THRedHouseRoles;
@@ -111,7 +113,7 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
         EX_ABILITY_ROLE.add(BounsRoles.CREEPER);
         EX_ABILITY_ROLE.add(ModRoles.STALKER);
         EX_ABILITY_ROLE.add(ModRoles.INSANE_KILLER);
-        // 邪恶战争新增适配职业
+        EX_ABILITY_ROLE.add(ModRoles.SILENT_KILLER);
         EX_ABILITY_ROLE.add(ModRoles.WIZARD);
         EX_ABILITY_ROLE.add(ModRoles.UNDEAD_LORD);
         EX_ABILITY_ROLE.add(ModRoles.EXAMPLER);
@@ -136,6 +138,7 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
         EX_ABILITY_ROLE.add(THMiscRoles.DOREMY);
         EX_ABILITY_ROLE.add(THMiscRoles.YAKUMO_YUKARI);
         EX_ABILITY_ROLE.add(THMiscRoles.HATA_NO_KOKORO);
+        EX_ABILITY_ROLE.add(THMountainRoles.AYA);
     }
     public static final int ADD_BALANCE_TIME = 600;
     public static final int REVIVE_TIME = 200;
@@ -813,6 +816,95 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
 
     // ==================== 邪恶战争专属职业适配 ====================
 
+    /** 文文新闻（邪恶战争专属偷取技能）：偷取视线范围内目标背包中的一个物品 */
+    static {
+        RoleSkill.register(THMountainRoles.AYA,
+                RoleSkill.skill(SRE.id("aya_steal"), "skill.noellesroles.aya_steal", ctx -> {
+                    ServerPlayer player = ctx.player();
+                    if (!(SREGameWorldComponent.KEY.get(player.level()).getGameMode() instanceof SREEvilWarGameMode)) {
+                        return false;
+                    }
+                    ServerPlayer target = findLookAtPlayer(player, 6.0);
+                    if (target == null) {
+                        player.displayClientMessage(
+                                Component.translatable("message.noellesroles.aya.no_target")
+                                        .withStyle(ChatFormatting.RED),
+                                true);
+                        return false;
+                    }
+                    ItemStack stolen = stealFrom(target);
+                    if (stolen.isEmpty()) {
+                        player.displayClientMessage(
+                                Component.translatable("message.noellesroles.aya.empty")
+                                        .withStyle(ChatFormatting.RED),
+                                true);
+                        return false;
+                    }
+                    player.addItem(stolen);
+                    return true;
+                }).cooldownSeconds(30).showOnHud(true).announceToSelf().build());
+    }
+
+    /** 返回视线范围内、距离不超过 range 的最准目标玩家（用于文文偷取） */
+    private static ServerPlayer findLookAtPlayer(ServerPlayer player, double range) {
+        Vec3 eye = player.getEyePosition(1.0f);
+        Vec3 look = player.getViewVector(1.0f);
+        ServerLevel level = player.serverLevel();
+        double bestDot = Math.cos(Math.toRadians(35));
+        ServerPlayer best = null;
+        for (ServerPlayer p : level.players()) {
+            if (p == player || GameUtils.isPlayerEliminated(p)) {
+                continue;
+            }
+            Vec3 to = p.getEyePosition(1.0f).subtract(eye);
+            double dist = to.length();
+            if (dist > range || dist < 0.1) {
+                continue;
+            }
+            double dot = to.normalize().dot(look);
+            if (dot < bestDot) {
+                continue;
+            }
+            bestDot = dot;
+            best = p;
+        }
+        return best;
+    }
+
+    /** 从目标背包偷取一个物品：优先非信件/钥匙，否则任意物品 */
+    private static ItemStack stealFrom(ServerPlayer victim) {
+        Inventory inv = victim.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack s = inv.getItem(i);
+            if (s.isEmpty() || isLetterOrKey(s)) {
+                continue;
+            }
+            ItemStack taken = inv.removeItem(i, 1);
+            if (!taken.isEmpty()) {
+                return taken;
+            }
+        }
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack s = inv.getItem(i);
+            if (s.isEmpty()) {
+                continue;
+            }
+            ItemStack taken = inv.removeItem(i, 1);
+            if (!taken.isEmpty()) {
+                return taken;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static boolean isLetterOrKey(ItemStack stack) {
+        if (stack.is(TMMItems.LETTER)) {
+            return true;
+        }
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return id.getPath().contains("key");
+    }
+
     /** 开局初始化各杀手在邪恶战争中的额外增益（仅对邪恶战争生效） */
     private void initEvilWarRoleBonuses(ServerPlayer player, SRERole role) {
         SREAbilityPlayerComponent ability = SREAbilityPlayerComponent.KEY.get(player);
@@ -867,8 +959,10 @@ public class SREEvilWarGameMode extends WTLooseEndsGameMode {
         } else if (role == ModRoles.TARTAGLIA) {
             player.addItem(new ItemStack(Items.ARROW, 64));
         } else if (role == ModRoles.BOOM_MANIAC) {
-            player.addItem(new ItemStack(Items.FIREWORK_ROCKET, 64));
-            player.addItem(new ItemStack(Items.FIREWORK_ROCKET, 64));
+            ItemStack rocket = BoomManiacRole.createBoomFirework(FireworkExplosion.Shape.LARGE_BALL);
+            rocket.setCount(64);
+            player.addItem(rocket);
+            player.addItem(rocket.copy());
         } else if (role == BounsRoles.PROGRAMMER) {
             player.addItem(new ItemStack(FunnyItems.TERMINAL, 4));
         }

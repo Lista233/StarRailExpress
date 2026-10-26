@@ -21,14 +21,10 @@ import java.util.Set;
 
 import org.agmas.harpymodloader.modifiers.SREModifier;
 import org.agmas.noellesroles.role_data.killer.HoujuuNueRoleData;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.TouhouRole;
 import io.wifi.starrailexpress.api.data.RoleData;
-import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
-import io.wifi.starrailexpress.game.KillerKnifeShopEntry;
 import io.wifi.starrailexpress.game.ShopContent;
 import io.wifi.starrailexpress.index.TMMItems;
 import io.wifi.starrailexpress.util.ShopEntry;
@@ -37,6 +33,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import org.agmas.noellesroles.init.ModItems;
 import pro.fazeclan.river.stupid_express.constants.SEModifiers;
 
 public class THHoujuuNueRole extends TouhouRole {
@@ -60,44 +57,10 @@ public class THHoujuuNueRole extends TouhouRole {
 
     @Override
     public List<ShopEntry> getShopEntries() {
-        ArrayList<ShopEntry> SHOP = new ArrayList<>();
-        SHOP.add(new KillerKnifeShopEntry(TMMItems.KNIFE.getDefaultInstance(), SREConfig.instance().knifePrice, 50));
-        SHOP.add(new ShopEntry(TMMItems.REVOLVER.getDefaultInstance(),
-                SREConfig.instance().revolverPrice, ShopEntry.Type.WEAPON));
-        SHOP.add(new ShopEntry(TMMItems.PSYCHO_MODE.getDefaultInstance(),
-                SREConfig.instance().psychoModePrice, ShopEntry.Type.WEAPON) {
-            @Override
-            public boolean canBuy(@NotNull Player player) {
-                if (player.getCooldowns().isOnCooldown(TMMItems.PSYCHO_MODE)) {
-                    return false;
-                }
-                return super.canBuy(player);
-            }
-
-            @Override
-            public boolean onBuy(@NotNull Player player) {
-                if (player.getCooldowns().isOnCooldown(TMMItems.PSYCHO_MODE)) {
-                    return false;
-                }
-
-                return SREPlayerShopComponent.usePsychoMode(player);
-            }
-        });
-        // defaultEntries.add(new ShopEntry(TMMItems.POISON_VIAL.getDefaultInstance(),
-        // TMMConfig.poisonVialPrice, ShopEntry.Type.POISON));
-        // defaultEntries.add(new ShopEntry(TMMItems.SCORPION.getDefaultInstance(),
-        // TMMConfig.scorpionPrice, ShopEntry.Type.POISON));
-        SHOP.add(new ShopEntry(TMMItems.FIRECRACKER.getDefaultInstance(),
-                SREConfig.instance().firecrackerPrice, ShopEntry.Type.TOOL));
-        SHOP.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(),
-                SREConfig.instance().lockpickPrice, ShopEntry.Type.TOOL));
-        SHOP.add(new ShopEntry(TMMItems.CROWBAR.getDefaultInstance(),
-                SREConfig.instance().crowbarPrice, ShopEntry.Type.TOOL));
-        SHOP.add(new ShopEntry(TMMItems.BODY_BAG.getDefaultInstance(),
-                SREConfig.instance().bodyBagPrice, ShopEntry.Type.TOOL));
-        SHOP.add(ShopContent.getBlackoutShopEntry());
-        SHOP.add(new ShopEntry(new ItemStack(TMMItems.NOTE, 4), SREConfig.instance().notePrice,
-                ShopEntry.Type.TOOL));
+        // 普通杀手商店，去掉手榴弹与短管霰弹枪
+        ArrayList<ShopEntry> SHOP = new ArrayList<>(ShopContent.getDefaultKnifeEntries());
+        SHOP.removeIf(entry -> entry.stack().is(TMMItems.GRENADE)
+                || entry.stack().is(ModItems.SHORT_SHOTGUN));
         return SHOP;
     }
 

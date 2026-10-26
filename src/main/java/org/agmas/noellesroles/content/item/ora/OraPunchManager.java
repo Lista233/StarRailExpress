@@ -503,16 +503,54 @@ public final class OraPunchManager {
         } else {
             flat = flat.normalize();
         }
-        Vec3 front = attacker.position().add(flat.scale(HOLD_FRONT_DISTANCE));
+        Vec3 desired = attacker.position().add(flat.scale(HOLD_FRONT_DISTANCE));
+        // connection.teleport 是无视碰撞的硬传送：若直接送到正前方，承太郎贴墙站立时
+        // 那个点会落在方块内 / 墙的另一侧，被抱者就会穿墙或卡在方块里。
+        // 先把期望点沿「当前位置 → 期望点」做碰撞收敛，让被抱者贴着障碍停下。
+        Vec3 front = resolveHoldPosition(target, attacker.level(), desired);
         target.setDeltaMovement(Vec3.ZERO);
         target.fallDistance = 0f;
         target.hurtMarked = true;
         if (target instanceof ServerPlayer serverTarget) {
-            serverTarget.connection.teleport(front.x, attacker.getY(), front.z,
+            serverTarget.connection.teleport(front.x, front.y, front.z,
                     serverTarget.getYRot(), serverTarget.getXRot());
         } else {
-            target.teleportTo(front.x, attacker.getY(), front.z);
+            target.teleportTo(front.x, front.y, front.z);
         }
+    }
+
+    /**
+     * 把「抱住位置」收敛到目标碰撞箱不与方块碰撞箱重叠的地方。
+     *
+     * <p>{@link net.minecraft.server.network.ServerGamePacketListenerImpl#teleport}（即
+     * {@code connection.teleport}）不做任何碰撞检测，直接改写坐标，因此被抱者可能被塞进
+     * 实心方块内部。这里用 {@link Level#noCollision} 沿「当前位置 → 期望点」线性采样：
+     * 遇到第一个进入障碍的点就停在其前一个位置，于是被抱者会贴着方块停下，既不穿越方块、
+     * 也不会卡进方块里；沿途无障碍时结果就是期望点本身，正常跟随行为不变。
+     *
+     * @param target  被抱住的目标
+     * @param level   世界
+     * @param desired 期望抱住位置
+     * @return 实际应传送到的（无碰撞）位置
+     */
+    private static Vec3 resolveHoldPosition(Entity target, Level level, Vec3 desired) {
+        Vec3 current = target.position();
+        Vec3 delta = desired.subtract(current);
+        if (delta.lengthSqr() < 1.0e-8) {
+            return current;
+        }
+        AABB base = target.getBoundingBox();
+        final int STEPS = 8;
+        Vec3 safe = current;
+        for (int i = 1; i <= STEPS; i++) {
+            Vec3 step = current.add(delta.scale(i / (double) STEPS));
+            if (!level.noCollision(target, base.move(step.subtract(current)))) {
+                // 第一个进入障碍的采样点：停在这里之前的位置，绝不硬塞进方块
+                break;
+            }
+            safe = step;
+        }
+        return safe;
     }
 
     @Nullable

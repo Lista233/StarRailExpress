@@ -13,6 +13,7 @@ import io.wifi.starrailexpress.cca.SREGameWorldComponent;
 import io.wifi.starrailexpress.game.GameUtils;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageTypes;
@@ -60,6 +61,19 @@ public final class TwinChildrenHandler {
     public static final float STACKED_UNSCALED_HEIGHT = TwinChildrenHitbox.STACKED_UNSCALED_HEIGHT;
 
     private static final float HEIGHT_REFRESH_EPSILON = 0.05F;
+
+    /**
+     * 双生绑定允许的单次瞬间传送距离（格）。
+     *
+     * <p>咒术师领域 / 游记放逐 / 愚者塔罗会等领域实现，都是把玩家瞬间传送到两万格外
+     * 高空的一片建筑区域。若被拉入的是双生子之一，另一人会因叠体逻辑被强制跟随并一起
+     * tp 走；领域消散时只有被记录的参与者回传，被拖走的同伴滞留虚空高空，最终以
+     * 「掉出列车」死亡。传送目标与同伴距离一旦超过该值，立刻解除绑定（下马 + 回滚半身），
+     * 同伴留在原地，直到其重新回到范围内再恢复叠合。
+     */
+    public static final double MAX_BIND_TELEPORT_DISTANCE = 200.0D;
+
+    private static final double MAX_BIND_TELEPORT_DISTANCE_SQ = MAX_BIND_TELEPORT_DISTANCE * MAX_BIND_TELEPORT_DISTANCE;
 
     private static final Map<UUID, Pair> PAIRS = new ConcurrentHashMap<>();
 
@@ -265,13 +279,64 @@ public final class TwinChildrenHandler {
         return player.server.getPlayerList().getPlayer(partnerId);
     }
 
+    /**
+     * 瞬间传送前置钩子（由传送 mixin 在 teleportTo 前调用）。
+     *
+     * <p>若传送目标与同伴相距超过 {@value #MAX_BIND_TELEPORT_DISTANCE} 格，
+     * 立刻解除绑定：先下马、回滚半身，再让传送生效。这样乘客不会在下一 tick 被
+     * {@code positionRider} / 重新叠体拖进两万格外的领域虚空，同伴留在原地安全无恙。
+     */
+    public static void onTeleportStarting(ServerPlayer player, double destX, double destY, double destZ) {
+        Pair pair = PAIRS.get(player.getUUID());
+        if (pair == null || pair.separated) {
+            return;
+        }
+        ServerPlayer partner = getPartner(player);
+        if (partner == null || partner.serverLevel() != player.serverLevel()) {
+            // 同伴离线或异层：叠体本来就不会跨层保持，交给 updateMount 的常规解散逻辑
+            return;
+        }
+        double dx = destX - partner.getX();
+        double dy = destY - partner.getY();
+        double dz = destZ - partner.getZ();
+        if (dx * dx + dy * dy + dz * dz <= MAX_BIND_TELEPORT_DISTANCE_SQ) {
+            return;
+        }
+        separate(pair, player.server);
+    }
+
+    /** 解除一对双生的绑定：取消叠乘、回滚半身，并标记需回到范围内才恢复。 */
+    private static void separate(Pair pair, MinecraftServer server) {
+        if (pair == null || pair.separated) {
+            return;
+        }
+        pair.separated = true;
+        ServerPlayer lower = server.getPlayerList().getPlayer(pair.lower());
+        ServerPlayer upper = server.getPlayerList().getPlayer(pair.upper());
+        dismount(lower, upper);
+        if (lower != null) {
+            removeHalfScale(lower);
+        }
+        if (upper != null) {
+            removeHalfScale(upper);
+        }
+    }
+
+    private static double distanceSqr(ServerPlayer a, ServerPlayer b) {
+        double dx = a.getX() - b.getX();
+        double dy = a.getY() - b.getY();
+        double dz = a.getZ() - b.getZ();
+        return dx * dx + dy * dy + dz * dz;
+    }
+
     public static boolean isPairedAlivePlayer(ServerPlayer player) {
         return isAlivePlayer(player) && PAIRS.containsKey(player.getUUID());
     }
 
     private static void updateMount(Pair pair, ServerLevel level) {
-        ServerPlayer lower = level.getServer().getPlayerList().getPlayer(pair.lower());
-        ServerPlayer upper = level.getServer().getPlayerList().getPlayer(pair.upper());
+        MinecraftServer server = level.getServer();
+        ServerPlayer lower = server.getPlayerList().getPlayer(pair.lower());
+        ServerPlayer upper = server.getPlayerList().getPlayer(pair.upper());
         if (lower == null || upper == null || lower.serverLevel() != upper.serverLevel()
                 || !isAlivePlayer(lower) || !isAlivePlayer(upper)) {
             dismount(lower, upper);
@@ -281,6 +346,22 @@ public final class TwinChildrenHandler {
             if (upper != null) {
                 removeHalfScale(upper);
             }
+            return;
+        }
+
+        if (pair.separated) {
+            // 绑定已因远距离传送解除：保持解散，直至双方都存活且回到范围内才恢复叠合
+            dismount(lower, upper);
+            if (distanceSqr(lower, upper) > MAX_BIND_TELEPORT_DISTANCE_SQ) {
+                removeHalfScale(lower);
+                removeHalfScale(upper);
+                return;
+            }
+            pair.separated = false;
+        } else if (distanceSqr(lower, upper) > MAX_BIND_TELEPORT_DISTANCE_SQ) {
+            // 兜底：未经 teleportTo 钩子的远距离位移同样立刻解除绑定，
+            // 绝不让叠体逻辑把同伴拖向两万格外的虚空
+            separate(pair, server);
             return;
         }
 
@@ -453,6 +534,29 @@ public final class TwinChildrenHandler {
 
     enum Faction { INNOCENT, KILLER, INDEPENDENT_NEUTRAL }
 
-    private record Pair(UUID lower, UUID upper) {
+    /**
+     * 一对双生之子。{@link #separated} 为 true 表示绑定已因一次性远距离传送
+     * （传送目标与同伴相距超过 {@link #MAX_BIND_TELEPORT_DISTANCE} 格）而解除：
+     * 双方保持解散、不回滚修饰符，直至都存活且重新回到范围内才由
+     * {@link #updateMount} 恢复叠合。
+     */
+    private static final class Pair {
+        private final UUID lower;
+        private final UUID upper;
+        /** 见 {@link #separate(Pair, MinecraftServer)} 与 {@link #updateMount}。 */
+        private volatile boolean separated;
+
+        private Pair(UUID lower, UUID upper) {
+            this.lower = lower;
+            this.upper = upper;
+        }
+
+        private UUID lower() {
+            return lower;
+        }
+
+        private UUID upper() {
+            return upper;
+        }
     }
 }

@@ -17,6 +17,7 @@ package org.agmas.noellesroles.role_data.neutral;
 
 import org.agmas.noellesroles.role.touhou.THMiscRoles;
 import org.agmas.noellesroles.role.touhou.roles.THYuyukoRole;
+import org.agmas.noellesroles.role_data.innocence.SaltedFishRoleData;
 import org.agmas.noellesroles.utils.RoleUtils;
 
 import io.wifi.starrailexpress.SRE;
@@ -97,9 +98,20 @@ public class THYuyukoRoleData extends SimpleRoleData {
             return false;
         }
 
+        // 先发起吞噬（非强制死亡）：目标可能被护盾、无敌、职业免死等原因挡下
+        GameUtils.killPlayer(t, false, player, GameConstants.DeathReasons.YUYUKO_EATEN);
+        // killPlayer 在主线程内联执行，此处即可同步拿到死亡结果。
+        // 只有目标真正死亡（不再处于存活状态）才算吞噬成功；
+        // 若伤害被盾 / 无敌 / 其它原因挡下，目标仍然存活，则不算被吃掉，不计胜利进度。
+        if (GameUtils.isPlayerAliveAndSurvival(target)) {
+            player.displayClientMessage(Component
+                    .translatable("message.noellesroles.yuyuko.player.failed", target.getName(),
+                            Component.translatable("message.noellesroles.yuyuko.player.failed.blocked"))
+                    .withStyle(ChatFormatting.RED), true);
+            return false;
+        }
         player.displayClientMessage(Component.translatable("message.noellesroles.yuyuko.success", t.getName()),
                 true);
-        GameUtils.killPlayer(t, false, player, GameConstants.DeathReasons.YUYUKO_EATEN);
         SRE.REPLAY_MANAGER.recordCustomEvent(Component.translatable("replay.noellesroles.yuyuko.eat",
                 GameReplayUtils.getReplayPlayerDisplayText(player, true),
                 GameReplayUtils.getReplayPlayerDisplayText(target, true)));
@@ -116,6 +128,10 @@ public class THYuyukoRoleData extends SimpleRoleData {
             return false;
         }
         if (body.isRemoved()) {
+            return false;
+        }
+        // 咸鱼「晒咸鱼」的假尸体不是真实尸体，不能拿来进食计数
+        if (SaltedFishRoleData.isSaltedFishFakeBody(body)) {
             return false;
         }
         ateCount++;

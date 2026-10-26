@@ -103,11 +103,22 @@ public class SRERoleDataPlayerComponent
 
     public void serverInit() {
         final var cca = SREGameWorldComponent.getInstance(player);
-        playerRole = cca.getRole(player);
-        if (playerRole == null) {
+        final var newRole = cca.getRole(player);
+        if (newRole == null) {
             clear();
             return;
         }
+        // 无声换职业（noEventCall=true 的转职链路不走 ModdedRoleRemoved，旧数据不会被清理）：
+        // 先广播丢弃并复位旧职业的数据，再安装新职业数据，
+        // 否则旧职业的模仿外观/状态会残留到新职业身上（新职业无 roleDataFunc 时旧数据甚至会继续 tick）。
+        if (roleData != null && playerRole != null
+                && !playerRole.identifier().equals(newRole.identifier())) {
+            forceClear = true;
+            sync();
+            roleData.clear();
+            roleData = null;
+        }
+        playerRole = newRole;
         final var roleDataFunc = playerRole.getRoleDataFunc();
         final RoleDataContext ctx = new RoleDataContext(player, playerRole, () -> {
             sync();
@@ -211,6 +222,13 @@ public class SRERoleDataPlayerComponent
 
     public void onRemoveRole() {
         if (roleData != null) {
+            // 模仿外观（皮革噶的猪 / 特码头番茄 / 黑白熊熊猫 / 幻灵悦灵）的判定读各客户端
+            // 自己的 roleData 副本。只清服务端、且随后的 __init__ 只发给本人，其他玩家会
+            // 一直顶着旧外观，必须在丢弃副本前广播「请丢弃」。
+            // 注意必须在 clear() 之前发：部分职业的 shouldSyncWith 随状态变化（如黑白熊
+            // isPanda 清零后只同步本人），清零后就广播不出去了。
+            forceClear = true;
+            sync();
             roleData.clear();
         }
         playerRole = null;

@@ -25,6 +25,7 @@ import io.wifi.starrailexpress.content.item.*;
 import io.wifi.starrailexpress.game.roles.SpecialGameModeRoles;
 import io.wifi.starrailexpress.index.wathe_bridge.WatheBridgerItems;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
+import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -34,6 +35,8 @@ import net.minecraft.world.food.Foods;
 import net.minecraft.world.item.*;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.content.item.LetterItem;
+import org.agmas.noellesroles.game.modes.echo.content.EchoContent;
+import org.agmas.noellesroles.game.modes.echo.content.EchoMachines;
 import org.agmas.noellesroles.init.FunnyItems;
 import org.agmas.noellesroles.init.ModItems;
 
@@ -75,9 +78,11 @@ public interface TMMItems {
     ResourceKey<CreativeModeTab> MISC_ITEMS_GROUP = ResourceKey.create(Registries.CREATIVE_MODE_TAB,
             SRE.id("misc_items"));
 
+    /** 回声托运站模式专属物品（物品本体由 EchoContent 直接注册，未走 registrar）。 */
+    ResourceKey<CreativeModeTab> ECHO_FREIGHT_GROUP = ResourceKey.create(Registries.CREATIVE_MODE_TAB,
+            SRE.id("echo_freight"));
+
     // === 特殊分类/汇总标签页 ===
-    ResourceKey<CreativeModeTab> REPAIR_MODE_GROUP = ResourceKey.create(Registries.CREATIVE_MODE_TAB,
-            SRE.id("repair_mode"));
     ResourceKey<CreativeModeTab> SEALED_ARTIFACTS_GROUP = ResourceKey.create(Registries.CREATIVE_MODE_TAB,
             SRE.id("sealed_artifacts"));
     ResourceKey<CreativeModeTab> SRE_ALL_GROUP = ResourceKey.create(Registries.CREATIVE_MODE_TAB,
@@ -128,6 +133,10 @@ public interface TMMItems {
             TOOLS_GROUP, SRE_ALL_GROUP);
     Item WEAK_DEFENSE_VIAL = registrar.create("weak_defense_vial",
             new WeakDefenseItem(new Item.Properties().stacksTo(1)),
+            TOOLS_GROUP, SRE_ALL_GROUP);
+    /** 虚拟护盾试剂：给虚拟血量加一层「点数条」护盾（只挡虚拟血量伤害，挡不住正常死亡）。 */
+    Item VIRTUAL_DEFENSE_VIAL = registrar.create("virtual_defense_vial",
+            new VirtualDefenseItem(new Item.Properties().stacksTo(1)),
             TOOLS_GROUP, SRE_ALL_GROUP);
     Item DISGUISE_1 = registrar.create("disguise_1",
             new DisguiseItem(new Item.Properties().stacksTo(16), 0),
@@ -198,6 +207,7 @@ public interface TMMItems {
         INVISIBLE_ITEMS.add(TMMItems.LETTER);
         INVISIBLE_ITEMS.add(TMMItems.DEFENSE_VIAL);
         INVISIBLE_ITEMS.add(TMMItems.WEAK_DEFENSE_VIAL);
+        INVISIBLE_ITEMS.add(TMMItems.VIRTUAL_DEFENSE_VIAL);
 
         // 亡命徒，超级亡命徒，土块 可以直接使用防御药剂
         DefenseItem.canUseByRightClickRolePaths.add(TMMRoles.LOOSE_END.identifier().getPath());
@@ -210,6 +220,12 @@ public interface TMMItems {
         WeakDefenseItem.canUseByRightClickRolePaths
                 .add(SpecialGameModeRoles.SUPER_LOOSE_END.identifier().getPath());
         WeakDefenseItem.canUseByRightClickRolePaths.add(SpecialGameModeRoles.DIRT.identifier().getPath());
+
+        // 亡命徒，超级亡命徒，土块 也可以直接使用虚拟护盾试剂
+        VirtualDefenseItem.canUseByRightClickRolePaths.add(TMMRoles.LOOSE_END.identifier().getPath());
+        VirtualDefenseItem.canUseByRightClickRolePaths
+                .add(SpecialGameModeRoles.SUPER_LOOSE_END.identifier().getPath());
+        VirtualDefenseItem.canUseByRightClickRolePaths.add(SpecialGameModeRoles.DIRT.identifier().getPath());
 
         registrar.registerEntries();
 
@@ -253,15 +269,30 @@ public interface TMMItems {
                 .icon(() -> new ItemStack(BLACKOUT))
                 .build());
 
+        // 回声托运站模式：物品未走 registrar，手动注册标签页并收录全部模式物品
+        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, ECHO_FREIGHT_GROUP, FabricItemGroup.builder()
+                .title(Component.translatable("itemGroup.starrailexpress.echo_freight"))
+                .icon(() -> new ItemStack(EchoContent.CARD_PROXY))
+                .build());
+        ItemGroupEvents.modifyEntriesEvent(ECHO_FREIGHT_GROUP).register(entries -> {
+            entries.accept(EchoContent.CUTTER);
+            entries.accept(EchoContent.CARD_PROXY);
+            entries.accept(EchoContent.SKILL_TOKEN);
+            entries.accept(EchoContent.EDITOR);
+            EchoMachines.all().forEach(block -> entries.accept(block.asItem()));
+        });
+        // 局内道具同步收录进 NoellesRoles 汇总标签页（与 ModItems 的约定一致）
+        ItemGroupEvents.modifyEntriesEvent(NOELLESROLES_ALL_GROUP).register(entries -> {
+            entries.accept(EchoContent.CUTTER);
+            entries.accept(EchoContent.CARD_PROXY);
+            entries.accept(EchoContent.SKILL_TOKEN);
+        });
+
         Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, FUNNY_ITEMS_GROUP, FabricItemGroup.builder()
                 .title(Component.translatable("itemGroup.starrailexpress.funny_items"))
                 .icon(() -> new ItemStack(FunnyItems.PROBLEM_SET))
                 .build());
         // 注册特殊分类/汇总标签页
-        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, REPAIR_MODE_GROUP, FabricItemGroup.builder()
-                .title(Component.translatable("itemGroup.starrailexpress.repair_mode"))
-                .icon(() -> new ItemStack(ModItems.REPAIR_TOOLBOX))
-                .build());
         Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, SEALED_ARTIFACTS_GROUP, FabricItemGroup.builder()
                 .title(Component.translatable("itemGroup.starrailexpress.sealed_artifacts"))
                 .icon(() -> new ItemStack(ModItems.SEALED_BLIND_LANTERN))
@@ -281,6 +312,20 @@ public interface TMMItems {
         SkinableItem.add(TMMItems.GRENADE);
 
         SkinableItem.add(TMMItems.BAT);
+
+        // 以下为扩展的可换肤物品。注意：共用一个皮肤类型的物品只登记一次（皮肤按类型存储），
+        // 例如 noellesroles:desperado_gun 与 derringer 共用 derringer 皮肤、
+        // noellesroles:inferior_lockpick 与 lockpick 共用 lockpick 皮肤。
+        SkinableItem.add(ModItems.SHORT_SHOTGUN);
+        SkinableItem.add(TMMItems.DERRINGER);
+        SkinableItem.add(TMMItems.LOCKPICK);
+        SkinableItem.add(TMMItems.CROWBAR);
+        SkinableItem.add(TMMItems.BODY_BAG);
+        SkinableItem.add(TMMItems.NOTE);
+        SkinableItem.add(TMMItems.FIRECRACKER);
+        SkinableItem.add(TMMItems.LETTER);
+        SkinableItem.add(ModItems.HANDCUFFS);
+        SkinableItem.add(ModItems.LOCK_ITEM);
 
         // 注册蓄力物品
         ChargeableItemRegistry.register(TMMItems.KNIFE, new KnifeChargeableItem());

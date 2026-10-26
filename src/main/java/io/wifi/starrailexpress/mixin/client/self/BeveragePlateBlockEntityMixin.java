@@ -46,14 +46,19 @@ public class BeveragePlateBlockEntityMixin {
         if (!(blockEntity instanceof PlateTrayBlockEntity tray)) {
             return;
         }
+        // 护盾试剂 / 弱效护盾试剂 / 虚拟护盾试剂共用同一款护盾粒子特效，
+        // 可见性逻辑与普通护盾试剂完全一致（该特效并不是所有人都能看到）。
+        boolean hasShield = tray.getArmorer() != null
+                || tray.getWeakArmorer() != null
+                || tray.getVirtualArmorer() != null;
         if ((!SREClient.isKiller() && !CanSeePoison.EVENT.invoker().visible(Minecraft.getInstance().player))
-                || tray.getPoisoner() == null || tray.getArmorer() == null) {
+                || tray.getPoisoner() == null || !hasShield) {
             return;
         }
         if (world.getRandom().nextIntBetweenInclusive(0, 20) < 17) {
             return;
         }
-        if (tray.getArmorer() != null) {
+        if (hasShield) {
             world.addParticle(
                     ParticleTypes.EFFECT,
                     pos.getX() + 0.5f,

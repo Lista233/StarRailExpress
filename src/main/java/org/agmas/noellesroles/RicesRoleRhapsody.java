@@ -34,7 +34,6 @@ import org.agmas.noellesroles.role_data.neutral.AdmirerRoleData;
 import org.agmas.noellesroles.init.FunnyItems;
 import org.agmas.noellesroles.init.ModEffects;
 import org.agmas.noellesroles.init.ModEntities;
-import org.agmas.noellesroles.init.ModMenus;
 import org.agmas.noellesroles.packet.*;
 import org.agmas.noellesroles.role_data.killer.ConspiratorRoleData;
 import org.agmas.noellesroles.role_data.killer.StalkerRoleData;
@@ -69,6 +68,7 @@ public class RicesRoleRhapsody {
     // ==================== 网络包 ID ====================
     public static final CustomPacketPayload.Type<ConspiratorC2SPacket> CONSPIRATOR_PACKET = ConspiratorC2SPacket.ID;
     public static final CustomPacketPayload.Type<TelegrapherC2SPacket> TELEGRAPHER_PACKET = TelegrapherC2SPacket.ID;
+    public static final CustomPacketPayload.Type<PostmanC2SPacket> POSTMAN_PACKET = PostmanC2SPacket.ID;
     public static final CustomPacketPayload.Type<DetectiveC2SPacket> DETECTIVE_PACKET = DetectiveC2SPacket.ID;
     public static final CustomPacketPayload.Type<BoxerAbilityC2SPacket> BOXER_ABILITY_PACKET = BoxerAbilityC2SPacket.ID;
     public static final CustomPacketPayload.Type<StalkerGazeC2SPacket> STALKER_GAZE_PACKET = StalkerGazeC2SPacket.ID;
@@ -110,7 +110,6 @@ public class RicesRoleRhapsody {
 
         // 4. 注册实体
         ModEntities.init();
-        ModMenus.initialize();
 
         // 5. 注册 ScreenHandlers
         ModScreenHandlers.init();

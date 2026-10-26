@@ -31,6 +31,9 @@ public class RicePacketTypeRegister {
         // 注册电报员消息包
         PayloadTypeRegistry.playC2S().register(TelegrapherC2SPacket.ID, TelegrapherC2SPacket.CODEC);
 
+        // 注册射命丸文传递包
+        PayloadTypeRegistry.playC2S().register(PostmanC2SPacket.ID, PostmanC2SPacket.CODEC);
+
         // 注册探员审查包
         PayloadTypeRegistry.playC2S().register(DetectiveC2SPacket.ID, DetectiveC2SPacket.CODEC);
 
@@ -90,6 +93,10 @@ public class RicePacketTypeRegister {
         // 注册建筑师墙数据S2C包
         PayloadTypeRegistry.playS2C().register(BuilderWallS2CPacket.ID, BuilderWallS2CPacket.CODEC);
         PayloadTypeRegistry.playS2C().register(BuilderRemoveWallS2CPacket.ID, BuilderRemoveWallS2CPacket.CODEC);
+
+        // 注册厨师「客户端」食物盘 / 饮料盘包
+        PayloadTypeRegistry.playS2C().register(ChefTrayS2CPacket.ID, ChefTrayS2CPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(ChefTrayInteractC2SPacket.ID, ChefTrayInteractC2SPacket.CODEC);
 
         // 注册鸟兽兽巡飞弹控制包
         PayloadTypeRegistry.playC2S().register(NiaoshoushouMissileControlC2SPacket.ID,

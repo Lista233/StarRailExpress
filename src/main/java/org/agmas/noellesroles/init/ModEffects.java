@@ -17,6 +17,8 @@ package org.agmas.noellesroles.init;
 
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import io.wifi.starrailexpress.cca.SREPlayerMoodComponent;
+import io.wifi.starrailexpress.game.data.MapStatusBarType;
 import io.wifi.starrailexpress.event.AllowPlayerDeathWithKiller;
 import io.wifi.starrailexpress.game.GameConstants;
 import net.minecraft.core.BlockPos;
@@ -36,7 +38,9 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.flag.FeatureFlagSet;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.component.GhostStateComponent;
+import org.agmas.noellesroles.content.effects.GravityFlipEffect;
 import org.agmas.noellesroles.content.effects.LimpEffect;
+import org.agmas.noellesroles.content.effects.MapStatusBarEffect;
 import org.agmas.noellesroles.content.effects.NegativeEffectResistanceEffect;
 import org.agmas.noellesroles.content.effects.NoCollideEffect;
 import org.agmas.noellesroles.content.effects.PuppetWanderEffect;
@@ -140,6 +144,10 @@ public class ModEffects {
     // 看其他生物都是倒立的
     public static final Holder<MobEffect> UPSIDE_DOWN = register("upside_down",
             new SimpleMobEffect(MobEffectCategory.HARMFUL, 0xFFFFFF));
+    /**
+     * 重力颠倒：垂直方向的重力反向（向天空坠落、撞天花板才算落地、跳跃改为向下蹬）。
+     */
+    public static final Holder<MobEffect> GRAVITY_FLIP = register("gravity_flip", new GravityFlipEffect());
     /**
      * 傀儡游走（操控者·失控之躯）
      * - 有害效果
@@ -269,6 +277,65 @@ public class ModEffects {
     public static final Holder<MobEffect> VIRTUAL_HEALTH_RESTORE = register("virtual_health_restore",
             new VirtualHealthRestoreEffect(MobEffectCategory.BENEFICIAL, 0xFF6B9D));
 
+    /**
+     * 同级透视
+     * - 正面（BENEFICIAL）效果，白色
+     * - 仅作为「客户端渲染标记」：持有该效果的玩家之间，<b>药水等级相同</b>时互相透视
+     * （原版发光后处理，描边为纯白框）；等级不同则互相看不见对方的描边。
+     * - 客户端实现见 {@code RoleInstinctRegister#peerXrayHighlight}，
+     *   等级由 {@code PeerXrayEffectSync} 广播给所有客户端。
+     */
+    public static final Holder<MobEffect> PEER_XRAY = register("peer_xray",
+            new SimpleMobEffect(MobEffectCategory.BENEFICIAL, 0xFFFFFF));
+
+    /**
+     * 本能隐匿：效果持续期间，<b>任何</b>人都无法通过本能看到你（没有本能框）。
+     *
+     * - 正面（BENEFICIAL）效果。
+     * - 实现方式与 {@link #BACKWORLD_OUTLINE} 的「杀手无法透视」一致：在直觉高亮的<b>被看侧</b>
+     *   直接返回 {@code disallow()}，因此对所有职业（杀手、秉烛人、领袖……）一律生效。
+     *   参考 {@code RoleInstinctRegister} 中「小透明」「秉烛人」「怀旧者」的写法。
+     * - 该效果需要让<b>所有</b>客户端读到「目标是否处于隐匿状态」，因此由
+     *   {@code EffectBroadcastSync} 广播出去（隐藏图标与粒子）。
+     */
+    public static final Holder<MobEffect> INSTINCT_CONCEAL = register("instinct_conceal",
+            new SimpleMobEffect(MobEffectCategory.BENEFICIAL, 0x6E5AC8));
+
+    // ───────────────────────── 地图状态条（饥饿 / 口渴 / 保暖 / 污染）─────────────────────────
+    // 每级 1 点：1 级每秒 1 点，2 级每秒 2 点，以此类推（见 MapStatusBarEffect）。
+
+    /** 饥肠辘辘：饥饿状态条每秒 -1（等级越高掉得越快）。 */
+    public static final Holder<MobEffect> STARVING = register("starving",
+            new MapStatusBarEffect(MobEffectCategory.HARMFUL, 0xC9762B, MapStatusBarType.HUNGER, -1));
+
+    /** 口渴：口渴值每秒 -1（等级越高掉得越快）。 */
+    public static final Holder<MobEffect> DEHYDRATION = register("dehydration",
+            new MapStatusBarEffect(MobEffectCategory.HARMFUL, 0x3E7BE0, MapStatusBarType.THIRST, -1));
+
+    /** 冰冷：保暖值每秒 -1（等级越高掉得越快）。 */
+    public static final Holder<MobEffect> CHILLED = register("chilled",
+            new MapStatusBarEffect(MobEffectCategory.HARMFUL, 0x8FD8FF, MapStatusBarType.WARMTH, -1));
+
+    /** 肮脏：污染值每秒 +1（等级越高涨得越快）。 */
+    public static final Holder<MobEffect> FILTHY = register("filthy",
+            new MapStatusBarEffect(MobEffectCategory.HARMFUL, 0x6E7B3A, MapStatusBarType.POLLUTION, 1));
+
+    /** 饱腹：饥饿状态条每秒 +1（等级越高回得越快）。 */
+    public static final Holder<MobEffect> SATIATED = register("satiated",
+            new MapStatusBarEffect(MobEffectCategory.BENEFICIAL, 0xFFC65C, MapStatusBarType.HUNGER, 1));
+
+    /** 保湿：口渴值每秒 +1（等级越高回得越快）。 */
+    public static final Holder<MobEffect> HYDRATED = register("hydrated",
+            new MapStatusBarEffect(MobEffectCategory.BENEFICIAL, 0x5FD8E8, MapStatusBarType.THIRST, 1));
+
+    /** 温暖：保暖值每秒 +1（等级越高回得越快）。 */
+    public static final Holder<MobEffect> WARM = register("warm",
+            new MapStatusBarEffect(MobEffectCategory.BENEFICIAL, 0xFF8A3C, MapStatusBarType.WARMTH, 1));
+
+    /** 洁净：污染值每秒 -1（等级越高降得越快）。 */
+    public static final Holder<MobEffect> CLEANSED = register("cleansed",
+            new MapStatusBarEffect(MobEffectCategory.BENEFICIAL, 0xCDEEF7, MapStatusBarType.POLLUTION, -1));
+
     public static final Holder<MobEffect> WRAITH_DIMENSION = register("wraith_dimension",
             new SimpleMobEffect(MobEffectCategory.NEUTRAL, 0x315B7C));
 
@@ -311,6 +378,28 @@ public class ModEffects {
      */
     public static final Holder<MobEffect> MOOD_REGENERATION = register("mood_regeneration",
             new SimpleMobEffect(MobEffectCategory.BENEFICIAL, 0x7AF2D2));
+
+    /**
+     * 每级「san值上限提升」效果提供的心情值上限加成。
+     */
+    public static final float MOOD_MAX_BONUS_PER_LEVEL = 0.5f;
+
+    /**
+     * san值上限提升
+     * - 有益效果
+     * - 每级提升 0.5 点心情值上限
+     * - 效果结束恢复原本上限（只改上限，不直接改变当前心情值）
+     */
+    public static final Holder<MobEffect> MOOD_MAX_BOOST = register("mood_max_boost",
+            new SimpleMobEffect(MobEffectCategory.BENEFICIAL, 0x4FC3F7) {
+                @Override
+                public void onEffectEnded(ServerPlayer player) {
+                    var mood = SREPlayerMoodComponent.KEY.get(player);
+                    // 效果结束后按恢复后的上限重新夹取当前心情值（只降不升）
+                    mood.setMood(mood.getMood());
+                }
+            });
+
     /**
      * 无敌
      */
@@ -632,7 +721,7 @@ public class ModEffects {
      * 漂移逻辑见
      * {@code org.agmas.noellesroles.game.roles.killer.dream.client.DreamClientHandler}
      * （客户端 tick，纯本地视角偏移，不发包）。
-     * Dream（梦魇）狂暴时被"看到"的玩家会获得此效果。
+     * Dream（Dream）狂暴时被"看到"的玩家会获得此效果。
      */
     public static final Holder<MobEffect> TREMBLE = register("tremble",
             new SimpleMobEffect(MobEffectCategory.HARMFUL, 0x8B1A1A));
@@ -711,6 +800,23 @@ public class ModEffects {
      */
     public static final Holder<MobEffect> COGNITIVE_BIAS = register("cognitive_bias",
             new SimpleMobEffect(MobEffectCategory.HARMFUL, 0x9A6BB5));
+
+    /** 惧意：所有人看见自己被注视，皮肤和名牌一起乱，并持续掉理智。 */
+    public static final Holder<MobEffect> DREADLORD_DREAD = register("dreadlord_dread",
+            new SimpleMobEffect(MobEffectCategory.HARMFUL, 0x2A0830) {
+                @Override
+                public boolean applyEffectTick(LivingEntity entity, int amplifier) {
+                    if (entity instanceof ServerPlayer player && player.tickCount % 20 == 0) {
+                        SREPlayerMoodComponent.KEY.get(player).addMood(-0.03F);
+                    }
+                    return true;
+                }
+
+                @Override
+                public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) {
+                    return true;
+                }
+            });
 
     /**
      * 食欲不振：无法食用食物和饮品。
@@ -847,6 +953,11 @@ public class ModEffects {
             return 0f;
         }
         return 0.005f * (amp + 1);
+    }
+
+    /** 获取「san值上限提升」效果的等级（amplifier，未拥有时为 -1）。 */
+    public static int getMoodMaxBonusAmplifier(LivingEntity entity) {
+        return getAmplifier(entity, MOOD_MAX_BOOST);
     }
 
     public static boolean hasInfiniteStamina(LivingEntity entity) {
@@ -1001,6 +1112,28 @@ public class ModEffects {
     }
 
     /**
+     * 项目内统一判断玩家是否处于「里世界」（含未现形冤魂的维度）中。
+     *
+     * <p>
+     * 命中任意一种里世界实现：
+     * <ul>
+     * <li>怀旧者里世界 / 归途旅人「旧日渡口·末班车」拉入的玩家：{@link #NOSTALGIST_BACKWORLD}</li>
+     * <li>布袋鬼里世界（本人与被标记的好人玩家）：{@link #BACKWORLD_OUTLINE} / {@link #OTHERWORLD_AURA}</li>
+     * <li>未现形的冤魂：持有冤魂维度标记 {@link #WRAITH_DIMENSION} 且没有现形标记
+     * {@link #WRAITH_MANIFEST}（显形后即回到现界，不再命中）</li>
+     * </ul>
+     * 里世界内的玩家与现界互相隔绝，涉及「能否与现界玩家交互」的判定（如炸弹的递交 / 接收）
+     * 应统一走此方法。
+     */
+    public static boolean isInBackworldOrWraithDimension(LivingEntity entity) {
+        return entity.hasEffect(BACKWORLD_OUTLINE)
+                || entity.hasEffect(NOSTALGIST_BACKWORLD)
+                || entity.hasEffect(OTHERWORLD_AURA)
+                || (entity.hasEffect(WRAITH_DIMENSION)
+                        && !entity.hasEffect(WRAITH_MANIFEST));
+    }
+
+    /**
      * 初始化所有药水效果
      */
     public static boolean pierceDeath = false;
@@ -1022,6 +1155,13 @@ public class ModEffects {
         // 导致手持物品仍显示 / 仍能被杀手透视。
         NostalgistBackworldEffectSync.init();
         BackworldOutlineEffectSync.init();
+        // 同级透视 / 本能隐匿同理：这两个效果都要在「别人身上」被客户端读到，
+        // 而原版只把玩家自己的 MobEffect 下发给自己，所以必须广播出去（隐藏图标与粒子）。
+        EffectBroadcastSync.register(PEER_XRAY);
+        EffectBroadcastSync.register(INSTINCT_CONCEAL);
+        // 重力颠倒要让玩家在「别人眼中」也倒立渲染，所以同样需要广播（隐藏图标与粒子）。
+        EffectBroadcastSync.register(GRAVITY_FLIP);
+        EffectBroadcastSync.init();
         WraithDimensionEffectSync.init();
         AllowPlayerDeathWithKiller.EVENT.register((player, killer, deathReason) -> {
             if (pierceDeath) {

@@ -359,11 +359,19 @@ public final class CustomModifierRuntime {
                     int seconds = (int) Math.max(1L, Math.round(condition.value));
                     String label = data.displayName != null && !data.displayName.isBlank() ? data.displayName
                             : data.englishId;
+                    boolean revive = type == ConditionType.DEATH_COUNTDOWN_REVIVE;
                     Countdown countdown = new Countdown(player.getUUID(), entry.identifier().getPath(), groupIndex,
-                            label, type, type == ConditionType.DEATH_COUNTDOWN_REVIVE, pos,
+                            label, type, revive, pos,
                             now + seconds * SECOND_TICKS);
                     COUNTDOWNS.put(countdown.key(), countdown);
                     sendCountdown(player, countdown, true);
+                    if (revive) {
+                        // 「死亡 N 秒后复活」：倒计时期间尸体不可被他人交互/复活
+                        PlayerBodyEntity body = DefibrillatorComponent.findPlayerBodyEntity(player);
+                        if (body != null) {
+                            body.setNonInteractable(true);
+                        }
+                    }
                     // 同一个组里只认第一个倒计时条件
                     break;
                 }

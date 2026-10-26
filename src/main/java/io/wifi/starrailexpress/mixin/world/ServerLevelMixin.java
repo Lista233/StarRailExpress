@@ -28,7 +28,7 @@ public class ServerLevelMixin {
     private void tickTime(CallbackInfo ci) {
         SREGameTimeComponent cca = SREGameTimeComponent.KEY.getNullable((Object) this);
         if (cca != null) {
-            if (cca.levelGameTimeFrozen) {
+            if (cca.isLevelGameTimeFrozen()) {
                 ci.cancel();
             }
         }

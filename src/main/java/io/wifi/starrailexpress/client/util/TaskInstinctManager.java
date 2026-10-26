@@ -85,6 +85,8 @@ public class TaskInstinctManager {
         result.put(26, Component.translatable("hud.noellesroles.task_instinct.render.random_minigame"));
         result.put(27, Component.translatable("hud.noellesroles.task_instinct.render.random_minigame_panel"));
         result.put(28, Component.translatable("hud.noellesroles.task_instinct.render.fumo"));
+        // 26-28 已被本地随机小游戏任务点占用，回声机器让号到 29
+        result.put(29, Component.translatable("echo.machine.tasks.filter"));
         return result;
     }
 

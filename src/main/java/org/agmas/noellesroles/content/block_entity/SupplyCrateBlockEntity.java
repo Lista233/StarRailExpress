@@ -48,8 +48,74 @@ public class SupplyCrateBlockEntity extends BlockEntity {
     private int refreshIntervalTicks = 200; // 默认10秒 (20 ticks/秒 * 10)
     private boolean refreshAllSimultaneously = false; // 默认否
     private boolean sharedSupplies = false; // 默认否
+    /**
+     * 全局仅能被拿一次：任何玩家领取后，其他玩家再右键也无法领取（非共享模式的
+     * 「每人一次」升级为「全局一次」）。物资刷新与游戏结束重置时会恢复可领取。
+     */
+    private boolean globalOnceOnly = false; // 默认否（可重复领取）
     private long lastRefreshTick = -1;
-    private final Set<UUID> claimedPlayers = new HashSet<>(); // 非共享模式下已领取的玩家
+    private final Set<UUID> claimedPlayers = new HashSet<>(); // 已领取的玩家（非共享/全局一次模式）
+
+    // 按地图名追踪所有物资箱实例（用于游戏结束/开始时统一重置）
+    private static final java.util.concurrent.ConcurrentHashMap<String, java.util.Set<BlockPos>> mapInstances = new java.util.concurrent.ConcurrentHashMap<>();
+    private boolean tracked = false;
+
+    private static String getMapKey(Level level) {
+        var areas = io.wifi.starrailexpress.cca.AreasWorldComponent.KEY.get(level);
+        return areas != null && areas.mapName != null ? areas.mapName : "";
+    }
+
+    private void tryTrack() {
+        if (!tracked && level != null && !level.isClientSide()) {
+            tracked = true;
+            mapInstances
+                    .computeIfAbsent(getMapKey(level), k -> java.util.concurrent.ConcurrentHashMap.newKeySet())
+                    .add(worldPosition);
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        if (level != null && !level.isClientSide()) {
+            var set = mapInstances.get(getMapKey(level));
+            if (set != null) {
+                set.remove(worldPosition);
+            }
+        }
+    }
+
+    /**
+     * 重置本局相关状态：清空当前物资与领取记录，并<b>立即重新补货</b>，同时复位方块开启状态。
+     * 配置（物品列表、刷新间隔、刷新/共享开关）保持不变。
+     */
+    public void resetForNewGame() {
+        currentItems.clear();
+        claimedPlayers.clear();
+        setChanged();
+        if (level == null || level.isClientSide()) {
+            // 无世界 / 客户端侧：只复位状态，不做补货与计时
+            return;
+        }
+        // 立即补一次货：新一局开始（或上一局结束后）箱子应恢复「有物资可领」，
+        // 否则刷新间隔相当于「重新开始计时」，开局这段等待时间里玩家领不了物资。
+        refreshItems(level);
+        this.lastRefreshTick = level.getGameTime();
+    }
+
+    /**
+     * 重置指定世界中所有物资箱的本局状态（游戏结束/开局时调用）
+     */
+    public static void resetAll(Level level) {
+        if (level == null || level.isClientSide()) return;
+        var set = mapInstances.get(getMapKey(level));
+        if (set == null || set.isEmpty()) return;
+        for (BlockPos pos : new ArrayList<>(set)) {
+            if (level.getBlockEntity(pos) instanceof SupplyCrateBlockEntity crate && !crate.isRemoved()) {
+                crate.resetForNewGame();
+            }
+        }
+    }
 
     public SupplyCrateBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.SUPPLY_CRATE_BLOCK_ENTITY, pos, state);
@@ -60,6 +126,8 @@ public class SupplyCrateBlockEntity extends BlockEntity {
      */
     public static void tick(Level level, BlockPos pos, BlockState state, SupplyCrateBlockEntity entity) {
         if (level.isClientSide()) return;
+
+        entity.tryTrack();
 
         long currentTick = level.getGameTime();
         if (entity.lastRefreshTick < 0) {
@@ -146,8 +214,15 @@ public class SupplyCrateBlockEntity extends BlockEntity {
     public List<ItemStack> claimItems(Player player) {
         if (currentItems.isEmpty()) return Collections.emptyList();
 
+        // 全局仅能拿一次：已有人领取过（刷新/重置会清空记录），任何人都不能再领
+        if (globalOnceOnly && !claimedPlayers.isEmpty()) {
+            return Collections.emptyList();
+        }
+
         if (sharedSupplies) {
             // 共享模式：每个玩家都能领取
+            claimedPlayers.add(player.getUUID());
+            setChanged();
             return new ArrayList<>(currentItems);
         } else {
             // 非共享：只有第一个领取的玩家能拿到
@@ -165,6 +240,8 @@ public class SupplyCrateBlockEntity extends BlockEntity {
      */
     public boolean hasItems(Player player) {
         if (currentItems.isEmpty()) return false;
+        // 全局仅能拿一次：已有人领取过则所有人都不可领
+        if (globalOnceOnly && !claimedPlayers.isEmpty()) return false;
         if (sharedSupplies) return true;
         return !claimedPlayers.contains(player.getUUID());
     }
@@ -202,6 +279,12 @@ public class SupplyCrateBlockEntity extends BlockEntity {
         setChanged();
     }
 
+    public boolean isGlobalOnceOnly() { return globalOnceOnly; }
+    public void setGlobalOnceOnly(boolean v) {
+        this.globalOnceOnly = v;
+        setChanged();
+    }
+
     public List<ItemStack> getCurrentItems() {
         return Collections.unmodifiableList(currentItems);
     }
@@ -235,6 +318,7 @@ public class SupplyCrateBlockEntity extends BlockEntity {
         tag.putInt("refreshIntervalTicks", refreshIntervalTicks);
         tag.putBoolean("refreshAllSimultaneously", refreshAllSimultaneously);
         tag.putBoolean("sharedSupplies", sharedSupplies);
+        tag.putBoolean("globalOnceOnly", globalOnceOnly);
         tag.putLong("lastRefreshTick", lastRefreshTick);
 
         // 保存已领取玩家
@@ -278,6 +362,8 @@ public class SupplyCrateBlockEntity extends BlockEntity {
         if (refreshIntervalTicks <= 0) refreshIntervalTicks = 200;
         refreshAllSimultaneously = tag.getBoolean("refreshAllSimultaneously");
         sharedSupplies = tag.getBoolean("sharedSupplies");
+        // 缺省（旧存档）时保持默认开启
+        globalOnceOnly = tag.contains("globalOnceOnly") ? tag.getBoolean("globalOnceOnly") : true;
         lastRefreshTick = tag.getLong("lastRefreshTick");
 
         claimedPlayers.clear();

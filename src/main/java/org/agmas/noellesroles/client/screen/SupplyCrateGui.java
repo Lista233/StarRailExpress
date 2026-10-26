@@ -64,6 +64,7 @@ public class SupplyCrateGui extends Screen {
     private EditBox intervalInput;
     private Checkbox refreshAllCheckbox;
     private Checkbox sharedCheckbox;
+    private Checkbox globalOnceCheckbox;
     private Button saveButton;
     private Button addRowButton;
 
@@ -140,10 +141,16 @@ public class SupplyCrateGui extends Screen {
         ).pos(rx, ry + 80).selected(false).build();
         addRenderableWidget(sharedCheckbox);
 
+        globalOnceCheckbox = Checkbox.builder(
+                Component.translatable("gui.noellesroles.supply_crate.global_once"),
+                font
+        ).pos(rx, ry + 105).selected(false).build();
+        addRenderableWidget(globalOnceCheckbox);
+
         saveButton = Button.builder(
                 Component.translatable("gui.noellesroles.supply_crate.save"),
                 btn -> saveConfig()
-        ).bounds(rx, ry + 115, 100, 20).build();
+        ).bounds(rx, ry + 140, 100, 20).build();
         addRenderableWidget(saveButton);
 
         // 从已有数据加载
@@ -263,6 +270,15 @@ public class SupplyCrateGui extends Screen {
                     .build();
             addRenderableWidget(sharedCheckbox);
 
+            boolean globalOnce = crate.isGlobalOnceOnly();
+            removeWidget(globalOnceCheckbox);
+            globalOnceCheckbox = Checkbox.builder(
+                    Component.translatable("gui.noellesroles.supply_crate.global_once"), font)
+                    .pos(rightPanelX + 10, rightPanelY + 105)
+                    .selected(globalOnce)
+                    .build();
+            addRenderableWidget(globalOnceCheckbox);
+
             // 重新加载物品列表
             itemRows.clear();
             for (var entry : crate.getConfigItems()) {
@@ -300,7 +316,8 @@ public class SupplyCrateGui extends Screen {
         ClientPlayNetworking.send(new SupplyCrateSaveConfigC2SPacket(
                 blockPos, entries, intervalTicks,
                 refreshAllCheckbox.selected(),
-                sharedCheckbox.selected()
+                sharedCheckbox.selected(),
+                globalOnceCheckbox.selected()
         ));
 
         Minecraft.getInstance().setScreen(null);
@@ -310,10 +327,16 @@ public class SupplyCrateGui extends Screen {
     // 渲染
     // ══════════════════════════════════════════════════════════════════
 
+    /**
+     * 不渲染原版背景：{@code Screen#render} 内部会调用本方法，
+     * 而 1.21 的默认实现是「模糊 + 半透明渐变」，会把界面文字糊住，这里置空保持完全透明。
+     */
+    @Override
+    public void renderBackground(@NotNull GuiGraphics g, int mouseX, int mouseY, float delta) {
+    }
+
     @Override
     public void render(@NotNull GuiGraphics g, int mouseX, int mouseY, float delta) {
-        this.renderBackground(g, mouseX, mouseY, delta);
-
         // 面板背景
         g.fill(leftPanelX, leftPanelY, leftPanelX + leftPanelW, leftPanelY + leftPanelH, 0xAA222222);
         g.fill(rightPanelX, rightPanelY, rightPanelX + rightPanelW, rightPanelY + 100, 0xAA222222);
@@ -448,6 +471,10 @@ public class SupplyCrateGui extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (Minecraft.getInstance().options.keyInventory.matches(keyCode, scanCode)) {
+            // 输入框获得焦点时，E 应作为文本输入交给输入框处理，而不是关闭界面
+            if (getFocused() instanceof EditBox) {
+                return super.keyPressed(keyCode, scanCode, modifiers);
+            }
             onClose();
             return true;
         }

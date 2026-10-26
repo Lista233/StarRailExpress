@@ -156,6 +156,13 @@ public class NRDeathEvents {
 
         SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(victim.level());
 
+        // 与本体斗士一致的豁免：摔出列车、挂机、误杀都不吃钢筋铁骨
+        if (deathReason.equals(GameConstants.DeathReasons.FELL_OUT_OF_TRAIN)
+                || deathReason.getPath().equals("death_afk")
+                || deathReason.getPath().equals("shot_innocent")) {
+            return false;
+        }
+
         // 模仿者斗士无敌检测
         if (gameWorld.isRole(victim, ModRoles.IMITATOR)) {
             var imitComp = RoleData.getNullable(ImitatorRoleData.class, victim);
@@ -163,6 +170,35 @@ public class NRDeathEvents {
                 victim.level().playSound(null, victim.blockPosition(),
                         io.wifi.starrailexpress.index.TMMSounds.ITEM_PSYCHO_ARMOUR,
                         SoundSource.MASTER, 5.0F, 1.0F);
+                // 与本体一致：被刀/棍攻击时反制攻击者（弹开 + 缓慢 + 武器进 CD）
+                boolean imitIsKnife = deathReason.equals(GameConstants.DeathReasons.KNIFE);
+                boolean imitIsBat = deathReason.equals(GameConstants.DeathReasons.BAT);
+                if (imitIsKnife || imitIsBat) {
+                    Player imitAttacker = RicesRoleRhapsody.findAttackerWithWeapon(victim, imitIsKnife);
+                    if (imitAttacker != null) {
+                        ItemStack imitWeapon = imitAttacker.getMainHandItem();
+                        imitAttacker.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                                net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN,
+                                BoxerRoleData.COUNTER_SLOWNESS_DURATION,
+                                BoxerRoleData.COUNTER_SLOWNESS_AMPLIFIER,
+                                false, true, true));
+                        if (imitWeapon.is(io.wifi.starrailexpress.index.TMMItems.KNIFE)) {
+                            imitAttacker.getCooldowns().addCooldown(imitWeapon.getItem(),
+                                    BoxerRoleData.KNIFE_COOLDOWN);
+                            if (imitAttacker instanceof ServerPlayer imitServerAttacker) {
+                                imitServerAttacker.displayClientMessage(
+                                        Component.translatable("message.noellesroles.boxer.counter_knife"), true);
+                            }
+                        } else if (imitAttacker instanceof ServerPlayer imitServerAttacker) {
+                            imitServerAttacker.displayClientMessage(
+                                    Component.translatable("message.noellesroles.boxer.counter_bat"), true);
+                        }
+                        if (victim instanceof ServerPlayer sp) {
+                            sp.displayClientMessage(Component.translatable(
+                                    "message.noellesroles.boxer.counter_success", imitAttacker.getName()), true);
+                        }
+                    }
+                }
                 if (victim instanceof ServerPlayer sp) {
                     sp.displayClientMessage(Component.translatable(
                             "message.noellesroles.imitator.boxer_blocked")
@@ -178,12 +214,6 @@ public class NRDeathEvents {
         BoxerRoleData boxerComponent = RoleData.getNullable(BoxerRoleData.class, victim);
         if (boxerComponent == null || !boxerComponent.isInvulnerable)
             return false;
-
-        if (deathReason.equals(GameConstants.DeathReasons.FELL_OUT_OF_TRAIN)
-                || deathReason.getPath().equals("death_afk")
-                || deathReason.getPath().equals("shot_innocent")) {
-            return false;
-        }
 
         boolean isKnife = deathReason.equals(GameConstants.DeathReasons.KNIFE);
         boolean isBat = deathReason.equals(GameConstants.DeathReasons.BAT);
@@ -336,6 +366,7 @@ public class NRDeathEvents {
 
     public static void handleDeathPenalty(Level level, List<Player> victims, boolean ignoreDoctor,
             boolean ignoreLooseEnd) {
+        NRGameStateEvents.pendingRejudgingSpectatorDeathPeanlty.set(false);
         SREGameWorldComponent gameWorldComponent = SREGameWorldComponent.KEY.get(level);
         boolean doctorAlive = false;
         boolean looseEndAlive = false;
@@ -352,15 +383,15 @@ public class NRDeathEvents {
             if (!GameUtils.isPlayerAliveAndSurvival(player)) {
                 continue;
             }
+            // 两个判定必须<b>并列</b>且只在命中最高优先级（阴谋家 / 无我 / 无妄）时才 break：
+            // 写成 else if + 「任一成立就 break」的话，只要先遍历到一名存活的医生就会提前退出，
+            // 无我 / 无妄根本没机会被求值——表现为「无我或无妄明明还活着，别人死亡却拿不到永久
+            // 死亡惩罚」，且是否复现完全取决于 level.players() 的迭代顺序。
             if (gameWorldComponent.isRole(player, ModRoles.DOCTOR) && !ignoreDoctor) {
                 doctorAlive = true;
-            } else if (gameWorldComponent.isRole(player, ModRoles.CONSPIRATOR)
-                    // 无我或无妄存活时，与阴谋家一样进入死亡惩罚（视角限制）
-                    || gameWorldComponent.isRole(player, ModRoles.ANATMAN)
-                    || gameWorldComponent.isRole(player, ModRoles.ASATYA)) {
-                CONSPIRATOR_alive = true;
             }
-            if (doctorAlive || CONSPIRATOR_alive) {
+            if (GameUtils.shouldGiveSpectatorsDeathPenalty(player)) {
+                CONSPIRATOR_alive = true;
                 break;
             }
         }
@@ -425,11 +456,13 @@ public class NRDeathEvents {
                 }
             } else if (limitView) {
                 deathPenaltyComponent.setPenalty(-1, true);
+                // 无我 / 无妄 存活时不能说「由于阴谋家存活」，否则玩家会以为惩罚没生效
+                String limitMessageKey = GameUtils.spectatorsDeathPenaltyMessageKey(victim);
                 victim.sendSystemMessage(
-                        Component.translatable("message.noellesroles.penalty.limit.god_job_couple")
+                        Component.translatable(limitMessageKey)
                                 .withStyle(ChatFormatting.RED));
                 victim.displayClientMessage(
-                        Component.translatable("message.noellesroles.penalty.limit.god_job_couple")
+                        Component.translatable(limitMessageKey)
                                 .withStyle(ChatFormatting.RED),
                         true);
                 if (victim.hasPermissions(2)) {
@@ -749,7 +782,7 @@ public class NRDeathEvents {
             return true;
         });
 
-        // 小丑精神爆发期间免死 + 窃皮者/斗士/跟踪者免死
+        // 小丑精神爆发期间免死 + 斗士/跟踪者免死（窃皮者皮肤盾已移至护盾之后）
         AllowPlayerDeath.EVENT.register((playerEntity, identifier) -> {
             // 小丑
             if (identifier == GameConstants.DeathReasons.FELL_OUT_OF_TRAIN)
@@ -770,9 +803,6 @@ public class NRDeathEvents {
                 }
             }
 
-            // 窃皮者皮肤死亡免疫
-            if (handleSkincrawlerDeath(playerEntity, identifier))
-                return false;
             // 斗士无敌反制
             if (handleBoxerInvulnerability(playerEntity, identifier))
                 return false;
@@ -801,6 +831,15 @@ public class NRDeathEvents {
                 return false;
             return true;
         });
+
+        // 窃皮者皮肤死亡免疫
+        // 注册在护盾之后：防弹衣、弱效护盾、疯狂模式护甲等其它盾优先消耗，
+        // 只有它们都没挡住时才动用皮肤盾（避免优先触发导致自己被定在原地）。
+        AfterShieldAllowPlayerDeath.EVENT.register((victim, deathReason) -> {
+            if (handleSkincrawlerDeath(victim, deathReason))
+                return false;
+            return true;
+        });
     }
 
     // --- OnPlayerDeath ---
@@ -814,6 +853,10 @@ public class NRDeathEvents {
             SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(victim.level());
             if (gameWorld != null && gameWorld.isRole(victim, ModRoles.ASATYA)) {
                 AnatmanRoleData.onAsatyaDeath(serverVictim);
+                // 无妄 / 无我是「永久死亡惩罚」的维持者：最后一人倒下后要立刻重判所有旁观者，
+                // 否则解除只能等每个人各自的 DeathPenaltyComponent 下一次 tick 复核
+                // （时间回溯 / 有复活进行中时那次复核还会被跳过）。
+                GameUtils.pendingReJudgeSpectatorsPenalty();
             }
         });
 
@@ -825,6 +868,8 @@ public class NRDeathEvents {
             SREGameWorldComponent gameWorld = SREGameWorldComponent.KEY.get(victim.level());
             if (gameWorld != null && gameWorld.isRole(victim, ModRoles.ANATMAN)) {
                 AsatyaRoleData.onAnatmanDeath(serverVictim);
+                // 同上：无我倒下后立刻重判旁观者的死亡惩罚（两人全死 → 解除永久惩罚）。
+                GameUtils.pendingReJudgeSpectatorsPenalty();
             }
         });
 
@@ -924,11 +969,35 @@ public class NRDeathEvents {
                 dropCount--;
             }
         }
+        // 棒球员：身上的球棒掉落为左轮手枪（参考游侠弓弩）
+        if (gameWorldComponent.isRole(player, BounsRoles.BASEBALL_PLAYER)) {
+            int batCount = SREItemUtils.clearItem(player, TMMItems.BAT);
+            while (batCount > 0) {
+                player.drop(TMMItems.REVOLVER.getDefaultInstance(), false);
+                batCount--;
+            }
+        }
+        // 剑客：身上的武士刀掉落为左轮手枪（参考游侠弓弩）
+        if (gameWorldComponent.isRole(player, ModRoles.SWORDSMAN)) {
+            int katanaCount = SREItemUtils.clearItem(player, ModItems.KATANA);
+            while (katanaCount > 0) {
+                player.drop(TMMItems.REVOLVER.getDefaultInstance(), false);
+                katanaCount--;
+            }
+        }
         if (gameWorldComponent.isRole(player, ModRoles.CAVALRY)) {
             int spearCount = SREItemUtils.clearItem(player, ModItems.NETHERITE_SPEAR);
             while (spearCount > 0) {
                 player.drop(TMMItems.REVOLVER.getDefaultInstance(), false);
                 spearCount--;
+            }
+        }
+        // 魔法学徒：见习法杖掉落为左轮手枪（参考游侠弓弩）
+        if (gameWorldComponent.isRole(player, ModRoles.MAGIC_APPRENTICE)) {
+            int wandCount = SREItemUtils.clearItem(player, ModItems.APPRENTICE_WAND);
+            while (wandCount > 0) {
+                player.drop(TMMItems.REVOLVER.getDefaultInstance(), false);
+                wandCount--;
             }
         }
         // 网警：身上的 Dream 铁斧/钻石剑/重锤 掉落为左轮手枪（参考游侠弓弩）
@@ -1552,17 +1621,19 @@ public class NRDeathEvents {
             if (killer != null && gameWorldComponent.isRole(victim, ModRoles.MERCENARY)) {
                 var mercenary = RoleData.getNullable(MercenaryRoleData.class, victim);
                 if (mercenary != null) {
-                    mercenary.setForcedTarget(killer);
-                    victim.displayClientMessage(
-                            Component.translatable("message.noellesroles.mercenary.new_forced_target",
-                                    killer.getName())
-                                    .withStyle(ChatFormatting.RED),
-                            true);
-                    // 回放记录：雇佣兵将玩家设定为目标
-                    SRE.REPLAY_MANAGER.recordCustomEvent(
-                            Component.translatable("replay.event.mercenary.set_target",
-                                    GameReplayUtils.getReplayPlayerDisplayText(victim, true),
-                                    GameReplayUtils.getReplayPlayerDisplayText(killer, true)));
+                    // 同一个玩家连续破掉多层护盾时目标没变，不再提示、不再写回放（否则回放会被刷屏）
+                    if (mercenary.setForcedTarget(killer)) {
+                        victim.displayClientMessage(
+                                Component.translatable("message.noellesroles.mercenary.new_forced_target",
+                                        killer.getName())
+                                        .withStyle(ChatFormatting.RED),
+                                true);
+                        // 回放记录：破盾者被通缉（与契约通缉 replay.event.contract.wanted 区分开）
+                        SRE.REPLAY_MANAGER.recordCustomEvent(
+                                Component.translatable("replay.event.mercenary.set_target_shield",
+                                        GameReplayUtils.getReplayPlayerDisplayText(killer, true),
+                                        GameReplayUtils.getReplayPlayerDisplayText(victim, true)));
+                    }
                 }
             }
             // 影隼临时护盾破碎

@@ -625,13 +625,12 @@ public class ProgrammerRole extends EggRole {
     }
 
     /**
-     * 该玩家能不能取下别人的手铐（巡警队/黑警之外的第三种人：程序员）。
-     * 逻辑集中在这里，判定点见 {@code NRInteractionEvents} 的手铐交互回调。
+     * 程序员可取下他人手铐（巡警队 / 黑警之外的第三种人）。
+     * 覆写 {@code SRERole#canUncuffOthers(Player)}：只要玩家是程序员即允许，
+     * 判定点见 {@code NRInteractionEvents} 的手铐交互回调。
      */
-    public static boolean canUncuffOthers(Player player) {
-        if (player == null) {
-            return false;
-        }
-        return SREGameWorldComponent.KEY.get(player.level()).isRole(player, BounsRoles.PROGRAMMER);
+    @Override
+    public boolean canUncuffOthers(Player player) {
+        return true;
     }
 }

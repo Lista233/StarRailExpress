@@ -217,6 +217,14 @@ public class RicesRoleRhapsodyClient {
                     () -> new io.wifi.starrailexpress.customblock.CustomBlockScreen()));
             return true;
         };
+        io.wifi.starrailexpress.traindummy.TrainDummyToolItem.openScreenCallback = (p) -> {
+            Minecraft client = Minecraft.getInstance();
+            if (client.player == null) {
+                return false;
+            }
+            client.setScreen(new io.wifi.starrailexpress.client.gui.screen.TrainDummyScreen());
+            return true;
+        };
     }
 
     /**
@@ -764,6 +772,8 @@ public class RicesRoleRhapsodyClient {
         // 闪光弹实体渲染器 - 使用飞行物品渲染器
         EntityRendererRegistry.register(ModEntities.FLASH_GRENADE, ThrownItemRenderer::new);
         EntityRendererRegistry.register(ModEntities.TOMATO_PROJECTILE, ThrownItemRenderer::new);
+        // 毛线球抛射物 - 使用飞行物品渲染器
+        EntityRendererRegistry.register(ModEntities.YARN_BALL, ThrownItemRenderer::new);
         EntityRendererRegistry.register(ModEntities.EMP_BOMB, ThrownItemRenderer::new);
 
         // 诱饵弹实体渲染器 - 使用飞行物品渲染器
@@ -803,6 +813,9 @@ public class RicesRoleRhapsodyClient {
      * 注册Screen
      */
     public static void registerScreens() {
+        // 注册射命丸文传递界面
+        MenuScreens.register(ModScreenHandlers.POSTMAN_SCREEN_HANDLER, PostmanHandledScreen::new);
+
         // 注册探员审查界面
         MenuScreens.register(ModScreenHandlers.DETECTIVE_INSPECT_SCREEN_HANDLER, DetectiveInspectScreen::new);
     }

@@ -19,6 +19,8 @@ import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.RoleTeam;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.TMMRoles;
+import io.wifi.starrailexpress.customrole.CustomRoleData;
+import io.wifi.starrailexpress.customrole.CustomRoleLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -54,54 +56,67 @@ public final class CustomModifierLoader {
 
     // ==================== 重载 ====================
 
-    /** 服务端重载（从世界存档读取，权威）。 */
+    /**
+     * 服务端重载（从世界存档读取，权威）。
+     *
+     * <p>
+     * 整个「清空 + 重新注册」整体持有 {@link HMLModifiers#LOCK}：客户端线程也会往<b>同一份</b>静态
+     * 注册表里注册（同步内容下发后的应用，见 {@code ContentSyncClient}），若只锁单次注册，两次重载
+     * 会交错执行，把本来就唯一的 id 判成重复。
+     */
     public static void reload(MinecraftServer server) {
-        removeAll();
-        CustomModifierConfig config;
-        if (server != null) {
-            Path worldPath = server.getWorldPath(LevelResource.ROOT);
-            config = CustomModifierConfig.loadFromFile(worldPath);
-        } else {
-            config = CustomModifierConfig.getInstance();
+        synchronized (HMLModifiers.LOCK) {
+            removeAll();
+            CustomModifierConfig config;
+            if (server != null) {
+                Path worldPath = server.getWorldPath(LevelResource.ROOT);
+                config = CustomModifierConfig.loadFromFile(worldPath);
+            } else {
+                config = CustomModifierConfig.getInstance();
+            }
+            if (config == null || config.modifiers == null) {
+                config = new CustomModifierConfig();
+            }
+            registerAll(config, server);
+            SRE.LOGGER.info("[CustomModifier] Loaded {} custom modifiers", config.modifiers.size());
         }
-        if (config == null || config.modifiers == null) {
-            config = new CustomModifierConfig();
-        }
-        registerAll(config, server);
-        SRE.LOGGER.info("[CustomModifier] Loaded {} custom modifiers", config.modifiers.size());
     }
 
-    /** 客户端重载（从 config 目录读取同步副本）。 */
+    /** 客户端重载（从 config 目录读取同步副本）。同样整体持锁，理由见 {@link #reload(MinecraftServer)}。 */
     public static void reloadClient() {
-        removeAll();
-        CustomModifierConfig config = CustomModifierConfig.loadFromDefaultPath();
-        registerAll(config, null);
-        SRE.LOGGER.info("[CustomModifier-Client] Reloaded {} custom modifiers from local config",
-                config.modifiers == null ? 0 : config.modifiers.size());
+        synchronized (HMLModifiers.LOCK) {
+            removeAll();
+            CustomModifierConfig config = CustomModifierConfig.loadFromDefaultPath();
+            registerAll(config, null);
+            SRE.LOGGER.info("[CustomModifier-Client] Reloaded {} custom modifiers from local config",
+                    config.modifiers == null ? 0 : config.modifiers.size());
+        }
     }
 
     /** 清理所有已注册的自定义修饰符（离开服务器 / 重载前）。 */
     public static void removeAll() {
-        for (SREModifier modifier : new ArrayList<>(HMLModifiers.MODIFIERS)) {
-            if (!CustomModifierEntry.isCustomModifier(modifier))
-                continue;
-            // 先清掉其它职业/修饰符里对它的关联引用，避免重载后残留旧实例
-            for (SRERole role : TMMRoles.ROLES.values()) {
-                role.relatedModifiers.remove(modifier);
+        synchronized (HMLModifiers.LOCK) {
+            for (SREModifier modifier : new ArrayList<>(HMLModifiers.MODIFIERS)) {
+                if (!CustomModifierEntry.isCustomModifier(modifier))
+                    continue;
+                // 先清掉其它职业/修饰符里对它的关联引用，避免重载后残留旧实例
+                for (SRERole role : TMMRoles.ROLES.values()) {
+                    role.relatedModifiers.remove(modifier);
+                }
+                for (SREModifier other : HMLModifiers.MODIFIERS) {
+                    other.relatedModifiers.remove(modifier);
+                    // 互斥列表同样要清，否则重载后旧实例残留在 opposingModifiers 里，
+                    // 既会造成互斥判定失效（按实例比较），也会让介绍页出现重复条目
+                    other.opposingModifiers.remove(modifier);
+                }
+                // 走注册表接口，保证 MODIFIERS_BY_ID / MODIFIERS_BY_PATH 索引与列表同步，
+                // 否则重载后同名自定义修饰符会被判成重复而注册失败
+                HMLModifiers.unregisterModifier(modifier);
             }
-            for (SREModifier other : HMLModifiers.MODIFIERS) {
-                other.relatedModifiers.remove(modifier);
-                // 互斥列表同样要清，否则重载后旧实例残留在 opposingModifiers 里，
-                // 既会造成互斥判定失效（按实例比较），也会让介绍页出现重复条目
-                other.opposingModifiers.remove(modifier);
-            }
-            // 走注册表接口，保证 MODIFIERS_BY_PATH 索引与列表同步，
-            // 否则重载后同名自定义修饰符会被判成重复而注册失败
-            HMLModifiers.unregisterModifier(modifier);
+            loadedModifiers.clear();
+            registeredModifiers.clear();
+            HMLModifiers.refreshVersionTags();
         }
-        loadedModifiers.clear();
-        registeredModifiers.clear();
-        HMLModifiers.refreshVersionTags();
     }
 
     /** 与 {@code CustomRoleLoader.removeClientCache()} 对应。 */
@@ -192,6 +207,11 @@ public final class CustomModifierLoader {
             modifier.setCanOnlyBeAppliedTo(onlyRoles);
         }
 
+        // 绑定职业：这些职业分配时必然获得本修饰符（介绍页的关联职业在 applyRelations 里补）
+        for (SRERole role : parseRolesFlexible(data.bindRoles)) {
+            modifier.addBoundRole(role);
+        }
+
         // 运行时：每刻检查全局效果 / 条件触发
         CustomModifierRuntime.init();
         modifier.setServerGameTickEvent(player -> CustomModifierRuntime.serverTick(player, modifier));
@@ -233,8 +253,17 @@ public final class CustomModifierLoader {
      * 关联字段（{@code bothRelated*} / {@code related*} / {@code removeRelated*}）仅作用于介绍页面；
      * 互斥字段（{@code twoWayOpposingModifiers} / {@code opposingModifiers}）还会影响生成与运行时
      * （见 {@code ModifierOpposingHelper}）。
+     *
+     * <p>
+     * {@code bindRoles}（绑定职业）除了在 {@link #createModifier} 里声明强制分配外，
+     * 还会写一条单向关联职业，让 U 键介绍页的「关联职业」自动列出被绑定的职业。
+     * 这一步放在关联循环之前，用户显式填的「单向移除关联职业」仍然能覆盖掉它。
      */
     private static void applyRelations(CustomModifierData data, SREModifier modifier) {
+        // 绑定职业 → 介绍页关联职业（单向：只让修饰符页展示绑定关系）
+        for (SRERole role : parseRolesFlexible(data.bindRoles)) {
+            modifier.addRelatedRole(role);
+        }
         for (String id : safe(data.bothRelatedRoles)) {
             SRERole role = findRole(id);
             if (role != null)
@@ -292,7 +321,7 @@ public final class CustomModifierLoader {
      * 修饰符实例的 {@code identifier} 会把 id 转成小写，而注册表的键用的是配置里原始的大小写。
      * 工具里若只改了 id 的大小写，玩家身上已有的旧实例按原名就会查不到，
      * 会被误判成「已删除」而停用；这里补一次忽略大小写的匹配。
-     * 不会歧义：{@link HMLModifiers#registerModifier(SREModifier)} 按小写后的 path 全局去重，
+     * 不会歧义：{@link HMLModifiers#registerModifier(SREModifier)} 按小写后的完整 id 去重，
      * 仅大小写不同的两个 id 只有一个能注册成功。
      */
     public static CustomModifierData getCustomModifierDataIgnoreCase(String englishId) {
@@ -330,8 +359,8 @@ public final class CustomModifierLoader {
      * 查找已注册的同名自定义修饰符（限于 {@link CustomModifierData#NAMESPACE}，忽略大小写）。
      *
      * <p>
-     * 仅作查询用：实际注册时的去重由 {@link HMLModifiers#registerCustomModifier} 按 path 全局判定，
-     * 比这里更严格（自定义修饰符也会与内置修饰符的 path 冲突）。
+     * 与 {@link HMLModifiers#registerCustomModifier} 的判定口径一致（完整 id，命名空间敏感）：
+     * 自定义修饰符只会与同一命名空间的同名 id 冲突，与内置修饰符共用 path 不算冲突。
      */
     public static SREModifier findExistingById(String englishId) {
         for (SREModifier modifier : HMLModifiers.MODIFIERS) {
@@ -363,7 +392,59 @@ public final class CustomModifierLoader {
         return null;
     }
 
-    /** 按「完整 id 或路径」查找修饰符。 */
+    /**
+     * 按「id / path / 职业名称」查找职业，供「绑定职业」输入框使用。
+     *
+     * <p>
+     * 绑定职业是给作者手填的，允许直接写中文名称：先按 id / path 找（{@link #findRole}），
+     * 找不到再按显示名匹配。除了当前语言的翻译名，还额外比对
+     * {@code announcement.star.role.<path>} 原始翻译键与自定义职业配置的 {@code displayName}，
+     * 避免服务端语言与填写者不一致时匹配不上。
+     */
+    public static SRERole findRoleFlexible(String configured) {
+        SRERole byId = findRole(configured);
+        if (byId != null) {
+            return byId;
+        }
+        if (configured == null || configured.isBlank()) {
+            return null;
+        }
+        String name = configured.trim();
+        for (var entry : TMMRoles.ROLES.entrySet()) {
+            SRERole role = entry.getValue();
+            ResourceLocation id = entry.getKey();
+            if (role == null || id == null) {
+                continue;
+            }
+            if (nameEquals(role.getName().getString(), name)
+                    || nameEquals("announcement.star.role." + id.getPath(), name)) {
+                return role;
+            }
+            CustomRoleData customData = CustomRoleLoader.getCustomRoleData(id.getPath());
+            if (customData != null && nameEquals(customData.displayName, name)) {
+                return role;
+            }
+        }
+        SRE.LOGGER.warn("[CustomModifier] Unknown bound role: {}", configured);
+        return null;
+    }
+
+    /** 名称比较（忽略大小写与首尾空白，双方为 null / 空时不匹配）。 */
+    private static boolean nameEquals(String a, String b) {
+        if (a == null || a.isBlank() || b == null) {
+            return false;
+        }
+        return a.trim().equalsIgnoreCase(b.trim());
+    }
+
+    /**
+     * 按「完整 id 或路径」查找修饰符。
+     *
+     * <p>
+     * 完整 id（含命名空间）优先精确匹配；写成路径简写时才回退到忽略命名空间的 path 索引，此时若多个
+     * 命名空间共用同一 path（例如内置 {@code xxx:tiny} 与自定义 {@code custommodifier:tiny}），
+     * 得到的是最先注册的那个。要指定自定义修饰符请写全 {@code custommodifier:<englishId>}。
+     */
     public static SREModifier findModifier(String configuredId) {
         if (configuredId == null || configuredId.isBlank())
             return null;
@@ -384,6 +465,20 @@ public final class CustomModifierLoader {
         HashSet<SRERole> result = new HashSet<>();
         for (String id : safe(ids)) {
             SRERole role = findRole(id);
+            if (role != null)
+                result.add(role);
+        }
+        return result;
+    }
+
+    /**
+     * 宽松版 {@link #parseRoles}：除 id / path 外也接受职业名称（见 {@link #findRoleFlexible}）。
+     * 用于「绑定职业」——作者手填中文名也能生效。
+     */
+    private static HashSet<SRERole> parseRolesFlexible(List<String> ids) {
+        HashSet<SRERole> result = new HashSet<>();
+        for (String id : safe(ids)) {
+            SRERole role = findRoleFlexible(id);
             if (role != null)
                 result.add(role);
         }

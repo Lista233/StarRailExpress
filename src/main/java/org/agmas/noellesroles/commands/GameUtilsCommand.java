@@ -86,7 +86,6 @@ import java.util.concurrent.CompletableFuture;
 
 public class GameUtilsCommand {
   public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess) {
-
     dispatcher.register(Commands.literal("cooldown")
         .requires(source -> Harpymodloader.officialVerify
             && source.hasPermission(SREConfig.instance().cooldownCommandsRequiredPermission))
@@ -566,7 +565,7 @@ public class GameUtilsCommand {
                       () -> Component.translatable("Scanned Task points! Total %s types!", map.size()), true);
 
                   for (var player : context.getSource().getLevel().players()) {
-                    ServerPlayNetworking.send(player, new ScanAllTaskPointsPayload(GameUtils.taskBlocks));
+                    ServerPlayNetworking.send(player, new ScanAllTaskPointsPayload(org.agmas.noellesroles.game.modes.echo.content.EchoMachineTasks.snapshot(player.serverLevel(),GameUtils.taskBlocks)));
                   }
                   return 1;
                 })
@@ -602,7 +601,7 @@ public class GameUtilsCommand {
                       () -> Component.translatable("Scanned Task points! Total %s types!", map.size()), true);
 
                   for (var player : context.getSource().getLevel().players()) {
-                    ServerPlayNetworking.send(player, new ScanAllTaskPointsPayload(GameUtils.taskBlocks));
+                    ServerPlayNetworking.send(player, new ScanAllTaskPointsPayload(org.agmas.noellesroles.game.modes.echo.content.EchoMachineTasks.snapshot(player.serverLevel(),GameUtils.taskBlocks)));
                   }
                   return 1;
                 })))

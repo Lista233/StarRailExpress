@@ -15,6 +15,9 @@
 
 package io.wifi.starrailexpress.mixin.entity.player;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+import net.minecraft.server.level.ServerPlayer;
+
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -40,7 +43,6 @@ import io.wifi.starrailexpress.util.Scheduler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Unit;
 import net.minecraft.world.InteractionResult;
@@ -190,6 +192,10 @@ public abstract class PlayerEntityMixin extends LivingEntity implements PlayerSt
 
                 if (this.isSprinting()) {
                     sprintingTicks = Math.max(sprintingTicks - 1, 0);
+                    // aiStep 在客户端 LocalPlayer 上也会执行，强转 ServerPlayer 会崩溃，必须先判断
+                    if ((Object) this instanceof ServerPlayer serverPlayer) {
+                        ProgressionDataManager.onStaminaConsumed(serverPlayer, 1);
+                    }
                 } else {
                     sprintingTicks = Math.min(sprintingTicks + staminaRecoveryRate, maxSprintTimeWithEffects);
                 }
@@ -247,6 +253,7 @@ public abstract class PlayerEntityMixin extends LivingEntity implements PlayerSt
         String poisoner = stack.getOrDefault(SREDataComponentTypes.POISONER, null);
         String armorer = stack.getOrDefault(SREDataComponentTypes.ARMORER, null);
         String weakArmorer = stack.getOrDefault(SREDataComponentTypes.WEAK_ARMORER, null);
+        String virtualArmorer = stack.getOrDefault(SREDataComponentTypes.VIRTUAL_ARMORER, null);
         boolean isFakePoison = stack.getOrDefault(SREDataComponentTypes.FAKE_POISON, false);
         if (poisoner != null) {
             int poisonTicks = SREPlayerPoisonComponent.KEY.get(this).poisonTicks;
@@ -304,6 +311,18 @@ public abstract class PlayerEntityMixin extends LivingEntity implements PlayerSt
             weakComponent.giveWeakArmor(SREWeakArmorPlayerComponent.VIAL_WEAK_ARMOR_DURATION,
                     new java.util.HashSet<>(java.util.Set.of(
                             io.wifi.starrailexpress.game.GameConstants.DeathReasons.KNIFE)));
+        }
+        if (virtualArmorer != null) {
+            if (SRE.REPLAY_MANAGER != null) {
+                SRE.REPLAY_MANAGER.recordItemEatFlaggedItem(player, stack.getItem(), "virtual_armor");
+            }
+            // 虚拟护盾是「点数条」而不是层数：只在空条时补满，避免重复进食无限叠加
+            org.agmas.noellesroles.game.roles.killer.dream.VirtualShieldComponent virtualShield =
+                    org.agmas.noellesroles.game.roles.killer.dream.VirtualShieldComponent.KEY.get(this);
+            if (virtualShield.currentShield() <= 0) {
+                virtualShield.setShield(
+                        org.agmas.noellesroles.game.roles.killer.dream.VirtualShieldComponent.DEFAULT_SHIELD);
+            }
         }
         if (poisoner != null && armorer != null) {
             String flag = isFakePoison ? "fake_poison_and_armor" : "poison_and_armor";

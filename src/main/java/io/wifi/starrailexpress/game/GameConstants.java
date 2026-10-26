@@ -178,12 +178,11 @@ public class GameConstants {
     }
 
     /**
-     * 被动游戏币收入节拍器：与被动金币共用 {@code passiveMoneyInterval} 间隔，
-     * 每次固定发放 1 枚游戏币（MiniGameToken）。
+     * 被动游戏币收入节拍器：每 25 秒（500 tick）固定发放 1 枚游戏币（MiniGameToken）。
      */
     public static Function<Long, Integer> getPassiveMiniGameTokenTicker() {
         return time -> {
-            if (time % (SREConfig.instance().passiveMoneyInterval * 20) == 0) {
+            if (time % (25 * 20) == 0) {
                 return 1;
             }
             return 0;
@@ -303,7 +302,6 @@ public class GameConstants {
         public static ResourceLocation FAIL_EXAM = Noellesroles.id("fail_exam");
         public static ResourceLocation BAKA = Noellesroles.id("baka");
         public static ResourceLocation WATCHER_CALM_KILL = Noellesroles.id("watcher_calm_kill");
-        public static ResourceLocation REPAIR_TRIAL_EXECUTION = Noellesroles.id("repair_trial_execution");
         public static ResourceLocation INFECTION = Noellesroles.id("infection");
         public static ResourceLocation UNDEAD_INFECTION = Noellesroles.id("undead_infection");
         public static ResourceLocation WIZARD_FIREBALL = Noellesroles.id("wizard_fireball");
@@ -319,6 +317,8 @@ public class GameConstants {
         public static ResourceLocation YUYUKO_EATEN = Noellesroles.id("yuyuko_eaten");
         /** 黑警（Licensed Villain）：黑警时刻后误杀非目标阵营玩家，因悔恨自尽而死 */
         public static ResourceLocation REGRET_SUICIDE = Noellesroles.id("regret_suicide");
+        /** 独裁者（Dictator）：裁决之剑 / 独裁之书猜中后由闪电处决 */
+        public static ResourceLocation DICTATOR_JUDGMENT = Noellesroles.id("dictator_judgment");
 
         // Dream 特殊原版武器死因（伤害扣除虚拟血量），与铁斧/消防斧同类
         public static ResourceLocation DREAM_DIAMOND_SWORD = Noellesroles.id("dream_diamond_sword");
@@ -326,6 +326,8 @@ public class GameConstants {
         public static ResourceLocation FIREWORK_CROSSBOW = Noellesroles.id("firework_crossbow");
         /** 下界合金矛（骑兵）：原版伤害 ×2 转为虚拟伤害，归零时按此死因判死 */
         public static ResourceLocation SPEAR = Noellesroles.id("spear");
+        /** 武士刀：三连招扣除虚拟血量，归零时按此死因判死 */
+        public static ResourceLocation KATANA = Noellesroles.id("katana");
 
         public static ResourceLocation RADIATION = Noellesroles.id("radiation");
         public static ResourceLocation BROKEN_HEART = StupidExpress.id("broken_heart");
@@ -344,6 +346,35 @@ public class GameConstants {
 
         /** 恶魔轮盘赌博致死 */
         public static ResourceLocation GAMBLING_DEATH = Noellesroles.id("gambling_death");
+
+        // 封印物致死（SealedArtifactHandler）：扼喉 / 雷击 / 火柴
+        public static ResourceLocation SEALED_CHOKE = Noellesroles.id("sealed_choke");
+        public static ResourceLocation SEALED_LIGHTNING = Noellesroles.id("sealed_lightning");
+        public static ResourceLocation SEALED_MATCH = Noellesroles.id("sealed_match");
+        // 垂钓者（Angler）：体力耗尽而死 / 被钓上钩而死
+        public static ResourceLocation ANGLER_EXHAUSTED = Noellesroles.id("angler_exhausted");
+        public static ResourceLocation ANGLER_CATCH = Noellesroles.id("angler_catch");
+        /** Dream 铁斧死因（与消防斧 fire_axe 区分） */
+        public static ResourceLocation DREAM_AXE = Noellesroles.id("dream_axe");
+        /** 弹幕弹（DanmukuEntity）命中致死 */
+        public static ResourceLocation DANMUKU = Noellesroles.id("danmuku");
+
+        // 命令方块杀手事件（异常改写池）死因：him / 烛影 / 远境 / Error404 / 白瞳 / 丝线人 /
+        // 实体303 / 死神 / 钟摆 / 纸人 / 雾客 / 石头人投掷物
+        public static ResourceLocation HIM_SWORD = Noellesroles.id("him_sword");
+        public static ResourceLocation HIM_FIREBALL = Noellesroles.id("him_fireball");
+        public static ResourceLocation CANDLE_SNIP = Noellesroles.id("candle_snip");
+        public static ResourceLocation FARLANDS_RIFT = Noellesroles.id("farlands_rift");
+        public static ResourceLocation ERROR_VOID = Noellesroles.id("error_void");
+        public static ResourceLocation ERROR404_PUPPET = Noellesroles.id("error404_puppet");
+        public static ResourceLocation WHITE_EYES_NEEDLE = Noellesroles.id("white_eyes_needle");
+        public static ResourceLocation STRINGER_BLADE = Noellesroles.id("stringer_blade");
+        public static ResourceLocation ENTITY_303_PEEL = Noellesroles.id("entity_303_peel");
+        public static ResourceLocation REAPER_SCYTHE = Noellesroles.id("reaper_scythe");
+        public static ResourceLocation SECOND_NEEDLE = Noellesroles.id("second_needle");
+        public static ResourceLocation PAPER_CUT = Noellesroles.id("paper_cut");
+        public static ResourceLocation FOG_BLADE = Noellesroles.id("fog_blade");
+        public static ResourceLocation STONE_SPEAR = Noellesroles.id("stone_spear");
 
         private static ResourceLocation itemId(Item item) {
             return BuiltInRegistries.ITEM.getKey(item);
@@ -372,6 +403,7 @@ public class GameConstants {
             set.add(itemId(ModItems.THROWING_AXE));
             set.add(itemId(ModItems.NINJA_SHURIKEN));
             set.add(itemId(ModItems.SCARLET_PERCEPTION_SWORD));
+            set.add(itemId(ModItems.YOUMU_SWORD));
             set.add(GUN_SHOT);
             set.remove(null);
             return set;

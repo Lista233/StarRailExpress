@@ -24,6 +24,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
@@ -35,6 +36,9 @@ import net.minecraft.world.phys.Vec3;
 import org.agmas.noellesroles.init.ModEntities;
 
 import java.util.List;
+import java.util.UUID;
+
+import org.jetbrains.annotations.Nullable;
 
 /**
  * 滚石实体：沿指定方向滚动，碾死沿途玩家，撞墙或寿命耗尽后碎裂。渲染为一块巨大的原版石头。
@@ -52,6 +56,8 @@ public class RollingStoneEntity extends Entity {
     private double dirZ;
     private double velocityY = 0;
     private int life = MAX_LIFE;
+    private boolean safe = false;
+    private UUID ownerId;
 
     public RollingStoneEntity(EntityType<?> type, Level level) {
         super(type, level);
@@ -59,11 +65,30 @@ public class RollingStoneEntity extends Entity {
     }
 
     public static RollingStoneEntity spawn(ServerLevel level, Vec3 pos, Direction dir) {
+        return spawn(level, pos, dir, null);
+    }
+
+    public static RollingStoneEntity spawn(ServerLevel level, Vec3 pos, Direction dir, @Nullable ServerPlayer owner) {
         RollingStoneEntity e = new RollingStoneEntity(ModEntities.ROLLING_STONE, level);
         e.setPos(pos.x, pos.y, pos.z);
         e.setYRot(dir.toYRot());
         e.dirX = dir.getStepX();
         e.dirZ = dir.getStepZ();
+        e.ownerId = owner == null ? null : owner.getUUID();
+        e.setDeltaMovement(e.dirX * SPEED, 0, e.dirZ * SPEED);
+        level.addFreshEntity(e);
+        level.playSound(null, e.blockPosition(), SoundEvents.STONE_PLACE, SoundSource.BLOCKS, 1.4F, 0.5F);
+        return e;
+    }
+
+    /** 安全模式：召唤不会致死的滚石（命中仅造成 1 点原版伤害并击退）。 */
+    public static RollingStoneEntity spawnSafe(ServerLevel level, Vec3 pos, Direction dir) {
+        RollingStoneEntity e = new RollingStoneEntity(ModEntities.ROLLING_STONE, level);
+        e.setPos(pos.x, pos.y, pos.z);
+        e.setYRot(dir.toYRot());
+        e.dirX = dir.getStepX();
+        e.dirZ = dir.getStepZ();
+        e.safe = true;
         e.setDeltaMovement(e.dirX * SPEED, 0, e.dirZ * SPEED);
         level.addFreshEntity(e);
         level.playSound(null, e.blockPosition(), SoundEvents.STONE_PLACE, SoundSource.BLOCKS, 1.4F, 0.5F);
@@ -79,6 +104,8 @@ public class RollingStoneEntity extends Entity {
         this.dirX = tag.getDouble("DirX");
         this.dirZ = tag.getDouble("DirZ");
         this.life = tag.getInt("Life");
+        this.safe = tag.getBoolean("Safe");
+        this.ownerId = tag.hasUUID("Owner") ? tag.getUUID("Owner") : null;
     }
 
     @Override
@@ -86,6 +113,10 @@ public class RollingStoneEntity extends Entity {
         tag.putDouble("DirX", this.dirX);
         tag.putDouble("DirZ", this.dirZ);
         tag.putInt("Life", this.life);
+        tag.putBoolean("Safe", this.safe);
+        if (this.ownerId != null) {
+            tag.putUUID("Owner", this.ownerId);
+        }
     }
 
     @Override
@@ -144,7 +175,19 @@ public class RollingStoneEntity extends Entity {
         List<Player> hit = level.getEntitiesOfClass(Player.class, this.getBoundingBox().inflate(0.15),
                 p -> p.isAlive() && !p.isCreative() && !p.isSpectator());
         for (Player p : hit) {
-            GameUtils.forceKillPlayer(p, true, null, GameConstants.DeathReasons.BOULDER_CRUSH);
+            if (this.safe) {
+                // 安全模式：仅造成 1 点原版伤害并击退，不会致死
+                p.hurt(level.damageSources().generic(), 1.0F);
+                // knockback(strength, x, z) 会把目标推向 -(x, z)，所以这里传滚动方向的反方向：
+                // 石头朝 (dirX, dirZ) 前进，玩家应被顺势撞飞（远离石头来向），而不是被推回石头来的那一侧
+                p.knockback(2.5, -this.dirX, -this.dirZ);
+            } else {
+                ServerPlayer killer = owner(level);
+                if (killer == p) {
+                    killer = null;
+                }
+                GameUtils.forceKillPlayer(p, true, killer, GameConstants.DeathReasons.BOULDER_CRUSH);
+            }
         }
 
         // ── 粒子 + 音效 ──
@@ -159,6 +202,11 @@ public class RollingStoneEntity extends Entity {
             shatter(level);
             this.discard();
         }
+    }
+
+    /** 场景滚石没有主人。石头人召唤的滚石把碾死记到召唤者头上。 */
+    private ServerPlayer owner(ServerLevel level) {
+        return this.ownerId == null ? null : level.getServer().getPlayerList().getPlayer(this.ownerId);
     }
 
     /** 从 (x,y,z) 向下扫描，返回第一个完整方块顶面的 Y 坐标。无地面返回 -∞。 */

@@ -31,7 +31,6 @@ import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.game.modes.SREMurderGameMode;
 import io.wifi.starrailexpress.game.utils.RoleInstance;
-import net.exmo.sre.repair.role.RepairRole;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -107,7 +106,6 @@ public class SingleSelectDraftState {
         RoleAssignmentPool killerPool = RoleAssignmentPool.create("Killer",
                 role -> !Harpymodloader.VANNILA_ROLES.contains(role) &&
                         !role.isOtherModeRole() &&
-                        !(role instanceof RepairRole) &&
                         role.canUseKiller() &&
                         !role.isInnocent() &&
                         !RoleUtils.compareRole(role, ModRoles.PUPPETEER) &&
@@ -115,17 +113,15 @@ public class SingleSelectDraftState {
         RoleAssignmentPool vigilantePool = RoleAssignmentPool.create("Vigilante",
                 role -> !Harpymodloader.VANNILA_ROLES.contains(role) &&
                         role.isVigilanteTeam() &&
-                        !role.isOtherModeRole() && !(role instanceof RepairRole));
+                        !role.isOtherModeRole());
         RoleAssignmentPool neutralsPool = RoleAssignmentPool.create("Neutrals",
                 role -> !Harpymodloader.VANNILA_ROLES.contains(role) &&
                         !role.isOtherModeRole() &&
-                        !(role instanceof RepairRole) &&
                         ((!role.canUseKiller() && !role.isInnocent()) || role.isNeutrals()) &&
                         role != TMMRoles.CIVILIAN);
         RoleAssignmentPool civilianPool = RoleAssignmentPool.create("Civilian",
                 role -> !Harpymodloader.VANNILA_ROLES.contains(role) &&
                         !role.isOtherModeRole() &&
-                        !(role instanceof RepairRole) &&
                         !role.isVigilanteTeam() &&
                         !role.canUseKiller() &&
                         !role.isNeutrals() &&
@@ -250,6 +246,24 @@ public class SingleSelectDraftState {
 
         for (UUID uuid : noCardUsers) {
             fillNearestSlot(slots, uuid, n);
+        }
+
+        // 指令前置位：把 /sre:draft_priority 标记的玩家移到序号最前（从 1 号开始），
+        // 其余玩家按原相对顺序依次后移（一次性消费）
+        List<UUID> front = DraftOrderPriority.takePending(playerOrder.keySet());
+        if (!front.isEmpty()) {
+            List<UUID> others = playerOrder.entrySet().stream()
+                    .filter(e -> !front.contains(e.getKey()))
+                    .sorted(java.util.Comparator.comparingInt(Map.Entry::getValue))
+                    .map(Map.Entry::getKey)
+                    .toList();
+            int next = 1;
+            for (UUID uuid : front) {
+                playerOrder.put(uuid, next++);
+            }
+            for (UUID uuid : others) {
+                playerOrder.put(uuid, next++);
+            }
         }
     }
 

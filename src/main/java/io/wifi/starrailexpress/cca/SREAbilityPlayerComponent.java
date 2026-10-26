@@ -378,6 +378,22 @@ public class SREAbilityPlayerComponent
     }
 
     /**
+     * 减少全部技能冷却（统一冷却 + 各技能独立冷却），最低减到 0。
+     *
+     * @param ticks 减少多少 tick（20 tick = 1 秒）
+     */
+    public void reduceCooldowns(int ticks) {
+        if (ticks <= 0) {
+            return;
+        }
+        this.cooldown = Math.max(0, this.cooldown - ticks);
+        for (SkillState state : this.skillStates.values()) {
+            state.cooldown = Math.max(0, state.cooldown - ticks);
+        }
+        this.sync();
+    }
+
+    /**
      * 获取冷却时间（秒）
      */
     public float getCooldownSeconds() {

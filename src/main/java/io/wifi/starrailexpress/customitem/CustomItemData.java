@@ -327,6 +327,18 @@ public class CustomItemData {
     @SerializedName("emptyFireCooldownTicks")
     public int emptyFireCooldownTicks = 0;
 
+    /**
+     * 使用后是否消耗（空放分支）：把蓄力道具的「使用后消耗」区分成
+     * 「空放不消耗」与「空放消耗」两种。
+     *
+     * <p>
+     * 默认 {@code true} = 空放消耗（与命中后一致，按 {@link #consumeItem} 消耗物品）；
+     * 设为否 = 空放不消耗（命中后仍按 {@link #consumeItem} 结算）。
+     * 仅在 {@link #consumeItem} 开启时有意义；仅 {@link #affectOthers} 开启时存在「空放」概念。
+     */
+    @SerializedName("consumeOnEmptyFire")
+    public boolean consumeOnEmptyFire = true;
+
     /** 是否启用空放提示：为是时，蓄力完成但没有命中任何玩家会通过 actionbar 提示 {@link #emptyFireMessage}。 */
     @SerializedName("emptyFireMessageEnabled")
     public boolean emptyFireMessageEnabled = false;
@@ -491,6 +503,15 @@ public class CustomItemData {
     /** 虚拟伤害（扣除 {@code DreamHealthComponent} 的虚拟血量）。 */
     @SerializedName("virtualDamage")
     public int virtualDamage = 4;
+
+    /**
+     * 攻击时是否无视目标的虚拟护盾。
+     *
+     * <p>为 true 时本物品的虚拟伤害直接扣在目标的虚拟血量上，不先被虚拟护盾吸收
+     * （虚拟护盾点数保持不变）；为 false 时按默认流程先扣虚拟护盾。
+     */
+    @SerializedName("ignoreVirtualShield")
+    public boolean ignoreVirtualShield = false;
 
     /** 右键物品执行的指令。 */
     @SerializedName("weaponRightClickCommands")

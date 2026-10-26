@@ -15,6 +15,9 @@
 
 package io.wifi.starrailexpress.content.block;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+import net.minecraft.server.level.ServerPlayer;
+
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
@@ -398,6 +401,7 @@ public class ZiplineBlock extends Block implements EntityBlock {
         rider.setPos(startPos);
         level.addFreshEntity(rider);
         player.startRiding(rider, true);
+        ProgressionDataManager.onZiplineUsed((ServerPlayer) player);
 
         return InteractionResult.SUCCESS;
     }

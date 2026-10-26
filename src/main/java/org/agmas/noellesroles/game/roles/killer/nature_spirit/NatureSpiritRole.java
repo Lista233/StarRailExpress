@@ -1,5 +1,6 @@
 package org.agmas.noellesroles.game.roles.killer.nature_spirit;
 
+import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.cca.SREWorldBlackoutComponent;
 import io.wifi.starrailexpress.disguise.EntityDisguise;
 import io.wifi.starrailexpress.game.DiscountShopEntry;
@@ -42,8 +43,6 @@ public class NatureSpiritRole extends io.wifi.starrailexpress.api.NormalRole {
     public static final int SKILL_COOLDOWN_SECONDS = 60;
     public static final int BAMBOO_SPEAR_PRICE = 130;
     public static final int BAMBOO_PRICE = 50;
-    public static final int AREA_BLACKOUT_PRICE = 120;
-    public static final int LOCKPICK_PRICE = 60;
 
     public NatureSpiritRole(ResourceLocation identifier, int color, boolean isInnocent, boolean canUseKiller,
             MoodType moodType, int maxSprintTime, boolean canSeeTime) {
@@ -55,7 +54,8 @@ public class NatureSpiritRole extends io.wifi.starrailexpress.api.NormalRole {
         List<ShopEntry> shop = new ArrayList<>();
         shop.add(new DiscountShopEntry(ModItems.BAMBOO_SPEAR.getDefaultInstance(), BAMBOO_SPEAR_PRICE));
         shop.add(new ShopEntry(ModItems.BAMBOO.getDefaultInstance(), BAMBOO_PRICE, ShopEntry.Type.WEAPON));
-        shop.add(new ShopEntry(ModItems.AREA_BLACKOUT.getDefaultInstance(), AREA_BLACKOUT_PRICE, ShopEntry.Type.TOOL) {
+        shop.add(new ShopEntry(ModItems.AREA_BLACKOUT.getDefaultInstance(),
+                SREConfig.instance().blackoutPrice, ShopEntry.Type.TOOL) {
             @Override
             public boolean onBuy(@NotNull Player player) {
                 if (player.getCooldowns().isOnCooldown(ModItems.AREA_BLACKOUT)) {
@@ -73,7 +73,8 @@ public class NatureSpiritRole extends io.wifi.starrailexpress.api.NormalRole {
                 return true;
             }
         });
-        shop.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(), LOCKPICK_PRICE, ShopEntry.Type.TOOL));
+        shop.add(new ShopEntry(TMMItems.LOCKPICK.getDefaultInstance(),
+                SREConfig.instance().lockpickPrice, ShopEntry.Type.TOOL));
         return shop;
     }
 

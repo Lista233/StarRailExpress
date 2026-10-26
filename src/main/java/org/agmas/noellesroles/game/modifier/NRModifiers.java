@@ -218,6 +218,18 @@ public class NRModifiers {
             .setDefaultEnableNeededPlayerCount(12)
             .setAddedVersion("4.4");
 
+    /** 命令方块标记的异常。开局可见，不参与自然刷新。 */
+    public static SREModifier ABNORMAL = HMLModifiers.registerModifier(new SREModifier(
+            Noellesroles.id("abnormal"),
+            0xB45ADC,
+            null,
+            null,
+            false,
+            false))
+            .setDefaultMax(0)
+            .setDefaultEnableChance(0)
+            .setAddedVersion("4.4");
+
     /** 瘦子修饰符：模型左右压扁变瘦，并被周围玩家挤压移动 */
     public static SREModifier SKINNY = HMLModifiers.registerModifier(new SREModifier(
             Noellesroles.id("skinny"),
@@ -244,6 +256,9 @@ public class NRModifiers {
         // 胖子与瘦子互斥：同一名玩家身上不会共存（生成时排除 + 运行时兜底），
         // 介绍页也会显示在「互斥修饰符」分组（原 addBothRelatedModifier 的关联展示已被其取代）
         FAT.addTwoWayOpposingModifier(SKINNY);
+        // 远征队与神的使命互斥：两者都是好人方的任务型修饰符（远征队做好人任务，神的使命让时钟表匠转神父），
+        // 同一名玩家身上同时挂两套任务逻辑会互相干扰，故声明为双向互斥（生成时排除 + 运行时兜底）。
+        EXPEDITION.addTwoWayOpposingModifier(GODS_MISSION);
         GODS_MISSION.canOnlyBeAppliedTo = new HashSet<>(List.of(ModRoles.CLOCKMAKER));
         // 只关联钟表匠：神父由转职产生，不能进关联扩展/名单刷新
         GODS_MISSION.addBothRelatedRole(ModRoles.CLOCKMAKER);

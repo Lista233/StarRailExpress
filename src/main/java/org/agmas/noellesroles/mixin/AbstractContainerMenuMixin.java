@@ -23,6 +23,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.InventoryMenu;
 import org.agmas.noellesroles.client.screen.DetectiveInspectScreenHandler;
+import org.agmas.noellesroles.client.screen.PostmanScreenHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -32,6 +33,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class AbstractContainerMenuMixin {
     @Inject(method = "doClick", at = @At("HEAD"), cancellable = true)
     public void doClick(int i, int j, ClickType clickType, Player player, CallbackInfo ci) {
+        final var echoMenu = (AbstractContainerMenu) (Object) this;
+        if (org.agmas.noellesroles.game.modes.echo.content.EchoResourceItem.active(player)) {
+            var slot = i >= 0 && i < echoMenu.slots.size() ? echoMenu.slots.get(i) : null;
+            int inventorySlot = slot != null && slot.container == player.getInventory() ? slot.getContainerSlot() : -1;
+            boolean projection = org.agmas.noellesroles.game.modes.echo.content.EchoContent.readOnly(echoMenu.getCarried())
+                    || slot != null && org.agmas.noellesroles.game.modes.echo.content.EchoContent.readOnly(slot.getItem());
+            if (org.agmas.noellesroles.game.modes.echo.inventory.EchoHotbarSlots.blockClick(true, inventorySlot, j,
+                    org.agmas.noellesroles.game.modes.echo.inventory.EchoHotbarSlots.Click.valueOf(clickType.name()), projection)) {
+                if (player instanceof net.minecraft.server.level.ServerPlayer server) echoMenu.sendAllDataToRemote();
+                ci.cancel(); return;
+            }
+        }
         if (SRE.isLobby)
             return;
         final var instance1 = (AbstractContainerMenu) (Object) this;
@@ -39,7 +52,7 @@ public class AbstractContainerMenuMixin {
             return;
         if (instance1 instanceof CustomInventoryMenu)
             return;
-        if (!(instance1 instanceof InventoryMenu
+        if (!(instance1 instanceof InventoryMenu || instance1 instanceof PostmanScreenHandler
                 || instance1 instanceof DetectiveInspectScreenHandler  ||instance1.getClass().getPackage().getName().contains("supplementaries"))) {
             ci.cancel();
         }

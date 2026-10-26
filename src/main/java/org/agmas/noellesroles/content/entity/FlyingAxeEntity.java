@@ -35,7 +35,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.init.ModItems;
 
 /**
@@ -124,6 +123,9 @@ public class FlyingAxeEntity extends AbstractArrow {
         if (this.hitPlayers.contains(entity.getId())) {
             return false;
         }
+        if (entity instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy) {
+            return dummy.canReceiveHits() && super.canHitEntity(entity);
+        }
         if (!(entity instanceof Player player)) {
             return false;
         }
@@ -139,7 +141,28 @@ public class FlyingAxeEntity extends AbstractArrow {
         if (this.level().isClientSide) {
             return;
         }
-        if (!(entityHitResult.getEntity() instanceof ServerPlayer target)) {
+        Entity hit = entityHitResult.getEntity();
+        if (hit instanceof io.wifi.starrailexpress.traindummy.TrainDummyEntity dummy && dummy.canReceiveHits()) {
+            if (this.getOwner() != null && dummy.getUUID().equals(this.getOwner().getUUID())) {
+                return;
+            }
+            if (!this.hitPlayers.add(dummy.getId())) {
+                return;
+            }
+            if (this.killedPlayers < MAX_PIERCE && this.getOwner() instanceof ServerPlayer owner) {
+                this.killedPlayers++;
+                owner.getCooldowns().addCooldown(ModItems.THROWING_AXE, 20 * 20);
+                Vec3 location = entityHitResult.getLocation();
+                ServerLevel serverLevel = (ServerLevel) this.level();
+                serverLevel.sendParticles(ParticleTypes.CRIT, location.x, location.y + 1.0f, location.z, 12, 0.3, 0.3,
+                        0.3, 0.2);
+                serverLevel.playSound(null, location.x, location.y, location.z, SoundEvents.PLAYER_ATTACK_SWEEP,
+                        SoundSource.PLAYERS, 1.0f, 0.9f);
+                io.wifi.starrailexpress.traindummy.TrainDummyCombat.applyLethal(dummy, owner, this.deathReason());
+            }
+            return;
+        }
+        if (!(hit instanceof ServerPlayer target)) {
             return;
         }
         if (this.getOwner() != null && target.getUUID().equals(this.getOwner().getUUID())) {
@@ -194,7 +217,12 @@ public class FlyingAxeEntity extends AbstractArrow {
         }
     }
 
-    /** 死因归属：优先使用飞斧物品的注册 id，回退到固定 id。 */
+    /**
+     * 飞斧死因：统一使用飞斧物品的注册 id（{@code noellesroles:throwing_axe}）。
+     *
+     * <p>实体自身带的物品栈为空时（理论上不会发生，仅作兜底）也返回同一个 id，
+     * 不再使用 {@code throwing_axe_hit}：一种武器只对应一种死亡原因。
+     */
     private ResourceLocation deathReason() {
         if (this.it != null && !this.it.isEmpty()) {
             ResourceLocation id = BuiltInRegistries.ITEM.getKey(this.it.getItem());
@@ -202,7 +230,7 @@ public class FlyingAxeEntity extends AbstractArrow {
                 return id;
             }
         }
-        return Noellesroles.id("throwing_axe_hit");
+        return ModItems.THROWING_AXE_DEATH_REASON;
     }
 
     @Override

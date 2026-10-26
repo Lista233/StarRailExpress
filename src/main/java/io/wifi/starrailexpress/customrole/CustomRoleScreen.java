@@ -15,6 +15,7 @@
 
 package io.wifi.starrailexpress.customrole;
 
+import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.AreasSettingUtils.MapSpecialFeatures;
 import io.wifi.starrailexpress.cca.SREPlayerTaskComponent;
 import io.wifi.starrailexpress.client.gui.SREPanelStyle;
@@ -25,6 +26,7 @@ import io.wifi.starrailexpress.customrole.CustomRoleData.InitialItemEntry;
 import io.wifi.starrailexpress.customrole.CustomRoleData.ShopEntryData;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -59,6 +61,16 @@ public class CustomRoleScreen extends CustomEditorScreen {
     private CustomRoleData data = new CustomRoleData();
     private String originalEnglishId = "";
     private int moodIndex;
+    /** 开局入场提示颜色在预设列表里的下标（编辑界面切换按钮时使用，保存前写回 data.entranceHintColor）。 */
+    private int entranceColorIndex = 0;
+
+    /** 开局入场提示可选颜色（与现有入场提示一致，默认 YELLOW）。 */
+    private static final ChatFormatting[] ENTRANCE_COLORS = {
+            ChatFormatting.WHITE, ChatFormatting.YELLOW, ChatFormatting.GOLD, ChatFormatting.RED,
+            ChatFormatting.DARK_RED, ChatFormatting.GREEN, ChatFormatting.DARK_GREEN, ChatFormatting.BLUE,
+            ChatFormatting.DARK_BLUE, ChatFormatting.AQUA, ChatFormatting.DARK_AQUA,
+            ChatFormatting.LIGHT_PURPLE, ChatFormatting.DARK_PURPLE, ChatFormatting.BLACK
+    };
 
     /** 任务列表编辑器里「候选类型」的下标持有者（点按钮循环切换，重建界面后保持）。 */
     private final int[] unrefreshableTaskCursor = { 0 };
@@ -80,6 +92,15 @@ public class CustomRoleScreen extends CustomEditorScreen {
 
     private void syncToggles() {
         moodIndex = "FAKE".equalsIgnoreCase(data.moodType) ? 1 : 0;
+        entranceColorIndex = 0;
+        if (data.entranceHintColor != null) {
+            for (int i = 0; i < ENTRANCE_COLORS.length; i++) {
+                if (ENTRANCE_COLORS[i].name().equalsIgnoreCase(data.entranceHintColor)) {
+                    entranceColorIndex = i;
+                    break;
+                }
+            }
+        }
     }
 
     @Override
@@ -207,6 +228,15 @@ public class CustomRoleScreen extends CustomEditorScreen {
                             data.moodType = moodIndex == 0 ? "REAL" : "FAKE";
                         }, false));
 
+        // 心情值(san)上限：默认 1.0，可设 0~1 或更高；setMaxMood 内部已夹取为 >=0
+        r = numRow(r, PREFIX + ".label.mood_max", String.valueOf(data.moodMax), 80,
+                PREFIX + ".hint.mood_max_default", value -> {
+                    try {
+                        data.moodMax = Float.parseFloat(value);
+                    } catch (Exception ignored) {
+                    }
+                });
+
         // 心情颜色覆盖（R/G/B，任一 <0 视为不覆盖）
         r = numRow(r, PREFIX + ".label.mood_color_r", String.valueOf(data.moodColorR), 60,
                 PREFIX + ".hint.minus_one_default", value -> {
@@ -241,6 +271,18 @@ public class CustomRoleScreen extends CustomEditorScreen {
                 toggleCell(PREFIX + ".infinite_sprint", data.infiniteSprint, value -> data.infiniteSprint = value,
                         false),
                 toggleCell(PREFIX + ".can_see_time", data.canSeeTime, value -> data.canSeeTime = value, false));
+
+        // 开局入场提示：输入框输入文本（为空则无提示），按钮选择文本颜色
+        r = section(r, PREFIX + ".entrance_hint_section");
+        r = textRow(r, PREFIX + ".label.entrance_hint", data.entranceHint, LIMIT_TEXT,
+                PREFIX + ".hint.entrance_hint", value -> data.entranceHint = value);
+        r = cluster(r, PREFIX + ".label.entrance_hint_color",
+                stateButtonCell(() -> Component.translatable(PREFIX + ".entrance_hint_color.current",
+                                ENTRANCE_COLORS[entranceColorIndex].name()),
+                        () -> {
+                            entranceColorIndex = (entranceColorIndex + 1) % ENTRANCE_COLORS.length;
+                            data.entranceHintColor = ENTRANCE_COLORS[entranceColorIndex].name();
+                        }, false));
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -294,6 +336,9 @@ public class CustomRoleScreen extends CustomEditorScreen {
         r = cluster(r, null,
                 triCell(PREFIX + ".can_climb_walls", data.canClimbWalls,
                         value -> data.canClimbWalls = value, false));
+        r = cluster(r, null,
+                triCell(PREFIX + ".can_uncuff_others", data.canUncuffOthers,
+                        value -> data.canUncuffOthers = value, false));
         r = cluster(r, null,
                 toggleCell(PREFIX + ".can_be_randomed", data.canBeRandomedByOtherRoles,
                         value -> data.canBeRandomedByOtherRoles = value, false),
@@ -443,11 +488,42 @@ public class CustomRoleScreen extends CustomEditorScreen {
                                 }
                             }
                         });
+                // 指定职业是否需存活：默认开（原行为）；关闭后指定职业全灭、场上只剩自己时也能获胜
+                r = cluster(r, null,
+                        toggleCell(PREFIX + ".custom_win_with_roles_need_alive",
+                                data.customWinLastWithRolesNeedAlive,
+                                value -> data.customWinLastWithRolesNeedAlive = value, true));
                 r = textRow(r, PREFIX + ".custom_win_tag_sleep", data.customWinTagSleep, LIMIT_TEXT,
                         PREFIX + ".hint.customwin_tag", value -> data.customWinTagSleep = value.trim());
                 r = textRow(r, PREFIX + ".custom_win_held_item", data.customWinHeldItem, LIMIT_PATH,
                         PREFIX + ".hint.item_example", value -> data.customWinHeldItem = value.trim());
             }
+        }
+
+        // === 跟随获胜（任何职业均可配置，不要求中立） ===
+        r = section(r, PREFIX + ".follow_win_section");
+        r = cluster(r, null,
+                toggleCell(PREFIX + ".enable_follow_win", data.enableFollowWin,
+                        value -> data.enableFollowWin = value, true));
+        if (data.enableFollowWin) {
+            // 跟随条件：无条件 / 存活到最后 / 在该阵营玩家周围
+            r = cluster(r, PREFIX + ".follow_win_condition",
+                    stateButtonCell(() -> Component.translatable(enumKey(PREFIX + ".follow_win_condition",
+                            currentFollowCondition())).append(Component.literal(" ↻")), () -> {
+                        data.followWinCondition = cycleOption(FOLLOW_CONDITIONS, currentFollowCondition());
+                    }, false));
+            // 跟随阵营：不设置 / 最终结算(不含中立) / 最终结算(含中立) / 仅平民 / 仅杀手
+            r = cluster(r, PREFIX + ".follow_win_faction",
+                    stateButtonCell(() -> Component.translatable(enumKey(PREFIX + ".follow_win_faction",
+                            currentFollowFaction())).append(Component.literal(" ↻")), () -> {
+                        data.followWinFaction = cycleOption(FOLLOW_FACTIONS, currentFollowFaction());
+                    }, false));
+            // 跟随特定职业（填职业 id，默认空）
+            r = textRow(r, PREFIX + ".follow_win_role_id", data.followWinRoleId, LIMIT_PATH,
+                    PREFIX + ".hint.follow_win_role_id", value -> data.followWinRoleId = value.trim());
+            // 跟随带特定修饰符的玩家获胜（填修饰符 id，默认空）
+            r = textRow(r, PREFIX + ".follow_win_modifier_id", data.followWinModifierId, LIMIT_PATH,
+                    PREFIX + ".hint.follow_win_modifier_id", value -> data.followWinModifierId = value.trim());
         }
 
         // 特殊地图类型限制（枚举按钮，默认 ALL）
@@ -971,7 +1047,10 @@ public class CustomRoleScreen extends CustomEditorScreen {
     // ══════════════════════════════════════════════════════════════════
     // 页 4：商店
     // ══════════════════════════════════════════════════════════════════
-    private static final String[] SHOP_TYPES = { "item", "psycho", "blackout", "monitor_fail", "custom" };
+    private static final String[] SHOP_TYPES = { "item", "psycho", "blackout", "monitor_fail", "lightup",
+            "monitor_recovery", "custom", "killer_shop", "knife" };
+    /** 折扣模式轮回顺序：无折扣 → 每次购买涨价 → 每次购买降价。 */
+    private static final String[] DISCOUNT_MODES = { "none", "raise", "lower" };
 
     private void buildShopTab() {
         int r = 0;
@@ -980,31 +1059,38 @@ public class CustomRoleScreen extends CustomEditorScreen {
             ShopEntryData entry = data.shopEntries.get(i);
             boolean isItem = "item".equals(entry.type);
             boolean isCustom = "custom".equals(entry.type);
+            boolean isKnife = "knife".equals(entry.type);
+            boolean isKillerShop = "killer_shop".equals(entry.type);
+            // 通用杀手商店自带全部内容，不需要价格/货币/冷却/折扣
+            boolean editable = !isKillerShop;
+            // 这些类型购买后会挂原版物品冷却，因此可配「购买 cd」
+            boolean hasPurchaseCooldown = isItem || isCustom || "psycho".equals(entry.type)
+                    || "blackout".equals(entry.type) || "monitor_fail".equals(entry.type)
+                    || "lightup".equals(entry.type) || "monitor_recovery".equals(entry.type);
 
             List<Cell> cells = new ArrayList<>();
             // 类型按钮：切换后显示的字段会变，所以重建
-            cells.add(stateButtonCell(() -> Component.literal("[" + entry.type + "]"), () -> {
-                int next = java.util.Arrays.asList(SHOP_TYPES).indexOf(entry.type) + 1;
-                if (next < 0) {
-                    next = 0;
-                }
-                entry.type = SHOP_TYPES[next % SHOP_TYPES.length];
+            cells.add(stateButtonCell(() -> Component.translatable(shopTypeKey(entry.type)), () -> {
+                entry.type = nextShopType(entry.type);
+                applyShopTypeDefaults(entry);
             }, true));
             // 价格
-            cells.add(fixedBox(String.valueOf(entry.price), LIMIT_NUMBER, 55, hint(PREFIX + ".hint.price"),
-                    value -> {
-                        try {
-                            entry.price = Math.max(0, Integer.parseInt(value));
-                        } catch (Exception ignored) {
-                        }
-                    }));
-            // 货币类型按钮：金币（默认）/ 游戏币（参考网警商店）
-            cells.add(stateButtonCell(
-                    () -> Component.translatable(PREFIX + ".shop.currency." + currentCurrencyKey(entry.currency)),
-                    () -> entry.currency = "money".equals(entry.currency) ? "minigame_token" : "money", false));
-            // 冷却(仅 item 和 custom)
-            if (isItem || isCustom) {
-                cells.add(fixedBox(String.valueOf(entry.cooldownSeconds), LIMIT_NUMBER, 50,
+            if (editable) {
+                cells.add(fixedBox(String.valueOf(displayPrice(entry)), LIMIT_NUMBER, 55,
+                        hint(PREFIX + ".hint.price"), value -> {
+                            try {
+                                entry.price = Math.max(0, Integer.parseInt(value));
+                            } catch (Exception ignored) {
+                            }
+                        }));
+                // 货币类型按钮：金币（默认）/ 游戏币（参考网警商店）
+                cells.add(stateButtonCell(
+                        () -> Component.translatable(PREFIX + ".shop.currency." + currentCurrencyKey(entry.currency)),
+                        () -> entry.currency = "money".equals(entry.currency) ? "minigame_token" : "money", false));
+            }
+            // 购买 cd（默认值 = 当前配置值）
+            if (hasPurchaseCooldown) {
+                cells.add(fixedBox(String.valueOf(displayCooldownSeconds(entry)), LIMIT_NUMBER, 50,
                         hint(PREFIX + ".hint.cd_seconds"), value -> {
                             try {
                                 entry.cooldownSeconds = Math.max(0, Integer.parseInt(value));
@@ -1012,13 +1098,33 @@ public class CustomRoleScreen extends CustomEditorScreen {
                             }
                         }));
             }
-            // 禁止重复(item)
-            if (isItem) {
+            // 禁止重复(item / knife)
+            if (isItem || isKnife) {
                 cells.add(stateButtonCell(
                         () -> Component.translatable(entry.allowDuplicate
                                 ? PREFIX + ".shop.dup_allowed"
                                 : PREFIX + ".shop.dup_forbidden"),
                         () -> entry.allowDuplicate = !entry.allowDuplicate, false));
+            }
+            // 折扣：无折扣 / 每次购买涨价 / 每次购买降价
+            if (editable) {
+                cells.add(stateButtonCell(() -> Component.translatable(discountModeKey(entry.discountMode)), () -> {
+                    entry.discountMode = nextDiscountMode(entry.discountMode);
+                }, true));
+                if (!"none".equals(normalizeDiscountMode(entry.discountMode))) {
+                    cells.add(fixedBox(String.valueOf(clampDiscountAmount(entry, entry.discountAmount)),
+                            LIMIT_NUMBER, 55, hint(PREFIX + ".hint.discount_amount"), value -> {
+                                try {
+                                    entry.discountAmount = clampDiscountAmount(entry, Integer.parseInt(value));
+                                } catch (Exception ignored) {
+                                }
+                            }));
+                    // 价格变动次数：购买多少次后不再涨/降，* = 不受限制
+                    cells.add(fixedBox(displayPriceChangeCount(entry), LIMIT_NUMBER, 40,
+                            hint(PREFIX + ".hint.price_change_count"), value -> {
+                                entry.priceChangeCount = sanitizePriceChangeCount(value);
+                            }));
+                }
             }
             cells.add(fixedButton(Component.literal("X"), 22, () -> {
                 data.shopEntries.remove(index);
@@ -1041,11 +1147,111 @@ public class CustomRoleScreen extends CustomEditorScreen {
                 r = stringList(r, entry.commands, PREFIX + ".label.shop_custom_cmd", 200,
                         PREFIX + ".hint.command");
             }
+            if (isKillerShop) {
+                r = note(r, PREFIX + ".shop.type.killer_shop.desc", SREPanelStyle.MUTED);
+            }
+            if (isKnife) {
+                r = note(r, PREFIX + ".shop.type.knife.desc", SREPanelStyle.MUTED);
+            }
         }
         r = addRow(r, Component.translatable(PREFIX + ".add_shop_entry"), () -> {
             data.shopEntries.add(new ShopEntryData());
             requestRebuild();
         });
+    }
+
+    /** 商品类别显示名（翻译键）。custom_item 是旧配置写法，按 item 显示。 */
+    private static String shopTypeKey(String type) {
+        String t = type == null ? "" : type.trim();
+        if (t.isEmpty() || "custom_item".equalsIgnoreCase(t)) {
+            t = "item";
+        }
+        return PREFIX + ".shop.type." + t;
+    }
+
+    /** 切到下一个商品类别（未知/旧写法回落到 item）。 */
+    private static String nextShopType(String current) {
+        int index = java.util.Arrays.asList(SHOP_TYPES).indexOf(current == null ? "" : current.trim());
+        return SHOP_TYPES[(index + 1) % SHOP_TYPES.length];
+    }
+
+    /** 切换商品类型时，把类型相关字段复位到该类型的默认值。 */
+    private static void applyShopTypeDefaults(ShopEntryData entry) {
+        // 购买 cd：效果类商品默认跟随当前配置值（-1），其它类型默认无冷却
+        entry.cooldownSeconds = CustomRoleLoader.defaultCooldownSeconds(entry.type) > 0 ? -1 : 0;
+        // 耐久刀默认跟随配置里的刀价
+        if ("knife".equals(entry.type)) {
+            entry.price = -1;
+        } else if (entry.price < 0) {
+            entry.price = 0;
+        }
+    }
+
+    /** 界面显示用的价格：耐久刀配 -1 时显示配置里的刀价。 */
+    private static int displayPrice(ShopEntryData entry) {
+        if ("knife".equals(entry.type) && entry.price < 0) {
+            return Math.max(0, SREConfig.instance().knifePrice);
+        }
+        return Math.max(0, entry.price);
+    }
+
+    /** 界面显示用的购买 cd：配 -1（跟随默认）时显示当前配置值。 */
+    private static int displayCooldownSeconds(ShopEntryData entry) {
+        return entry.cooldownSeconds >= 0 ? entry.cooldownSeconds
+                : CustomRoleLoader.defaultCooldownSeconds(entry.type);
+    }
+
+    /** 归一化折扣模式：只认 none / raise / lower，其余按 none。 */
+    private static String normalizeDiscountMode(String mode) {
+        String m = mode == null ? "" : mode.trim().toLowerCase(java.util.Locale.ROOT);
+        return ("raise".equals(m) || "lower".equals(m)) ? m : "none";
+    }
+
+    private static String discountModeKey(String mode) {
+        return PREFIX + ".shop.discount." + normalizeDiscountMode(mode);
+    }
+
+    private static String nextDiscountMode(String current) {
+        int index = java.util.Arrays.asList(DISCOUNT_MODES).indexOf(normalizeDiscountMode(current));
+        return DISCOUNT_MODES[(index + 1) % DISCOUNT_MODES.length];
+    }
+
+    /**
+     * 折扣金额自动纠错：涨价的单次增量保证「价格 + 增量」不超出 int 上限；
+     * 降价的单次增量不超过商品本身价格（商品最低降到 0）。
+     */
+    private static int clampDiscountAmount(ShopEntryData entry, int amount) {
+        final int base = displayPrice(entry);
+        final int value = Math.max(0, amount);
+        if ("raise".equals(normalizeDiscountMode(entry.discountMode))) {
+            return (int) Math.min(Integer.MAX_VALUE - (long) base, value);
+        }
+        return Math.min(base, value);
+    }
+
+    /** 界面显示用的价格变动次数：不受限制时显示 {@code *}。 */
+    private static String displayPriceChangeCount(ShopEntryData entry) {
+        final int count = CustomRoleLoader.parsePriceChangeCount(entry.priceChangeCount);
+        return count > 0 ? String.valueOf(count) : "*";
+    }
+
+    /**
+     * 价格变动次数的写入归一化：{@code *} / 空 = 不受限制；否则至少为 1 次。
+     * （输入框是自由文本，非法/非正数一律归一成 {@code *}。）
+     */
+    private static String sanitizePriceChangeCount(String value) {
+        if (value == null) {
+            return "*";
+        }
+        final String s = value.trim();
+        if (s.isEmpty() || "*".equals(s)) {
+            return "*";
+        }
+        try {
+            return Integer.parseInt(s) > 0 ? s : "*";
+        } catch (Exception e) {
+            return "*";
+        }
     }
 
     /** 商店货币的显示键：仅识别 minigame_token（游戏币），其余一律视为 money（金币，默认）。 */
@@ -1081,6 +1287,48 @@ public class CustomRoleScreen extends CustomEditorScreen {
     private static String surviveModeKey(String mode) {
         String m = mode == null ? "" : mode.trim().toLowerCase(java.util.Locale.ROOT);
         return PREFIX + ".custom_win_survive_mode." + (m.isEmpty() ? "off" : m);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 跟随获胜工具
+    // ══════════════════════════════════════════════════════════════════
+    /** 轮回顺序：无条件 → 存活到最后 → 在该阵营玩家周围 */
+    private static final String[] FOLLOW_CONDITIONS = { "UNCONDITIONAL", "SURVIVE_TO_END", "NEAR_FACTION" };
+    /** 轮回顺序：不设置 → 最终结算(不含中立) → 最终结算(含中立) → 仅平民 → 仅杀手 */
+    private static final String[] FOLLOW_FACTIONS = { "NONE", "FINAL_EXCL_NEUTRAL", "FINAL_INCL_NEUTRAL",
+            "INNOCENT_ONLY", "KILLER_ONLY" };
+
+    private String currentFollowCondition() {
+        return normalizeEnumOption(data.followWinCondition, FOLLOW_CONDITIONS, "UNCONDITIONAL");
+    }
+
+    private String currentFollowFaction() {
+        return normalizeEnumOption(data.followWinFaction, FOLLOW_FACTIONS, "NONE");
+    }
+
+    private static String normalizeEnumOption(String value, String[] allowed, String def) {
+        if (value != null) {
+            String v = value.trim().toUpperCase(java.util.Locale.ROOT);
+            for (String a : allowed) {
+                if (a.equals(v)) {
+                    return a;
+                }
+            }
+        }
+        return def;
+    }
+
+    private static String cycleOption(String[] order, String current) {
+        for (int i = 0; i < order.length; i++) {
+            if (order[i].equals(current)) {
+                return order[(i + 1) % order.length];
+            }
+        }
+        return order[0];
+    }
+
+    private static String enumKey(String base, String value) {
+        return base + "." + value.toLowerCase(java.util.Locale.ROOT);
     }
 
     // ══════════════════════════════════════════════════════════════════

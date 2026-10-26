@@ -44,8 +44,6 @@ public class SREConfig implements ConfigData {
     public int defaultStartTimeForMurder = 10;
 
     @ConfigEntry.Category(value = "gamemodes")
-    public boolean enableRepairMode = false;
-    @ConfigEntry.Category(value = "gamemodes")
     public boolean enableNoLimitLoversInLoverMode = false;
     @ConfigEntry.Category(value = "gamemodes")
     @Tooltip
@@ -76,13 +74,8 @@ public class SREConfig implements ConfigData {
     @ConfigEntry.Category(value = "gamemodes")
     public int evilWarKillGroupNumber = 7;
     @ConfigEntry.Category(value = "gamemodes")
-    public int hideAndSeekRewardKillRemoveTime = 30;
-    @ConfigEntry.Category(value = "gamemodes")
-    public int hideAndSeekRewardKillAddTime = 10;
-    @ConfigEntry.Category(value = "gamemodes")
-    public int hideAndSeekBaseTime = 30;
-    @ConfigEntry.Category(value = "gamemodes")
-    public int hideAndSeekTimePerPlayer = 15;
+    @Tooltip
+    public int hideAndSeekGameTime = 240;
     @ConfigEntry.Category(value = "gamemodes")
     public double hideAndSeekHiderScale = -0.25;
     @ConfigEntry.Category(value = "gamemodes")

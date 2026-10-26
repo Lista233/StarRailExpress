@@ -241,9 +241,8 @@ public class VolunteerOpenSelectScreen extends Screen {
     private void refreshRoleList() {
         filteredRoles.clear();
         List<SRERole> all = new ArrayList<>(Noellesroles.getAllRolesSorted(false));
-        // 排除：修机模式职业、其它模式职业（游客/职业待定/超级亡命徒/土块/寻找者等）
-        all.removeIf(r -> r == null || r.isOtherModeRole()
-                || r instanceof net.exmo.sre.repair.role.RepairRole);
+        // 排除其它模式职业（游客/职业待定/超级亡命徒/土块/寻找者等）
+        all.removeIf(r -> r == null || r.isOtherModeRole());
         // 按「大阵营 + 中立细分」统一排序（与 U 键介绍一致）：
         // 平民 → 警长 → 杀手 → 中立（偏好 → 杀手方 → 事件 → 特殊 → 独立胜利）
         all.sort(java.util.Comparator.comparingInt(io.wifi.starrailexpress.api.RoleTeam::factionDisplayOrder));
@@ -1132,6 +1131,13 @@ public class VolunteerOpenSelectScreen extends Screen {
         if (searchBox != null && searchBox.isFocused()) {
             // 让搜索框先吃掉按键（包括 ESC 取消焦点）
             if (searchBox.keyPressed(keyCode, scanCode, modifiers)) {
+                return true;
+            }
+            // 搜索框持有焦点时，除 ESC 外的按键一律由输入框消费：
+            // EditBox 对普通字母键返回 false（字符输入走 charTyped），不拦截的话
+            // 在搜索框里打字（例如输入包含 u 的英文/拼音）会被下面的职业介绍
+            // 快捷键（默认 U 键）误判，直接跳转介绍界面
+            if (keyCode != 256) {
                 return true;
             }
         }

@@ -83,7 +83,8 @@ public final class SpeakerPlayback {
         }
         for (UUID id : Map.copyOf(ACTIVE).keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(id);
-            if (player == null || !SpeakerItem.hasPlayingSpeaker(player)) {
+            // 持有者死亡变成旁观者（即不为存活者）时：关闭音响（写入播放=false）并停止广播音乐
+            if (player == null || player.isSpectator() || !SpeakerItem.hasPlayingSpeaker(player)) {
                 if (player != null) {
                     ItemStack stack = SpeakerItem.findInInventory(player);
                     if (!stack.isEmpty()) {

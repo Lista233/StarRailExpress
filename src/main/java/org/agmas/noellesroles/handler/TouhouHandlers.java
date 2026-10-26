@@ -17,6 +17,7 @@ package org.agmas.noellesroles.handler;
 
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.RoleSkill;
+import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.cca.*;
 import io.wifi.starrailexpress.content.item.api.SREItemProperties.TrainWeapon;
 import io.wifi.starrailexpress.event.*;
@@ -124,17 +125,17 @@ public class TouhouHandlers {
       }
       return true;
     });
-    // 蕾米莉亚杀人转换职业
-    OnPlayerDeathWithBody.EVENT.register((victim, killer, deathReason, body) -> {
-      if (killer == null)
-        return;
-      if (RoleUtils.isPlayerTheJob(victim, ModRoles.DOOMED_SINNER)) {
-        return;
-      }
-    });
     // 最后再变免得不触发某些职业的被动技能
     OnPlayerDeathWithKiller.FINAL_EVENT.register((victim, killer, deathreason) -> {
       if (RoleUtils.isPlayerTheJob(killer, THRedHouseRoles.REMILIA)) {
+        // 亡命徒/带罪者不能被大小姐转化成血仆：两者都有独立的复活逻辑
+        // （亡命徒最后存活者获胜、带罪者死亡后短时间在自己房间复活），
+        // 直接死亡淘汰，不走仆从复活流程
+        // （不清空物品、不变更职业、不安排 30 秒复活、也不消耗技能冷却）
+        if (RoleUtils.isPlayerTheJob(victim, TMMRoles.LOOSE_END)
+            || RoleUtils.isPlayerTheJob(victim, ModRoles.DOOMED_SINNER)) {
+          return;
+        }
         final var cdcca = SREAbilityPlayerComponent.KEY.get(killer);
         if (cdcca.hasCooldown()) {
           return;

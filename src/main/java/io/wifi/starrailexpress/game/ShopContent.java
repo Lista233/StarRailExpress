@@ -69,6 +69,14 @@ public class ShopContent {
             defaultKnifeEntries.add(new ShopEntry(TMMItems.BODY_BAG.getDefaultInstance(),
                     SREConfig.instance().bodyBagPrice, ShopEntry.Type.TOOL));
             defaultKnifeEntries.add(getBlackoutShopEntry());
+            defaultKnifeEntries.add(new ShopEntry(TMMItems.MONITOR_BROKEN.getDefaultInstance(),
+                    SREConfig.instance().monitorBrokenPrice, ShopEntry.Type.TOOL) {
+                @Override
+                public boolean onBuy(@NotNull Player player) {
+                    return SREPlayerShopComponent.useMonitorBroken(player,
+                            SREConfig.instance().monitorBrokenDuration * 20);
+                }
+            });
             defaultKnifeEntries.add(new ShopEntry(new ItemStack(TMMItems.NOTE, 4), SREConfig.instance().notePrice,
                     ShopEntry.Type.TOOL));
         }
@@ -100,18 +108,20 @@ public class ShopContent {
         return getBlackoutShopEntry(1f);
     }
 
-    public static ShopEntry getBlackoutShopEntry(float priceModifier) {
-        return getBlackoutShopEntry(priceModifier, -20);
+    /** 杀手关灯，按配置价格计，每次加价20%，最多加价3次。 */
+    public static ShopEntry getBlackoutShopEntry(int basePrice) {
+        return getBlackoutShopEntry(basePrice, -20);
     }
 
-    public static ShopEntry getBlackoutShopEntry(float priceModifier, int discount) {
-        return getBlackoutShopEntry(priceModifier, discount, 3);
+    /** 杀手关灯，指定基础价与每次加价幅度（discount 为负表示加价），最多加价3次。 */
+    public static ShopEntry getBlackoutShopEntry(int basePrice, int discount) {
+        return getBlackoutShopEntry(basePrice, discount, 3);
     }
 
     /** 杀手关灯，每次加价20%，最多加价3次（120*1.2*1.2*1.2 = 207） */
-    public static ShopEntry getBlackoutShopEntry(float priceModifier, int discount, int maxDiscountCount) {
+    public static ShopEntry getBlackoutShopEntry(int basePrice, int discount, int maxDiscountCount) {
         return new DiscountShopEntry(TMMItems.BLACKOUT.getDefaultInstance(),
-                (int) (SREConfig.instance().blackoutPrice * priceModifier), discount, maxDiscountCount, false,
+                basePrice, discount, maxDiscountCount, false,
                 ShopEntry.Type.TOOL) {
             @Override
             public boolean onBuy(@NotNull Player player) {
@@ -122,6 +132,20 @@ public class ShopContent {
                 return false;
             }
         };
+    }
+
+    public static ShopEntry getBlackoutShopEntry(float priceModifier) {
+        return getBlackoutShopEntry(priceModifier, -20);
+    }
+
+    public static ShopEntry getBlackoutShopEntry(float priceModifier, int discount) {
+        return getBlackoutShopEntry(priceModifier, discount, 3);
+    }
+
+    /** 杀手关灯，按配置价格的倍率计，每次加价20%，最多加价3次（120*1.2*1.2*1.2 = 207） */
+    public static ShopEntry getBlackoutShopEntry(float priceModifier, int discount, int maxDiscountCount) {
+        return getBlackoutShopEntry((int) (SREConfig.instance().blackoutPrice * priceModifier), discount,
+                maxDiscountCount);
     }
 
     public static Map<ResourceLocation, List<ShopEntry>> customEntries = new HashMap<>();

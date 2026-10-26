@@ -63,7 +63,8 @@ public class DefenseVialViewMixin {
                     return;
                 }
             }
-            if (tray.getArmorer() != null) {
+            if (tray.getArmorer() != null || tray.getWeakArmorer() != null
+                    || tray.getVirtualArmorer() != null) {
                 SRERole role = SREClient.gameComponent.getRole(Minecraft.getInstance().player);
                 if (role == null)
                     return;

@@ -20,7 +20,6 @@ import io.wifi.starrailexpress.SREConfig;
 import io.wifi.starrailexpress.api.CustomWinnerRoleInterface;
 import io.wifi.starrailexpress.api.GameMode;
 import io.wifi.starrailexpress.api.SREGameModes;
-import net.exmo.sre.repair.role.RepairRole;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.api.TMMRoles;
 import io.wifi.starrailexpress.cca.*;
@@ -306,18 +305,31 @@ public class SREMurderGameMode extends GameMode {
             }
         }
 
-        // 统一将临时存储的修饰符添加到组件中
-        for (Map.Entry<UUID, HashSet<SREModifier>> entry : tempModifierAssignments.entrySet()) {
-            final UUID playerUuid = entry.getKey();
-            final var player = serverWorld.getPlayerByUUID(playerUuid);
-            if (player == null)
+        // 绑定职业强制补发：声明了「绑定职业」的修饰符必然发给这些职业的玩家，
+        // 不受刷新数量 / 生成概率 / 玩家修饰符上限限制（等价于内置职业在
+        // SRERole#onAssignedModifiers 里自带修饰符，例如 hinanawi_tenshi 自带夜猫子）。
+        // 放在随机刷新之后、职业自带修饰符之前，保证不与 onAssignedModifiers 的添加互相覆盖。
+        for (ServerPlayer player : players) {
+            SRERole role = gameWorldComponent.getRole(player.getUUID());
+            if (role == null) {
+                continue;
+            }
+            for (SREModifier mod : HMLModifiers.getModifiersBoundToRole(role)) {
+                addModifierAssignment(tempModifierAssignments, player.getUUID(), mod);
+            }
+        }
+
+        // 统一将临时存储的修饰符添加到组件中。（遍历玩家，保证玩家必定遍历到！）
+        for (final var player : players) {
+            final UUID playerUuid = player.getUUID();
+            final var modifiers = tempModifierAssignments.getOrDefault(playerUuid, new HashSet<>());
+            if (modifiers == null)
                 continue;
             SRERole role = gameWorldComponent.getRole(playerUuid);
-            final var set = entry.getValue();
             if (player instanceof ServerPlayer sp)
-                role.onAssignedModifiers(sp, set);
+                role.onAssignedModifiers(sp, modifiers);
 
-            for (SREModifier mod : set) {
+            for (SREModifier mod : modifiers) {
                 worldModifierComponent.addModifier(playerUuid, mod, false);
                 ModifierAssigned.EVENT.invoker().assignModifier(player, mod);
             }
@@ -417,19 +429,17 @@ public class SREMurderGameMode extends GameMode {
         RoleAssignmentPool killerPool = RoleAssignmentPool.create("Killer",
                 role -> !Harpymodloader.VANNILA_ROLES.contains(role) &&
                         !role.isOtherModeRole() &&
-                        !(role instanceof RepairRole) &&
                         !role.isNeutrals() && !role.isNeutralForKiller() &&
                         role.canUseKiller() &&
                         !role.isInnocent() &&
                         role != TMMRoles.CIVILIAN);
         RoleAssignmentPool vigilantePool = RoleAssignmentPool.create("Vigilante",
                 role -> !Harpymodloader.VANNILA_ROLES.contains(role) &&
-                        role.isVigilanteTeam() && !role.isOtherModeRole() && !(role instanceof RepairRole));
+                        role.isVigilanteTeam() && !role.isOtherModeRole());
         // 中立池
         RoleAssignmentPool neutralsPool = RoleAssignmentPool.create("Neutrals",
                 role -> (!Harpymodloader.VANNILA_ROLES.contains(role) &&
                         !role.isOtherModeRole() &&
-                        !(role instanceof RepairRole) &&
                         ((!role.canUseKiller() &&
                                 !role.isInnocent())
                                 || role.isNeutrals())
@@ -440,7 +450,6 @@ public class SREMurderGameMode extends GameMode {
         RoleAssignmentPool civilianPool = RoleAssignmentPool.create("Civilian",
                 role -> !Harpymodloader.VANNILA_ROLES.contains(role) &&
                         !role.isOtherModeRole() &&
-                        !(role instanceof RepairRole) &&
                         !role.isVigilanteTeam() &&
                         !role.canUseKiller() &&
                         !role.isNeutrals() &&
@@ -523,16 +532,20 @@ public class SREMurderGameMode extends GameMode {
         }
 
         // ===== 领袖特判 =====
-        // 领袖需要"非杀手方中立"（type 2）职业作为追随者。
-        // 若本次抽选出的中立职业中，除领袖外没有其它 type 2 职业，说明本局领袖没有可招募对象，
+        // 领袖需要一个「能被它招募」的职业作为追随者，即：
+        // 1) 非杀手方中立（type 2，排除 isInnocent / canUseKiller / 亡命徒 / 假史蒂夫 / 非教父的 mafia 家族）；
+        // 2) 其中「好人方中立」（isNeutralForInnocent）只有失忆患者(amnesiac)与初学者(initiate)可被招募，
+        // 其余好人方中立职业一律不可。
+        // 若本次抽选出的中立职业中，除领袖外没有任何可招募对象，说明本局领袖必然空放技能，
         // 将其从池中移除，并补抽等量的中立职业（排除领袖），保证中立名额数量不变。
         long leaderDrawn = assignedNatures.stream()
                 .filter(r -> r != null && ModRoles.LEADER_ID.equals(r.identifier())).count();
         if (leaderDrawn > 0) {
-            boolean hasOtherNonKillerNeutral = assignedNatures.stream()
+            boolean hasRecruitableNeutral = assignedNatures.stream()
                     .anyMatch(r -> r != null && !ModRoles.LEADER_ID.equals(r.identifier())
-                            && PlayerRoleWeightManager.getRoleType(r) == 2);
-            if (!hasOtherNonKillerNeutral) {
+                            && org.agmas.noellesroles.game.roles.neutral.leader.LeaderFollowerEffects
+                                    .isRecruitableRole(r));
+            if (!hasRecruitableNeutral) {
                 assignedNatures.removeIf(r -> r != null && ModRoles.LEADER_ID.equals(r.identifier()));
                 assignedNatures.addAll(neutralsPool.selectRoles((int) leaderDrawn,
                         r -> r != null && !ModRoles.LEADER_ID.equals(r.identifier())));
@@ -768,7 +781,7 @@ public class SREMurderGameMode extends GameMode {
         boolean civilianAlive = false;
         boolean killerAlive = false;
         boolean anyAlive = false;
-        if (!SREGameTimeComponent.KEY.get(serverWorld).levelGameTimeFrozen) {
+        if (!shouldPausePassiveMoneyGiven(serverWorld)) {
             for (ServerPlayer player : serverWorld.players()) {
                 // passive money
                 if (gameWorldComponent.canAutoAddMoney(player)) {
@@ -870,8 +883,19 @@ public class SREMurderGameMode extends GameMode {
         }
     }
 
+    private static boolean shouldPausePassiveMoneyGiven(ServerLevel serverWorld) {
+        var cca = SREGameTimeComponent.KEY.get(serverWorld);
+        return cca.isTimeFrozen();
+    }
+
     public GameUtils.WinStatus allowGameEnd(ServerLevel serverWorld, GameUtils.WinStatus winStatus,
             boolean isLooseEndsMode, SREGameWorldComponent gameWorldComponent) {
+        if (org.agmas.noellesroles.game.command_block.CommandBlockDirector.holdsTheRound(serverWorld)) {
+            return org.agmas.noellesroles.game.command_block.CommandBlockWinPriority.check(serverWorld,
+                    () -> AllowGameEnd.EVENT_START.invoker().allowGameEnd(serverWorld, winStatus, isLooseEndsMode),
+                    () -> CustomWinnerClass.checkWinnerBuiltin(serverWorld, winStatus, isLooseEndsMode),
+                    () -> AllowGameEnd.EVENT_END.invoker().allowGameEnd(serverWorld, winStatus, isLooseEndsMode));
+        }
         var c = AllowGameEnd.EVENT_START.invoker().allowGameEnd(serverWorld,
                 winStatus, false);
         if (c != null && !c.equals(WinStatus.NOT_MODIFY)) {

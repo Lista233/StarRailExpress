@@ -222,6 +222,14 @@ public class SkeletonRole extends ExtraEffectRole implements CustomWinnerRoleInt
                     true);
             return stack;
         }
+        // 主人即将被复活的尸体无法被骸骨之书复活
+        if (PlayerBodyEntityComponent.KEY.get(body).nonInteractable) {
+            user.displayClientMessage(
+                    Component.translatable("message.noellesroles.corpse.pending_revive")
+                            .withStyle(ChatFormatting.RED),
+                    true);
+            return stack;
+        }
         // 目标并不是死亡状态
         if (!revived.isSpectator()) {
             user.displayClientMessage(
@@ -242,6 +250,10 @@ public class SkeletonRole extends ExtraEffectRole implements CustomWinnerRoleInt
         GameUtils.revivePlayer(revived, body.getX(), body.getY(), body.getZ());
         RoleUtils.changeRole(revived, ModRoles.SKELETON);
         SRE.REPLAY_MANAGER.recordPlayerRevival(revived.getUUID(), ModRoles.SKELETON);
+        
+        revived.updateFluidOnEyes();
+        revived.updateInWaterStateAndDoFluidPushing();
+
         SREPlayerShopComponent.KEY.get(revived).setBalance(200);
         body.remove(Entity.RemovalReason.DISCARDED);
         RoleUtils.sendWelcomeAnnouncement(revived);

@@ -353,6 +353,10 @@ public class CustomItemScreen extends CustomEditorScreen {
                     value -> data.affectOnlyMaxRange = value);
             r = note(r, PREFIX + ".hint.affect_only_max_range", SREPanelStyle.MUTED);
             r = commandList(r, PREFIX + ".label.target_commands", data.targetCommands);
+            // 使用后是否消耗（空放分支）：区分「空放不消耗」与「空放消耗」，默认是 = 空放消耗
+            r = boolRow(r, PREFIX + ".label.consume_on_empty_fire", data.consumeOnEmptyFire,
+                    value -> data.consumeOnEmptyFire = value);
+            r = note(r, PREFIX + ".hint.consume_on_empty_fire", SREPanelStyle.MUTED);
             // 空放（蓄力完成但没命中玩家）：独立冷却数值，只有会打人的道具才有这个概念
             r = numRow(r, PREFIX + ".label.empty_fire_cooldown", data.emptyFireCooldownTicks,
                     PREFIX + ".unit.tick", value -> data.emptyFireCooldownTicks = (int) value);
@@ -443,6 +447,8 @@ public class CustomItemScreen extends CustomEditorScreen {
                 value -> data.attackSpeed = value);
         r = numRow(r, PREFIX + ".label.virtual_damage", data.virtualDamage, PREFIX + ".unit.point",
                 value -> data.virtualDamage = (int) value);
+        r = boolRow(r, PREFIX + ".label.ignore_virtual_shield", data.ignoreVirtualShield,
+                value -> data.ignoreVirtualShield = value);
         r = commandList(r, PREFIX + ".label.weapon_commands", data.weaponRightClickCommands);
         r = numRow(r, PREFIX + ".label.weapon_cooldown", data.weaponRightClickCooldownTicks, PREFIX + ".unit.tick",
                 value -> data.weaponRightClickCooldownTicks = (int) value);
@@ -831,6 +837,8 @@ public class CustomItemScreen extends CustomEditorScreen {
             config.saveToDefaultPath();
             CustomItemLoader.reloadClient();
             CustomItemRenderer.clearCache();
+            // 刚填的「模型地址」还没被烘焙过：自动重载一次资源（等价于 F3+T）把它烘焙上
+            io.wifi.starrailexpress.client.model.CustomItemModelPlugin.rebakeIfNeeded();
         } catch (Exception ignored) {
         }
         var server = minecraft.getSingleplayerServer();

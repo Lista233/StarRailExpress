@@ -125,13 +125,25 @@ public class MercenaryRoleData extends SimpleRoleData {
         return isContractTarget(target) || isForcedTarget(target);
     }
 
-    public void setForcedTarget(Player target) {
+    /**
+     * 设置「破盾者」强制目标（因护盾被打破而获得的可反击对象）。
+     *
+     * <p>
+     * 雇佣兵可以同时拥有多层护盾（契约购买的护盾层、防弹衣、弱效护盾……），同一次交火里
+     * {@code OnShieldBroken} 会连着触发好几次，杀手往往是同一个人。这里只在<b>目标确实发生变化</b>
+     * 时返回 {@code true}，调用方据此决定要不要提示 / 写回放——否则同一个人反复破盾就会刷屏。
+     *
+     * @return true 强制目标发生了变化（需要提示与记录）；false 与当前目标相同，调用方应静默跳过
+     */
+    public boolean setForcedTarget(Player target) {
         if (target == null || target == player) {
-            return;
+            return false;
         }
+        boolean changed = !target.getUUID().equals(this.forcedTargetUuid);
         this.forcedTargetUuid = target.getUUID();
         this.forcedTargetName = target.getScoreboardName();
         sync();
+        return changed;
     }
 
     public boolean startContract(UUID employer, String employerDisplay, UUID target, String targetDisplay) {

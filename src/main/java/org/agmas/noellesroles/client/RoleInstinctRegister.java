@@ -37,6 +37,7 @@ import org.agmas.noellesroles.role_data.killer.ManipulatorRoleData;
 import org.agmas.noellesroles.role_data.neutral.AdmirerRoleData;
 import org.agmas.noellesroles.role_data.neutral.AmonRoleData;
 import org.agmas.noellesroles.role_data.neutral.CandleBearerRoleData;
+import org.agmas.noellesroles.role_data.neutral.DaywalkerRoleData;
 import org.agmas.noellesroles.role_data.neutral.LicensedVillainRoleData;
 import org.agmas.noellesroles.role_data.neutral.MercenaryRoleData;
 import org.agmas.noellesroles.role_data.neutral.GodfatherRoleData;
@@ -382,32 +383,20 @@ public class RoleInstinctRegister {
                     return TrueFalseAndCustomResult.pass();
                 });
 
-        // DIO
-
+        // DIO / JOJO：双方不再互相透视
         RoleInstinctEvents.OBSERVER_HIGHLIGHT_EVENT.register(ModRoles.DIO_ID,
                 (client, viewer, target, isInstinctEnabled) -> {
-                    if (target instanceof Player targetPlayer && GameUtils.isPlayerAliveAndSurvival(targetPlayer)) {
-                        if (targetPlayer.distanceTo(viewer) <= 7) {
-                            if (SREClient.gameComponent.isRole(targetPlayer, ModRoles.JOJO)) {
-                                if (viewer.hasEffect(ModEffects.SKILL_BANED) || viewer.hasEffect(ModEffects.SAFE_TIME))
-                                    return TrueFalseAndCustomResult.pass();
-                                return TrueFalseAndCustomResult.custom(ModRoles.JOJO.color());
-                            }
-                        }
+                    if (target instanceof Player targetPlayer && GameUtils.isPlayerAliveAndSurvival(targetPlayer)
+                            && SREClient.gameComponent.isRole(targetPlayer, ModRoles.JOJO)) {
+                        return TrueFalseAndCustomResult.disallow();
                     }
                     return TrueFalseAndCustomResult.pass();
                 });
-        // JOJO
         RoleInstinctEvents.OBSERVER_HIGHLIGHT_EVENT.register(ModRoles.JOJO_ID,
                 (client, viewer, target, isInstinctEnabled) -> {
-                    if (target instanceof Player targetPlayer && GameUtils.isPlayerAliveAndSurvival(targetPlayer)) {
-                        if (targetPlayer.distanceTo(viewer) <= 5) {
-                            if (SREClient.gameComponent.isRole(targetPlayer, ModRoles.DIO)) {
-                                if (viewer.hasEffect(ModEffects.SKILL_BANED) || viewer.hasEffect(ModEffects.SAFE_TIME))
-                                    return TrueFalseAndCustomResult.pass();
-                                return TrueFalseAndCustomResult.custom(ModRoles.DIO.color());
-                            }
-                        }
+                    if (target instanceof Player targetPlayer && GameUtils.isPlayerAliveAndSurvival(targetPlayer)
+                            && SREClient.gameComponent.isRole(targetPlayer, ModRoles.DIO)) {
+                        return TrueFalseAndCustomResult.disallow();
                     }
                     return TrueFalseAndCustomResult.pass();
                 });
@@ -669,6 +658,10 @@ public class RoleInstinctRegister {
             registerGodFamilyInstinct(familyRole);
         }
 
+        // 领袖：招募教父后按家族透视看待自己（家族成员棕框 / 教父天蓝框 / 远处非家族禁止透视）。
+        // 这里直接注册而不是靠 isMafiaTeam()，因为领袖的家族身份是玩家级、且只在招募教父后成立。
+        registerGodFamilyInstinct(ModRoles.LEADER);
+
         // --- 以下从 registerSpecialLogic 迁移过来的角色相关逻辑 ---
         // 皮革噶的：疯魔模式高亮周围玩家
         RoleInstinctEvents.OBSERVER_HIGHLIGHT_EVENT.register(ModRoles.LEATHER_PIG_ID,
@@ -820,25 +813,43 @@ public class RoleInstinctRegister {
                         return TrueFalseAndCustomResult.pass();
                     if (!isInstinctEnabled)
                         return TrueFalseAndCustomResult.pass();
-                    var selfRole = SREClient.gameComponent.getRole(viewer);
-                    if (selfRole == null || !selfRole.isMafiaTeam())
+                    if (!isGodfatherFamilyMember(viewer))
                         return TrueFalseAndCustomResult.pass();
                     if (target instanceof Player targetPlayer) {
-                        var targetRole = SREClient.gameComponent.getRole(targetPlayer);
-                        if (targetRole != null && targetRole.isMafiaTeam()) {
+                        if (isGodfatherFamilyMember(targetPlayer)) {
                             if (SREClient.gameComponent.isRole(targetPlayer, ModRoles.GODFATHER))
                                 return TrueFalseAndCustomResult.custom(new Color(135, 206, 235).getRGB());
                             return TrueFalseAndCustomResult.custom(new Color(139, 69, 19).getRGB());
                         }
-                        // 家族附属成员（如被教父招募的领袖）：虽非 mafia 职业，但已加入家族，
-                        // 在家族透视中同样显示为家族成员颜色
-                        if (isInAnyGodfatherFamily(targetPlayer))
-                            return TrueFalseAndCustomResult.custom(new Color(139, 69, 19).getRGB());
                         if (viewer.distanceTo(targetPlayer) > 20.0D)
                             return TrueFalseAndCustomResult.disallow();
                     }
                     return TrueFalseAndCustomResult.pass();
                 });
+    }
+
+    /**
+     * 该玩家是否属于教父家族（含职业级 mafia 家族成员，以及招募教父后的领袖）。
+     *
+     * <p>领袖本身不是 mafia 职业，但招募教父后应被视为家族成员；这里优先读
+     * {@code LeaderRoleData.mafiaTeamActive}（该状态下会全服同步），
+     * 专用服务器客户端也能正确识别。
+     */
+    private static boolean isGodfatherFamilyMember(Player player) {
+        if (SREClient.gameComponent == null || player == null)
+            return false;
+        var role = SREClient.gameComponent.getRole(player);
+        if (role == null)
+            return false;
+        if (role.identifier().equals(ModRoles.LEADER.identifier())) {
+            var leaderData = RoleData.getNullable(org.agmas.noellesroles.role_data.neutral.LeaderRoleData.class,
+                    player);
+            return leaderData != null && leaderData.mafiaTeamActive;
+        }
+        if (role.isMafiaTeam()) {
+            return true;
+        }
+        return isInAnyGodfatherFamily(player);
     }
 
     /** 玩家是否属于任意教父的家族成员（读取 familyMembers，含被教父招募的领袖等非 mafia 职业） */
@@ -1018,6 +1029,44 @@ public class RoleInstinctRegister {
 
     // 特殊逻辑中保留不直接属于职业的全局事件
     public static void registerSpecialLogic() {
+        // ── 本能隐匿（INSTINCT_CONCEAL）：目标持有该效果 → 任何人都没有本能框 ──
+        // 与「小透明」「秉烛人」「怀旧者」同样在<b>被看侧</b>返回 disallow()，区别是那三个绑职业、
+        // 本效果绑药水，所以走通用事件（ALIVE_COMMON_BEFORE_EVENT 在 TARGET_HIGHLIGHT_EVENT 之前触发，
+        // 且不需要 targetRole非空，能拦住所有职业的本能框）。
+        // 必须排在同级透视之前：隐匿优先，否则喝了隐匿还会被同级透视白框看见。
+        CommonInstinctEvents.ALIVE_COMMON_BEFORE_EVENT.register((self, target, hasInstinct) -> {
+            if (target instanceof Player targetPlayer && targetPlayer.hasEffect(ModEffects.INSTINCT_CONCEAL)) {
+                return TrueFalseAndCustomResult.disallow();
+            }
+            return TrueFalseAndCustomResult.pass();
+        });
+        // 观察者自己死亡 / 旁观时同样生效
+        CommonInstinctEvents.SPECTATOR_COMMON_EVENT.register((self, target, hasInstinct) -> {
+            if (target instanceof Player targetPlayer && targetPlayer.hasEffect(ModEffects.INSTINCT_CONCEAL)) {
+                return TrueFalseAndCustomResult.disallow();
+            }
+            return TrueFalseAndCustomResult.pass();
+        });
+
+        // ── 同级透视（PEER_XRAY）：双方都持有该药水且等级相同 → 互相白色描边（可穿墙） ──
+        // 与红海军（better_vigilante）的蓝框走同一条直觉高亮通道，只是这里返回纯白色。
+        // 通道：getCachedInstinctHighlight → MinecraftClientMixin#shouldEntityAppearGlowing
+        //       → WorldRendererMixin 拦getTeamColor 上色 → 原版 outline 后处理（关闭深度测试，故穿墙）。
+        // 注册在所有其它 ALIVE_COMMON_BEFORE_EVENT 监听器之前：事件是「首个非pass 生效」。
+        CommonInstinctEvents.ALIVE_COMMON_BEFORE_EVENT.register((self, target, hasInstinct) -> {
+            if (!(target instanceof Player targetPlayer) || targetPlayer == self) {
+                return TrueFalseAndCustomResult.pass();
+            }
+            return peerXrayHighlight(self, targetPlayer);
+        });
+        // 观察者自己死亡 / 旁观时同样生效（否则人一死白框就消失）
+        CommonInstinctEvents.SPECTATOR_COMMON_EVENT.register((self, target, hasInstinct) -> {
+            if (!(target instanceof Player targetPlayer) || targetPlayer == self) {
+                return TrueFalseAndCustomResult.pass();
+            }
+            return peerXrayHighlight(self, targetPlayer);
+        });
+
         TouhouInstincts.registerEvents();
 
         // 鬼祟修饰符
@@ -1027,6 +1076,18 @@ public class RoleInstinctRegister {
             WorldModifierComponent mods = WorldModifierComponent.KEY.get(targetPlayer.level());
             if (mods != null && mods.isModifier(targetPlayer.getUUID(), TraitorAndModifiers.SNEAKY)) {
                 if (self.distanceTo(targetPlayer) <= 8.0)
+                    return TrueFalseAndCustomResult.disallow();
+            }
+            return TrueFalseAndCustomResult.pass();
+        });
+
+        // 逐日者：只有处于其 20 格范围内时才能透视他（超出距离一律不显示高亮）
+        // 与鬼祟修饰符同为「被看侧」距离判定，放在 ALIVE_COMMON_BEFORE_EVENT 最早批次。
+        CommonInstinctEvents.ALIVE_COMMON_BEFORE_EVENT.register((self, target, hasInstinct) -> {
+            if (!(target instanceof Player targetPlayer) || SREClient.gameComponent == null)
+                return TrueFalseAndCustomResult.pass();
+            if (SREClient.gameComponent.isRole(targetPlayer, ModRoles.DAYWALKER)) {
+                if (self.distanceTo(targetPlayer) > DaywalkerRoleData.XRAY_RANGE)
                     return TrueFalseAndCustomResult.disallow();
             }
             return TrueFalseAndCustomResult.pass();
@@ -1065,6 +1126,30 @@ public class RoleInstinctRegister {
                 return TrueFalseAndCustomResult.custom(SEModifiers.LOVERS.color());
             return TrueFalseAndCustomResult.pass();
         });
+    }
+
+    /**
+     * 同级透视（{@link ModEffects#PEER_XRAY}）的白框判定。
+     *
+     * <p>与观察者自身持有该药水、且药水等级<b>完全相同</b>的玩家互相显示纯白描边；
+     * 等级不同（I / II / III …）或只有一方有该药水时返回 {@link TrueFalseAndCustomResult#pass()}，
+     * 把结果交还给后续的职业高亮逻辑。
+     *
+     * <p>注意这里<b>不判断</b> {@code hasInstinct}：事件链在 {@code getCommonAliveInstinct}
+     * 里拿到 custom 结果后会直接返回，早于 {@code if (!instinctEnabled) return empty()}，
+     * 所以药水生效与直觉开关无关。
+     */
+    private static TrueFalseAndCustomResult<Integer> peerXrayHighlight(Player self, Player target) {
+        var selfEffect = self.getEffect(ModEffects.PEER_XRAY);
+        if (selfEffect == null) {
+            return TrueFalseAndCustomResult.pass();
+        }
+        // 对方的等级来自 PeerXrayEffectSync 的广播（原版不会把别人的药水下发给客户端）。
+        var targetEffect = target.getEffect(ModEffects.PEER_XRAY);
+        if (targetEffect == null || selfEffect.getAmplifier() != targetEffect.getAmplifier()) {
+            return TrueFalseAndCustomResult.pass();
+        }
+        return TrueFalseAndCustomResult.custom(Color.WHITE.getRGB());
     }
 
     // ---------- 工具方法 ----------

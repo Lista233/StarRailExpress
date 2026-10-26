@@ -173,7 +173,7 @@ public class SREVolunteerOpenSelectGameMode extends SREMurderGameMode {
                 draftState.hiddenVisibleFor(id),
                 draftState.pickIndexOf(id),
                 draftState.chosenIndices(),
-                draftState.volunteerPoolIndex.getOrDefault(id, -1),
+                draftState.volunteerPoolIndexOf(id),
                 draftState.phase == VolunteerOpenDraftState.Phase.OPEN ? draftState.groupIndex + 1 : 0,
                 draftState.currentGroupMembers(),
                 draftState.groups.size(),
@@ -221,6 +221,12 @@ public class SREVolunteerOpenSelectGameMode extends SREMurderGameMode {
         }
         if (changed) {
             broadcastSync(player.serverLevel());
+        } else {
+            // 选择被拒绝（轮次已切换 / 卡已被占 / 已选过 / 阶段变化等）：
+            // 立即把服务端真实状态单独同步给该玩家，避免其界面基于过期快照继续
+            // 无效点击，最后在组超时被随机补齐、拿到与点击不符的职业。
+            ServerPlayNetworking.send(player, buildPacket(player.serverLevel(), player.getUUID(),
+                    player.serverLevel().getGameTime()));
         }
     }
 
@@ -273,8 +279,10 @@ public class SREVolunteerOpenSelectGameMode extends SREMurderGameMode {
 
         long now = world.getGameTime();
 
-        // 一阶段：等所有玩家的界面真正打开（开局黑幕 / 动画播完）之后才开始计时，
-        // 玩家没上报就最多等 CLIENT_READY_TIMEOUT，避免有人卡住导致整局不动。
+        // 一阶段：等所有玩家的界面真正打开之后才开始计时。
+        // 开场动画（含飞机坠毁）已按轮选同款延后到 OnGameTrueStarted（全部选择结束）才播放，
+        // 选择阶段没有任何运镜，客户端上报即代表界面已就绪。
+        // 兜底：即使有人一直不上报，CLIENT_READY_TIMEOUT（15 秒）后也强制开始倒计时。
         if (draftState.phase == VolunteerOpenDraftState.Phase.VOLUNTEER && draftState.waitingForClients) {
             boolean allReady = draftState.allUiReady(world);
             boolean timedOut = now - draftState.holdStartTime >= VolunteerOpenDraftState.CLIENT_READY_TIMEOUT;

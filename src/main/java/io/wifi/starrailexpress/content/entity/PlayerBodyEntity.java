@@ -18,9 +18,13 @@ package io.wifi.starrailexpress.content.entity;
 import io.wifi.starrailexpress.api.SRERole;
 import io.wifi.starrailexpress.cca.PlayerBodyEntityComponent;
 import io.wifi.starrailexpress.cca.SREGameWorldComponent;
+import io.wifi.starrailexpress.client.util.ClientSkinCache;
 import io.wifi.starrailexpress.content.gui.PlayerBodyChestMenu;
 import io.wifi.starrailexpress.game.GameUtils;
 import io.wifi.starrailexpress.index.TMMItems;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -93,6 +97,21 @@ public class PlayerBodyEntity extends LivingEntity {
         return this.entityData.get(CORRUPTED);
     }
 
+    /**
+     * 该尸体是否不可交互（主人即将被复活）：不可被其它职业复活、不可被骸骨之书复活、
+     * 也不可被打开物品栏（含殡仪员）。
+     */
+    public boolean isNonInteractable() {
+        return getComponent().nonInteractable;
+    }
+
+    /**
+     * 设置不可交互标记。用于主人死亡后存在复活逻辑（即将被复活）的尸体。
+     */
+    public void setNonInteractable(boolean nonInteractable) {
+        getComponent().setNonInteractable(nonInteractable);
+    }
+
     // 获取本实体上的 BodyDeathReasonComponent
     public PlayerBodyEntityComponent getComponent() {
         return PlayerBodyEntityComponent.KEY.get(this);
@@ -109,6 +128,11 @@ public class PlayerBodyEntity extends LivingEntity {
         return super.getDisplayName();
     }
 
+    /**
+     * Get a player's custom name from player list(server-side) /
+     * cache (client-side)
+     * @return null|Component The body's custom name.
+     */
     @Override
     public Component getCustomName() {
         var playerUuid = getPlayerUuid();
@@ -116,10 +140,18 @@ public class PlayerBodyEntity extends LivingEntity {
         if (name != null)
             return name;
         if (playerUuid != null) {
-            var player = this.getServer().getPlayerList().getPlayer(playerUuid);
-            if (player != null) {
-                return Component.translatable("entity.starrailexpress.player_body.custom_name",
-                        player.getName());
+            if (this.getServer() != null) {
+                var player = this.getServer().getPlayerList().getPlayer(playerUuid);
+                if (player != null) {
+                    return Component.translatable("entity.starrailexpress.player_body.custom_name",
+                            player.getName());
+                }
+            } else if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
+                var cached = ClientSkinCache.getCachedPlayerInfo(playerUuid);
+                if (cached != null && cached.getProfile() != null) {
+                    return Component.translatable("entity.starrailexpress.player_body.custom_name",
+                            cached.getProfile().getName());
+                }
             }
         }
         return null;
@@ -322,6 +354,16 @@ public class PlayerBodyEntity extends LivingEntity {
 
     @Override
     public InteractionResult interactAt(Player player, Vec3 vec3, InteractionHand hand) {
+        // 不可交互标记：主人即将被复活的尸体不能被打开物品栏（含殡仪员）
+        if (isNonInteractable()) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                serverPlayer.displayClientMessage(
+                        Component.translatable("message.noellesroles.corpse.pending_revive")
+                                .withStyle(ChatFormatting.RED),
+                        true);
+            }
+            return InteractionResult.FAIL;
+        }
         if (player instanceof ServerPlayer serverPlayer
                 && !isLocked() && hasCorpseItems()
                 && (!GameUtils.isPlayerAliveAndSurvival(serverPlayer) || canSeeDeathBodyContent(serverPlayer))) {

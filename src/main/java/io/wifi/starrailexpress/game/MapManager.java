@@ -259,7 +259,8 @@ public class MapManager {
         }
         jsonObject.add("roomPositions", roomPositionsObj);
         // disabledTasks / disabledRoles / disabledModifiers 已迁移到 areasSettings（见 AreasSettings）
-        jsonObject.add("enableSceneTask", gson.toJsonTree(areas.enableSceneTask));
+        // 保存到地图 JSON 根级 enableSceneTask 键（格式不变，实际数据已迁移到 areasSettings）
+        jsonObject.add("enableSceneTask", gson.toJsonTree(areas.areasSettings.enableSceneTask));
         // 保存支持的游戏模式列表
         jsonObject.add("gameModes", gson.toJsonTree(areas.gameModes));
 
@@ -671,7 +672,7 @@ public class MapManager {
                                 : Vec3.ZERO);
                 String assetHash = "";
                 String remoteUrl = "";
-                boolean trusted = false;
+                boolean trusted = true; // 可信快速模式默认开启
                 if (jsonObject.has("sceneAsset") && jsonObject.get("sceneAsset").isJsonObject()) {
                     JsonObject sceneAsset = jsonObject.getAsJsonObject("sceneAsset");
                     if (sceneAsset.has("sha256")) {
@@ -684,7 +685,7 @@ public class MapManager {
                     if (sceneAsset.has("url")) {
                         remoteUrl = sceneAsset.get("url").getAsString().trim();
                     }
-                    trusted = sceneAsset.has("trusted") && sceneAsset.get("trusted").getAsBoolean();
+                    trusted = !sceneAsset.has("trusted") || sceneAsset.get("trusted").getAsBoolean();
                 }
                 areas.setSceneAssetHash(assetHash);
                 areas.setSceneAssetRemoteUrl(remoteUrl);
@@ -733,11 +734,13 @@ public class MapManager {
             } else {
                 SRE.LOGGER.warn("Missing reset paste area data in map config: " + mapName);
             }
-            areas.enableSceneTask.clear();
+            if (areas.areasSettings == null)
+                areas.areasSettings = new AreasSettings();
+            areas.areasSettings.enableSceneTask.clear();
             if (jsonObject.has("enableSceneTask")) {
                 var jsonArr = jsonObject.get("enableSceneTask").getAsJsonArray();
                 for (JsonElement data : jsonArr.asList()) {
-                    areas.enableSceneTask.add(data.getAsString());
+                    areas.areasSettings.enableSceneTask.add(data.getAsString());
                 }
             }
 

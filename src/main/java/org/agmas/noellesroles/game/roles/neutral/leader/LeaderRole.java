@@ -27,9 +27,11 @@ import io.wifi.starrailexpress.cca.SREPlayerShopComponent;
 import io.wifi.starrailexpress.game.GameUtils.WinStatus;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.UUID;
 
+import org.agmas.noellesroles.role_data.neutral.DaywalkerRoleData;
 import org.agmas.noellesroles.role_data.neutral.LeaderRoleData;
 
 /**
@@ -48,6 +50,50 @@ public class LeaderRole extends CustomWinnerRole implements EggRoleInterface {
     public LeaderRole(ResourceLocation identifier, int color, boolean isInnocent, boolean canUseKiller,
             MoodType moodType, int maxSprintTime, boolean canSeeTime) {
         super(identifier, color, isInnocent, canUseKiller, moodType, maxSprintTime, canSeeTime);
+    }
+
+    /**
+     * 领袖在招募教父之后，视为 mafia 家族成员。
+     *
+     * <p>这让本局的"教父独立胜利"能把领袖算进家族人数：否则场上只剩
+     * 「教父 + 家族成员 + 领袖」时，{@code alive != mafiaAlive}，而教父又阻止游戏结束，
+     * 会导致游戏卡死、无法结算。
+     *
+     * <p>注意 {@code isMafiaTeam()} 是职业级（全局）判定，而领袖一局至多 1 人，
+     * 所以这里用「场上是否存在已加入家族且教父仍存活的领袖」表达是安全的。
+     * 客户端拿不到这个服务端静态表，客户端的家族透视改由
+     * {@code LeaderRoleData.mafiaTeamActive}（已全服同步）判定。
+     */
+    @Override
+    public boolean isMafiaTeam() {
+        return super.isMafiaTeam()
+                || org.agmas.noellesroles.game.roles.neutral.mafia.MafiaManager.hasLivingGodfatherFamilyLeader();
+    }
+
+    /**
+     * 领袖完成任务：每完成 {@value DaywalkerRoleData#LEADER_TASKS_PER_CREDIT} 个任务，
+     * 为「追随者」逐日者计入 1 个任务（视为逐日者完成了 1 个任务，并应用逐日者的相关效果）。
+     */
+    @Override
+    public void onFinishQuest(Player player, String quest) {
+        super.onFinishQuest(player, quest);
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+        LeaderRoleData data = RoleData.getNullable(LeaderRoleData.class, serverPlayer);
+        if (data == null || data.followers.isEmpty()) {
+            return;
+        }
+        for (UUID followerId : data.followers) {
+            ServerPlayer follower = serverPlayer.serverLevel().getServer().getPlayerList().getPlayer(followerId);
+            if (follower == null) {
+                continue;
+            }
+            DaywalkerRoleData daywalker = RoleData.getNullable(DaywalkerRoleData.class, follower);
+            if (daywalker != null) {
+                daywalker.creditLeaderTask();
+            }
+        }
     }
 
     /**

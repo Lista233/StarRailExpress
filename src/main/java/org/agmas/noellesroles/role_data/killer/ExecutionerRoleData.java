@@ -15,6 +15,7 @@
 
 package org.agmas.noellesroles.role_data.killer;
 
+import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.data.RoleData;
 import io.wifi.starrailexpress.api.data.RoleDataContext;
 import io.wifi.starrailexpress.api.impl.SimpleRoleData;
@@ -34,6 +35,7 @@ import io.wifi.starrailexpress.util.TrueFalseResult;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -377,6 +379,10 @@ public class ExecutionerRoleData extends SimpleRoleData {
         }
         this.inFrenzy = true;
         this.sync();
+        // 回放记录：射击狂热即刽子手的狂暴（疯狂）模式。
+        // 复用商店疯狂模式（SREPlayerShopComponent#usePsychoMode）现成的回放记录方式，
+        // 在回放中显示「xxx 释放了技能 疯狂模式」，与其它疯狂模式激活保持一致。
+        SRE.REPLAY_MANAGER.recordSkillUsed(player.getUUID(), BuiltInRegistries.ITEM.getKey(TMMItems.PSYCHO_MODE));
         player.level().playSound(null, player.blockPosition(),
                 SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.0F, 1.5F);
         if (player.level() instanceof ServerLevel serverLevel) {

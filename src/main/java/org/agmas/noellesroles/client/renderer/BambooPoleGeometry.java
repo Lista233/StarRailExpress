@@ -17,6 +17,7 @@ package org.agmas.noellesroles.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
@@ -46,27 +47,31 @@ public final class BambooPoleGeometry {
     private static final float NODE_HEIGHT = 0.07F;
     /** 竹节环相对杆身的加粗量。 */
     private static final float NODE_EXPAND = 0.028F;
+    /** 把模型 +Y 立到视线方向上所需的 90°。 */
+    private static final float HALF_PI = (float) (Math.PI / 2.0);
 
     private BambooPoleGeometry() {
     }
 
     /**
      * 把模型空间的 +Y 轴对齐到给定方向：之后的绘制沿 {@code dir} 向前延伸。
-     * 直接构造正交基矩阵，避免逐轴旋转在不同朝向下的歧义。
+     * <p>
+     * 用「偏航 → 俯仰 → 立起」三步轴旋转拼出来，而不是手写正交基矩阵：
+     * 手写矩阵的正确性依赖 JOML 构造器参数是行主序还是列主序，搞反的话矩阵会被转置，
+     * 结果就是<b>水平视角看着完全正常、一抬头一低头杆身就歪到一边</b>，非常难发现。
+     * 轴旋转的约定是确定的：{@code Axis.YP.rotation(-yaw)} 接 {@code Axis.XP.rotation(pitch)}
+     * 之后模型 +Z 轴指向 {@code dir}（与 {@link Vec3#directionFromRotation} 同一套约定），
+     * 再绕 X 轴转 90° 把 +Y 立到该方向上。
      */
     public static void orient(PoseStack poseStack, Vec3 rawDir) {
         Vec3 dir = rawDir.lengthSqr() < 1.0E-8 ? new Vec3(0.0, 0.0, 1.0) : rawDir.normalize();
-        Vec3 right = new Vec3(-dir.z, 0.0, dir.x);
-        if (right.lengthSqr() < 1.0E-6) {
-            right = new Vec3(1.0, 0.0, 0.0);
-        }
-        right = right.normalize();
-        Vec3 up = right.cross(dir).normalize();
-        poseStack.mulPose(new Matrix4f(
-                (float) right.x, (float) dir.x, (float) up.x, 0F,
-                (float) right.y, (float) dir.y, (float) up.y, 0F,
-                (float) right.z, (float) dir.z, (float) up.z, 0F,
-                0F, 0F, 0F, 1F));
+        // dir = (-sin yaw * cos pitch, -sin pitch, cos yaw * cos pitch)
+        float yaw = (float) Math.atan2(-dir.x, dir.z);
+        float pitch = (float) -Math.asin(Math.max(-1.0, Math.min(1.0, dir.y)));
+        poseStack.mulPose(Axis.YP.rotation(-yaw));
+        poseStack.mulPose(Axis.XP.rotation(pitch));
+        // 此时模型 +Z 指向 dir，再立起来让 +Y（竹杆的延伸方向）指向 dir。
+        poseStack.mulPose(Axis.XP.rotation(HALF_PI));
     }
 
     /**

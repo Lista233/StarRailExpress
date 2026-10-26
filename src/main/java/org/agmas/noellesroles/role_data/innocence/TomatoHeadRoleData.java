@@ -38,6 +38,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import io.wifi.starrailexpress.content.item.api.SREItemProperties;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.content.item.TomatoItem;
 import org.agmas.noellesroles.init.ModEffects;
@@ -96,6 +97,14 @@ public class TomatoHeadRoleData extends SimpleRoleData {
                 return InteractionResult.PASS;
             }
             if (attacker.getCooldowns().isOnCooldown(Items.BARRIER)) {
+                return InteractionResult.PASS;
+            }
+            // 特殊原版武器（Dream 系列、武士刀等）：它们扣的是**虚拟血量**，
+            // 结算挂在 Player.attack 内的 ServerPlayerEntityMixin（HEAD 注入 onServerAttack）。
+            // 本回调返回 SUCCESS 会让 Fabric 在 ServerPlayerInteractionManager.attack 里
+            // 直接跳过整条 player.attack() 链，武器的虚拟血量伤害就永远不会生效。
+            // 这类武器命中自带击退（内部会补 1 点原版 hurt 作载体），故此处放行不重复击退。
+            if (attacker.getMainHandItem().getItem() instanceof SREItemProperties.LeftClickHurtable) {
                 return InteractionResult.PASS;
             }
             attacker.getCooldowns().addCooldown(Items.BARRIER, PUNCH_COOLDOWN_TICKS);
@@ -174,7 +183,13 @@ public class TomatoHeadRoleData extends SimpleRoleData {
             return;
         }
         SREGameWorldComponent game = SREGameWorldComponent.KEY.get(sp.level());
-        if (game == null || !game.isRunning() || !game.isRole(sp, ModRoles.TOMATO_HEAD)) {
+        if (game == null || !game.isRunning()) {
+            return;
+        }
+        if (!game.isRole(sp, ModRoles.TOMATO_HEAD)) {
+            // 职业已变更：立即结束西红柿形态恢复人形（旧数据在无声换职业时会继续 tick，
+            // 只静默返回会把 tomatoFormEndTick 留在未来，外观/眼高会残留到原定时结束）
+            endTomatoForm(sp, false);
             return;
         }
         if (!GameUtils.isPlayerAliveAndSurvival(sp)) {

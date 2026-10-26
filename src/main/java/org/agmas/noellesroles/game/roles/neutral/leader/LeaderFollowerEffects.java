@@ -38,10 +38,12 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import org.agmas.noellesroles.Noellesroles;
 import org.agmas.noellesroles.role_data.neutral.CandleBearerRoleData;
+import org.agmas.noellesroles.role_data.neutral.DaywalkerRoleData;
 import org.agmas.noellesroles.role_data.neutral.GodfatherRoleData;
 import org.agmas.noellesroles.role_data.neutral.MercenaryRoleData;
 import org.agmas.noellesroles.role_data.neutral.MonokumaRoleData;
 import org.agmas.noellesroles.role_data.neutral.NianShouRoleData;
+import org.agmas.noellesroles.game.roles.neutral.lender.LenderRoleHandler;
 import org.agmas.noellesroles.game.fake_steve.FakeSteveDirector;
 import org.agmas.noellesroles.game.roles.neutral.panda.PandaState;
 import org.agmas.noellesroles.role_data.neutral.PelicanRoleData;
@@ -91,6 +93,12 @@ public final class LeaderFollowerEffects {
 
     /** 失忆患者被领袖转型为杀手后获得的金币数 */
     private static final int AMNESIAC_KILLER_COINS = 130;
+
+    /** 追随者放贷人立即获得的金币数 */
+    private static final int LENDER_FOLLOWER_COINS = 300;
+
+    /** 追随者逐日者立即获得的金币数 */
+    private static final int DAYWALKER_FOLLOWER_COINS = 50;
 
     /** 森近霖之助 / 河城荷取（金币依附角色） */
     public static boolean isCoinDependentRole(SRERole role) {
@@ -203,6 +211,8 @@ public final class LeaderFollowerEffects {
             case "rabbit_wansui" -> applyRabbitWansui(leader, follower);
             case "licensed_villain" -> applyLicensedVillain(leader, follower);
             case "anatman", "asatya" -> applyAnatmanAsatya(leader, follower);
+            case "lender" -> applyLender(leader, follower);
+            case "daywalker" -> applyDaywalker(leader, follower);
             default -> applyGeneric(leader, follower);
         }
     }
@@ -354,6 +364,9 @@ public final class LeaderFollowerEffects {
             comp.familyMembers.add(leader.getUUID());
             comp.sync();
         }
+        // 领袖此刻起算 mafia 家族成员：isMafiaTeam() 生效、教父独立胜利能把领袖计入人数
+        org.agmas.noellesroles.game.roles.neutral.mafia.MafiaManager
+                .markLeaderAsGodfatherFamilyMember(leader, follower);
     }
 
     /** 年兽：追随者 +1 护盾试剂、永久夜视 */
@@ -419,9 +432,11 @@ public final class LeaderFollowerEffects {
         giveItem(leader, TMMItems.KNIFE.getDefaultInstance());
     }
 
-    /** 纵火犯：打火机目标 -2 人 */
+    /** 纵火犯：打火机目标 -2 人；领袖释放技能成功后获得一把刀。 */
     private static void applyArsonist(ServerPlayer leader, ServerPlayer follower) {
-        // 目标 -2 见 LeaderEventHandler / LighterItem 联动（LeaderFollowerEffects 提供静态判定）
+        // 打火机目标 -2：见 LeaderEventHandler / LighterItem 联动（LeaderFollowerEffects 提供静态判定）
+        // 领袖对纵火犯释放完技能 → 给予领袖一把刀
+        giveItem(leader, TMMItems.KNIFE.getDefaultInstance());
     }
 
     /** 森近霖之助 / 河城荷取：金币依附（无即时效果，didPlayerWin 判定） */
@@ -499,6 +514,52 @@ public final class LeaderFollowerEffects {
         }
     }
 
+    /**
+     * 追随者：放贷人
+     * <ul>
+     * <li>追随者放贷人立即获得 {@value #LENDER_FOLLOWER_COINS} 金币</li>
+     * <li>追随者放贷人的可借贷上限提升至 {@value LenderRoleHandler#FOLLOWER_MAX_PRINCIPAL} 金币</li>
+     * <li>领袖获得一个护盾试剂</li>
+     * </ul>
+     */
+    private static void applyLender(ServerPlayer leader, ServerPlayer follower) {
+        SREPlayerShopComponent.KEY.get(follower).addToBalance(LENDER_FOLLOWER_COINS);
+        giveItem(leader, TMMItems.DEFENSE_VIAL.getDefaultInstance());
+        follower.displayClientMessage(
+                Component.translatable("message.noellesroles.leader.lender_bonus_follower",
+                        LENDER_FOLLOWER_COINS, LenderRoleHandler.FOLLOWER_MAX_PRINCIPAL), false);
+        leader.displayClientMessage(
+                Component.translatable("message.noellesroles.leader.lender_bonus"), false);
+    }
+
+    /**
+     * 追随者：逐日者
+     * <ul>
+     * <li>「追随者」逐日者立即获得 {@value #DAYWALKER_FOLLOWER_COINS} 金币</li>
+     * <li>逐日者每次完成任务使当局时间每秒快进 0.09 秒（至多 0.85 秒）</li>
+     * <li>「逐日时刻」储存上限变为 150 秒</li>
+     * <li>领袖获得一把开锁器</li>
+     * <li>领袖每完成 4 个任务，为「追随者」逐日者计入 1 个任务（见 LeaderRole#onFinishQuest）</li>
+     * </ul>
+     */
+    private static void applyDaywalker(ServerPlayer leader, ServerPlayer follower) {
+        SREPlayerShopComponent.KEY.get(follower).addToBalance(DAYWALKER_FOLLOWER_COINS);
+        giveItem(leader, TMMItems.LOCKPICK.getDefaultInstance());
+        DaywalkerRoleData comp = RoleData.getNullable(DaywalkerRoleData.class, follower);
+        if (comp != null) {
+            comp.enableLeaderBoost();
+        }
+        follower.displayClientMessage(
+                Component.translatable("message.noellesroles.daywalker.leader_bonus",
+                        DAYWALKER_FOLLOWER_COINS,
+                        DaywalkerRoleData.FAST_FORWARD_PER_TASK_LEADER,
+                        DaywalkerRoleData.FAST_FORWARD_CAP_LEADER,
+                        DaywalkerRoleData.MAX_MOMENTS_WITH_LEADER),
+                false);
+        leader.displayClientMessage(
+                Component.translatable("message.noellesroles.leader.daywalker_bonus"), false);
+    }
+
     /** 在玩家脚下生成物品（背包满时的兜底） */
     private static void spawnAtFeet(ServerPlayer player, ItemStack stack) {
         net.minecraft.world.entity.item.ItemEntity entity = new net.minecraft.world.entity.item.ItemEntity(
@@ -542,6 +603,59 @@ public final class LeaderFollowerEffects {
     }
 
     /**
+     * 判断该职业能否被领袖招募为追随者（纯职业态判定，不涉及具体玩家）。
+     *
+     * <p>
+     * 规则与 {@link #tryRecruit} 的技能释放筛选完全一致，同时被生成期的「领袖特判」共用，
+     * 避免出现「抽到了领袖却没有任何可招募对象、领袖必然空放技能」的情况：
+     * <ul>
+     * <li>教父：仅可对 {@code isMafiaTeam()} 为 true 的教父释放；</li>
+     * <li>其余目标：必须是非杀手方中立（{@code isNeutrals()} 且 {@code !isNeutralForKiller()}），
+     * 并排除 {@code isInnocent()} 与 {@code canUseKiller()} 的职业；</li>
+     * <li>好人方中立（{@code isNeutralForInnocent()}）：仅失忆患者(amnesiac)与初学者(initiate)例外可招募；</li>
+     * <li>蜜蜂家族：仅蜂后(bee_queen)可招募；</li>
+     * <li>禁止：亡命徒 / 超级亡命徒 / 领袖自身 / 假史蒂夫。</li>
+     * </ul>
+     *
+     * @param role 目标职业
+     * @return 是否可被领袖招募
+     */
+    public static boolean isRecruitableRole(SRERole role) {
+        if (role == null) {
+            return false;
+        }
+        String path = role.identifier().getPath();
+
+        // 禁止：亡命徒 / 超级亡命徒 / 领袖自身
+        if (path.equals("loose_end") || path.equals("super_loose_end") || path.equals("leader")) {
+            return false;
+        }
+
+        // 禁止：假史蒂夫（fake_steve）
+        if (path.equals("fake_steve")) {
+            return false;
+        }
+
+        // 教父：仅可对 isMafiaTeam 为 true 的教父释放
+        if (role.isMafiaTeam()) {
+            return path.equals("godfather");
+        }
+
+        // 中立目标：额外排除无辜者（isInnocent）与可使用杀手能力的目标（canUseKiller）
+        if (!role.isNeutrals() || role.isNeutralForKiller()
+                || role.isInnocent() || role.canUseKiller()) {
+            return false;
+        }
+        // 好人方中立（isNeutralForInnocent）：除失忆患者(amnesiac)与初学者(initiate)外不可招募
+        if (role.isNeutralForInnocent()
+                && !path.equals("amnesiac") && !path.equals("initiate")) {
+            return false;
+        }
+        // 蜜蜂家族：仅可对蜂后释放，其余蜜蜂家族职业（工蜂、胡蜂等）禁止
+        return !(role instanceof BeeFamilyRole) || path.equals("bee_queen");
+    }
+
+    /**
      * 领袖技能释放：将目标招募为追随者。
      *
      * @param leader 领袖
@@ -564,36 +678,15 @@ public final class LeaderFollowerEffects {
         }
         String path = targetRole.identifier().getPath();
 
-        // 禁止：亡命徒 / 超级亡命徒 / 领袖自身
-        if (path.equals("loose_end") || path.equals("super_loose_end") || path.equals("leader")) {
+        // 禁止：被假史蒂夫替换（fake_steve_replaced）的玩家
+        if (FakeSteveDirector.isReplaced(target)) {
             return false;
         }
 
-        // 禁止：假史蒂夫（fake_steve）职业，以及被假史蒂夫替换（fake_steve_replaced）的玩家
-        if (path.equals("fake_steve") || FakeSteveDirector.isReplaced(target)) {
+        // 职业筛选：与生成期「领袖特判」共用 isRecruitableRole，
+        // 保证「能刷出领袖」等价于「场上至少存在一个领袖可招募的对象」
+        if (!isRecruitableRole(targetRole)) {
             return false;
-        }
-
-        // 教父：仅可对 isMafiaTeam 为 true 的教父释放
-        if (targetRole.isMafiaTeam()) {
-            if (!path.equals("godfather")) {
-                return false;
-            }
-        } else {
-            // 中立目标：额外排除无辜者（isInnocent）与可使用杀手能力的目标（canUseKiller）
-            if (!targetRole.isNeutrals() || targetRole.isNeutralForKiller()
-                    || targetRole.isInnocent() || targetRole.canUseKiller()) {
-                return false;
-            }
-            // 好人方中立（isNeutralForInnocent）：除失忆患者(amnesiac)与初学者(initiate)外禁止释放技能
-            if (targetRole.isNeutralForInnocent()
-                    && !path.equals("amnesiac") && !path.equals("initiate")) {
-                return false;
-            }
-            // 蜜蜂家族：仅可对蜂后释放，其余蜜蜂家族职业（工蜂、胡蜂等）禁止
-            if (targetRole instanceof BeeFamilyRole && !path.equals("bee_queen")) {
-                return false;
-            }
         }
 
         // 释放成功：标记技能已用

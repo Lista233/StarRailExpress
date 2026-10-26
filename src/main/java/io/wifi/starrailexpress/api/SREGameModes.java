@@ -24,7 +24,6 @@ import io.wifi.starrailexpress.game.modes.funny.mob.SREMobRiotGameMode;
 import net.minecraft.resources.ResourceLocation;
 import org.agmas.noellesroles.game.modes.ChairWheelRaceGame;
 import org.agmas.noellesroles.game.modes.fourthroom.game.FourthRoomGameMode;
-import net.exmo.sre.repair.RepairEscapeGameMode;
 
 import java.util.HashMap;
 
@@ -51,7 +50,6 @@ public class SREGameModes {
     public static final ResourceLocation VOLUNTEER_MODE_ID = SRE.wifiId("volunteer");
 
     // Author: canyuesama (catmoon233)
-    public static final ResourceLocation REPAIR_ESCAPE_ID = SRE.canyueId("repair_escape");
     public static final ResourceLocation FOURTH_ROOM_ID = SRE.canyueId("fourth_room");
     public static final ResourceLocation MOB_RIOT_MODE_ID = SRE.canyueId("mob_riot");
 
@@ -74,6 +72,9 @@ public class SREGameModes {
 
     // Volunteer Open Select Mode (haiman)
     public static final ResourceLocation VOLUNTEER_OPEN_SELECT_MODE_ID = SRE.haimanId("volunteer_open_select");
+
+    // Three Way War Mode (haiman)
+    public static final ResourceLocation THREE_WAY_WAR_MODE_ID = SRE.haimanId("three_way_war");
 
     // Tradition Mode (sre)
     public static final ResourceLocation TRADITION_MODE_ID = SRE.shortId("tradition");
@@ -113,7 +114,6 @@ public class SREGameModes {
     public static final GameMode EVIL_WAR_MODE = registerGameMode(new SREEvilWarGameMode(EVIL_WAR_MODE_ID));
     public static final GameMode DEVIL_ROULETTE_MODE = registerGameMode(
             new SREDevilRouletteGameMode(DEVIL_ROULETTE_ID));
-    public static final GameMode REPAIR_ESCAPE_MODE = registerGameMode(new RepairEscapeGameMode(REPAIR_ESCAPE_ID));
 
     public static final GameMode THIEF_MODE = registerGameMode(new SREThiefWarGameMode(THIEF_MODE_ID));
 
@@ -132,6 +132,10 @@ public class SREGameModes {
     // Volunteer Open Select Mode (haiman)
     public static final GameMode VOLUNTEER_OPEN_SELECT_MODE = registerGameMode(
             new SREVolunteerOpenSelectGameMode(VOLUNTEER_OPEN_SELECT_MODE_ID));
+
+    // Three Way War Mode (haiman)
+    public static final GameMode THREE_WAY_WAR_MODE = registerGameMode(
+            new SREThreeWayWarGameMode(THREE_WAY_WAR_MODE_ID));
 
     // Tradition Mode (sre)
     public static final GameMode TRADITION_MODE = registerGameMode(new SRETraditionGameMode(TRADITION_MODE_ID));

@@ -35,11 +35,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 第三人称竹刀姿态：竹刀伸出期间把持刀那条手臂沿视线方向前伸，
  * 这样外部视角看到的竹杆是从手里刺出去的，而不是从身体里穿出来。
  * <p>
+ * 竹杆本身整根压在「眼睛 → 视线」这条射线上（见 {@link BambooSpearEntity#poleBase}），
+ * 也就是位于眼睛高度，所以手臂除了前伸还要再抬约 17°，掌心才正好托在杆根附近
+ * （肩膀比眼睛低 0.25 格，不抬的话竹杆会从手背上方半格处飘过去）。
+ * <p>
  * 只在竹刀实体存在期间生效（{@link BambooSpearEntity#isClientActiveOwner}），
  * 单纯拿着竹刀走路仍是原版持物姿态。
  */
 @Mixin(HumanoidModel.class)
 public abstract class HumanoidModelBambooSpearMixin<T extends LivingEntity> {
+
+    /** 手臂前伸之后再抬起的弧度（≈17°），把掌心抬到竹杆所在的眼睛高度。 */
+    private static final float HAND_RAISE = 0.30F;
 
     @Shadow
     @Final
@@ -75,8 +82,8 @@ public abstract class HumanoidModelBambooSpearMixin<T extends LivingEntity> {
         if (!BambooSpearEntity.isClientActiveOwner(player)) {
             return;
         }
-        // 手臂完全前伸并跟随俯仰角：渲染端的手部锚点就是按这个姿态算的，两边必须同步改。
-        arm.xRot = (-(float) Math.PI / 2.0F) + this.head.xRot;
+        // 手臂前伸（比水平再抬 HAND_RAISE）并跟随俯仰角：竹杆在眼睛高度，两边必须同步改。
+        arm.xRot = (-(float) Math.PI / 2.0F - HAND_RAISE) + this.head.xRot;
         arm.yRot = this.head.yRot;
         arm.zRot = 0.0F;
     }

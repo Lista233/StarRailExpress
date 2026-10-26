@@ -15,6 +15,9 @@
 
 package org.agmas.noellesroles.content.block.scene;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+import net.minecraft.server.level.ServerPlayer;
+
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -105,6 +108,7 @@ public class WaterPumpBlock extends BaseEntityBlock {
             ItemStack water = new ItemStack(ModItems.A_BOTTLE_OF_WATER);
             if (!player.addItem(water)) player.drop(water, false);
             pump.startCooldown();
+            ProgressionDataManager.onWaterDispenserUsed((ServerPlayer) player);
         }
         return InteractionResult.CONSUME;
     }

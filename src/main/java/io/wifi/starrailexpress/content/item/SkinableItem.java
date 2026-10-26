@@ -96,6 +96,14 @@ public abstract class SkinableItem extends Item {
         if (entity instanceof Player player) {
             if (itemStack.get(SREDataComponentTypes.SKIN) == null) {
                 itemStack.set(SREDataComponentTypes.SKIN, ItemSkinManager.getEquippedSkin(player, itemStack));
+            } else if (this.getItemSkinType() != null
+                    && ItemSkinManager.isRandomSelected(player, this.getItemSkinType())) {
+                // 选择了「随机」：跟随每局开局的抽取结果刷新，避免沿用上一局的快照
+                String resolved = ItemSkinManager.resolveRandomSkin(player, this.getItemSkinType(),
+                        ItemSkinManager.RANDOM_SKIN);
+                if (!resolved.equals(itemStack.get(SREDataComponentTypes.SKIN))) {
+                    itemStack.set(SREDataComponentTypes.SKIN, resolved);
+                }
             }
         }
     }

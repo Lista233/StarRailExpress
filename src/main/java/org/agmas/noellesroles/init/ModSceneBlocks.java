@@ -139,6 +139,20 @@ public interface ModSceneBlocks {
             "rolling_log_trigger",
             BlockEntityType.Builder.of(RollingLogTriggerPlateEntity::new, ROLLING_LOG_TRIGGER));
 
+    // ───────────────────────── 批次C-2：安全滚石/滚木触发板 ─────────────────────────
+
+    Block SAFE_ROLLING_STONE_TRIGGER = registerBlock("safe_rolling_stone_trigger",
+            new SafeRollingStoneTriggerPlate(Properties.ofFullCopy(Blocks.STONE).noOcclusion()));
+    BlockEntityType<SafeRollingStoneTriggerPlateEntity> SAFE_ROLLING_STONE_TRIGGER_ENTITY = blockEntityRegistrar.create(
+            "safe_rolling_stone_trigger",
+            BlockEntityType.Builder.of(SafeRollingStoneTriggerPlateEntity::new, SAFE_ROLLING_STONE_TRIGGER));
+    Block SAFE_ROLLING_LOG_TRIGGER = registerBlock("safe_rolling_log_trigger",
+            new SafeRollingLogTriggerPlateBlock(
+                    Properties.ofFullCopy(Blocks.OAK_LOG).noOcclusion().mapColor(MapColor.WOOD)));
+    BlockEntityType<SafeRollingLogTriggerPlateEntity> SAFE_ROLLING_LOG_TRIGGER_ENTITY = blockEntityRegistrar.create(
+            "safe_rolling_log_trigger",
+            BlockEntityType.Builder.of(SafeRollingLogTriggerPlateEntity::new, SAFE_ROLLING_LOG_TRIGGER));
+
     // ───────────────────────── 批次D：特殊机关 ─────────────────────────
 
     Block TRAIN_TARGET = registerBlock("train_target",
@@ -158,6 +172,18 @@ public interface ModSceneBlocks {
             new WaterPumpBlock(Properties.ofFullCopy(Blocks.IRON_BLOCK).noOcclusion()));
     Block TRASH_CAN = registerBlock("trash_can",
             new TrashCanBlock(Properties.ofFullCopy(Blocks.CAULDRON).noOcclusion()));
+
+    // ───────────────────────── 批次E：反重力 ─────────────────────────
+
+    // 反重力方块：透明、无碰撞的能量场。穿过即翻转重力方向（同一玩家 5 秒冷却，
+    // 因反重力向天上坠落超过 30 格自动解除），具体逻辑见 GravityFlipManager。
+    Block ANTI_GRAVITY_BLOCK = registerBlock("anti_gravity_block",
+            new AntiGravityBlock(Properties.ofFullCopy(Blocks.WHITE_STAINED_GLASS)
+                    .noOcclusion()
+                    .noCollission()
+                    .strength(-1.0F, 3600000.0F)
+                    .noLootTable()
+                    .isValidSpawn(Blocks::never)));
 
     BlockEntityType<IncineratorBlockEntity> INCINERATOR_ENTITY = blockEntityRegistrar.create("incinerator",
             BlockEntityType.Builder.of(IncineratorBlockEntity::new, INCINERATOR));

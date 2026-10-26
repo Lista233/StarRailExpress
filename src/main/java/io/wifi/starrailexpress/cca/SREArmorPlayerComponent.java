@@ -15,6 +15,8 @@
 
 package io.wifi.starrailexpress.cca;
 
+import io.wifi.starrailexpress.progression.ProgressionDataManager;
+
 import io.wifi.starrailexpress.SRE;
 import io.wifi.starrailexpress.api.RoleComponent;
 import io.wifi.starrailexpress.api.SRERole;
@@ -92,11 +94,15 @@ public class SREArmorPlayerComponent implements RoleComponent, ServerTickingComp
         this.armor += count;
         if (this.armor < 0)
             this.armor = 0;
+        if (count > 0 && this.player instanceof ServerPlayer sp)
+            ProgressionDataManager.onShieldGained(sp, "normal", count);
         this.sync();
     }
 
     public void addArmor() {
         ++this.armor;
+        if (this.player instanceof ServerPlayer sp)
+            ProgressionDataManager.onShieldGained(sp, "normal", 1);
         this.sync();
     }
 
@@ -123,6 +129,8 @@ public class SREArmorPlayerComponent implements RoleComponent, ServerTickingComp
             timedArmor.clear();
         }
         timedArmor.merge(expireTime, layers, Integer::sum);
+        if (layers > 0 && this.player instanceof ServerPlayer sp)
+            ProgressionDataManager.onShieldGained(sp, "timed", layers);
         this.sync();
     }
 
